@@ -1,7 +1,6 @@
 // NexaECommerce.Server/Program.cs
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
-using Microsoft.OpenApi.Models;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
 using NexaEcommerce.Modules.Catalog.Infrastructure.SeedData;
 using NexaEcommerce.Server.Extensions;
@@ -27,18 +26,19 @@ builder.Host.UseSerilog((context, config) =>
 // 2. Services
 // ============================================================
 builder.Services.AddControllers();
+
 builder.Services.AddSwaggerGen(c =>
 {
-    c.SwaggerDoc("v1", new OpenApiInfo
+    c.SwaggerDoc("v1", new()
     {
         Title = "NexaEcommerce API",
         Version = "v1",
-        Description = "API فروشگاه اینترنتی NexaEcommerce"
+        Description = "NexaEcommerce API"
     });
 });
 
 // ============================================================
-// 3. Platform (NetForge) - شامل Authentication و Authorization
+// 3. Platform - Authentication & Authorization
 // ============================================================
 builder.Services.AddPlatform(builder.Configuration);
 
@@ -48,8 +48,13 @@ builder.Services.AddPlatform(builder.Configuration);
 builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
 {
     var connectionString = builder.Configuration.GetConnectionString("Default");
+
     if (string.IsNullOrWhiteSpace(connectionString))
-        throw new InvalidOperationException("Connection string 'Default' was not found.");
+    {
+        throw new InvalidOperationException(
+            "Connection string 'Default' was not found.");
+    }
+
     options.UseSqlServer(connectionString);
 });
 
@@ -61,7 +66,6 @@ builder.Services.AddCors(options =>
     options.AddPolicy("AllowReactApp", policy =>
     {
         policy.WithOrigins(
-                //"http://localhost:3000",
                 "https://localhost:3000",
                 "http://localhost:5173",
                 "https://localhost:5173")
@@ -82,7 +86,7 @@ builder.Services.AddEcommerceModules(builder.Configuration);
 var app = builder.Build();
 
 // ============================================================
-// 8. Exception Handling (اولین Middleware)
+// 8. Exception Handling
 // ============================================================
 app.UseExceptionHandler();
 
@@ -92,7 +96,7 @@ app.UseExceptionHandler();
 app.UseSerilogRequestLogging();
 
 // ============================================================
-// 10. Static Files (قبل از Routing)
+// 10. Static Files
 // ============================================================
 app.UseDefaultFiles();
 app.MapStaticAssets();
@@ -101,19 +105,25 @@ app.UseStaticFiles();
 app.UseStaticFiles(new StaticFileOptions
 {
     FileProvider = new PhysicalFileProvider(
-        Path.Combine(builder.Environment.ContentRootPath, "wwwroot")),
+        Path.Combine(
+            builder.Environment.ContentRootPath,
+            "wwwroot")),
     RequestPath = "/uploads"
 });
 
 // ============================================================
-// 11. Swagger (Development)
+// 11. Swagger / Scalar
 // ============================================================
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
+
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "NexaEcommerce API V1");
+        c.SwaggerEndpoint(
+            "/swagger/v1/swagger.json",
+            "NexaEcommerce API V1");
+
         c.RoutePrefix = "swagger";
     });
 
@@ -121,7 +131,8 @@ if (app.Environment.IsDevelopment())
     {
         options
             .WithTitle("NexaEcommerce API")
-            .WithOpenApiRoutePattern("/swagger/{documentName}/swagger.json");
+            .WithOpenApiRoutePattern(
+                "/swagger/{documentName}/swagger.json");
     });
 }
 
@@ -131,22 +142,22 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 
 // ============================================================
-// 13. Routing (قبل از Authentication)
+// 13. Routing
 // ============================================================
 app.UseRouting();
 
 // ============================================================
-// 14. CORS (بعد از Routing، قبل از Authentication)
+// 14. CORS
 // ============================================================
 app.UseCors("AllowReactApp");
 
 // ============================================================
-// 15. Authentication (بعد از Routing و CORS)
+// 15. Authentication
 // ============================================================
 app.UseAuthentication();
 
 // ============================================================
-// 16. Authorization (بعد از Authentication)
+// 16. Authorization
 // ============================================================
 app.UseAuthorization();
 
@@ -157,20 +168,27 @@ app.MapControllers();
 app.MapAllFeatures();
 
 // ============================================================
-// 18. Database Migration (بعد از همه تنظیمات)
+// 18. Database Migration
 // ============================================================
 using (var scope = app.Services.CreateScope())
 {
     try
     {
-        var catalogContext = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+        var catalogContext =
+            scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+
         await catalogContext.Database.MigrateAsync();
+
         await DbInitializer.InitializeAsync(catalogContext);
-        app.Logger.LogInformation("Catalog database migration completed successfully.");
+
+        app.Logger.LogInformation(
+            "Catalog database migration completed successfully.");
     }
     catch (Exception ex)
     {
-        app.Logger.LogError(ex, "Catalog database initialization failed");
+        app.Logger.LogError(
+            ex,
+            "Catalog database initialization failed");
     }
 }
 

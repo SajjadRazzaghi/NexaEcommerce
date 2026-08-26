@@ -67,11 +67,14 @@ public static class IdentitySeeder
         // Per-tenant RBAC: grant the admin the superadmin role in the default tenant (not the global
         // AspNetUserRoles, which the claims factory no longer reads). Idempotent — IsMemberAsync is true
         // once any role row exists for (admin, default).
-        if (!await tenantRoles.IsMemberAsync(admin.Id, TenancyOptions.DefaultTenant))
+        var adminRole = await roles.FindByNameAsync(SystemRoles.Admin);
+
+        if (adminRole is not null)
         {
-            var adminRole = await roles.FindByNameAsync(SystemRoles.Admin);
-            if (adminRole is not null)
-                await tenantRoles.SetRoleIdsAsync(admin.Id, TenancyOptions.DefaultTenant, [adminRole.Id]);
+            await tenantRoles.SetRoleIdsAsync(
+                admin.Id,
+                TenancyOptions.DefaultTenant,
+                [adminRole.Id]);
         }
     }
 
