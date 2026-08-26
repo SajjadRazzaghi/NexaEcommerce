@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using NexaECommerce.Server.Data;
+using NexaECommerce.Server.Platform.Authorization;
 
 namespace NexaECommerce.Tests.Integration.Fixtures;
 
@@ -18,8 +20,8 @@ namespace NexaECommerce.Tests.Integration.Fixtures;
 /// exactly as production would.
 ///
 /// The environment is "Testing" (not Development), so Program.cs skips its boot-time migrate +
-/// development seeders. This fixture creates the schema from the model and seeds the required
-/// integration-test user.
+/// development seeders. This fixture creates the schema and seeds the Identity records required
+/// by the integration-test suite.
 ///
 /// Authentication is overridden with TestAuthHandler for tests that need an explicitly controlled
 /// principal, while the real Identity services remain registered.
@@ -74,9 +76,6 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
             // Test authentication
             // ------------------------------------------------------------
 
-            // AddIdentity sets explicit default authentication/challenge
-            // schemes to its application cookie. Override all three so
-            // integration tests can create deterministic principals.
             services.AddAuthentication(options =>
             {
                 options.DefaultScheme = TestAuthHandler.SchemeName;
@@ -129,6 +128,15 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
         await db.Database.EnsureCreatedAsync();
 
         // ------------------------------------------------------------
+        // Seed system roles required by integration tests.
+        // ------------------------------------------------------------
+
+        var roles = sp.GetRequiredService<RoleManager<IdentityRole>>();
+
+        await EnsureAdminRoleAsync(roles);
+        await EnsureMemberRoleAsync(roles);
+
+        // ------------------------------------------------------------
         // Seed the user used by the real login-flow integration tests.
         // ------------------------------------------------------------
 
@@ -156,6 +164,72 @@ public sealed class CustomWebApplicationFactory : WebApplicationFactory<Program>
                         "; ",
                         result.Errors.Select(e => e.Description)));
             }
+        }
+    }
+
+    private static async Task EnsureAdminRoleAsync(
+        RoleManager<IdentityRole> roles)
+    {
+        var role = await roles.FindByNameAsync(SystemRoles.Admin);
+
+        if (role is null)
+        {
+            role = new IdentityRole(SystemRoles.Admin);
+
+            var created = await roles.CreateAsync(role);
+
+            if (!created.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    "Admin role creation failed: " +
+                    string.Join(
+                        "; ",
+                        created.Errors.Select(e => e.Description)));
+            }
+        }
+
+        var claims = await roles.GetClaimsAsync(role);
+
+        var hasAllPermission = claims.Any(
+            c => c.Type == PermissionClaims.ClaimType &&
+                 c.Value == PermissionClaims.All);
+
+        if (!hasAllPermission)
+        {
+            var result = await roles.AddClaimAsync(
+                role,
+                new Claim(
+                    PermissionClaims.ClaimType,
+                    PermissionClaims.All));
+
+            if (!result.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    "Admin permission seeding failed: " +
+                    string.Join(
+                        "; ",
+                        result.Errors.Select(e => e.Description)));
+            }
+        }
+    }
+
+    private static async Task EnsureMemberRoleAsync(
+        RoleManager<IdentityRole> roles)
+    {
+        if (await roles.FindByNameAsync(SystemRoles.Member) is not null)
+            return;
+
+        var role = new IdentityRole(SystemRoles.Member);
+
+        var result = await roles.CreateAsync(role);
+
+        if (!result.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "Member role creation failed: " +
+                string.Join(
+                    "; ",
+                    result.Errors.Select(e => e.Description)));
         }
     }
 
