@@ -1,0 +1,12 @@
+# Local SQL Server for development. Run `docker compose up -d`, then start the app — the default
+# connection string in appsettings.json already points here, so dev has the database in one command.
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_SA_PASSWORD: "Your_Strong_Password123"
+    ports:
+      - "1433:1433"
+    volumes:
+      - nexaecommerce-mssqldata:/var/opt/mssql

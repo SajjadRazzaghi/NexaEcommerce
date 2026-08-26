@@ -1,0 +1,6 @@
+@NexaECommerce.Server_HostAddress = http://localhost:5109
+
+GET {{NexaECommerce.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

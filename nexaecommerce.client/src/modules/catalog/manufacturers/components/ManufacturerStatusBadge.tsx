@@ -1,0 +1,9 @@
+import { Badge } from '@/components/ui/badge';
+
+export function ManufacturerStatusBadge({ active, label }: { active: boolean; label: string }) {
+  return (
+    <Badge variant={active ? 'default' : 'secondary'} className="whitespace-nowrap">
+      {label}
+    </Badge>
+  );
+}

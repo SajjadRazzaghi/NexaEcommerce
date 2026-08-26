@@ -1,0 +1,11 @@
+import { useEffect } from 'react';
+/** Sets the browser tab title for the lifetime of a screen, restoring the prior title on unmount. */
+export function useDocumentTitle(title) {
+    useEffect(() => {
+        const previous = document.title;
+        document.title = `${title} · NexaECommerce`;
+        return () => {
+            document.title = previous;
+        };
+    }, [title]);
+}

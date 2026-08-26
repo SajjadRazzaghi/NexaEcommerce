@@ -1,0 +1,28 @@
+import { api } from './client';
+/** Typed wrappers over the Features/Auth endpoints. Replaced by a generated client later. */
+export const authApi = {
+    me: () => api.get('/auth/me'),
+    login: (body) => api.post('/auth/login', body),
+    loginTwoFactor: (body) => api.post('/auth/login/2fa', body),
+    loginRecoveryCode: (body) => api.post('/auth/login/recovery-code', body),
+    register: (body) => api.post('/auth/register', body),
+    confirmEmail: (body) => api.post('/auth/confirm-email', body),
+    resendConfirmation: (body) => api.post('/auth/resend-confirmation', body),
+    forgotPassword: (body) => api.post('/auth/forgot-password', body),
+    resetPassword: (body) => api.post('/auth/reset-password', body),
+    changePassword: (body) => api.post('/auth/change-password', body),
+    updateProfile: (body) => api.put('/auth/profile', body),
+    updatePreferences: (body) => api.put('/auth/preferences', body),
+    logout: () => api.post('/auth/logout'),
+    publicConfig: () => api.get('/auth/public-config'),
+    providers: () => api.get('/auth/external/providers'),
+    sessions: () => api.get('/auth/sessions/'),
+    revokeSession: (id) => api.post(`/auth/sessions/${id}/revoke`),
+    revokeOtherSessions: () => api.post('/auth/sessions/revoke-others'),
+    twoFactorSetup: () => api.post('/auth/2fa/setup'),
+    twoFactorEnable: (body) => api.post('/auth/2fa/enable', body),
+    twoFactorDisable: () => api.post('/auth/2fa/disable'),
+    twoFactorRegenerateCodes: () => api.post('/auth/2fa/recovery-codes'),
+    links: () => api.get('/auth/external/links'),
+    unlink: (provider) => api.post(`/auth/external/${provider}/unlink`),
+};

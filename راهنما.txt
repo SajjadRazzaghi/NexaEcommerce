@@ -1,0 +1,37 @@
+مرحله ۲: اجرای جداگانه فرانت‌اند
+خطای Couldn't start the SPA development server نشان می‌دهد که فرانت‌اند به‌درستی اجرا نشده است.
+
+در یک ترمینال جداگانه (PowerShell یا Command Prompt) این دستورات را اجرا کنید:
+
+bash
+cd g:\NexaECommerce\NexaECommerce.Client
+npm install
+npm run dev
+اگر npm install با خطا مواجه شد، این دستورات را امتحان کنید:
+
+bash
+npm install --legacy-peer-deps
+# یا
+npm install --force
+مرحله ۳: اجرای کامل پروژه با دو ترمینال
+ترمینال ۱ (اجرای بک‌اند):
+bash
+cd g:\NexaECommerce
+dotnet run --project NexaECommerce.Server
+ترمینال ۲ (اجرای فرانت‌اند):
+bash
+cd g:\NexaECommerce\NexaECommerce.Client
+npm run dev
+🎯 بعد از راه‌اندازی موفق
+وقتی پروژه به‌درستی اجرا شد:
+
+آدرس بک‌اند: https://localhost:5000 یا http://localhost:5000
+
+آدرس فرانت‌اند: http://localhost:5173 (معمولاً Vite روی این پورت اجرا می‌شود)
+
+برای ورود به سیستم از اطلاعات پیش‌فرض استفاده کنید:
+
+ایمیل: admin@localhost.com
+
+رمز عبور: Admin123! (یا رمزی که در مستندات پروژه ذکر شده)
+

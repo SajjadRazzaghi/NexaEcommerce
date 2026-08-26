@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.VisualStudio.JavaScript.Sdk/0.5.127-alpha">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <StartupCommand>npm run dev</StartupCommand>
+    <JavaScriptTestRoot>src\</JavaScriptTestRoot>
+    <JavaScriptTestFramework>Vitest</JavaScriptTestFramework>
+    <ShouldRunBuildScript>false</ShouldRunBuildScript>
+    <BuildOutputFolder>$(MSBuildProjectDirectory)\dist</BuildOutputFolder>
+    <!-- خط زیر را کامنت کنید -->
+    <!-- <JavaScriptSdkVersion>1.0.5171056</JavaScriptSdkVersion> -->
+  </PropertyGroup>
+  <ItemGroup>
+    <Folder Include="src\assets\fonts\IRANSans\fonts\woff2\" />
+    <Folder Include="src\modules\cart\store\cartSlice\" />
+  </ItemGroup>
+</Project>

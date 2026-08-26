@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/NexaEcommerce.Modules/">
+    <Project Path="NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/NexaEcommerce.Modules.Catalog.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Tests.Integration/NexaECommerce.Tests.Integration.csproj" />
+    <Project Path="tests/Tests.Unit/NexaECommerce.Tests.Unit.csproj" />
+  </Folder>
+  <Project Path="nexaecommerce.client/nexaecommerce.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="NexaECommerce.Server/NexaECommerce.Server.csproj" />
+  <Project Path="NexaEcommerce.SharedKernel/NexaEcommerce.SharedKernel.csproj" Id="dbce7f1c-322f-492e-be0e-2f7902377b24" />
+</Solution>
