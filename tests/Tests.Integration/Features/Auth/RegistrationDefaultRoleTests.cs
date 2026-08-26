@@ -51,6 +51,10 @@ public sealed class RegistrationDefaultRoleTests(CustomWebApplicationFactory fac
 
         var role = new IdentityRole(SystemRoles.Member);
         (await roles.CreateAsync(role)).Succeeded.ShouldBeTrue();
-        await roles.AddClaimAsync(role, new Claim(PermissionClaims.ClaimType, "products.read"));
+        await roles.AddClaimAsync(
+     role,
+     new Claim(
+         PermissionClaims.ClaimType,
+         "catalog.products.read"));
     }
 }
