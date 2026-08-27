@@ -22,6 +22,10 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         group.MapGet("/category/{categoryId:guid}", GetByCategory).AllowAnonymous();
         group.MapGet("/search", Search).AllowAnonymous();
         group.MapGet("/featured", GetFeatured).AllowAnonymous();
+        group.MapGet(
+    "/slug/{slug}",
+    GetBySlug)
+    .AllowAnonymous();
         group.MapGet("/{id:guid}", Get).AllowAnonymous();
 
         group.MapPost("/", Create)
@@ -48,7 +52,25 @@ public sealed class ProductEndpoints : IFeatureEndpoints
             .RequirePermission(ProductPermissions.Delete)
             .AddEndpointFilter<TransactionFilter>();
     }
+    private static async Task<IResult> GetBySlug(
+    string slug,
+    IProductService productService,
+    CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+            return Results.BadRequest(
+                new { error = "Product slug is required." });
 
+        var product =
+            await productService.GetBySlugAsync(
+                slug,
+                ct);
+
+        return product is null
+            ? Results.NotFound(
+                new { error = "Product not found." })
+            : Results.Ok(product);
+    }
     private static async Task<IResult> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,

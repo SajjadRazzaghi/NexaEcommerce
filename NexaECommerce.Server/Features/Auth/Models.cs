@@ -27,7 +27,7 @@ public record UpdatePreferencesRequest(string? Locale, string? TimeZone);
 /// effective grant set (union across roles, wildcards included) the UI gates on.</summary>
 public record AuthUserDto(
     string Id,
-    string Email,
+    string Email, string TenantId,
     string? DisplayName,
     string? AvatarUrl,
     string? Locale,
@@ -70,3 +70,13 @@ public record SessionDto(
     DateTimeOffset CreatedAt,
     DateTimeOffset LastSeenAt,
     bool Current);
+
+public record TenantDto(
+    string Id,
+    string Name,
+    string? PrimaryColor,
+    string? LogoUrl,
+    bool Current);
+
+public record SwitchTenantRequest(
+    string TenantId);

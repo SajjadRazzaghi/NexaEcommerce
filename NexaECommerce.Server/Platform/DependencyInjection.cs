@@ -53,6 +53,7 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.Configure<TenancyOptions>(configuration.GetSection("Tenancy"));
         services.AddScoped<ITenantContext, TenantContext>();
+        services.AddScoped<TenantResolutionMiddleware>();
         services.AddScoped<ITenantRoleService, TenantRoleService>();
         services.AddScoped<TenantInterceptor>();
 

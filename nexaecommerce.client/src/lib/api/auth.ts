@@ -1,5 +1,11 @@
 import { api } from './client';
-
+export interface Tenant {
+    id: string;
+    name: string;
+    primaryColor: string | null;
+    logoUrl: string | null;
+    current: boolean;
+}
 export interface AuthUser {
   id: string;
   email: string;
@@ -11,7 +17,8 @@ export interface AuthUser {
   twoFactorEnabled: boolean;
   hasPassword: boolean;
   roles: string[];
-  permissions: string[];
+    permissions: string[];
+    tenantId: string;
 }
 
 export interface LoginResult {
@@ -89,5 +96,9 @@ export const authApi = {
   twoFactorRegenerateCodes: () => api.post<{ recoveryCodes: string[] }>('/auth/2fa/recovery-codes'),
 
   links: () => api.get<LinkedLogin[]>('/auth/external/links'),
-  unlink: (provider: string) => api.post<{ message: string }>(`/auth/external/${provider}/unlink`),
+    unlink: (provider: string) => api.post<{ message: string }>(`/auth/external/${provider}/unlink`),
+    tenants: () => api.get<Tenant[]>('/auth/tenants'),
+
+    switchTenant: (tenantId: string) =>
+        api.put<AuthUser>('/auth/tenant', { tenantId }),
 };

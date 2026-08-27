@@ -25,7 +25,22 @@ public sealed class ProductService : IProductService
         _unitOfWork = unitOfWork;
         _mapper = mapper;
     }
+    public async Task<ProductDto?> GetBySlugAsync(
+    string slug,
+    CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+            return null;
 
+        var product =
+            await _productRepository.GetBySlugAsync(
+                slug,
+                cancellationToken);
+
+        return product is null
+            ? null
+            : _mapper.Map<ProductDto>(product);
+    }
     public async Task<PagedResult<ProductDto>> GetPagedAsync(
         int page = 1,
         int pageSize = 20,

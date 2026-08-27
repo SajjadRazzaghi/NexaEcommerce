@@ -7,6 +7,7 @@ using NexaEcommerce.Server.Extensions;
 using NexaECommerce.Server.Data;
 using NexaECommerce.Server.Platform;
 using NexaECommerce.Server.Platform.Features;
+using NexaECommerce.Server.Platform.MultiTenancy;
 using Scalar.AspNetCore;
 using Serilog;
 
@@ -155,6 +156,8 @@ app.UseCors("AllowReactApp");
 // 15. Authentication
 // ============================================================
 app.UseAuthentication();
+
+app.UseMiddleware<TenantResolutionMiddleware>();
 
 // ============================================================
 // 16. Authorization

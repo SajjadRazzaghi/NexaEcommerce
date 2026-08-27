@@ -33,7 +33,36 @@ public sealed class ProductRepository : IProductRepository
                 p => p.Id == id && !p.IsDeleted,
                 cancellationToken);
     }
+    public async Task<Product?> GetBySlugAsync(
+    string slug,
+    CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(slug))
+            return null;
 
+        var normalizedSlug = slug.Trim().ToLowerInvariant();
+
+        return await _context.Products
+            .AsNoTracking()
+            .Where(p =>
+                p.Slug == normalizedSlug &&
+                !p.IsDeleted &&
+                p.IsActive &&
+                p.IsPublished)
+            .Include(p => p.ProductCategories)
+                .ThenInclude(pc => pc.Category)
+            .Include(p => p.Images)
+            .Include(p => p.Variants)
+                .ThenInclude(v => v.AttributeValues)
+                    .ThenInclude(av => av.AttributeValue)
+                        .ThenInclude(av => av.ProductAttribute)
+            .Include(p => p.Attributes)
+                .ThenInclude(a => a.Values)
+            .Include(p => p.Reviews)
+            .Include(p => p.Brand)
+            .Include(p => p.Manufacturer)
+            .FirstOrDefaultAsync(cancellationToken);
+    }
     public async Task<IEnumerable<Product>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {

@@ -30,6 +30,10 @@ public interface IProductService
         Guid id,
         CancellationToken cancellationToken = default);
 
+    Task<ProductDto?> GetBySlugAsync(
+        string slug,
+        CancellationToken cancellationToken = default);
+
     Task<IEnumerable<ProductDto>> GetByCategoryAsync(
         Guid categoryId,
         CancellationToken cancellationToken = default);
