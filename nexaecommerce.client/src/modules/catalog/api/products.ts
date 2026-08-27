@@ -56,6 +56,9 @@ export type Product = {
     averageRating: number;
     reviewCount: number;
 
+    manufacturerId?: string | null;
+    manufacturerName?: string | null;
+
     createdAt: string;
     updatedAt?: string | null;
 };
@@ -154,7 +157,8 @@ export const productsApi = {
 
     getById: (id: string) =>
         api.get<Product>(`/products/${id}`),
-
+    getBySlug: (slug: string) =>
+        api.get<Product>(`/products/slug/${encodeURIComponent(slug)}`),
     search: (query: string, params?: ProductFilter) =>
         api.get<Product[]>('/products/search', {
             params: { q: query, ...params },

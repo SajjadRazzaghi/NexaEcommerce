@@ -73,7 +73,18 @@ export const useUpdateProduct = () => {
         },
     });
 };
+export const useProductBySlug = (slug?: string) =>
+    useQuery({
+        queryKey: [PRODUCTS_KEY, 'slug', slug],
+        queryFn: async () => {
+            if (!slug) {
+                throw new Error('Product slug is required.');
+            }
 
+            return await productsApi.getBySlug(slug);
+        },
+        enabled: Boolean(slug),
+    });
 export const useUpdateStock = () => {
     const queryClient = useQueryClient();
 

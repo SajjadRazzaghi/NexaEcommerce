@@ -1,6 +1,7 @@
 using FluentValidation;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using NexaEcommerce.SharedKernel.Abstractions;
 using NexaECommerce.Server.Platform.Auditing;
 using NexaECommerce.Server.Platform.Caching;
 using NexaECommerce.Server.Platform.Email;
@@ -53,7 +54,6 @@ public static class DependencyInjection
         services.AddHttpContextAccessor();
         services.Configure<TenancyOptions>(configuration.GetSection("Tenancy"));
         services.AddScoped<ITenantContext, TenantContext>();
-        services.AddScoped<TenantResolutionMiddleware>();
         services.AddScoped<ITenantRoleService, TenantRoleService>();
         services.AddScoped<TenantInterceptor>();
 
@@ -96,6 +96,7 @@ public static class DependencyInjection
         // Settings — User→Tenant→App resolution, cached with tag invalidation. Feature settings
         // self-register via ISettingsContributor (reflection) into the static definition registry.
         services.AddScoped<ISettingService, SettingService>();
+        services.AddScoped<ICurrentTenant, CurrentTenant>();
         SettingsRegistration.RegisterAll();
 
         // Choice settings can supply dynamic dropdown options (e.g. roles) via ISettingOptionsProvider —

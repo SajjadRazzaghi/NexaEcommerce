@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
 using NexaEcommerce.Modules.Catalog.Infrastructure.SeedData;
-using NexaEcommerce.Server.Extensions;
+using NexaECommerce.Server.Extensions;
 using NexaECommerce.Server.Data;
 using NexaECommerce.Server.Platform;
 using NexaECommerce.Server.Platform.Features;

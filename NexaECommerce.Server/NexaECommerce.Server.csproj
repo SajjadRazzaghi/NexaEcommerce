@@ -42,6 +42,7 @@
 	<ItemGroup>
 		<ProjectReference Include="..\NexaEcommerce.SharedKernel\NexaEcommerce.SharedKernel.csproj" />
 		<ProjectReference Include="..\NexaEcommerce.Modules\NexaEcommerce.Modules.Catalog\NexaEcommerce.Modules.Catalog.csproj" />
+		<ProjectReference Include="..\NexaEcommerce.Modules\NexaEcommerce.Modules.ShoppingCart\NexaEcommerce.Modules.ShoppingCart.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

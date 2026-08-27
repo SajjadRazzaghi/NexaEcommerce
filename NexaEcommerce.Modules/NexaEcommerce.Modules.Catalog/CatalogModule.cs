@@ -43,7 +43,7 @@ public static class CatalogModule
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<IBrandService, BrandService>();
         services.AddScoped<IManufacturerService,ManufacturerService>();
-
+    
 
 
         // ✅ ثبت UnitOfWork با مشخص کردن نوع DbContext
