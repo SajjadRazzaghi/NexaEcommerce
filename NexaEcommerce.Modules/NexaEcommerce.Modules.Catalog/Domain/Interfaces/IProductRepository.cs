@@ -1,4 +1,3 @@
-// NexaEcommerce.Modules.Catalog/Domain/Interfaces/IProductRepository.cs
 using NexaEcommerce.Modules.Catalog.Domain.Entities;
 
 namespace NexaEcommerce.Modules.Catalog.Domain.Interfaces;
@@ -8,9 +7,21 @@ public interface IProductRepository
     Task<Product?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default);
+
     Task<Product?> GetBySlugAsync(
-    string slug,
-    CancellationToken cancellationToken = default);
+        string slug,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> ExistsBySkuAsync(
+        string sku,
+        Guid? excludeId = null,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> ExistsBySlugAsync(
+        string slug,
+        Guid? excludeId = null,
+        CancellationToken cancellationToken = default);
+
     Task<IEnumerable<Product>> GetAllAsync(
         CancellationToken cancellationToken = default);
 

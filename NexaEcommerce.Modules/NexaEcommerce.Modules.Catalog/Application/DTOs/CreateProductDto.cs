@@ -16,6 +16,8 @@ public sealed class CreateProductDto
 
     public Guid? BrandId { get; set; }
 
+    public Guid? ManufacturerId { get; set; }
+
     public List<Guid> CategoryIds { get; set; } = new();
 
     public List<string> Images { get; set; } = new();

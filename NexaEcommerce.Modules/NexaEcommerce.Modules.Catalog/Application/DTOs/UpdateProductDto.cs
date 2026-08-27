@@ -18,6 +18,8 @@ public sealed class UpdateProductDto
 
     public Guid? BrandId { get; set; }
 
+    public Guid? ManufacturerId { get; set; }
+
     public List<Guid> CategoryIds { get; set; } = new();
 
     public bool IsActive { get; set; }
