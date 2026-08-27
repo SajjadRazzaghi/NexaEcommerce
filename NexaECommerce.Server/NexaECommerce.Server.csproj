@@ -40,9 +40,11 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\NexaEcommerce.Modules\NexaEcommerce.Modules.Orders\NexaEcommerce.Modules.Orders.csproj" />
 		<ProjectReference Include="..\NexaEcommerce.SharedKernel\NexaEcommerce.SharedKernel.csproj" />
 		<ProjectReference Include="..\NexaEcommerce.Modules\NexaEcommerce.Modules.Catalog\NexaEcommerce.Modules.Catalog.csproj" />
 		<ProjectReference Include="..\NexaEcommerce.Modules\NexaEcommerce.Modules.ShoppingCart\NexaEcommerce.Modules.ShoppingCart.csproj" />
+		<ProjectReference Include="..\NexaEcommerce.Modules\NexaEcommerce.Modules.Orders\NexaEcommerce.Modules.Orders.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

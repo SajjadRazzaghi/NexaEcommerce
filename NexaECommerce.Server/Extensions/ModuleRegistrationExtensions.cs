@@ -8,6 +8,9 @@ using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Repositories;
 using NexaECommerce.Server.Features.Cart;
 using NexaECommerce.Server.Platform.MultiTenancy;
 using NexaEcommerce.SharedKernel.Abstractions;
+using NexaEcommerce.Modules.Orders;
+using NexaEcommerce.Modules.Orders.Application.Services;
+using NexaECommerce.Server.Features.Orders;
 
 namespace NexaECommerce.Server.Extensions;
 
@@ -41,6 +44,11 @@ public static class ModuleRegistrationExtensions
 
         services.AddShoppingCartModule(
             connectionString);
+        services.AddOrdersModule(connectionString);
+
+        services.AddScoped<
+            IOrderProductReader,
+            CatalogOrderProductReader>();
 
         services.AddScoped<
             IProductVariantReader,
