@@ -66,52 +66,107 @@ public sealed class CartEndpointsTests(
     public async Task Adding_same_variant_twice_increases_quantity()
     {
         var client =
-            factory.CreateClient();
+            factory.CreateClient(
+                new WebApplicationFactoryClientOptions
+                {
+                    HandleCookies = false
+                });
 
         var variantId =
             await GetExistingSellableVariantIdAsync();
 
+        var guestToken =
+            Guid.NewGuid().ToString("N");
+
+        // ------------------------------------------------------------
+        // First request
+        // ------------------------------------------------------------
+
+        using var firstRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/cart/items")
+            {
+                Content =
+                    JsonContent.Create(
+                        new
+                        {
+                            productVariantId = variantId,
+                            quantity = 1
+                        })
+            };
+
+        firstRequest.Headers.TryAddWithoutValidation(
+            "Cookie",
+            $"nexa_cart={guestToken}");
+
         var first =
-            await client.PostAsJsonAsync(
-                "/api/cart/items",
-                new
-                {
-                    productVariantId = variantId,
-                    quantity = 1
-                });
+            await client.SendAsync(firstRequest);
 
         first.StatusCode
             .ShouldBe(HttpStatusCode.OK);
 
-        var setCookie =
-            first.Headers
-                .GetValues("Set-Cookie")
-                .FirstOrDefault(x =>
-                    x.StartsWith(
-                        "nexa_cart=",
-                        StringComparison.OrdinalIgnoreCase));
+        // ------------------------------------------------------------
+        // Verify first request persisted the cart.
+        // ------------------------------------------------------------
 
-        setCookie.ShouldNotBeNull();
+        using (var scope =
+               factory.Services.CreateScope())
+        {
+            var cartDb =
+                scope.ServiceProvider
+                    .GetRequiredService<
+                        NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence
+                            .ShoppingCartDbContext>();
 
-        var guestCookie =
-            setCookie!
-                .Split(';', 2)[0];
+            var createdCart =
+                await cartDb.Carts
+                    .Include(x => x.Items)
+                    .SingleOrDefaultAsync(
+                        x =>
+                            x.GuestToken == guestToken &&
+                            x.UserId == null);
 
-        client.DefaultRequestHeaders.Remove(
-            "Cookie");
+            createdCart.ShouldNotBeNull();
 
-        client.DefaultRequestHeaders.Add(
+            createdCart!
+                .Items.Count
+                .ShouldBe(1);
+
+            var createdItem =
+                createdCart.Items.Single();
+
+            createdItem.ProductVariantId
+                .ShouldBe(variantId);
+
+            createdItem.Quantity
+                .ShouldBe(1);
+        }
+
+        // ------------------------------------------------------------
+        // Second request
+        // ------------------------------------------------------------
+
+        using var secondRequest =
+            new HttpRequestMessage(
+                HttpMethod.Post,
+                "/api/cart/items")
+            {
+                Content =
+                    JsonContent.Create(
+                        new
+                        {
+                            productVariantId = variantId,
+                            quantity = 2
+                        })
+            };
+
+        secondRequest.Headers.TryAddWithoutValidation(
             "Cookie",
-            guestCookie);
+            $"nexa_cart={guestToken}");
 
         var second =
-            await client.PostAsJsonAsync(
-                "/api/cart/items",
-                new
-                {
-                    productVariantId = variantId,
-                    quantity = 2
-                });
+            await client.SendAsync(secondRequest);
 
         second.StatusCode
             .ShouldBe(HttpStatusCode.OK);
@@ -128,9 +183,48 @@ public sealed class CartEndpointsTests(
         cart.Items.Count
             .ShouldBe(1);
 
-        cart.Items[0]
-            .Quantity
+        var responseItem =
+            cart.Items.Single();
+
+        responseItem.Quantity
             .ShouldBe(3);
+
+        // ------------------------------------------------------------
+        // Final database verification
+        // ------------------------------------------------------------
+
+        using (var scope =
+               factory.Services.CreateScope())
+        {
+            var cartDb =
+                scope.ServiceProvider
+                    .GetRequiredService<
+                        NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence
+                            .ShoppingCartDbContext>();
+
+            var finalCart =
+                await cartDb.Carts
+                    .Include(x => x.Items)
+                    .SingleOrDefaultAsync(
+                        x =>
+                            x.GuestToken == guestToken &&
+                            x.UserId == null);
+
+            finalCart.ShouldNotBeNull();
+
+            finalCart!
+                .Items.Count
+                .ShouldBe(1);
+
+            var finalItem =
+                finalCart.Items.Single();
+
+            finalItem.ProductVariantId
+                .ShouldBe(variantId);
+
+            finalItem.Quantity
+                .ShouldBe(3);
+        }
     }
     [Fact]
     public async Task Authenticated_user_gets_own_cart()
@@ -157,8 +251,7 @@ public sealed class CartEndpointsTests(
     [Fact]
     public async Task Anonymous_unknown_variant_returns_not_found()
     {
-        var client =
-             CreateGuestClient();;
+        var client = CreateGuestClient();
 
         var response =
             await client.PostAsJsonAsync(
@@ -177,8 +270,7 @@ public sealed class CartEndpointsTests(
     [Fact]
     public async Task Anonymous_invalid_quantity_returns_bad_request()
     {
-        var client =
-             CreateGuestClient();;
+        var client = CreateGuestClient();
 
         var variantId =
             await GetExistingSellableVariantIdAsync();
@@ -199,8 +291,7 @@ public sealed class CartEndpointsTests(
     [Fact]
     public async Task Removing_item_from_cart_empties_it()
     {
-        var client =
-             CreateGuestClient();;
+        var client = CreateGuestClient();
 
         var variantId =
             await GetExistingSellableVariantIdAsync();
@@ -216,6 +307,27 @@ public sealed class CartEndpointsTests(
 
         add.StatusCode
             .ShouldBe(HttpStatusCode.OK);
+
+        var setCookie =
+            add.Headers
+                .GetValues("Set-Cookie")
+                .FirstOrDefault(x =>
+                    x.StartsWith(
+                        "nexa_cart=",
+                        StringComparison.OrdinalIgnoreCase));
+
+        setCookie.ShouldNotBeNull();
+
+        var cookie =
+            setCookie!
+                .Split(';', 2)[0];
+
+        client.DefaultRequestHeaders.Remove(
+            "Cookie");
+
+        client.DefaultRequestHeaders.Add(
+            "Cookie",
+            cookie);
 
         var remove =
             await client.DeleteAsync(
@@ -230,15 +342,13 @@ public sealed class CartEndpointsTests(
 
         cart.ShouldNotBeNull();
         cart!.Items.ShouldBeEmpty();
-        cart.TotalQuantity
-            .ShouldBe(0);
+        cart.TotalQuantity.ShouldBe(0);
     }
 
     [Fact]
     public async Task Clearing_cart_removes_all_items()
     {
-        var client =
-             CreateGuestClient();;
+        var client = CreateGuestClient();
 
         var variantId =
             await GetExistingSellableVariantIdAsync();
@@ -255,6 +365,27 @@ public sealed class CartEndpointsTests(
         add.StatusCode
             .ShouldBe(HttpStatusCode.OK);
 
+        var setCookie =
+            add.Headers
+                .GetValues("Set-Cookie")
+                .FirstOrDefault(x =>
+                    x.StartsWith(
+                        "nexa_cart=",
+                        StringComparison.OrdinalIgnoreCase));
+
+        setCookie.ShouldNotBeNull();
+
+        var cookie =
+            setCookie!
+                .Split(';', 2)[0];
+
+        client.DefaultRequestHeaders.Remove(
+            "Cookie");
+
+        client.DefaultRequestHeaders.Add(
+            "Cookie",
+            cookie);
+
         var clear =
             await client.DeleteAsync(
                 "/api/cart/");
@@ -268,8 +399,7 @@ public sealed class CartEndpointsTests(
 
         cart.ShouldNotBeNull();
         cart!.Items.ShouldBeEmpty();
-        cart.TotalQuantity
-            .ShouldBe(0);
+        cart.TotalQuantity.ShouldBe(0);
     }
 
     [Fact]
@@ -316,6 +446,11 @@ public sealed class CartEndpointsTests(
             .ShouldBe(0);
     }
 
+    private HttpClient CreateGuestClient()
+    {
+        return factory.CreateClient();
+    }
+
     private async Task<Guid>
         GetExistingSellableVariantIdAsync()
     {
@@ -360,5 +495,4 @@ public sealed class CartEndpointsTests(
         int Quantity,
         decimal UnitPrice,
         decimal LineTotal);
-   
 }

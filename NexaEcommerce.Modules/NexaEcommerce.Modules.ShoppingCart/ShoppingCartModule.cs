@@ -43,8 +43,8 @@ public static class ShoppingCartModule
         services.AddScoped<ICartService, CartService>();
 
         services.AddScoped<
-            IUnitOfWork,
-            UnitOfWork<ShoppingCartDbContext>>();
+      ICartUnitOfWork,
+      CartUnitOfWork>();
 
         return services;
     }

@@ -1,6 +1,7 @@
 using NexaEcommerce.Modules.ShoppingCart.Application.DTOs;
 using NexaEcommerce.Modules.ShoppingCart.Domain.Entities;
 using NexaEcommerce.Modules.ShoppingCart.Domain.Interfaces;
+using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
 using NexaEcommerce.SharedKernel.Abstractions;
 
 namespace NexaEcommerce.Modules.ShoppingCart.Application.Services;
@@ -8,7 +9,7 @@ namespace NexaEcommerce.Modules.ShoppingCart.Application.Services;
 public sealed class CartService(
     ICartRepository repository,
     IProductVariantReader productVariantReader,
-    IUnitOfWork unitOfWork)
+    ICartUnitOfWork unitOfWork)
     : ICartService
 {
     public async Task<CartDto> GetAsync(
