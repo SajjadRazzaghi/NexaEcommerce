@@ -45,6 +45,7 @@
 		<ProjectReference Include="..\NexaEcommerce.Modules\NexaEcommerce.Modules.Catalog\NexaEcommerce.Modules.Catalog.csproj" />
 		<ProjectReference Include="..\NexaEcommerce.Modules\NexaEcommerce.Modules.ShoppingCart\NexaEcommerce.Modules.ShoppingCart.csproj" />
 		<ProjectReference Include="..\NexaEcommerce.Modules\NexaEcommerce.Modules.Orders\NexaEcommerce.Modules.Orders.csproj" />
+		<ProjectReference Include="..\NexaEcommerce.Modules\NexaEcommerce.Modules.Inventory\NexaEcommerce.Modules.Inventory.csproj" />
 	</ItemGroup>
 
 	<ItemGroup>

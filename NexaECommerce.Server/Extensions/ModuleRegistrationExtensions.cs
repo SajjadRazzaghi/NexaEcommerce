@@ -1,16 +1,17 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Catalog;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
+using NexaEcommerce.Modules.Inventory;
+using NexaEcommerce.Modules.Orders;
+using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.ShoppingCart;
 using NexaEcommerce.Modules.ShoppingCart.Application.Services;
 using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
 using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Repositories;
-using NexaECommerce.Server.Features.Cart;
-using NexaECommerce.Server.Platform.MultiTenancy;
 using NexaEcommerce.SharedKernel.Abstractions;
-using NexaEcommerce.Modules.Orders;
-using NexaEcommerce.Modules.Orders.Application.Services;
+using NexaECommerce.Server.Features.Cart;
 using NexaECommerce.Server.Features.Orders;
+using NexaECommerce.Server.Platform.MultiTenancy;
 
 namespace NexaECommerce.Server.Extensions;
 
@@ -21,29 +22,26 @@ public static class ModuleRegistrationExtensions
         IConfiguration configuration)
     {
         var connectionString =
-            configuration.GetConnectionString(
-                "Default");
+            configuration.GetConnectionString("Default");
 
-        if (string.IsNullOrEmpty(
-                connectionString))
+        if (string.IsNullOrEmpty(connectionString))
         {
             connectionString =
-                configuration.GetConnectionString(
-                    "DefaultConnection");
+                configuration.GetConnectionString("DefaultConnection");
         }
 
-        if (string.IsNullOrEmpty(
-                connectionString))
+        if (string.IsNullOrEmpty(connectionString))
         {
             connectionString =
                 "Data Source=App_Data/NexaEcommerce.db";
         }
 
-        services.AddCatalogModule(
-            connectionString);
+        services.AddCatalogModule(connectionString);
 
-        services.AddShoppingCartModule(
-            connectionString);
+        services.AddInventoryModule(connectionString);
+
+        services.AddShoppingCartModule(connectionString);
+
         services.AddOrdersModule(connectionString);
 
         services.AddScoped<
@@ -65,15 +63,13 @@ public static class ModuleRegistrationExtensions
         this IApplicationBuilder app)
     {
         using var scope =
-            app.ApplicationServices
-                .CreateScope();
+            app.ApplicationServices.CreateScope();
 
         try
         {
             var catalogContext =
                 scope.ServiceProvider
-                    .GetRequiredService<
-                        CatalogDbContext>();
+                    .GetRequiredService<CatalogDbContext>();
 
             catalogContext.Database.Migrate();
         }
@@ -81,8 +77,7 @@ public static class ModuleRegistrationExtensions
         {
             var logger =
                 scope.ServiceProvider
-                    .GetService<
-                        ILogger<Program>>();
+                    .GetService<ILogger<Program>>();
 
             logger?.LogError(
                 ex,
