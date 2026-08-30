@@ -14,6 +14,121 @@ public sealed class CartEndpointsTests(
     CustomWebApplicationFactory factory)
 {
     [Fact]
+    public async Task Cart_uses_inventory_available_stock_instead_of_catalog_stock()
+    {
+        var client = CreateGuestClient();
+
+        var variantId =
+            await GetExistingSellableVariantIdAsync();
+
+        const string tenantId = "default";
+
+        int originalAvailableQuantity;
+
+        using (var scope =
+               factory.Services.CreateScope())
+        {
+            var inventoryDb =
+                scope.ServiceProvider
+                    .GetRequiredService<
+                        NexaEcommerce.Modules.Inventory.Infrastructure.Persistence
+                            .InventoryDbContext>();
+
+            var stock =
+                await inventoryDb.StockItems
+                    .FirstOrDefaultAsync(
+                        x =>
+                            x.TenantId == tenantId &&
+                            x.ProductVariantId == variantId);
+
+            stock.ShouldNotBeNull();
+
+            originalAvailableQuantity =
+                stock!.AvailableQuantity;
+
+            if (stock.ReservedQuantity > 0)
+            {
+                stock.Release(
+                    stock.ReservedQuantity);
+            }
+
+            if (stock.AvailableQuantity > 1)
+            {
+                stock.Remove(
+                    stock.AvailableQuantity - 1);
+            }
+            else if (stock.AvailableQuantity == 0)
+            {
+                stock.Add(1);
+            }
+
+            await inventoryDb.SaveChangesAsync();
+        }
+
+        try
+        {
+            var response =
+                await client.PostAsJsonAsync(
+                    "/api/cart/items",
+                    new
+                    {
+                        productVariantId = variantId,
+                        quantity = 2
+                    });
+
+            response.StatusCode
+                .ShouldBe(HttpStatusCode.Conflict);
+
+            var body =
+                await response.Content
+                    .ReadAsStringAsync();
+
+            body.ShouldContain(
+                "Requested quantity exceeds available stock");
+        }
+        finally
+        {
+            using var scope =
+                factory.Services.CreateScope();
+
+            var inventoryDb =
+                scope.ServiceProvider
+                    .GetRequiredService<
+                        NexaEcommerce.Modules.Inventory.Infrastructure.Persistence
+                            .InventoryDbContext>();
+
+            var stock =
+                await inventoryDb.StockItems
+                    .FirstOrDefaultAsync(
+                        x =>
+                            x.TenantId == tenantId &&
+                            x.ProductVariantId == variantId);
+
+            stock.ShouldNotBeNull();
+
+            if (stock!.ReservedQuantity > 0)
+            {
+                stock.Release(
+                    stock.ReservedQuantity);
+            }
+
+            if (stock.AvailableQuantity < originalAvailableQuantity)
+            {
+                stock.Add(
+                    originalAvailableQuantity -
+                    stock.AvailableQuantity);
+            }
+            else if (stock.AvailableQuantity > originalAvailableQuantity)
+            {
+                stock.Remove(
+                    stock.AvailableQuantity -
+                    originalAvailableQuantity);
+            }
+
+            await inventoryDb.SaveChangesAsync();
+        }
+    }
+    [Fact]
     public async Task Anonymous_get_returns_empty_cart()
     {
         var client = CreateGuestClient();

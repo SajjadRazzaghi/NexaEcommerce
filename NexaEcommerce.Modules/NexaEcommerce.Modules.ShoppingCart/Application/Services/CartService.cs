@@ -9,6 +9,7 @@ namespace NexaEcommerce.Modules.ShoppingCart.Application.Services;
 public sealed class CartService(
     ICartRepository repository,
     IProductVariantReader productVariantReader,
+    IStockReader stockReader,
     ICartUnitOfWork unitOfWork)
     : ICartService
 {
@@ -55,6 +56,18 @@ public sealed class CartService(
                 "Product variant is not available.");
         }
 
+        var availableQuantity =
+            await stockReader.GetAvailableQuantityAsync(
+                tenantId,
+                request.ProductVariantId,
+                cancellationToken);
+
+        if (availableQuantity is null)
+        {
+            throw new KeyNotFoundException(
+                "Stock record is not available.");
+        }
+
         var cart =
             await GetOrCreateAsync(
                 tenantId,
@@ -75,7 +88,7 @@ public sealed class CartService(
             request.Quantity;
 
         if (requestedTotal >
-            variant.StockQuantity)
+            availableQuantity.Value)
         {
             throw new InvalidOperationException(
                 "Requested quantity exceeds available stock.");
@@ -127,8 +140,20 @@ public sealed class CartService(
                     "Product variant is not available.");
             }
 
+            var availableQuantity =
+                await stockReader.GetAvailableQuantityAsync(
+                    tenantId,
+                    request.ProductVariantId,
+                    cancellationToken);
+
+            if (availableQuantity is null)
+            {
+                throw new KeyNotFoundException(
+                    "Stock record is not available.");
+            }
+
             if (request.Quantity >
-                variant.StockQuantity)
+                availableQuantity.Value)
             {
                 throw new InvalidOperationException(
                     "Requested quantity exceeds available stock.");
