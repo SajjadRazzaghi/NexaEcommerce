@@ -227,6 +227,84 @@ public sealed class CartService(
 
         return Map(cart);
     }
+public async Task<CartDto> MergeGuestCartAsync(
+    string tenantId,
+    string userId,
+    string guestToken,
+    CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException(
+                "User id is required.",
+                nameof(userId));
+
+        if (string.IsNullOrWhiteSpace(guestToken))
+            throw new ArgumentException(
+                "Guest cart token is required.",
+                nameof(guestToken));
+
+        var guestCart =
+            await repository.GetByGuestTokenAsync(
+                tenantId,
+                guestToken,
+                cancellationToken);
+
+        var userCart =
+            await repository.GetByUserAsync(
+                tenantId,
+                userId,
+                cancellationToken);
+
+        if (guestCart is null)
+        {
+            return userCart is null
+                ? CartDto.Empty(tenantId)
+                : Map(userCart);
+        }
+
+        if (userCart is null)
+        {
+            userCart =
+                Cart.ForUser(
+                    tenantId,
+                    userId);
+
+            await repository.AddAsync(
+                userCart,
+                cancellationToken);
+        }
+
+        var variantIds =
+            guestCart.Items
+                .Select(x => x.ProductVariantId)
+                .Concat(
+                    userCart.Items
+                        .Select(x => x.ProductVariantId))
+                .Distinct()
+                .ToArray();
+
+        var availableQuantities =
+            await stockReader.GetAvailableQuantitiesAsync(
+                tenantId,
+                variantIds,
+                cancellationToken);
+
+        userCart.MergeFrom(
+            guestCart,
+            availableQuantities);
+
+        repository.Update(userCart);
+
+        repository.Remove(
+            guestCart);
+
+        await unitOfWork.SaveChangesAsync(
+            cancellationToken);
+
+        return Map(userCart);
+    }
+
+
 
     private async Task<Cart?> FindAsync(
         string tenantId,

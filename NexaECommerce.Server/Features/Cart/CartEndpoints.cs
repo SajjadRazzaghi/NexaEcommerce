@@ -29,7 +29,9 @@ public sealed class CartEndpoints
         group.MapPost(
             "/items",
             AddItem);
-
+        group.MapPost(
+    "/merge",
+    Merge);
         group.MapPut(
             "/items",
             SetQuantity);
@@ -201,6 +203,67 @@ public sealed class CartEndpoints
 
         return Results.Ok(result);
     }
+private static async Task<IResult> Merge(
+    ICartService cartService,
+    ICurrentTenant tenant,
+    HttpContext http,
+    CancellationToken ct)
+    {
+        var userId =
+            GetUserId(http);
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Results.Unauthorized();
+        }
+
+        var guestToken =
+            GetGuestToken(
+                http,
+                userId: null);
+
+        if (string.IsNullOrWhiteSpace(guestToken))
+        {
+            return Results.Ok(
+                await cartService.GetAsync(
+                    tenant.Id,
+                    userId,
+                    null,
+                    ct));
+        }
+
+        try
+        {
+            var result =
+                await cartService.MergeGuestCartAsync(
+                    tenant.Id,
+                    userId,
+                    guestToken,
+                    ct);
+
+            http.Response.Cookies.Delete(
+                GuestCartCookie);
+
+            return Results.Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+    }
+
 
     private static string? GetUserId(
         HttpContext http)

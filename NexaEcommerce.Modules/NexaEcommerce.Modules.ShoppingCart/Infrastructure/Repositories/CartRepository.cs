@@ -23,6 +23,10 @@ public sealed class CartRepository(
                 cancellationToken);
     }
 
+    public void Remove(Cart cart)
+    {
+        context.Carts.Remove(cart);
+    }
     public async Task<Cart?> GetByGuestTokenAsync(
         string tenantId,
         string guestToken,

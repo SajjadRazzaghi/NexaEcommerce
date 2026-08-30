@@ -9,6 +9,72 @@ public sealed class Cart : AggregateRoot
     private Cart()
     {
     }
+ 
+public void MergeFrom(
+    Cart source,
+    IReadOnlyDictionary<Guid, int> availableQuantities)
+    {
+        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(
+            availableQuantities);
+
+        foreach (var sourceItem in source.Items)
+        {
+            availableQuantities.TryGetValue(
+                sourceItem.ProductVariantId,
+                out var available);
+
+            var targetItem =
+                _items.FirstOrDefault(
+                    x =>
+                        x.ProductVariantId ==
+                        sourceItem.ProductVariantId);
+
+            if (targetItem is null)
+            {
+                var quantity =
+                    Math.Min(
+                        sourceItem.Quantity,
+                        available);
+
+                if (quantity > 0)
+                {
+                    AddItem(
+                        sourceItem.ProductVariantId,
+                        quantity,
+                        sourceItem.UnitPrice,
+                        sourceItem.ProductName,
+                        sourceItem.ImageUrl);
+                }
+
+                continue;
+            }
+
+            var totalRequested =
+                targetItem.Quantity +
+                sourceItem.Quantity;
+
+            var finalQuantity =
+                Math.Min(
+                    totalRequested,
+                    available);
+
+            if (finalQuantity <= 0)
+            {
+                _items.Remove(targetItem);
+            }
+            else
+            {
+                targetItem.SetQuantity(
+                    finalQuantity,
+                    sourceItem.UnitPrice,
+                    sourceItem.ProductName,
+                    sourceItem.ImageUrl);
+            }
+        }
+
+        UpdatedAt = DateTime.UtcNow;
+    }
 
     private Cart(
         string tenantId,

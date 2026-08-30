@@ -1,3 +1,4 @@
+
 using NexaEcommerce.Modules.ShoppingCart.Domain.Entities;
 
 namespace NexaEcommerce.Modules.ShoppingCart.Domain.Interfaces;
@@ -18,5 +19,9 @@ public interface ICartRepository
         Cart cart,
         CancellationToken cancellationToken = default);
 
-    void Update(Cart cart);
+    void Update(
+        Cart cart);
+
+    void Remove(
+        Cart cart);
 }
