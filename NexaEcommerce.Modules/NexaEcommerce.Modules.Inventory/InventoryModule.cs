@@ -4,6 +4,7 @@ using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
 using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence;
 using NexaEcommerce.Modules.Inventory.Infrastructure.Repositories;
+using NexaEcommerce.SharedKernel.Abstractions;
 
 namespace NexaEcommerce.Modules.Inventory;
 
@@ -47,7 +48,13 @@ public static class InventoryModule
         services.AddScoped<
             IInventoryUnitOfWork,
             InventoryUnitOfWork>();
+        services.AddScoped<
+    IInventoryStockReader,
+    InventoryStockReader>();
 
+        services.AddScoped<
+            IStockReader>(
+            sp => sp.GetRequiredService<IInventoryStockReader>());
         return services;
     }
 }
