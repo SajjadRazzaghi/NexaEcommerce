@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Catalog.Application.DTOs;
 using NexaEcommerce.Modules.Catalog.Application.Services;
+using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaECommerce.Server.Platform.Authorization;
 using NexaECommerce.Server.Platform.Features;
@@ -65,8 +66,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         group.MapPatch(
                 "/{id:guid}/stock",
                 UpdateStock)
-            .RequirePermission(ProductPermissions.Update)
-            .AddEndpointFilter<TransactionFilter>();
+            .RequirePermission(ProductPermissions.Update);
 
         group.MapPatch(
                 "/{id:guid}/active",
@@ -156,10 +156,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         }
 
         page = Math.Max(1, page);
-        pageSize = Math.Clamp(
-            pageSize,
-            1,
-            100);
+        pageSize = Math.Clamp(pageSize, 1, 100);
 
         var result =
             await productService.GetPagedAsync(
@@ -180,7 +177,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 desc: desc,
                 cancellationToken: ct);
 
-        var productVariantIds =
+        var variantIds =
             result.Items
                 .SelectMany(x => x.Variants)
                 .Where(x => x.IsActive)
@@ -189,11 +186,10 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 .ToArray();
 
         var stockQuantities =
-            await stockReader
-                .GetAvailableQuantitiesAsync(
-                    currentTenant.Id,
-                    productVariantIds,
-                    ct);
+            await stockReader.GetAvailableQuantitiesAsync(
+                currentTenant.Id,
+                variantIds,
+                ct);
 
         var items =
             result.Items
@@ -299,10 +295,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         }
 
         page = Math.Max(1, page);
-        pageSize = Math.Clamp(
-            pageSize,
-            1,
-            100);
+        pageSize = Math.Clamp(pageSize, 1, 100);
 
         var result =
             await productService.GetPagedAsync(
@@ -323,7 +316,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 desc: desc,
                 cancellationToken: ct);
 
-        var productVariantIds =
+        var variantIds =
             result.Items
                 .SelectMany(x => x.Variants)
                 .Where(x => x.IsActive)
@@ -332,11 +325,10 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 .ToArray();
 
         var stockQuantities =
-            await stockReader
-                .GetAvailableQuantitiesAsync(
-                    currentTenant.Id,
-                    productVariantIds,
-                    ct);
+            await stockReader.GetAvailableQuantitiesAsync(
+                currentTenant.Id,
+                variantIds,
+                ct);
 
         var items =
             result.Items
@@ -525,20 +517,71 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         Guid id,
         [FromBody] UpdateStockRequest request,
         IProductService productService,
+        IInventoryService inventoryService,
+        ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
         {
-            await productService.UpdateStockAsync(
-                id,
-                request.Quantity,
-                ct);
+            if (request.Quantity < 0)
+            {
+                return Results.BadRequest(
+                    new
+                    {
+                        error =
+                            "Stock quantity cannot be negative."
+                    });
+            }
 
-            return Results.NoContent();
+            var product =
+                await productService.GetByIdAsync(
+                    id,
+                    ct);
+
+            if (product is null)
+            {
+                return Results.NotFound(
+                    new
+                    {
+                        error = "Product not found."
+                    });
+            }
+
+            var variant =
+                product.Variants
+                    .FirstOrDefault(
+                        x => x.IsActive);
+
+            if (variant is null)
+            {
+                return Results.Conflict(
+                    new
+                    {
+                        error =
+                            "Product does not have an active variant."
+                    });
+            }
+
+            var stock =
+                await inventoryService.SetStockAsync(
+                    currentTenant.Id,
+                    variant.Id,
+                    request.Quantity,
+                    ct);
+
+            return Results.Ok(stock);
         }
         catch (KeyNotFoundException ex)
         {
             return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
                 new
                 {
                     error = ex.Message
@@ -655,3 +698,4 @@ public sealed record UpdateStockRequest(
 
 public sealed record SetProductStateRequest(
     bool Value);
+
