@@ -1,22 +1,62 @@
+using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
-using NexaEcommerce.SharedKernel.Abstractions;
 
 namespace NexaEcommerce.Modules.Orders.Application.Services;
 
 public sealed class OrderService(
     IOrderRepository repository,
     IOrderProductReader productReader,
-    IUnitOfWork unitOfWork)
+    IOrderUnitOfWork unitOfWork)
     : IOrderService
 {
     public async Task<OrderDto> CreateFromCheckoutAsync(
         string tenantId,
         string userId,
+        string idempotencyKey,
         CheckoutRequest request,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(tenantId))
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+
+        if (string.IsNullOrWhiteSpace(userId))
+            throw new ArgumentException(
+                "User id is required.",
+                nameof(userId));
+
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+            throw new ArgumentException(
+                "Idempotency key is required.",
+                nameof(idempotencyKey));
+
+        var normalizedTenantId =
+            tenantId.Trim();
+
+        var normalizedUserId =
+            userId.Trim();
+
+        var normalizedIdempotencyKey =
+            idempotencyKey.Trim();
+
+        if (normalizedIdempotencyKey.Length > 128)
+            throw new ArgumentException(
+                "Idempotency key cannot exceed 128 characters.",
+                nameof(idempotencyKey));
+
+        var existingOrder =
+            await repository.GetByIdempotencyKeyAsync(
+                normalizedTenantId,
+                normalizedUserId,
+                normalizedIdempotencyKey,
+                cancellationToken);
+
+        if (existingOrder is not null)
+            return Map(existingOrder);
+
         if (request.Items is null ||
             request.Items.Count == 0)
         {
@@ -24,38 +64,55 @@ public sealed class OrderService(
                 "Checkout must contain at least one item.");
         }
 
-        if (string.IsNullOrWhiteSpace(request.ShippingFullName) ||
-            string.IsNullOrWhiteSpace(request.ShippingPhone) ||
-            string.IsNullOrWhiteSpace(request.ShippingAddress) ||
-            string.IsNullOrWhiteSpace(request.ShippingCity))
+        if (request.Items.Any(
+                x => x.ProductVariantId == Guid.Empty))
         {
             throw new ArgumentException(
-                "Shipping information is incomplete.");
+                "Product variant id is required.");
         }
 
-        if (request.Items.Any(x => x.Quantity <= 0))
+        if (request.Items.Any(
+                x => x.Quantity <= 0))
         {
             throw new ArgumentException(
                 "Quantity must be greater than zero.");
         }
 
+        if (request.ShippingAmount < 0)
+            throw new ArgumentOutOfRangeException(
+                nameof(request.ShippingAmount));
+
+        if (string.IsNullOrWhiteSpace(
+                request.ShippingFullName) ||
+            string.IsNullOrWhiteSpace(
+                request.ShippingPhone) ||
+            string.IsNullOrWhiteSpace(
+                request.ShippingAddress) ||
+            string.IsNullOrWhiteSpace(
+                request.ShippingCity))
+        {
+            throw new ArgumentException(
+                "Shipping information is incomplete.");
+        }
+
         var grouped =
             request.Items
-                .GroupBy(x => x.ProductVariantId)
-                .Select(x =>
-                    new CheckoutLineDto(
-                        x.Key,
-                        x.Sum(i => i.Quantity)))
+                .GroupBy(
+                    x => x.ProductVariantId)
+                .Select(
+                    x =>
+                        new CheckoutLineDto(
+                            x.Key,
+                            x.Sum(
+                                i => i.Quantity)))
                 .ToList();
-
-        var orderNumber =
-            GenerateOrderNumber();
 
         var order =
             Order.Create(
-                tenantId,
-                userId,
-                orderNumber,
+                normalizedTenantId,
+                normalizedUserId,
+                GenerateOrderNumber(),
+                normalizedIdempotencyKey,
                 "IRR",
                 0,
                 request.ShippingAmount,
@@ -100,8 +157,25 @@ public sealed class OrderService(
             order,
             cancellationToken);
 
-        await unitOfWork.SaveChangesAsync(
-            cancellationToken);
+        try
+        {
+            await unitOfWork.SaveChangesAsync(
+                cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            var persistedOrder =
+                await repository.GetByIdempotencyKeyAsync(
+                    normalizedTenantId,
+                    normalizedUserId,
+                    normalizedIdempotencyKey,
+                    cancellationToken);
+
+            if (persistedOrder is not null)
+                return Map(persistedOrder);
+
+            throw;
+        }
 
         return Map(order);
     }
@@ -127,7 +201,7 @@ public sealed class OrderService(
     private static string GenerateOrderNumber()
     {
         return
-            $"NX-{DateTime.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}";
+            $"NX-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N[..8].ToUpperInvariant()}";
     }
 
     private static OrderDto Map(
@@ -148,14 +222,15 @@ public sealed class OrderService(
             order.ShippingCity,
             order.ShippingPostalCode,
             order.Items
-                .Select(x =>
-                    new OrderItemDto(
-                        x.ProductVariantId,
-                        x.Sku,
-                        x.ProductName,
-                        x.UnitPrice,
-                        x.Quantity,
-                        x.LineTotal))
+                .Select(
+                    x =>
+                        new OrderItemDto(
+                            x.ProductVariantId,
+                            x.Sku,
+                            x.ProductName,
+                            x.UnitPrice,
+                            x.Quantity,
+                            x.LineTotal))
                 .ToList());
     }
 }

@@ -4,8 +4,6 @@ using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 using NexaEcommerce.Modules.Orders.Infrastructure.Persistence;
 using NexaEcommerce.Modules.Orders.Infrastructure.Repositories;
-using NexaEcommerce.SharedKernel.Abstractions;
-using NexaEcommerce.SharedKernel.Infrastructure;
 
 namespace NexaEcommerce.Modules.Orders;
 
@@ -47,8 +45,8 @@ public static class OrdersModule
             OrderService>();
 
         services.AddScoped<
-            IUnitOfWork,
-            UnitOfWork<OrdersDbContext>>();
+            IOrderUnitOfWork,
+            OrderUnitOfWork>();
 
         return services;
     }

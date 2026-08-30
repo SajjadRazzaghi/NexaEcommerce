@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NexaEcommerce.Modules.Orders.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using NexaEcommerce.Modules.Orders.Infrastructure.Persistence;
 namespace NexaEcommerce.Modules.Orders.Infrastructure.Migrations
 {
     [DbContext(typeof(OrdersDbContext))]
-    partial class OrdersDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260827135413_AddOrderIdempotency")]
+    partial class AddOrderIdempotency
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -120,55 +123,6 @@ namespace NexaEcommerce.Modules.Orders.Infrastructure.Migrations
                     b.ToTable("Orders", "Orders");
                 });
 
-            modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.OrderInventoryReservation", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTimeOffset?>("CompletedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset>("CreatedAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<DateTimeOffset>("ExpiresAt")
-                        .HasColumnType("datetimeoffset");
-
-                    b.Property<Guid>("OrderId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("ProductVariantId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<string>("ReservationKey")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TenantId")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OrderId", "ProductVariantId");
-
-                    b.HasIndex("Status", "ExpiresAt");
-
-                    b.HasIndex("TenantId", "ReservationKey")
-                        .IsUnique();
-
-                    b.ToTable("OrderInventoryReservations", "Orders");
-                });
-
             modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.OrderItem", b =>
                 {
                     b.Property<Guid>("Id")
@@ -217,15 +171,6 @@ namespace NexaEcommerce.Modules.Orders.Infrastructure.Migrations
                     b.ToTable("OrderItems", "Orders");
                 });
 
-            modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.OrderInventoryReservation", b =>
-                {
-                    b.HasOne("NexaEcommerce.Modules.Orders.Domain.Entities.Order", null)
-                        .WithMany("InventoryReservations")
-                        .HasForeignKey("OrderId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-                });
-
             modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.OrderItem", b =>
                 {
                     b.HasOne("NexaEcommerce.Modules.Orders.Domain.Entities.Order", "Order")
@@ -239,8 +184,6 @@ namespace NexaEcommerce.Modules.Orders.Infrastructure.Migrations
 
             modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.Order", b =>
                 {
-                    b.Navigation("InventoryReservations");
-
                     b.Navigation("Items");
                 });
 #pragma warning restore 612, 618

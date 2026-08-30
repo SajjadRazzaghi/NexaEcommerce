@@ -16,6 +16,12 @@ public interface IOrderRepository
         string? userId = null,
         CancellationToken cancellationToken = default);
 
+    Task<Order?> GetByIdempotencyKeyAsync(
+        string tenantId,
+        string userId,
+        string idempotencyKey,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(
         Order order,
         CancellationToken cancellationToken = default);

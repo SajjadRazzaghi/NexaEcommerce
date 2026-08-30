@@ -7,6 +7,7 @@ public interface IOrderService
     Task<OrderDto> CreateFromCheckoutAsync(
         string tenantId,
         string userId,
+        string idempotencyKey,
         CheckoutRequest request,
         CancellationToken cancellationToken = default);
 

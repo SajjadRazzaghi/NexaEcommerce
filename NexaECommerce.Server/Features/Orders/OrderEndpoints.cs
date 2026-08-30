@@ -1,17 +1,18 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using System.Security.Claims;
+using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
-using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.ShoppingCart.Application.Services;
 using NexaECommerce.Server.Platform.Features;
-using NexaECommerce.Server.Platform.MultiTenancy;
 using NexaEcommerce.SharedKernel.Abstractions;
-using System.Security.Claims;
 
 namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class OrderEndpoints
     : IFeatureEndpoints
 {
+    private const string IdempotencyHeader =
+        "Idempotency-Key";
+
     public void Map(
         IEndpointRouteBuilder app)
     {
@@ -32,7 +33,7 @@ public sealed class OrderEndpoints
     private static async Task<IResult> Checkout(
         [FromBody] CheckoutRequest request,
         ICartService cartService,
-        IOrderService orderService,
+        CheckoutOrchestrator checkout,
         ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
@@ -44,14 +45,41 @@ public sealed class OrderEndpoints
         if (string.IsNullOrWhiteSpace(userId))
             return Results.Unauthorized();
 
-        if (request.Items is null ||
-            request.Items.Count == 0)
+        if (!http.Request.Headers.TryGetValue(
+                IdempotencyHeader,
+                out var headerValue))
         {
             return Results.BadRequest(
                 new
                 {
                     error =
-                        "Checkout must contain at least one item."
+                        $"{IdempotencyHeader} header is required."
+                });
+        }
+
+        var idempotencyKey =
+            headerValue
+                .FirstOrDefault()?
+                .Trim();
+
+        if (string.IsNullOrWhiteSpace(
+                idempotencyKey))
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        $"{IdempotencyHeader} header cannot be empty."
+                });
+        }
+
+        if (idempotencyKey.Length > 128)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        $"{IdempotencyHeader} cannot exceed 128 characters."
                 });
         }
 
@@ -72,14 +100,19 @@ public sealed class OrderEndpoints
                 });
         }
 
-        // Never trust client-submitted line items.
-        // The server takes the current cart contents.
+        /*
+         * Never trust checkout line items from the browser.
+         *
+         * The authoritative quantities come from the current
+         * server-side shopping cart.
+         */
         var serverLines =
             cart.Items
-                .Select(x =>
-                    new CheckoutLineDto(
-                        x.ProductVariantId,
-                        x.Quantity))
+                .Select(
+                    item =>
+                        new CheckoutLineDto(
+                            item.ProductVariantId,
+                            item.Quantity))
                 .ToList();
 
         var serverRequest =
@@ -91,12 +124,12 @@ public sealed class OrderEndpoints
         try
         {
             var order =
-                await orderService
-                    .CreateFromCheckoutAsync(
-                        tenant.Id,
-                        userId,
-                        serverRequest,
-                        ct);
+                await checkout.ExecuteAsync(
+                    tenant.Id,
+                    userId,
+                    idempotencyKey,
+                    serverRequest,
+                    ct);
 
             return Results.Created(
                 $"/api/orders/{order.Id}",
@@ -122,7 +155,7 @@ public sealed class OrderEndpoints
 
     private static async Task<IResult> Get(
         Guid id,
-        IOrderService orderService,
+        NexaEcommerce.Modules.Orders.Application.Services.IOrderService orderService,
         ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
