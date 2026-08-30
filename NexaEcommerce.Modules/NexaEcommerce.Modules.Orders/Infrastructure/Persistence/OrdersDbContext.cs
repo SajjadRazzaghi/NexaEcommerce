@@ -17,6 +17,10 @@ public sealed class OrdersDbContext(
         OrderInventoryReservations =>
         Set<OrderInventoryReservation>();
 
+    public DbSet<PaymentAttempt>
+        PaymentAttempts =>
+        Set<PaymentAttempt>();
+
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -226,6 +230,85 @@ public sealed class OrdersDbContext(
                     {
                         x.Status,
                         x.ExpiresAt
+                    });
+            });
+
+        modelBuilder.Entity<PaymentAttempt>(
+            entity =>
+            {
+                entity.ToTable(
+                    "PaymentAttempts");
+
+                entity.HasKey(
+                    x => x.Id);
+
+                entity.Property(
+                    x => x.OrderId)
+                    .IsRequired();
+
+                entity.Property(
+                    x => x.TenantId)
+                    .IsRequired()
+                    .HasMaxLength(64);
+
+                entity.Property(
+                    x => x.UserId)
+                    .IsRequired()
+                    .HasMaxLength(450);
+
+                entity.Property(
+                    x => x.IdempotencyKey)
+                    .IsRequired()
+                    .HasMaxLength(128);
+
+                entity.Property(
+                    x => x.Amount)
+                    .HasPrecision(18, 2)
+                    .IsRequired();
+
+                entity.Property(
+                    x => x.Currency)
+                    .IsRequired()
+                    .HasMaxLength(10);
+
+                entity.Property(
+                    x => x.Status)
+                    .IsRequired();
+
+                entity.Property(
+                    x => x.GatewayName)
+                    .HasMaxLength(100);
+
+                entity.Property(
+                    x => x.GatewayReference)
+                    .HasMaxLength(200);
+
+                entity.Property(
+                    x => x.FailureCode)
+                    .HasMaxLength(100);
+
+                entity.Property(
+                    x => x.FailureMessage)
+                    .HasMaxLength(1000);
+
+                entity.Property(
+                    x => x.CreatedAt)
+                    .IsRequired();
+
+                entity.HasIndex(
+                    x => new
+                    {
+                        x.TenantId,
+                        x.UserId,
+                        x.IdempotencyKey
+                    })
+                    .IsUnique();
+
+                entity.HasIndex(
+                    x => new
+                    {
+                        x.TenantId,
+                        x.OrderId
                     });
             });
     }

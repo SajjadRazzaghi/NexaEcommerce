@@ -11,6 +11,9 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
 using NexaECommerce.Server.Data;
 using NexaECommerce.Server.Platform.Authorization;
+using NexaEcommerce.Modules.Catalog.Infrastructure;
+using NexaEcommerce.Modules.Inventory.Domain.Entities;
+using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence;
 using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
 
 namespace NexaECommerce.Tests.Integration.Fixtures;
@@ -24,6 +27,9 @@ public sealed class CustomWebApplicationFactory
     public const string LoginPassword =
         "IntegrationP@ss1";
 
+    private const string DefaultTenantId =
+        "default";
+
     private readonly string _dbPath =
         Path.Combine(
             Path.GetTempPath(),
@@ -33,6 +39,11 @@ public sealed class CustomWebApplicationFactory
         Path.Combine(
             Path.GetTempPath(),
             $"nexaecommerce-test-cart-{Guid.NewGuid():N}.db");
+
+    private readonly string _inventoryDbPath =
+        Path.Combine(
+            Path.GetTempPath(),
+            $"nexaecommerce-test-inventory-{Guid.NewGuid():N}.db");
 
     private readonly string _hangfirePath =
         Path.Combine(
@@ -96,6 +107,30 @@ public sealed class CustomWebApplicationFactory
                     {
                         options.UseSqlite(
                             $"Data Source={_cartDbPath}");
+                    });
+
+                // ========================================================
+                // InventoryDbContext
+                // ========================================================
+
+                services.RemoveAll(
+                    typeof(InventoryDbContext));
+
+                services.RemoveAll(
+                    typeof(
+                        DbContextOptions
+                            <InventoryDbContext>));
+
+                services.RemoveAll(
+                    typeof(
+                        IDbContextOptionsConfiguration
+                            <InventoryDbContext>));
+
+                services.AddDbContext<InventoryDbContext>(
+                    options =>
+                    {
+                        options.UseSqlite(
+                            $"Data Source={_inventoryDbPath}");
                     });
 
                 // ========================================================
@@ -163,6 +198,15 @@ public sealed class CustomWebApplicationFactory
         await db.Database.EnsureCreatedAsync();
 
         // ========================================================
+        // Catalog database
+        // ========================================================
+
+        var catalogDb =
+            sp.GetRequiredService<CatalogDbContext>();
+
+        await catalogDb.Database.EnsureCreatedAsync();
+
+        // ========================================================
         // Shopping Cart database
         // ========================================================
 
@@ -170,6 +214,15 @@ public sealed class CustomWebApplicationFactory
             sp.GetRequiredService<ShoppingCartDbContext>();
 
         await cartDb.Database.EnsureCreatedAsync();
+
+        // ========================================================
+        // Inventory database
+        // ========================================================
+
+        var inventoryDb =
+            sp.GetRequiredService<InventoryDbContext>();
+
+        await inventoryDb.Database.EnsureCreatedAsync();
 
         // ========================================================
         // System roles
@@ -199,7 +252,8 @@ public sealed class CustomWebApplicationFactory
                     UserName = LoginEmail,
                     Email = LoginEmail,
                     EmailConfirmed = true,
-                    DisplayName = "Integration Admin"
+                    DisplayName = "Integration Admin",
+                    TenantId = DefaultTenantId
                 };
 
             var result =
@@ -217,6 +271,82 @@ public sealed class CustomWebApplicationFactory
                             e => e.Description)));
             }
         }
+
+        // ========================================================
+        // Inventory test stock
+        // ========================================================
+
+        await SeedInventoryAsync(
+            catalogDb,
+            inventoryDb);
+    }
+
+    private static async Task SeedInventoryAsync(
+        CatalogDbContext catalogDb,
+        InventoryDbContext inventoryDb)
+    {
+        /*
+         * Inventory is intentionally seeded from the actual Catalog
+         * variants. We never invent ProductVariantIds in the inventory
+         * test database.
+         *
+         * Every sellable Catalog variant receives a generous amount
+         * of stock so individual tests can reserve/commit/release
+         * without depending on test execution order.
+         */
+
+        var variants =
+            await catalogDb.ProductVariants
+                .AsNoTracking()
+                .Where(
+                    x =>
+                        x.IsActive &&
+                        !x.IsDeleted &&
+                        x.Product.IsActive &&
+                        x.Product.IsPublished &&
+                        !x.Product.IsDeleted)
+                .Select(
+                    x => x.Id)
+                .ToListAsync();
+
+        if (variants.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "Catalog test seed contains no active published product variants.");
+        }
+
+        var existingVariantIds =
+            await inventoryDb.StockItems
+                .AsNoTracking()
+                .Where(
+                    x =>
+                        x.TenantId ==
+                        DefaultTenantId)
+                .Select(
+                    x => x.ProductVariantId)
+                .ToHashSetAsync();
+
+        const int testQuantity = 1000;
+
+        foreach (var variantId in variants)
+        {
+            if (existingVariantIds.Contains(
+                    variantId))
+            {
+                continue;
+            }
+
+            var stockItem =
+                StockItem.Create(
+                    DefaultTenantId,
+                    variantId,
+                    testQuantity);
+
+            await inventoryDb.StockItems.AddAsync(
+                stockItem);
+        }
+
+        await inventoryDb.SaveChangesAsync();
     }
 
     private static async Task EnsureAdminRoleAsync(
@@ -315,9 +445,11 @@ public sealed class CustomWebApplicationFactory
 
         TryDelete(_dbPath);
         TryDelete(_cartDbPath);
+        TryDelete(_inventoryDbPath);
         TryDelete(_hangfirePath);
 
-        static void TryDelete(string path)
+        static void TryDelete(
+            string path)
         {
             try
             {

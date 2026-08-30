@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/NexaEcommerce.Modules/">
     <Project Path="NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/NexaEcommerce.Modules.Catalog.csproj" />
+    <Project Path="NexaEcommerce.Modules/NexaEcommerce.Modules.Inventory/NexaEcommerce.Modules.Inventory.csproj" />
     <Project Path="NexaEcommerce.Modules/NexaEcommerce.Modules.Orders/NexaEcommerce.Modules.Orders.csproj" />
     <Project Path="NexaEcommerce.Modules/NexaEcommerce.Modules.ShoppingCart/NexaEcommerce.Modules.ShoppingCart.csproj" />
   </Folder>

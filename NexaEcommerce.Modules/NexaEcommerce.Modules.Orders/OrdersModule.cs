@@ -1,10 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using NexaEcommerce.Modules.Orders.Application.Payments;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
+using NexaEcommerce.Modules.Orders.Infrastructure.Payments;
 using NexaEcommerce.Modules.Orders.Infrastructure.Persistence;
 using NexaEcommerce.Modules.Orders.Infrastructure.Repositories;
-
 namespace NexaEcommerce.Modules.Orders;
 
 public static class OrdersModule
@@ -47,6 +48,24 @@ public static class OrdersModule
         services.AddScoped<
             IOrderUnitOfWork,
             OrderUnitOfWork>();
+        services.AddScoped<
+    IPaymentAttemptRepository,
+    PaymentAttemptRepository>();
+        services.AddScoped<
+    IPaymentAttemptService,
+    PaymentAttemptService>();
+
+        services.AddScoped<
+    PaymentGatewayService>();
+
+        services.AddScoped<
+            IPaymentService,
+            PaymentService>();
+
+        services.AddScoped<
+            IPaymentGateway,
+            TestPaymentGateway>();
+
 
         return services;
     }

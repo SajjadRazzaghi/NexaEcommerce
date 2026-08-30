@@ -16,4 +16,10 @@ public interface IOrderService
         Guid id,
         string userId,
         CancellationToken cancellationToken = default);
+
+    Task CancelAsync(
+        string tenantId,
+        Guid orderId,
+        string userId,
+        CancellationToken cancellationToken = default);
 }

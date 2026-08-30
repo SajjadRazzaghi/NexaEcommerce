@@ -15,31 +15,7 @@ public sealed class CheckoutOrchestrator(
         CheckoutRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(
-                tenantId))
-        {
-            throw new ArgumentException(
-                "Tenant id is required.",
-                nameof(tenantId));
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                userId))
-        {
-            throw new ArgumentException(
-                "User id is required.",
-                nameof(userId));
-        }
-
-        if (string.IsNullOrWhiteSpace(
-                idempotencyKey))
-        {
-            throw new ArgumentException(
-                "Idempotency key is required.",
-                nameof(idempotencyKey));
-        }
-
-        var order =
+        var existing =
             await orders.CreateFromCheckoutAsync(
                 tenantId,
                 userId,
@@ -47,13 +23,25 @@ public sealed class CheckoutOrchestrator(
                 request,
                 cancellationToken);
 
+        /*
+         * If the idempotency key already belongs to an order,
+         * do not create another reservation flow here.
+         *
+         * The caller can safely retry the HTTP request.
+         */
+        if (existing.Status !=
+            "PendingPayment")
+        {
+            return existing;
+        }
+
         var reservationKeys =
             new List<string>(
-                order.Items.Count);
+                existing.Items.Count);
 
         try
         {
-            foreach (var item in order.Items)
+            foreach (var item in existing.Items)
             {
                 var reservationKey =
                     BuildReservationKey(
@@ -74,7 +62,7 @@ public sealed class CheckoutOrchestrator(
                     reservationKey);
             }
 
-            return order;
+            return existing;
         }
         catch
         {
@@ -90,8 +78,21 @@ public sealed class CheckoutOrchestrator(
                 }
                 catch
                 {
-                    // Preserve original checkout failure.
+                    // Preserve original reservation failure.
                 }
+            }
+
+            try
+            {
+                await orders.CancelAsync(
+                    tenantId,
+                    existing.Id,
+                    userId,
+                    cancellationToken);
+            }
+            catch
+            {
+                // Preserve the original checkout failure.
             }
 
             throw;

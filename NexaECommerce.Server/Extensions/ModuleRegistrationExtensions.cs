@@ -55,8 +55,13 @@ public static class ModuleRegistrationExtensions
         services.AddScoped<
             ICurrentTenant,
             CurrentTenant>();
-
+        services.AddScoped<
+    CheckoutOrchestrator>();
+        services.AddScoped<
+    PaymentCompletionOrchestrator>();
+        services.AddScoped<PaymentEndpoints>();
         return services;
+
     }
 
     public static IApplicationBuilder UseEcommerceModules(

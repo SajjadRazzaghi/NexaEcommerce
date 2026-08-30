@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
@@ -18,81 +17,22 @@ public sealed class OrderService(
         CheckoutRequest request,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
-            throw new ArgumentException(
-                "Tenant id is required.",
-                nameof(tenantId));
+        ValidateCheckout(
+            tenantId,
+            userId,
+            idempotencyKey,
+            request);
 
-        if (string.IsNullOrWhiteSpace(userId))
-            throw new ArgumentException(
-                "User id is required.",
-                nameof(userId));
-
-        if (string.IsNullOrWhiteSpace(idempotencyKey))
-            throw new ArgumentException(
-                "Idempotency key is required.",
-                nameof(idempotencyKey));
-
-        var normalizedTenantId =
-            tenantId.Trim();
-
-        var normalizedUserId =
-            userId.Trim();
-
-        var normalizedIdempotencyKey =
-            idempotencyKey.Trim();
-
-        if (normalizedIdempotencyKey.Length > 128)
-            throw new ArgumentException(
-                "Idempotency key cannot exceed 128 characters.",
-                nameof(idempotencyKey));
-
-        var existingOrder =
+        var existing =
             await repository.GetByIdempotencyKeyAsync(
-                normalizedTenantId,
-                normalizedUserId,
-                normalizedIdempotencyKey,
+                tenantId,
+                userId,
+                idempotencyKey,
                 cancellationToken);
 
-        if (existingOrder is not null)
-            return Map(existingOrder);
-
-        if (request.Items is null ||
-            request.Items.Count == 0)
+        if (existing is not null)
         {
-            throw new ArgumentException(
-                "Checkout must contain at least one item.");
-        }
-
-        if (request.Items.Any(
-                x => x.ProductVariantId == Guid.Empty))
-        {
-            throw new ArgumentException(
-                "Product variant id is required.");
-        }
-
-        if (request.Items.Any(
-                x => x.Quantity <= 0))
-        {
-            throw new ArgumentException(
-                "Quantity must be greater than zero.");
-        }
-
-        if (request.ShippingAmount < 0)
-            throw new ArgumentOutOfRangeException(
-                nameof(request.ShippingAmount));
-
-        if (string.IsNullOrWhiteSpace(
-                request.ShippingFullName) ||
-            string.IsNullOrWhiteSpace(
-                request.ShippingPhone) ||
-            string.IsNullOrWhiteSpace(
-                request.ShippingAddress) ||
-            string.IsNullOrWhiteSpace(
-                request.ShippingCity))
-        {
-            throw new ArgumentException(
-                "Shipping information is incomplete.");
+            return Map(existing);
         }
 
         var grouped =
@@ -109,10 +49,10 @@ public sealed class OrderService(
 
         var order =
             Order.Create(
-                normalizedTenantId,
-                normalizedUserId,
+                tenantId,
+                userId,
                 GenerateOrderNumber(),
-                normalizedIdempotencyKey,
+                idempotencyKey,
                 "IRR",
                 0,
                 request.ShippingAmount,
@@ -138,13 +78,13 @@ public sealed class OrderService(
                     $"Product variant {line.ProductVariantId} is no longer available.");
             }
 
-            if (line.Quantity >
-                product.StockQuantity)
-            {
-                throw new InvalidOperationException(
-                    $"Insufficient stock for '{product.ProductName}'.");
-            }
-
+            /*
+             * Catalog data is used for product identity,
+             * SKU and price snapshot.
+             *
+             * Inventory is the authoritative source for
+             * available stock.
+             */
             order.AddItem(
                 product.Id,
                 product.Sku,
@@ -157,25 +97,8 @@ public sealed class OrderService(
             order,
             cancellationToken);
 
-        try
-        {
-            await unitOfWork.SaveChangesAsync(
-                cancellationToken);
-        }
-        catch (DbUpdateException)
-        {
-            var persistedOrder =
-                await repository.GetByIdempotencyKeyAsync(
-                    normalizedTenantId,
-                    normalizedUserId,
-                    normalizedIdempotencyKey,
-                    cancellationToken);
-
-            if (persistedOrder is not null)
-                return Map(persistedOrder);
-
-            throw;
-        }
+        await unitOfWork.SaveChangesAsync(
+            cancellationToken);
 
         return Map(order);
     }
@@ -198,10 +121,110 @@ public sealed class OrderService(
             : Map(order);
     }
 
+    public async Task CancelAsync(
+        string tenantId,
+        Guid orderId,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        var order =
+            await repository.GetByIdAsync(
+                tenantId,
+                orderId,
+                userId,
+                cancellationToken);
+
+        if (order is null)
+        {
+            throw new InvalidOperationException(
+                "Order was not found.");
+        }
+
+        order.Cancel();
+
+        await unitOfWork.SaveChangesAsync(
+            cancellationToken);
+    }
+
+    private static void ValidateCheckout(
+        string tenantId,
+        string userId,
+        string idempotencyKey,
+        CheckoutRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException(
+                "User id is required.",
+                nameof(userId));
+        }
+
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            throw new ArgumentException(
+                "Idempotency key is required.",
+                nameof(idempotencyKey));
+        }
+
+        if (idempotencyKey.Length > 128)
+        {
+            throw new ArgumentException(
+                "Idempotency key cannot exceed 128 characters.",
+                nameof(idempotencyKey));
+        }
+
+        if (request.Items is null ||
+            request.Items.Count == 0)
+        {
+            throw new ArgumentException(
+                "Checkout must contain at least one item.");
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                request.ShippingFullName) ||
+            string.IsNullOrWhiteSpace(
+                request.ShippingPhone) ||
+            string.IsNullOrWhiteSpace(
+                request.ShippingAddress) ||
+            string.IsNullOrWhiteSpace(
+                request.ShippingCity))
+        {
+            throw new ArgumentException(
+                "Shipping information is incomplete.");
+        }
+
+        if (request.ShippingAmount < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(request.ShippingAmount));
+        }
+
+        if (request.Items.Any(
+                x => x.ProductVariantId == Guid.Empty))
+        {
+            throw new ArgumentException(
+                "Product variant id is required.");
+        }
+
+        if (request.Items.Any(
+                x => x.Quantity <= 0))
+        {
+            throw new ArgumentException(
+                "Quantity must be greater than zero.");
+        }
+    }
+
     private static string GenerateOrderNumber()
     {
         return
-            $"NX-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N[..8].ToUpperInvariant()}";
+            $"NX-{DateTime.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}";
     }
 
     private static OrderDto Map(
