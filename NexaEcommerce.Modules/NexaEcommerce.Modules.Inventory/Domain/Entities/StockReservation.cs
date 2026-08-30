@@ -35,11 +35,6 @@ public sealed class StockReservation : BaseEntity
             throw new ArgumentOutOfRangeException(
                 nameof(quantity));
 
-        if (expiresAt <= DateTimeOffset.UtcNow)
-            throw new ArgumentException(
-                "Reservation expiration must be in the future.",
-                nameof(expiresAt));
-
         TenantId = tenantId.Trim();
         ReservationKey = reservationKey.Trim();
         ProductVariantId = productVariantId;
@@ -128,3 +123,4 @@ public enum StockReservationStatus
     Committed = 3,
     Expired = 4
 }
+
