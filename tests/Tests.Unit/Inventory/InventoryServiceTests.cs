@@ -26,7 +26,131 @@ public sealed class InventoryServiceTests
           _repository,
           _unitOfWork);
     }
+[Fact]
+public async Task Reserve_translates_concurrency_exception()
+    {
+        var variantId = Guid.NewGuid();
 
+        var stock =
+            StockItem.Create(
+                "default",
+                variantId,
+                10);
+
+        _repository
+            .GetReservationAsync(
+                "default",
+                "reservation-concurrency",
+                Arg.Any<CancellationToken>())
+            .Returns((StockReservation?)null);
+
+        _repository
+            .GetStockAsync(
+                "default",
+                variantId,
+                Arg.Any<CancellationToken>())
+            .Returns(stock);
+
+        _unitOfWork
+            .SaveChangesAsync(
+                Arg.Any<CancellationToken>())
+            .Returns<Task<int>>(
+                _ =>
+                    throw new Microsoft.EntityFrameworkCore
+                        .DbUpdateConcurrencyException());
+
+        var exception =
+            await Should.ThrowAsync<InvalidOperationException>(
+                () =>
+                    _service.ReserveAsync(
+                        "default",
+                        variantId,
+                        2,
+                        "reservation-concurrency",
+                        TimeSpan.FromMinutes(10)));
+
+        exception.Message
+            .ShouldContain(
+                "Stock changed while the reservation was being created. Please retry.");
+    }
+
+    [Fact]
+    public async Task Reserve_returns_persisted_reservation_when_duplicate_key_races_with_another_request()
+    {
+        var variantId = Guid.NewGuid();
+
+        var stock =
+            StockItem.Create(
+                "default",
+                variantId,
+                10);
+
+        var persisted =
+            StockReservation.Create(
+                "default",
+                "reservation-race",
+                variantId,
+                stock.Id,
+                2,
+                DateTimeOffset.UtcNow.AddMinutes(10));
+
+        _repository
+            .GetReservationAsync(
+                "default",
+                "reservation-race",
+                Arg.Any<CancellationToken>())
+            .Returns(
+                (StockReservation?)null,
+                persisted);
+
+        _repository
+            .GetStockAsync(
+                "default",
+                variantId,
+                Arg.Any<CancellationToken>())
+            .Returns(stock);
+
+        await _repository
+            .GetReservationAsync(
+                "default",
+                "reservation-race",
+                Arg.Any<CancellationToken>());
+
+        _unitOfWork
+            .SaveChangesAsync(
+                Arg.Any<CancellationToken>())
+            .Returns<Task<int>>(
+                _ =>
+                    throw new Microsoft.EntityFrameworkCore
+                        .DbUpdateException());
+
+        var result =
+            await _service.ReserveAsync(
+                "default",
+                variantId,
+                2,
+                "reservation-race",
+                TimeSpan.FromMinutes(10));
+
+        result.ReservationKey
+            .ShouldBe("reservation-race");
+
+        result.ProductVariantId
+            .ShouldBe(variantId);
+
+        result.Quantity
+            .ShouldBe(2);
+
+        result.Status
+            .ShouldBe("Active");
+
+        await _repository
+            .Received(2)
+            .GetReservationAsync(
+                "default",
+                "reservation-race",
+                Arg.Any<CancellationToken>());
+    }
     [Fact]
     public async Task GetStock_returns_null_when_stock_does_not_exist()
     {
