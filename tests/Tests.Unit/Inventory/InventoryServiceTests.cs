@@ -22,10 +22,9 @@ public sealed class InventoryServiceTests
             Substitute.For<IInventoryUnitOfWork>();
 
         _service =
-            new InventoryService(
-                _repository,
-                null!,
-                _unitOfWork);
+      new InventoryService(
+          _repository,
+          _unitOfWork);
     }
 
     [Fact]

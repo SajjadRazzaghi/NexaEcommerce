@@ -9,7 +9,6 @@ namespace NexaEcommerce.Modules.Inventory.Application.Services;
 
 public sealed class InventoryService(
     IInventoryRepository repository,
-    InventoryDbContext context,
     IInventoryUnitOfWork unitOfWork)
     : IInventoryService
    
