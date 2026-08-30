@@ -33,7 +33,8 @@ public sealed class InventoryStockReaderTests
             .Returns(stock);
 
         var reader =
-            new InventoryStockReader(repository);
+            new InventoryStockReader(
+                repository);
 
         var result =
             await reader.GetAvailableQuantityAsync(
@@ -60,7 +61,8 @@ public sealed class InventoryStockReaderTests
             .Returns((StockItem?)null);
 
         var reader =
-            new InventoryStockReader(repository);
+            new InventoryStockReader(
+                repository);
 
         var result =
             await reader.GetAvailableQuantityAsync(
@@ -93,7 +95,8 @@ public sealed class InventoryStockReaderTests
             .Returns(stock);
 
         var reader =
-            new InventoryStockReader(repository);
+            new InventoryStockReader(
+                repository);
 
         var result =
             await reader.IsInStockAsync(
@@ -126,7 +129,8 @@ public sealed class InventoryStockReaderTests
             .Returns(stock);
 
         var reader =
-            new InventoryStockReader(repository);
+            new InventoryStockReader(
+                repository);
 
         var result =
             await reader.IsInStockAsync(
@@ -135,4 +139,140 @@ public sealed class InventoryStockReaderTests
 
         result.ShouldBeFalse();
     }
+
+    [Fact]
+    public async Task GetAvailableQuantities_returns_quantities_for_multiple_variants()
+    {
+        var repository =
+            Substitute.For<IInventoryRepository>();
+
+        var variant1 =
+            Guid.NewGuid();
+
+        var variant2 =
+            Guid.NewGuid();
+
+        repository
+            .GetStockAsync(
+                "default",
+                variant1,
+                Arg.Any<CancellationToken>())
+            .Returns(
+                StockItem.Create(
+                    "default",
+                    variant1,
+                    5));
+
+        repository
+            .GetStockAsync(
+                "default",
+                variant2,
+                Arg.Any<CancellationToken>())
+            .Returns(
+                StockItem.Create(
+                    "default",
+                    variant2,
+                    9));
+
+        var reader =
+            new InventoryStockReader(
+                repository);
+
+        var result =
+            await reader.GetAvailableQuantitiesAsync(
+                "default",
+                [
+                    variant1,
+                    variant2
+                ]);
+
+        result.Count
+            .ShouldBe(2);
+
+        result[variant1]
+            .ShouldBe(5);
+
+        result[variant2]
+            .ShouldBe(9);
+    }
+
+    [Fact]
+    public async Task GetAvailableQuantities_ignores_unknown_variants()
+    {
+        var repository =
+            Substitute.For<IInventoryRepository>();
+
+        var knownVariant =
+            Guid.NewGuid();
+
+        var unknownVariant =
+            Guid.NewGuid();
+
+        repository
+            .GetStockAsync(
+                "default",
+                knownVariant,
+                Arg.Any<CancellationToken>())
+            .Returns(
+                StockItem.Create(
+                    "default",
+                    knownVariant,
+                    4));
+
+        repository
+            .GetStockAsync(
+                "default",
+                unknownVariant,
+                Arg.Any<CancellationToken>())
+            .Returns(
+                (StockItem?)null);
+
+        var reader =
+            new InventoryStockReader(
+                repository);
+
+        var result =
+            await reader.GetAvailableQuantitiesAsync(
+                "default",
+                [
+                    knownVariant,
+                    unknownVariant
+                ]);
+
+        result.Count
+            .ShouldBe(1);
+
+        result[knownVariant]
+            .ShouldBe(4);
+
+        result.ContainsKey(
+            unknownVariant)
+            .ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task GetAvailableQuantities_with_empty_input_returns_empty_dictionary()
+    {
+        var repository =
+            Substitute.For<IInventoryRepository>();
+
+        var reader =
+            new InventoryStockReader(
+                repository);
+
+        var result =
+            await reader.GetAvailableQuantitiesAsync(
+                "default",
+                Array.Empty<Guid>());
+
+        result.ShouldBeEmpty();
+
+        await repository
+            .DidNotReceive()
+            .GetStockAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>());
+    }
 }
+

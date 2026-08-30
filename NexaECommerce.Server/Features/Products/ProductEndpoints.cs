@@ -1,9 +1,11 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Catalog.Application.DTOs;
 using NexaEcommerce.Modules.Catalog.Application.Services;
+using NexaEcommerce.SharedKernel.Abstractions;
 using NexaECommerce.Server.Platform.Authorization;
 using NexaECommerce.Server.Platform.Features;
 using NexaECommerce.Server.Platform.Filters;
+using NexaECommerce.Server.Platform.MultiTenancy;
 
 namespace NexaECommerce.Server.Features.Products;
 
@@ -11,55 +13,93 @@ public sealed class ProductEndpoints : IFeatureEndpoints
 {
     public void Map(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/products")
-            .WithTags("Products")
-            .AddEndpointFilter<ValidationFilter>()
-            .AddEndpointFilter<PerformanceFilter>();
+        var group =
+            app.MapGroup("/api/products")
+                .WithTags("Products")
+                .AddEndpointFilter<ValidationFilter>()
+                .AddEndpointFilter<PerformanceFilter>();
 
-        group.MapGet("/", List).AllowAnonymous();
+        group.MapGet("/", List)
+            .AllowAnonymous();
+
         group.MapGet("/admin", AdminList)
             .RequirePermission(ProductPermissions.Read);
-        group.MapGet("/category/{categoryId:guid}", GetByCategory).AllowAnonymous();
-        group.MapGet("/search", Search).AllowAnonymous();
-        group.MapGet("/featured", GetFeatured).AllowAnonymous();
-        group.MapGet(
-    "/slug/{slug}",
-    GetBySlug)
-    .AllowAnonymous();
-        group.MapGet("/{id:guid}", Get).AllowAnonymous();
 
-        group.MapPost("/", Create)
+        group.MapGet(
+                "/category/{categoryId:guid}",
+                GetByCategory)
+            .AllowAnonymous();
+
+        group.MapGet(
+                "/search",
+                Search)
+            .AllowAnonymous();
+
+        group.MapGet(
+                "/featured",
+                GetFeatured)
+            .AllowAnonymous();
+
+        group.MapGet(
+                "/slug/{slug}",
+                GetBySlug)
+            .AllowAnonymous();
+
+        group.MapGet(
+                "/{id:guid}",
+                Get)
+            .AllowAnonymous();
+
+        group.MapPost(
+                "/",
+                Create)
             .RequirePermission(ProductPermissions.Create)
             .AddEndpointFilter<TransactionFilter>();
 
-        group.MapPut("/{id:guid}", Update)
+        group.MapPut(
+                "/{id:guid}",
+                Update)
             .RequirePermission(ProductPermissions.Update)
             .AddEndpointFilter<TransactionFilter>();
 
-        group.MapPatch("/{id:guid}/stock", UpdateStock)
+        group.MapPatch(
+                "/{id:guid}/stock",
+                UpdateStock)
             .RequirePermission(ProductPermissions.Update)
             .AddEndpointFilter<TransactionFilter>();
 
-        group.MapPatch("/{id:guid}/active", SetActive)
+        group.MapPatch(
+                "/{id:guid}/active",
+                SetActive)
             .RequirePermission(ProductPermissions.Update)
             .AddEndpointFilter<TransactionFilter>();
 
-        group.MapPatch("/{id:guid}/featured", SetFeatured)
+        group.MapPatch(
+                "/{id:guid}/featured",
+                SetFeatured)
             .RequirePermission(ProductPermissions.Update)
             .AddEndpointFilter<TransactionFilter>();
 
-        group.MapDelete("/{id:guid}", Delete)
+        group.MapDelete(
+                "/{id:guid}",
+                Delete)
             .RequirePermission(ProductPermissions.Delete)
             .AddEndpointFilter<TransactionFilter>();
     }
+
     private static async Task<IResult> GetBySlug(
-    string slug,
-    IProductService productService,
-    CancellationToken ct)
+        string slug,
+        IProductService productService,
+        CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(slug))
+        {
             return Results.BadRequest(
-                new { error = "Product slug is required." });
+                new
+                {
+                    error = "Product slug is required."
+                });
+        }
 
         var product =
             await productService.GetBySlugAsync(
@@ -68,9 +108,13 @@ public sealed class ProductEndpoints : IFeatureEndpoints
 
         return product is null
             ? Results.NotFound(
-                new { error = "Product not found." })
+                new
+                {
+                    error = "Product not found."
+                })
             : Results.Ok(product);
     }
+
     private static async Task<IResult> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
@@ -85,56 +129,132 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         [FromQuery] bool? isActive = null,
         [FromQuery] bool desc = false,
         IProductService productService = null!,
+        IStockReader stockReader = null!,
+        ICurrentTenant currentTenant = null!,
         CancellationToken ct = default)
     {
-        if (!TryParseOptionalGuid(categoryId, out var categoryGuid))
-            return Results.BadRequest(new { error = "Invalid categoryId." });
+        if (!TryParseOptionalGuid(
+                categoryId,
+                out var categoryGuid))
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = "Invalid categoryId."
+                });
+        }
 
-        if (!TryParseOptionalGuid(brandId, out var brandGuid))
-            return Results.BadRequest(new { error = "Invalid brandId." });
+        if (!TryParseOptionalGuid(
+                brandId,
+                out var brandGuid))
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = "Invalid brandId."
+                });
+        }
 
         page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        pageSize = Math.Clamp(
+            pageSize,
+            1,
+            100);
 
-        var result = await productService.GetPagedAsync(
-            page, pageSize, search, categoryGuid, brandGuid,
-            minPrice, maxPrice, isFeatured, isInStock, isActive, isPublished: true,
-            includeInactive: false, includeUnpublished: false,
-            sortBy: sortBy, desc: desc, cancellationToken: ct);
+        var result =
+            await productService.GetPagedAsync(
+                page,
+                pageSize,
+                search,
+                categoryGuid,
+                brandGuid,
+                minPrice,
+                maxPrice,
+                isFeatured,
+                isInStock,
+                isActive,
+                isPublished: true,
+                includeInactive: false,
+                includeUnpublished: false,
+                sortBy: sortBy,
+                desc: desc,
+                cancellationToken: ct);
 
-        var items = result.Items.Select(p => new
-        {
-            id = p.Id,
-            name = p.Name,
-            sku = p.Sku,
-            slug = p.Slug,
-            price = p.Price,
-            comparePrice = p.ComparePrice,
-            finalPrice = p.FinalPrice,
-            discountPercentage = p.DiscountPercentage,
-            currency = p.Currency,
-            brandId = p.BrandId,
-            brandName = p.BrandName,
-            isActive = p.IsActive,
-            isFeatured = p.IsFeatured,
-            isPublished = p.IsPublished,
-            isInStock = p.IsInStock,
-            stockQuantity = p.StockQuantity,
-            mainImage = p.Images.FirstOrDefault(i => i.IsPrimary)?.ImageUrl
-                        ?? p.Images.FirstOrDefault()?.ImageUrl,
-            categoryNames = p.Categories,
-            categoryIds = p.CategoryIds,
-            createdAt = p.CreatedAt
-        }).ToList();
+        var productVariantIds =
+            result.Items
+                .SelectMany(x => x.Variants)
+                .Where(x => x.IsActive)
+                .Select(x => x.Id)
+                .Distinct()
+                .ToArray();
 
-        return Results.Ok(new
-        {
-            items,
-            total = result.TotalItems,
-            page = result.Page,
-            pageSize = result.PageSize,
-            totalPages = result.TotalPages
-        });
+        var stockQuantities =
+            await stockReader
+                .GetAvailableQuantitiesAsync(
+                    currentTenant.Id,
+                    productVariantIds,
+                    ct);
+
+        var items =
+            result.Items
+                .Select(
+                    p =>
+                    {
+                        var stockQuantity =
+                            p.Variants
+                                .Where(v => v.IsActive)
+                                .Sum(
+                                    v =>
+                                        stockQuantities.TryGetValue(
+                                            v.Id,
+                                            out var quantity)
+                                            ? quantity
+                                            : 0);
+
+                        return new
+                        {
+                            id = p.Id,
+                            name = p.Name,
+                            sku = p.Sku,
+                            slug = p.Slug,
+                            price = p.Price,
+                            comparePrice = p.ComparePrice,
+                            finalPrice = p.FinalPrice,
+                            discountPercentage =
+                                p.DiscountPercentage,
+                            currency = p.Currency,
+                            brandId = p.BrandId,
+                            brandName = p.BrandName,
+                            isActive = p.IsActive,
+                            isFeatured = p.IsFeatured,
+                            isPublished = p.IsPublished,
+                            isInStock = stockQuantity > 0,
+                            stockQuantity,
+                            mainImage =
+                                p.Images
+                                    .FirstOrDefault(
+                                        i => i.IsPrimary)
+                                    ?.ImageUrl
+                                ??
+                                p.Images
+                                    .FirstOrDefault()
+                                    ?.ImageUrl,
+                            categoryNames = p.Categories,
+                            categoryIds = p.CategoryIds,
+                            createdAt = p.CreatedAt
+                        };
+                    })
+                .ToList();
+
+        return Results.Ok(
+            new
+            {
+                items,
+                total = result.TotalItems,
+                page = result.Page,
+                pageSize = result.PageSize,
+                totalPages = result.TotalPages
+            });
     }
 
     private static async Task<IResult> AdminList(
@@ -152,56 +272,132 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         [FromQuery] bool? isPublished = null,
         [FromQuery] bool desc = false,
         IProductService productService = null!,
+        IStockReader stockReader = null!,
+        ICurrentTenant currentTenant = null!,
         CancellationToken ct = default)
     {
-        if (!TryParseOptionalGuid(categoryId, out var categoryGuid))
-            return Results.BadRequest(new { error = "Invalid categoryId." });
+        if (!TryParseOptionalGuid(
+                categoryId,
+                out var categoryGuid))
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = "Invalid categoryId."
+                });
+        }
 
-        if (!TryParseOptionalGuid(brandId, out var brandGuid))
-            return Results.BadRequest(new { error = "Invalid brandId." });
+        if (!TryParseOptionalGuid(
+                brandId,
+                out var brandGuid))
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = "Invalid brandId."
+                });
+        }
 
         page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        pageSize = Math.Clamp(
+            pageSize,
+            1,
+            100);
 
-        var result = await productService.GetPagedAsync(
-            page, pageSize, search, categoryGuid, brandGuid,
-            minPrice, maxPrice, isFeatured, isInStock, isActive, isPublished,
-            includeInactive: true, includeUnpublished: true,
-            sortBy: sortBy, desc: desc, cancellationToken: ct);
+        var result =
+            await productService.GetPagedAsync(
+                page,
+                pageSize,
+                search,
+                categoryGuid,
+                brandGuid,
+                minPrice,
+                maxPrice,
+                isFeatured,
+                isInStock,
+                isActive,
+                isPublished,
+                includeInactive: true,
+                includeUnpublished: true,
+                sortBy: sortBy,
+                desc: desc,
+                cancellationToken: ct);
 
-        var items = result.Items.Select(p => new
-        {
-            id = p.Id,
-            name = p.Name,
-            sku = p.Sku,
-            slug = p.Slug,
-            price = p.Price,
-            comparePrice = p.ComparePrice,
-            finalPrice = p.FinalPrice,
-            discountPercentage = p.DiscountPercentage,
-            currency = p.Currency,
-            brandId = p.BrandId,
-            brandName = p.BrandName,
-            isActive = p.IsActive,
-            isFeatured = p.IsFeatured,
-            isPublished = p.IsPublished,
-            isInStock = p.IsInStock,
-            stockQuantity = p.StockQuantity,
-            mainImage = p.Images.FirstOrDefault(i => i.IsPrimary)?.ImageUrl
-                        ?? p.Images.FirstOrDefault()?.ImageUrl,
-            categoryNames = p.Categories,
-            categoryIds = p.CategoryIds,
-            createdAt = p.CreatedAt
-        }).ToList();
+        var productVariantIds =
+            result.Items
+                .SelectMany(x => x.Variants)
+                .Where(x => x.IsActive)
+                .Select(x => x.Id)
+                .Distinct()
+                .ToArray();
 
-        return Results.Ok(new
-        {
-            items,
-            total = result.TotalItems,
-            page = result.Page,
-            pageSize = result.PageSize,
-            totalPages = result.TotalPages
-        });
+        var stockQuantities =
+            await stockReader
+                .GetAvailableQuantitiesAsync(
+                    currentTenant.Id,
+                    productVariantIds,
+                    ct);
+
+        var items =
+            result.Items
+                .Select(
+                    p =>
+                    {
+                        var stockQuantity =
+                            p.Variants
+                                .Where(v => v.IsActive)
+                                .Sum(
+                                    v =>
+                                        stockQuantities.TryGetValue(
+                                            v.Id,
+                                            out var quantity)
+                                            ? quantity
+                                            : 0);
+
+                        return new
+                        {
+                            id = p.Id,
+                            name = p.Name,
+                            sku = p.Sku,
+                            slug = p.Slug,
+                            price = p.Price,
+                            comparePrice = p.ComparePrice,
+                            finalPrice = p.FinalPrice,
+                            discountPercentage =
+                                p.DiscountPercentage,
+                            currency = p.Currency,
+                            brandId = p.BrandId,
+                            brandName = p.BrandName,
+                            isActive = p.IsActive,
+                            isFeatured = p.IsFeatured,
+                            isPublished = p.IsPublished,
+                            isInStock = stockQuantity > 0,
+                            stockQuantity,
+                            mainImage =
+                                p.Images
+                                    .FirstOrDefault(
+                                        i => i.IsPrimary)
+                                    ?.ImageUrl
+                                ??
+                                p.Images
+                                    .FirstOrDefault()
+                                    ?.ImageUrl,
+                            categoryNames = p.Categories,
+                            categoryIds = p.CategoryIds,
+                            createdAt = p.CreatedAt
+                        };
+                    })
+                .ToList();
+
+        return Results.Ok(
+            new
+            {
+                items,
+                total = result.TotalItems,
+                page = result.Page,
+                pageSize = result.PageSize,
+                totalPages = result.TotalPages
+            });
     }
 
     private static async Task<IResult> Get(
@@ -209,9 +405,17 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         IProductService productService,
         CancellationToken ct)
     {
-        var product = await productService.GetByIdAsync(id, ct);
+        var product =
+            await productService.GetByIdAsync(
+                id,
+                ct);
+
         return product is null
-            ? Results.NotFound(new { error = "Product not found." })
+            ? Results.NotFound(
+                new
+                {
+                    error = "Product not found."
+                })
             : Results.Ok(product);
     }
 
@@ -220,7 +424,11 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         IProductService productService,
         CancellationToken ct)
     {
-        var products = await productService.GetByCategoryAsync(categoryId, ct);
+        var products =
+            await productService.GetByCategoryAsync(
+                categoryId,
+                ct);
+
         return Results.Ok(products);
     }
 
@@ -230,9 +438,14 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(q))
-            return Results.Ok(Array.Empty<ProductDto>());
+            return Results.Ok(
+                Array.Empty<ProductDto>());
 
-        var products = await productService.SearchAsync(q, ct);
+        var products =
+            await productService.SearchAsync(
+                q,
+                ct);
+
         return Results.Ok(products);
     }
 
@@ -241,7 +454,11 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         IProductService productService = null!,
         CancellationToken ct = default)
     {
-        var products = await productService.GetFeaturedAsync(Math.Clamp(count, 1, 50), ct);
+        var products =
+            await productService.GetFeaturedAsync(
+                Math.Clamp(count, 1, 50),
+                ct);
+
         return Results.Ok(products);
     }
 
@@ -252,12 +469,22 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     {
         try
         {
-            var product = await productService.CreateAsync(request, ct);
-            return Results.Created($"/api/products/{product.Id}", product);
+            var product =
+                await productService.CreateAsync(
+                    request,
+                    ct);
+
+            return Results.Created(
+                $"/api/products/{product.Id}",
+                product);
         }
         catch (ArgumentException ex)
         {
-            return Results.BadRequest(new { error = ex.Message });
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
         }
     }
 
@@ -269,16 +496,28 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     {
         try
         {
-            await productService.UpdateAsync(id, request, ct);
+            await productService.UpdateAsync(
+                id,
+                request,
+                ct);
+
             return Results.NoContent();
         }
         catch (KeyNotFoundException ex)
         {
-            return Results.NotFound(new { error = ex.Message });
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
         }
         catch (ArgumentException ex)
         {
-            return Results.BadRequest(new { error = ex.Message });
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
         }
     }
 
@@ -290,16 +529,28 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     {
         try
         {
-            await productService.UpdateStockAsync(id, request.Quantity, ct);
+            await productService.UpdateStockAsync(
+                id,
+                request.Quantity,
+                ct);
+
             return Results.NoContent();
         }
         catch (KeyNotFoundException ex)
         {
-            return Results.NotFound(new { error = ex.Message });
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
         }
         catch (ArgumentOutOfRangeException ex)
         {
-            return Results.BadRequest(new { error = ex.Message });
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
         }
     }
 
@@ -311,12 +562,20 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     {
         try
         {
-            await productService.SetActiveAsync(id, request.Value, ct);
+            await productService.SetActiveAsync(
+                id,
+                request.Value,
+                ct);
+
             return Results.NoContent();
         }
         catch (KeyNotFoundException ex)
         {
-            return Results.NotFound(new { error = ex.Message });
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
         }
     }
 
@@ -328,12 +587,20 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     {
         try
         {
-            await productService.SetFeaturedAsync(id, request.Value, ct);
+            await productService.SetFeaturedAsync(
+                id,
+                request.Value,
+                ct);
+
             return Results.NoContent();
         }
         catch (KeyNotFoundException ex)
         {
-            return Results.NotFound(new { error = ex.Message });
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
         }
     }
 
@@ -344,16 +611,25 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     {
         try
         {
-            await productService.DeleteAsync(id, ct);
+            await productService.DeleteAsync(
+                id,
+                ct);
+
             return Results.NoContent();
         }
         catch (KeyNotFoundException ex)
         {
-            return Results.NotFound(new { error = ex.Message });
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
         }
     }
 
-    private static bool TryParseOptionalGuid(string? value, out Guid? result)
+    private static bool TryParseOptionalGuid(
+        string? value,
+        out Guid? result)
     {
         if (string.IsNullOrWhiteSpace(value))
         {
@@ -361,7 +637,9 @@ public sealed class ProductEndpoints : IFeatureEndpoints
             return true;
         }
 
-        if (Guid.TryParse(value, out var parsed))
+        if (Guid.TryParse(
+                value,
+                out var parsed))
         {
             result = parsed;
             return true;
@@ -372,5 +650,8 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     }
 }
 
-public sealed record UpdateStockRequest(int Quantity);
-public sealed record SetProductStateRequest(bool Value);
+public sealed record UpdateStockRequest(
+    int Quantity);
+
+public sealed record SetProductStateRequest(
+    bool Value);

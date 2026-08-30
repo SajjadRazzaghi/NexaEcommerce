@@ -1,4 +1,5 @@
 ﻿using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
+using NexaEcommerce.SharedKernel.Abstractions;
 
 namespace NexaEcommerce.Modules.Inventory.Application.Services;
 
@@ -33,4 +34,36 @@ public sealed class InventoryStockReader(
 
         return quantity is > 0;
     }
+
+    public async Task<IReadOnlyDictionary<Guid, int>>
+        GetAvailableQuantitiesAsync(
+            string tenantId,
+            IEnumerable<Guid> productVariantIds,
+            CancellationToken cancellationToken = default)
+    {
+        var result =
+            new Dictionary<Guid, int>();
+
+        foreach (
+            var productVariantId in
+            productVariantIds
+                .Where(x => x != Guid.Empty)
+                .Distinct())
+        {
+            var quantity =
+                await GetAvailableQuantityAsync(
+                    tenantId,
+                    productVariantId,
+                    cancellationToken);
+
+            if (quantity.HasValue)
+            {
+                result[productVariantId] =
+                    quantity.Value;
+            }
+        }
+
+        return result;
+    }
 }
+
