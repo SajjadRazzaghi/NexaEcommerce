@@ -3,9 +3,9 @@ import { api } from '@/lib/api/client';
 export type ProductVariant = {
     id: string;
     sku: string;
-    color?: string;
-    size?: string;
-    priceOverride?: number;
+    color?: string | null;
+    size?: string | null;
+    priceOverride?: number | null;
     stockQuantity: number;
     isActive: boolean;
 };
@@ -13,7 +13,7 @@ export type ProductVariant = {
 export type ProductImage = {
     id: string;
     imageUrl: string;
-    altText?: string;
+    altText?: string | null;
     displayOrder: number;
     isMain: boolean;
 };
@@ -24,8 +24,8 @@ export type Product = {
     sku: string;
     slug: string;
 
-    description?: string;
-    shortDescription?: string;
+    description?: string | null;
+    shortDescription?: string | null;
 
     price: number;
     comparePrice?: number | null;
@@ -80,10 +80,38 @@ export type ProductListItem = {
     isPublished: boolean;
     isInStock: boolean;
     stockQuantity: number;
-    mainImage?: string;
+    mainImage?: string | null;
     categoryNames: string[];
     categoryIds: string[];
     createdAt: string;
+};
+
+export type ProductListResponse = {
+    items: ProductListItem[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+};
+
+export type ProductFilter = {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    categoryId?: string;
+    brandId?: string;
+    isActive?: boolean;
+    isFeatured?: boolean;
+    isInStock?: boolean;
+    minPrice?: number;
+    maxPrice?: number;
+    sortBy?:
+    | 'newest'
+    | 'price_asc'
+    | 'price_desc'
+    | 'name'
+    | 'popular';
+    desc?: boolean;
 };
 
 export type CreateProductVariantDto = {
@@ -122,66 +150,110 @@ export type UpdateProductDto = {
     isPublished: boolean;
 };
 
-export type ProductFilter = {
-    page?: number;
-    pageSize?: number;
-    search?: string;
-    categoryId?: string;
-    brandId?: string;
-    isActive?: boolean;
-    isFeatured?: boolean;
-    isInStock?: boolean;
-    minPrice?: number;
-    maxPrice?: number;
-    sortBy?: 'newest' | 'price_asc' | 'price_desc' | 'name' | 'popular';
-    desc?: boolean;
-};
-
-export type ProductListResponse = {
-    items: ProductListItem[];
-    total: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-};
-
 export const productsApi = {
     getAll: (params?: ProductFilter) =>
-        api.get<ProductListResponse>('/products', { params }),
+        api.get<ProductListResponse>(
+            '/products',
+            { params },
+        ),
 
-    getAdminAll: (params?: ProductFilter & { isPublished?: boolean }) =>
-        api.get<ProductListResponse>('/products/admin', { params }),
+    getAdminAll: (
+        params?: ProductFilter & {
+            isPublished?: boolean;
+        },
+    ) =>
+        api.get<ProductListResponse>(
+            '/products/admin',
+            { params },
+        ),
 
     getFeatured: (count = 8) =>
-        api.get<Product[]>('/products/featured', { params: { count } }),
+        api.get<Product[]>(
+            '/products/featured',
+            {
+                params: { count },
+            },
+        ),
 
     getById: (id: string) =>
-        api.get<Product>(`/products/${id}`),
+        api.get<Product>(
+            `/products/${id}`,
+        ),
+
     getBySlug: (slug: string) =>
-        api.get<Product>(`/products/slug/${encodeURIComponent(slug)}`),
-    search: (query: string, params?: ProductFilter) =>
-        api.get<Product[]>('/products/search', {
-            params: { q: query, ...params },
-        }),
+        api.get<Product>(
+            `/products/slug/${encodeURIComponent(slug)}`,
+        ),
 
-    getByCategory: (categoryId: string, params?: ProductFilter) =>
-        api.get<Product[]>(`/products/category/${categoryId}`, { params }),
+    search: (
+        query: string,
+        params?: ProductFilter,
+    ) =>
+        api.get<Product[]>(
+            '/products/search',
+            {
+                params: {
+                    q: query,
+                    ...params,
+                },
+            },
+        ),
 
-    create: (data: CreateProductDto) =>
-        api.post<Product>('/products', data),
+    getByCategory: (
+        categoryId: string,
+        params?: ProductFilter,
+    ) =>
+        api.get<Product[]>(
+            `/products/category/${categoryId}`,
+            { params },
+        ),
 
-    update: (id: string, data: UpdateProductDto) =>
-        api.put<void>(`/products/${id}`, data),
+    create: (
+        data: CreateProductDto,
+    ) =>
+        api.post<Product>(
+            '/products',
+            data,
+        ),
 
-    updateStock: (id: string, quantity: number) =>
-        api.patch<void>(`/products/${id}/stock`, { quantity }),
+    update: (
+        id: string,
+        data: UpdateProductDto,
+    ) =>
+        api.put<void>(
+            `/products/${id}`,
+            data,
+        ),
 
-    toggleActive: (id: string, isActive: boolean) =>
-        api.patch<void>(`/products/${id}/active`, { value: isActive }),
+    updateStock: (
+        id: string,
+        quantity: number,
+    ) =>
+        api.patch<void>(
+            `/products/${id}/stock`,
+            { quantity },
+        ),
 
-    toggleFeatured: (id: string, isFeatured: boolean) =>
-        api.patch<void>(`/products/${id}/featured`, { value: isFeatured }),
+    toggleActive: (
+        id: string,
+        isActive: boolean,
+    ) =>
+        api.patch<void>(
+            `/products/${id}/active`,
+            { value: isActive },
+        ),
+
+    toggleFeatured: (
+        id: string,
+        isFeatured: boolean,
+    ) =>
+        api.patch<void>(
+            `/products/${id}/featured`,
+            { value: isFeatured },
+        ),
 
     delete: (id: string) =>
-        api.del<void>(`/products/${id}`),
+        api.del<void>(
+            `/products/${id}`,
+        ),
 };

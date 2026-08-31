@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useCartMutations } from '@/modules/cart/hooks/useCartMutations';
 import { Link } from 'react-router-dom';
 import {
     Card,
@@ -29,7 +30,7 @@ interface ProductCardProps {
 
 const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
     const [favorite, setFavorite] = useState(false);
-
+    const { add } = useCartMutations();
     const price = product.finalPrice ?? product.price;
 
     const hasDiscount =
@@ -207,8 +208,8 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         direction: 'ltr',
                         alignItems: 'center',
                     }}
+                >
                 
-                    component="div">
                     <Rating
                         value={4.5}
                         precision={0.5}
@@ -277,8 +278,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     sx={{
                         mt: 2,
                     }}
+                >
                 
-                    component="div">
+                   
                     <Button
                         component={Link}
                         to={`/products/${product.id}`}
@@ -297,7 +299,10 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
                     <Button
                         variant="contained"
-                        disabled={!product.isInStock}
+                        disabled={
+                            !product.isInStock ||
+                            add.isPending
+                        }
                         startIcon={<ShoppingCartOutlined />}
                         sx={{
                             borderRadius: 2,
@@ -305,10 +310,22 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                             fontWeight: 700,
                         }}
                         onClick={() => {
-                            console.log(
-                                'Add product to cart:',
-                                product.id
-                            );
+                            const variant =
+                                product.variants?.find(
+                                    (item) =>
+                                        item.isActive &&
+                                        item.stockQuantity > 0,
+                                );
+
+                            if (!variant) {
+                                return;
+                            }
+
+                            add.mutate({
+                                productVariantId:
+                                    variant.id,
+                                quantity: 1,
+                            });
                         }}
                     >
                         افزودن به سبد
