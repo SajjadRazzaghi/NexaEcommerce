@@ -5,18 +5,18 @@ using NexaEcommerce.Modules.Orders.Application.Services;
 namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class CheckoutOrchestrator(
-IInventoryService inventory,
-IOrderService orders)
+    IInventoryService inventory,
+    IOrderService orders)
 {
     private static readonly TimeSpan ReservationLifetime =
-    TimeSpan.FromMinutes(15);
+        TimeSpan.FromMinutes(15);
 
-public async Task<OrderDto> ExecuteAsync(
-    string tenantId,
-    string userId,
-    string idempotencyKey,
-    CheckoutRequest request,
-    CancellationToken cancellationToken = default)
+    public async Task<OrderDto> ExecuteAsync(
+        string tenantId,
+        string userId,
+        string idempotencyKey,
+        CheckoutRequest request,
+        CancellationToken cancellationToken = default)
     {
         ValidateInput(
             tenantId,
@@ -24,13 +24,6 @@ public async Task<OrderDto> ExecuteAsync(
             idempotencyKey,
             request);
 
-        /*
-         * CreateFromCheckoutAsync is idempotent.
-         *
-         * When the same key is retried, it returns the
-         * already existing order instead of creating a
-         * second order.
-         */
         var order =
             await orders.CreateFromCheckoutAsync(
                 tenantId,
@@ -39,13 +32,6 @@ public async Task<OrderDto> ExecuteAsync(
                 request,
                 cancellationToken);
 
-        /*
-         * The order is already past PendingPayment only
-         * when a previous checkout attempt already completed
-         * its business transition.
-         *
-         * This makes the HTTP operation safe to retry.
-         */
         if (!string.Equals(
                 order.Status,
                 "PendingPayment",
@@ -54,62 +40,100 @@ public async Task<OrderDto> ExecuteAsync(
             return order;
         }
 
-        /*
-         * A previous retry may have created reservations already.
-         * We do not blindly reserve again.
-         *
-         * The reservation key is deterministic for every
-         * checkout line, so InventoryService itself also gives us
-         * idempotency at the reservation layer.
-         */
-        foreach (var item in order.Items)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
+        var recordedReservationKeys =
+            new List<string>();
 
-            var reservationKey =
-                BuildReservationKey(
+        try
+        {
+            foreach (var item in order.Items)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var reservationKey =
+                    BuildReservationKey(
+                        tenantId,
+                        userId,
+                        idempotencyKey,
+                        item.ProductVariantId);
+
+                var reservation =
+                    await inventory.ReserveAsync(
+                        tenantId,
+                        item.ProductVariantId,
+                        item.Quantity,
+                        reservationKey,
+                        ReservationLifetime,
+                        cancellationToken);
+
+                await orders.RecordInventoryReservationAsync(
                     tenantId,
                     userId,
-                    idempotencyKey,
-                    item.ProductVariantId);
-
-            var reservation =
-                await inventory.ReserveAsync(
-                    tenantId,
+                    order.Id,
+                    reservationKey,
                     item.ProductVariantId,
                     item.Quantity,
-                    reservationKey,
-                    ReservationLifetime,
+                    reservation.ExpiresAt,
                     cancellationToken);
 
-            /*
-             * This is the missing link in the existing implementation.
-             *
-             * The reservation must be recorded inside the Order aggregate
-             * so PaymentCompletionOrchestrator can later commit exactly
-             * the reservations belonging to this order.
-             */
-            var expiresAt =
-                reservation.ExpiresAt;
+                recordedReservationKeys.Add(
+                    reservationKey);
+            }
 
-            await orders.RecordInventoryReservationAsync(
+            return
+                await orders.GetAsync(
+                    tenantId,
+                    order.Id,
+                    userId,
+                    cancellationToken)
+                ?? order;
+        }
+        catch
+        {
+            await CompensateFailedCheckoutAsync(
                 tenantId,
                 userId,
                 order.Id,
-                reservationKey,
-                item.ProductVariantId,
-                item.Quantity,
-                expiresAt,
-                cancellationToken);
+                recordedReservationKeys);
+
+            throw;
+        }
+    }
+
+    private async Task CompensateFailedCheckoutAsync(
+        string tenantId,
+        string userId,
+        Guid orderId,
+        IReadOnlyCollection<string> reservationKeys)
+    {
+        foreach (var reservationKey in
+                 reservationKeys.Reverse())
+        {
+            try
+            {
+                await inventory.ReleaseAsync(
+                    tenantId,
+                    reservationKey);
+            }
+            catch
+            {
+                // Compensation must continue for other reservations.
+                // The failed reservation remains observable and can
+                // be recovered by a later operational process.
+            }
         }
 
-        return
-            await orders.GetAsync(
+        try
+        {
+            await orders.CancelAsync(
                 tenantId,
-                order.Id,
-                userId,
-                cancellationToken)
-            ?? order;
+                orderId,
+                userId);
+        }
+        catch
+        {
+            // The original checkout exception remains the primary
+            // application failure.
+        }
     }
 
     private static void ValidateInput(
@@ -118,21 +142,24 @@ public async Task<OrderDto> ExecuteAsync(
         string idempotencyKey,
         CheckoutRequest request)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
+        if (string.IsNullOrWhiteSpace(
+                tenantId))
         {
             throw new ArgumentException(
                 "Tenant id is required.",
                 nameof(tenantId));
         }
 
-        if (string.IsNullOrWhiteSpace(userId))
+        if (string.IsNullOrWhiteSpace(
+                userId))
         {
             throw new ArgumentException(
                 "User id is required.",
                 nameof(userId));
         }
 
-        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        if (string.IsNullOrWhiteSpace(
+                idempotencyKey))
         {
             throw new ArgumentException(
                 "Idempotency key is required.",
@@ -160,21 +187,24 @@ public async Task<OrderDto> ExecuteAsync(
         string idempotencyKey,
         Guid productVariantId)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
+        if (string.IsNullOrWhiteSpace(
+                tenantId))
         {
             throw new ArgumentException(
                 "Tenant id is required.",
                 nameof(tenantId));
         }
 
-        if (string.IsNullOrWhiteSpace(userId))
+        if (string.IsNullOrWhiteSpace(
+                userId))
         {
             throw new ArgumentException(
                 "User id is required.",
                 nameof(userId));
         }
 
-        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        if (string.IsNullOrWhiteSpace(
+                idempotencyKey))
         {
             throw new ArgumentException(
                 "Idempotency key is required.",
@@ -198,6 +228,5 @@ public async Task<OrderDto> ExecuteAsync(
             ":",
             productVariantId.ToString("N"));
     }
-
-
 }
+

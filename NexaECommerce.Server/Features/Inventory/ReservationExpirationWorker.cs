@@ -1,8 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
 using NexaEcommerce.Modules.Inventory.Application.Services;
+using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
+using NexaEcommerce.Modules.Orders.Domain.Interfaces;
+using NexaEcommerce.Modules.Orders.Application.Services;
 
 namespace NexaECommerce.Server.Features.Inventory;
 
@@ -69,10 +71,20 @@ public sealed class ReservationExpirationWorker(
                 .GetRequiredService<
                     IInventoryRepository>();
 
-        var unitOfWork =
+        var inventoryUnitOfWork =
             scope.ServiceProvider
                 .GetRequiredService<
                     IInventoryUnitOfWork>();
+
+        var orderRepository =
+            scope.ServiceProvider
+                .GetRequiredService<
+                    IOrderRepository>();
+
+        var orderUnitOfWork =
+            scope.ServiceProvider
+                .GetRequiredService<
+                    IOrderUnitOfWork>();
 
         var reservations =
             await repository.GetExpiredReservationsAsync(
@@ -83,7 +95,11 @@ public sealed class ReservationExpirationWorker(
         if (reservations.Count == 0)
             return;
 
-        var processed = 0;
+        var processedInventory =
+            0;
+
+        var processedOrders =
+            0;
 
         foreach (var reservation in reservations)
         {
@@ -100,17 +116,48 @@ public sealed class ReservationExpirationWorker(
 
             reservation.MarkExpired();
 
-            processed++;
+            processedInventory++;
         }
 
-        if (processed == 0)
-            return;
+        if (processedInventory > 0)
+        {
+            await inventoryUnitOfWork.SaveChangesAsync(
+                cancellationToken);
+        }
 
-        await unitOfWork.SaveChangesAsync(
-            cancellationToken);
+        foreach (var reservation in reservations)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var order =
+                await orderRepository.GetByReservationKeyAsync(
+                    reservation.TenantId,
+                    reservation.ReservationKey,
+                    cancellationToken);
+
+            if (order is null)
+                continue;
+
+            var changed =
+                order.MarkInventoryReservationExpired(
+                    reservation.ReservationKey);
+
+            if (changed)
+            {
+                processedOrders++;
+            }
+        }
+
+        if (processedOrders > 0)
+        {
+            await orderUnitOfWork.SaveChangesAsync(
+                cancellationToken);
+        }
 
         logger.LogInformation(
-            "Expired and released {Count} inventory reservations.",
-            processed);
+            "Expired {InventoryCount} inventory reservations and synchronized {OrderCount} order reservations.",
+            processedInventory,
+            processedOrders);
     }
 }
+

@@ -2,10 +2,10 @@
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.ShoppingCart.Application.Services;
-using NexaECommerce.Server.Platform.MultiTenancy;
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaECommerce.Server.Platform.Authorization;
 using NexaECommerce.Server.Platform.Features;
+using NexaECommerce.Server.Platform.MultiTenancy;
 using System.Security.Claims;
 
 namespace NexaECommerce.Server.Features.Orders;
@@ -297,10 +297,10 @@ public sealed class OrderEndpoints
 
     private static async Task<IResult> Cancel(
         Guid id,
-        [FromServices] IOrderService orderService,
-        [FromServices] ICurrentTenant tenant,
+        [FromServices] OrderCancellationOrchestrator cancellation,
         HttpContext http,
-        CancellationToken ct)
+        CancellationToken ct,
+        [FromServices] ICurrentTenant tenant)
     {
         var userId =
             http.User.FindFirstValue(
@@ -313,10 +313,10 @@ public sealed class OrderEndpoints
 
         try
         {
-            await orderService.CancelAsync(
+            await cancellation.CancelAsync(
                 tenant.Id,
-                id,
                 userId,
+                id,
                 ct);
 
             return Results.Ok(

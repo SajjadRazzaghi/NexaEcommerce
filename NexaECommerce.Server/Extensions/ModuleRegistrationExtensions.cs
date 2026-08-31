@@ -99,13 +99,17 @@ public static class ModuleRegistrationExtensions
         // ========================================================
 
         services.AddScoped<
-            CheckoutOrchestrator>();
+       CheckoutOrchestrator>();
 
         services.AddScoped<
             PaymentCompletionOrchestrator>();
 
         services.AddScoped<
+            OrderCancellationOrchestrator>();
+
+        services.AddScoped<
             PaymentEndpoints>();
+
 
         return services;
     }
