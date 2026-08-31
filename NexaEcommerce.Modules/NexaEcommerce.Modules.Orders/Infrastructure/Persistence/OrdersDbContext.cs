@@ -1,3 +1,4 @@
+
 using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 
@@ -20,6 +21,10 @@ public sealed class OrdersDbContext(
     public DbSet<PaymentAttempt>
         PaymentAttempts =>
         Set<PaymentAttempt>();
+
+    public DbSet<Shipment>
+        Shipments =>
+        Set<Shipment>();
 
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
@@ -310,6 +315,65 @@ public sealed class OrdersDbContext(
                         x.TenantId,
                         x.OrderId
                     });
+            });
+
+        modelBuilder.Entity<Shipment>(
+            entity =>
+            {
+                entity.ToTable(
+                    "Shipments");
+
+                entity.HasKey(
+                    x => x.Id);
+
+                entity.Property(
+                    x => x.OrderId)
+                    .IsRequired();
+
+                entity.Property(
+                    x => x.TenantId)
+                    .IsRequired()
+                    .HasMaxLength(64);
+
+                entity.Property(
+                    x => x.ShippingMethod)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(
+                    x => x.Carrier)
+                    .IsRequired()
+                    .HasMaxLength(100);
+
+                entity.Property(
+                    x => x.TrackingNumber)
+                    .HasMaxLength(200);
+
+                entity.Property(
+                    x => x.Status)
+                    .IsRequired();
+
+                entity.Property(
+                    x => x.CreatedAt)
+                    .IsRequired();
+
+                entity.HasIndex(
+                    x => new
+                    {
+                        x.TenantId,
+                        x.OrderId
+                    })
+                    .IsUnique();
+
+                entity.HasIndex(
+                    x => new
+                    {
+                        x.TenantId,
+                        x.TrackingNumber
+                    })
+                    .IsUnique()
+                    .HasFilter(
+                        "[TrackingNumber] IS NOT NULL");
             });
     }
 }

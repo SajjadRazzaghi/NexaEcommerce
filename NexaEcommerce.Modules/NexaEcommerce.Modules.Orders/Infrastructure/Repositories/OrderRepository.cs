@@ -27,11 +27,13 @@ public sealed class OrderRepository(
         if (!string.IsNullOrWhiteSpace(userId))
         {
             query = query.Where(
-                x => x.UserId == userId);
+                x =>
+                    x.UserId == userId);
         }
 
-        return await query.FirstOrDefaultAsync(
-            cancellationToken);
+        return await query
+            .FirstOrDefaultAsync(
+                cancellationToken);
     }
 
     public async Task<Order?> GetByOrderNumberAsync(
@@ -53,11 +55,13 @@ public sealed class OrderRepository(
         if (!string.IsNullOrWhiteSpace(userId))
         {
             query = query.Where(
-                x => x.UserId == userId);
+                x =>
+                    x.UserId == userId);
         }
 
-        return await query.FirstOrDefaultAsync(
-            cancellationToken);
+        return await query
+            .FirstOrDefaultAsync(
+                cancellationToken);
     }
 
     public async Task<Order?> GetByIdempotencyKeyAsync(
@@ -75,6 +79,66 @@ public sealed class OrderRepository(
                     x.TenantId == tenantId &&
                     x.UserId == userId &&
                     x.IdempotencyKey == idempotencyKey,
+                cancellationToken);
+    }
+
+    public async Task<Order?> GetByReservationKeyAsync(
+        string tenantId,
+        string reservationKey,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(
+                tenantId) ||
+            string.IsNullOrWhiteSpace(
+                reservationKey))
+        {
+            return null;
+        }
+
+        var normalizedKey =
+            reservationKey.Trim();
+
+        return await context.Orders
+            .Include(x => x.Items)
+            .Include(x => x.InventoryReservations)
+            .FirstOrDefaultAsync(
+                x =>
+                    x.TenantId == tenantId &&
+                    x.InventoryReservations.Any(
+                        r =>
+                            r.ReservationKey ==
+                            normalizedKey),
+                cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Order>>
+        GetOrdersForInventoryReconciliationAsync(
+            string tenantId,
+            int batchSize,
+            CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            return [];
+        }
+
+        batchSize =
+            Math.Clamp(
+                batchSize,
+                1,
+                500);
+
+        return await context.Orders
+            .Include(x => x.Items)
+            .Include(x => x.InventoryReservations)
+            .Where(
+                x =>
+                    x.TenantId == tenantId &&
+                    x.InventoryReservations.Any())
+            .OrderBy(
+                x => x.UpdatedAt ?? x.CreatedAt)
+            .Take(batchSize)
+            .ToListAsync(
                 cancellationToken);
     }
 
@@ -103,12 +167,15 @@ public sealed class OrderRepository(
                 out var parsedStatus))
         {
             query = query.Where(
-                x => x.Status == parsedStatus);
+                x =>
+                    x.Status == parsedStatus);
         }
 
         return await query
-            .OrderByDescending(x => x.CreatedAt)
-            .Skip((page - 1) * pageSize)
+            .OrderByDescending(
+                x => x.CreatedAt)
+            .Skip(
+                (page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(
                 cancellationToken);
@@ -138,7 +205,8 @@ public sealed class OrderRepository(
                 out var parsedStatus))
         {
             query = query.Where(
-                x => x.Status == parsedStatus);
+                x =>
+                    x.Status == parsedStatus);
         }
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -155,8 +223,10 @@ public sealed class OrderRepository(
         }
 
         return await query
-            .OrderByDescending(x => x.CreatedAt)
-            .Skip((page - 1) * pageSize)
+            .OrderByDescending(
+                x => x.CreatedAt)
+            .Skip(
+                (page - 1) * pageSize)
             .Take(pageSize)
             .ToListAsync(
                 cancellationToken);
@@ -181,11 +251,13 @@ public sealed class OrderRepository(
                 out var parsedStatus))
         {
             query = query.Where(
-                x => x.Status == parsedStatus);
+                x =>
+                    x.Status == parsedStatus);
         }
 
-        return await query.CountAsync(
-            cancellationToken);
+        return await query
+            .CountAsync(
+                cancellationToken);
     }
 
     public async Task<int> CountTenantOrdersAsync(
@@ -206,7 +278,8 @@ public sealed class OrderRepository(
                 out var parsedStatus))
         {
             query = query.Where(
-                x => x.Status == parsedStatus);
+                x =>
+                    x.Status == parsedStatus);
         }
 
         if (!string.IsNullOrWhiteSpace(search))
@@ -222,8 +295,9 @@ public sealed class OrderRepository(
                     x.ShippingPhone.Contains(term));
         }
 
-        return await query.CountAsync(
-            cancellationToken);
+        return await query
+            .CountAsync(
+                cancellationToken);
     }
 
     public async Task AddAsync(
@@ -235,3 +309,4 @@ public sealed class OrderRepository(
             cancellationToken);
     }
 }
+

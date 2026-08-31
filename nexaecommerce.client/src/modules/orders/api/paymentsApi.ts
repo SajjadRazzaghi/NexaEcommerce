@@ -14,6 +14,26 @@ export interface CompletePaymentRequest {
     gatewayReference: string;
 }
 
+export interface FailPaymentRequest {
+    paymentAttemptId: string;
+    failureCode?: string | null;
+    failureMessage?: string | null;
+}
+
+export interface RetryPaymentResponse {
+    id: string;
+    orderId: string;
+    status: string;
+    amount: number;
+    currency: string;
+    gatewayName?: string | null;
+    gatewayReference?: string | null;
+    failureCode?: string | null;
+    failureMessage?: string | null;
+    createdAt: string;
+    completedAt?: string | null;
+}
+
 export async function createPaymentAttempt(
     request: CreatePaymentAttemptRequest,
     idempotencyKey: string,
@@ -24,7 +44,8 @@ export async function createPaymentAttempt(
             request,
             {
                 headers: {
-                    'Idempotency-Key': idempotencyKey,
+                    'Idempotency-Key':
+                        idempotencyKey,
                 },
             },
         );
@@ -37,7 +58,7 @@ export async function getPaymentAttempt(
 ): Promise<PaymentAttemptDto> {
     const { data } =
         await api.get<PaymentAttemptDto>(
-            `/api/orders/payment-attempts/${id}`,
+            `/ api / orders / payment - attempts / ${ id } `,
         );
 
     return data;
@@ -50,6 +71,39 @@ export async function completePayment(
         await api.post<PaymentAttemptDto>(
             '/api/orders/payment/complete',
             request,
+        );
+
+    return data;
+}
+
+export async function failPayment(
+    request: FailPaymentRequest,
+): Promise<unknown> {
+    const { data } =
+        await api.post(
+            '/api/orders/payment/fail',
+            request,
+        );
+
+    return data;
+}
+
+export async function retryPayment(
+    orderId: string,
+    idempotencyKey: string,
+): Promise<PaymentAttemptDto> {
+    const { data } =
+        await api.post<PaymentAttemptDto>(
+            '/api/orders/payment/retry',
+            {
+                orderId,
+            },
+            {
+                headers: {
+                    'Idempotency-Key':
+                        idempotencyKey,
+                },
+            },
         );
 
     return data;

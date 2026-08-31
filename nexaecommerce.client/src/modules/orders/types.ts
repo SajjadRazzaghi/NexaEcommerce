@@ -83,3 +83,21 @@ export interface PaymentAttemptDto {
     createdAt: string;
     completedAt?: string | null;
 }
+
+export type ShipmentStatus =
+    | 'Pending'
+    | 'Shipped'
+    | 'Delivered'
+    | 'Cancelled';
+
+export interface ShipmentDto {
+    id: string;
+    orderId: string;
+    shippingMethod: string;
+    carrier: string;
+    trackingNumber?: string | null;
+    status: ShipmentStatus;
+    createdAt: string;
+    shippedAt?: string | null;
+    deliveredAt?: string | null;
+}

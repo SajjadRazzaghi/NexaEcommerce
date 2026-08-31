@@ -105,29 +105,25 @@ public sealed class Order : AggregateRoot
         string shippingCity,
         string? shippingPostalCode)
     {
-        if (string.IsNullOrWhiteSpace(
-                tenantId))
+        if (string.IsNullOrWhiteSpace(tenantId))
         {
             throw new ArgumentException(
                 nameof(tenantId));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                userId))
+        if (string.IsNullOrWhiteSpace(userId))
         {
             throw new ArgumentException(
                 nameof(userId));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                orderNumber))
+        if (string.IsNullOrWhiteSpace(orderNumber))
         {
             throw new ArgumentException(
                 nameof(orderNumber));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                idempotencyKey))
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
             throw new ArgumentException(
                 nameof(idempotencyKey));
@@ -140,8 +136,7 @@ public sealed class Order : AggregateRoot
                 nameof(idempotencyKey));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                currency))
+        if (string.IsNullOrWhiteSpace(currency))
         {
             throw new ArgumentException(
                 nameof(currency));
@@ -165,29 +160,25 @@ public sealed class Order : AggregateRoot
                 nameof(discountAmount));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                shippingFullName))
+        if (string.IsNullOrWhiteSpace(shippingFullName))
         {
             throw new ArgumentException(
                 nameof(shippingFullName));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                shippingPhone))
+        if (string.IsNullOrWhiteSpace(shippingPhone))
         {
             throw new ArgumentException(
                 nameof(shippingPhone));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                shippingAddress))
+        if (string.IsNullOrWhiteSpace(shippingAddress))
         {
             throw new ArgumentException(
                 nameof(shippingAddress));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                shippingCity))
+        if (string.IsNullOrWhiteSpace(shippingCity))
         {
             throw new ArgumentException(
                 nameof(shippingCity));
@@ -231,8 +222,7 @@ public sealed class Order : AggregateRoot
                 nameof(sku));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                productName))
+        if (string.IsNullOrWhiteSpace(productName))
         {
             throw new ArgumentException(
                 nameof(productName));
@@ -248,6 +238,18 @@ public sealed class Order : AggregateRoot
         {
             throw new ArgumentOutOfRangeException(
                 nameof(quantity));
+        }
+
+        var existingItem =
+            _items.FirstOrDefault(
+                x =>
+                    x.ProductVariantId ==
+                    productVariantId);
+
+        if (existingItem is not null)
+        {
+            throw new InvalidOperationException(
+                $"Product variant '{productVariantId}' already exists in this order.");
         }
 
         var item =
@@ -280,13 +282,16 @@ public sealed class Order : AggregateRoot
                 nameof(reservationKey));
         }
 
+        var normalizedKey =
+            reservationKey.Trim();
+
         var existing =
             _inventoryReservations
                 .FirstOrDefault(
                     x =>
                         string.Equals(
                             x.ReservationKey,
-                            reservationKey.Trim(),
+                            normalizedKey,
                             StringComparison.Ordinal));
 
         if (existing is not null)
@@ -311,7 +316,7 @@ public sealed class Order : AggregateRoot
             OrderInventoryReservation.Create(
                 Id,
                 TenantId,
-                reservationKey,
+                normalizedKey,
                 productVariantId,
                 quantity,
                 expiresAt);
@@ -325,14 +330,32 @@ public sealed class Order : AggregateRoot
         return reservation;
     }
 
+    public bool HasActiveInventoryReservations =>
+        _inventoryReservations.Any(
+            x =>
+                x.Status ==
+                InventoryReservationStatus.Reserved);
+
+    public bool HasCommittedInventoryReservations =>
+        _inventoryReservations.Any(
+            x =>
+                x.Status ==
+                InventoryReservationStatus.Committed);
+
+    public bool AreAllInventoryReservationsCommitted =>
+        _inventoryReservations.Count > 0 &&
+        _inventoryReservations.All(
+            x =>
+                x.Status ==
+                InventoryReservationStatus.Committed);
+
     public void MarkInventoryReservationsCommitted()
     {
         foreach (var reservation in
-                 _inventoryReservations
-                     .Where(
-                         x =>
-                             x.Status ==
-                             InventoryReservationStatus.Reserved))
+                 _inventoryReservations.Where(
+                     x =>
+                         x.Status ==
+                         InventoryReservationStatus.Reserved))
         {
             reservation.MarkCommitted();
         }
@@ -344,17 +367,69 @@ public sealed class Order : AggregateRoot
     public void MarkInventoryReservationsReleased()
     {
         foreach (var reservation in
-                 _inventoryReservations
-                     .Where(
-                         x =>
-                             x.Status ==
-                             InventoryReservationStatus.Reserved))
+                 _inventoryReservations.Where(
+                     x =>
+                         x.Status ==
+                         InventoryReservationStatus.Reserved))
         {
             reservation.MarkReleased();
         }
 
         UpdatedAt =
             DateTime.UtcNow;
+    }
+
+    public bool MarkInventoryReservationExpired(
+        string reservationKey)
+    {
+        if (string.IsNullOrWhiteSpace(
+                reservationKey))
+        {
+            return false;
+        }
+
+        var reservation =
+            _inventoryReservations.FirstOrDefault(
+                x =>
+                    string.Equals(
+                        x.ReservationKey,
+                        reservationKey.Trim(),
+                        StringComparison.Ordinal));
+
+        if (reservation is null)
+            return false;
+
+        reservation.MarkExpired();
+
+        UpdatedAt =
+            DateTime.UtcNow;
+
+        return true;
+    }
+
+    public int MarkExpiredInventoryReservations(
+        DateTimeOffset now)
+    {
+        var count = 0;
+
+        foreach (var reservation in
+                 _inventoryReservations.Where(
+                     x =>
+                         x.Status ==
+                         InventoryReservationStatus.Reserved &&
+                         x.ExpiresAt <= now))
+        {
+            reservation.MarkExpired();
+            count++;
+        }
+
+        if (count > 0)
+        {
+            UpdatedAt =
+                DateTime.UtcNow;
+        }
+
+        return count;
     }
 
     public void MarkPaid()
@@ -375,7 +450,8 @@ public sealed class Order : AggregateRoot
 
     public void StartProcessing()
     {
-        if (Status != OrderStatus.Paid)
+        if (Status !=
+            OrderStatus.Paid)
         {
             throw new InvalidOperationException(
                 "Only paid orders can start processing.");
@@ -390,7 +466,8 @@ public sealed class Order : AggregateRoot
 
     public void MarkShipped()
     {
-        if (Status != OrderStatus.Processing)
+        if (Status !=
+            OrderStatus.Processing)
         {
             throw new InvalidOperationException(
                 "Only processing orders can be shipped.");
@@ -405,7 +482,8 @@ public sealed class Order : AggregateRoot
 
     public void MarkDelivered()
     {
-        if (Status != OrderStatus.Shipped)
+        if (Status !=
+            OrderStatus.Shipped)
         {
             throw new InvalidOperationException(
                 "Only shipped orders can be delivered.");

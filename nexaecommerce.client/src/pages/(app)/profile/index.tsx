@@ -5,27 +5,73 @@ import { SectionLayout } from '@/components/section-layout';
 import { ProfileInfoSection } from '@/components/profile/profile-info-section';
 import { PreferencesSection } from '@/components/profile/preferences-section';
 import { PasswordSection } from '@/components/profile/password-section';
+
+import { CustomerAddressesSection } from '@/modules/customers/components/CustomerAddressesSection';
+
 import { meta } from './meta';
 
 export default function ProfilePage() {
-  const { t } = useTranslation();
-  useDocumentTitle(meta.title);
+    const { t } =
+        useTranslation();
 
-  return (
-    <div className="grid gap-6">
-      <header>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('profile.title')}</h1>
-        <p className="text-muted-foreground mt-1">{t('profile.subtitle')}</p>
-      </header>
+    useDocumentTitle(
+        meta.title,
+    );
 
-      <SectionLayout
-        side="end"
-        sections={[
-          { id: 'profile', label: t('profile.sections.profile'), content: <ProfileInfoSection /> },
-          { id: 'preferences', label: t('profile.sections.preferences'), content: <PreferencesSection /> },
-          { id: 'password', label: t('profile.sections.password'), content: <PasswordSection /> },
-        ]}
-      />
-    </div>
-  );
+    return (
+        <div className="grid gap-6">
+            <header>
+                <h1 className="text-2xl font-semibold tracking-tight">
+                    {t('profile.title')}
+                </h1>
+
+                <p className="text-muted-foreground mt-1">
+                    {t(
+                        'profile.subtitle',
+                    )}
+                </p>
+            </header>
+
+            <SectionLayout
+                side="end"
+                sections={[
+                    {
+                        id: 'profile',
+                        label: t(
+                            'profile.sections.profile',
+                        ),
+                        content: (
+                            <ProfileInfoSection />
+                        ),
+                    },
+                    {
+                        id: 'addresses',
+                        label:
+                            'Addresses',
+                        content: (
+                            <CustomerAddressesSection />
+                        ),
+                    },
+                    {
+                        id: 'preferences',
+                        label: t(
+                            'profile.sections.preferences',
+                        ),
+                        content: (
+                            <PreferencesSection />
+                        ),
+                    },
+                    {
+                        id: 'password',
+                        label: t(
+                            'profile.sections.password',
+                        ),
+                        content: (
+                            <PasswordSection />
+                        ),
+                    },
+                ]}
+            />
+        </div>
+    );
 }

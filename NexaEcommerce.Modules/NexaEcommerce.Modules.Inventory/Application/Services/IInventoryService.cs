@@ -21,6 +21,11 @@ public interface IInventoryService
         int quantity,
         CancellationToken cancellationToken = default);
 
+    Task<StockReservationDto?> GetReservationAsync(
+        string tenantId,
+        string reservationKey,
+        CancellationToken cancellationToken = default);
+
     Task<StockReservationDto> ReserveAsync(
         string tenantId,
         Guid productVariantId,
@@ -39,3 +44,4 @@ public interface IInventoryService
         string reservationKey,
         CancellationToken cancellationToken = default);
 }
+

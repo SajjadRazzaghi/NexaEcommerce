@@ -22,6 +22,17 @@ public interface IOrderRepository
         string idempotencyKey,
         CancellationToken cancellationToken = default);
 
+    Task<Order?> GetByReservationKeyAsync(
+        string tenantId,
+        string reservationKey,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Order>>
+        GetOrdersForInventoryReconciliationAsync(
+            string tenantId,
+            int batchSize,
+            CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<Order>> GetUserOrdersAsync(
         string tenantId,
         string userId,

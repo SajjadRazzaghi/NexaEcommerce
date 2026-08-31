@@ -65,6 +65,14 @@ public static class OrdersModule
         services.AddScoped<
             IPaymentGateway,
             TestPaymentGateway>();
+       
+services.AddScoped<
+    IShipmentRepository,
+    ShipmentRepository>();
+
+        services.AddScoped<
+            IShipmentService,
+            ShipmentService>();
 
 
         return services;

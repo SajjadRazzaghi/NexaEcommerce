@@ -51,11 +51,13 @@ export const PERM = {
     productsPublish: 'catalog.products.publish',
     productsFeature: 'catalog.products.feature',
 
-  ordersRead: 'orders.read',
-  ordersCreate: 'orders.create',
-  ordersUpdate: 'orders.update',
-  ordersDelete: 'orders.delete',
-  ordersStatus: 'orders.status',
+    ordersRead: 'orders.read',
+    ordersCreate: 'orders.create',
+    ordersUpdate: 'orders.update',
+    ordersDelete: 'orders.delete',
+    ordersStatus: 'orders.status',
+    ordersManage: 'orders.manage',
+
 
   cartsRead: 'carts.read',
   cartsUpdate: 'carts.update',

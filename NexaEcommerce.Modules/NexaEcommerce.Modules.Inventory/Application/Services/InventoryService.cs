@@ -28,7 +28,35 @@ public sealed class InventoryService(
             ? null
             : Map(stock);
     }
+public async Task<StockReservationDto?> GetReservationAsync(
+    string tenantId,
+    string reservationKey,
+    CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
 
+        if (string.IsNullOrWhiteSpace(reservationKey))
+        {
+            throw new ArgumentException(
+                "Reservation key is required.",
+                nameof(reservationKey));
+        }
+
+        var reservation =
+            await repository.GetReservationAsync(
+                tenantId,
+                reservationKey.Trim(),
+                cancellationToken);
+
+        return reservation is null
+            ? null
+            : Map(reservation);
+    }
     public async Task<StockDto> SetStockAsync(
         string tenantId,
         Guid productVariantId,
