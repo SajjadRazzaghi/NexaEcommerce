@@ -1,4 +1,5 @@
-﻿namespace NexaEcommerce.Modules.Customers.Application.DTOs;
+﻿
+namespace NexaEcommerce.Modules.Customers.Application.DTOs;
 
 public sealed record CreateAddressRequest(
     string Title,
@@ -19,7 +20,8 @@ public sealed record UpdateAddressRequest(
     string Province,
     string City,
     string AddressLine,
-    string? PostalCode);
+    string? PostalCode,
+    bool IsDefault = false);
 
 public sealed record CustomerAddressDto(
     Guid Id,
@@ -32,3 +34,4 @@ public sealed record CustomerAddressDto(
     string AddressLine,
     string? PostalCode,
     bool IsDefault);
+

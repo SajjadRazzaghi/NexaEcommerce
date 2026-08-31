@@ -1,6 +1,8 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿
+using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Catalog;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
+using NexaEcommerce.Modules.Customers;
 using NexaEcommerce.Modules.Inventory;
 using NexaEcommerce.Modules.Orders;
 using NexaEcommerce.Modules.Orders.Application.Services;
@@ -24,25 +26,57 @@ public static class ModuleRegistrationExtensions
         var connectionString =
             configuration.GetConnectionString("Default");
 
-        if (string.IsNullOrEmpty(connectionString))
+        if (string.IsNullOrWhiteSpace(connectionString))
         {
             connectionString =
-                configuration.GetConnectionString("DefaultConnection");
+                configuration.GetConnectionString(
+                    "DefaultConnection");
         }
 
-        if (string.IsNullOrEmpty(connectionString))
+        if (string.IsNullOrWhiteSpace(connectionString))
         {
-            connectionString =
-                "Data Source=App_Data/NexaEcommerce.db";
+            throw new InvalidOperationException(
+                "Connection string 'Default' was not found.");
         }
 
-        services.AddCatalogModule(connectionString);
+        // ========================================================
+        // Catalog
+        // ========================================================
 
-        services.AddInventoryModule(connectionString);
+        services.AddCatalogModule(
+            connectionString);
 
-        services.AddShoppingCartModule(connectionString);
+        // ========================================================
+        // Customers
+        // ========================================================
 
-        services.AddOrdersModule(connectionString);
+        services.AddCustomersModule(
+            configuration);
+
+        // ========================================================
+        // Inventory
+        // ========================================================
+
+        services.AddInventoryModule(
+            connectionString);
+
+        // ========================================================
+        // Shopping Cart
+        // ========================================================
+
+        services.AddShoppingCartModule(
+            connectionString);
+
+        // ========================================================
+        // Orders
+        // ========================================================
+
+        services.AddOrdersModule(
+            connectionString);
+
+        // ========================================================
+        // Cross-module readers
+        // ========================================================
 
         services.AddScoped<
             IOrderProductReader,
@@ -52,16 +86,28 @@ public static class ModuleRegistrationExtensions
             IProductVariantReader,
             CatalogProductVariantReader>();
 
+        // ========================================================
+        // Tenant
+        // ========================================================
+
         services.AddScoped<
             ICurrentTenant,
             CurrentTenant>();
-        services.AddScoped<
-    CheckoutOrchestrator>();
-        services.AddScoped<
-    PaymentCompletionOrchestrator>();
-        services.AddScoped<PaymentEndpoints>();
-        return services;
 
+        // ========================================================
+        // Checkout / Payment orchestration
+        // ========================================================
+
+        services.AddScoped<
+            CheckoutOrchestrator>();
+
+        services.AddScoped<
+            PaymentCompletionOrchestrator>();
+
+        services.AddScoped<
+            PaymentEndpoints>();
+
+        return services;
     }
 
     public static IApplicationBuilder UseEcommerceModules(
@@ -92,3 +138,4 @@ public static class ModuleRegistrationExtensions
         return app;
     }
 }
+

@@ -81,6 +81,9 @@ public sealed class CustomerDbContext(
                             x.TenantId,
                             x.UserId
                         });
+                entity.HasIndex(x => new { x.TenantId, x.UserId, x.IsDefault })
+                .HasDatabaseName("IX_CustomerAddresses_Default")
+                .HasFilter("[IsDefault] = 1").IsUnique();
             });
     }
 }
