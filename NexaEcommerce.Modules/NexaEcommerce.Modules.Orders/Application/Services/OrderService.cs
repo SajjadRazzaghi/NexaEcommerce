@@ -5,30 +5,29 @@ using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 namespace NexaEcommerce.Modules.Orders.Application.Services;
 
 public sealed class OrderService(
-    IOrderRepository repository,
-    IOrderProductReader productReader,
-    IOrderUnitOfWork unitOfWork)
-    : IOrderService
+IOrderRepository repository,
+IOrderProductReader productReader,
+IOrderUnitOfWork unitOfWork)
+: IOrderService
 {
     public async Task<OrderDto> CreateFromCheckoutAsync(
-        string tenantId,
-        string userId,
-        string idempotencyKey,
-        CheckoutRequest request,
-        CancellationToken cancellationToken = default)
+    string tenantId,
+    string userId,
+    string idempotencyKey,
+    CheckoutRequest request,
+    CancellationToken cancellationToken = default)
     {
         ValidateCheckout(
+        tenantId,
+        userId,
+        idempotencyKey,
+        request);
+    var existing =
+        await repository.GetByIdempotencyKeyAsync(
             tenantId,
             userId,
             idempotencyKey,
-            request);
-
-        var existing =
-            await repository.GetByIdempotencyKeyAsync(
-                tenantId,
-                userId,
-                idempotencyKey,
-                cancellationToken);
+            cancellationToken);
 
         if (existing is not null)
         {
@@ -65,6 +64,8 @@ public sealed class OrderService(
 
         foreach (var line in grouped)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
             var product =
                 await productReader.GetAsync(
                     line.ProductVariantId,
@@ -78,13 +79,6 @@ public sealed class OrderService(
                     $"Product variant {line.ProductVariantId} is no longer available.");
             }
 
-            /*
-             * Catalog data is used for product identity,
-             * SKU and price snapshot.
-             *
-             * Inventory is the authoritative source for
-             * available stock.
-             */
             order.AddItem(
                 product.Id,
                 product.Sku,
@@ -96,6 +90,102 @@ public sealed class OrderService(
         await repository.AddAsync(
             order,
             cancellationToken);
+
+        await unitOfWork.SaveChangesAsync(
+            cancellationToken);
+
+        return Map(order);
+    }
+
+    public async Task<OrderDto> RecordInventoryReservationAsync(
+        string tenantId,
+        string userId,
+        Guid orderId,
+        string reservationKey,
+        Guid productVariantId,
+        int quantity,
+        DateTimeOffset expiresAt,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException(
+                "User id is required.",
+                nameof(userId));
+        }
+
+        if (orderId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Order id is required.",
+                nameof(orderId));
+        }
+
+        if (string.IsNullOrWhiteSpace(reservationKey))
+        {
+            throw new ArgumentException(
+                "Reservation key is required.",
+                nameof(reservationKey));
+        }
+
+        if (productVariantId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Product variant id is required.",
+                nameof(productVariantId));
+        }
+
+        if (quantity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(quantity));
+        }
+
+        if (expiresAt <= DateTimeOffset.UtcNow)
+        {
+            throw new ArgumentException(
+                "Reservation expiration must be in the future.",
+                nameof(expiresAt));
+        }
+
+        var order =
+            await repository.GetByIdAsync(
+                tenantId,
+                orderId,
+                userId,
+                cancellationToken);
+
+        if (order is null)
+        {
+            throw new InvalidOperationException(
+                "Order was not found.");
+        }
+
+        if (order.Status !=
+            OrderStatus.PendingPayment)
+        {
+            throw new InvalidOperationException(
+                "Inventory reservations can only be recorded for orders pending payment.");
+        }
+
+        /*
+         * Order.AddInventoryReservation is intentionally idempotent.
+         *
+         * Replaying the same checkout request therefore does not create
+         * duplicate OrderInventoryReservation rows.
+         */
+        order.AddInventoryReservation(
+            reservationKey,
+            productVariantId,
+            quantity,
+            expiresAt);
 
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -256,4 +346,6 @@ public sealed class OrderService(
                             x.LineTotal))
                 .ToList());
     }
+
+
 }

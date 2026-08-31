@@ -6,13 +6,13 @@ public sealed class PaymentAttempt
     {
     }
 
-    private PaymentAttempt(
-        Guid orderId,
-        string tenantId,
-        string userId,
-        string idempotencyKey,
-        decimal amount,
-        string currency)
+private PaymentAttempt(
+    Guid orderId,
+    string tenantId,
+    string userId,
+    string idempotencyKey,
+    decimal amount,
+    string currency)
     {
         Id = Guid.NewGuid();
 
@@ -67,33 +67,47 @@ public sealed class PaymentAttempt
         string currency)
     {
         if (orderId == Guid.Empty)
+        {
             throw new ArgumentException(
                 nameof(orderId));
+        }
 
         if (string.IsNullOrWhiteSpace(tenantId))
+        {
             throw new ArgumentException(
                 nameof(tenantId));
+        }
 
         if (string.IsNullOrWhiteSpace(userId))
+        {
             throw new ArgumentException(
                 nameof(userId));
+        }
 
         if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
             throw new ArgumentException(
                 nameof(idempotencyKey));
+        }
 
         if (idempotencyKey.Trim().Length > 128)
+        {
             throw new ArgumentException(
                 "Payment idempotency key cannot exceed 128 characters.",
                 nameof(idempotencyKey));
+        }
 
         if (amount <= 0)
+        {
             throw new ArgumentOutOfRangeException(
                 nameof(amount));
+        }
 
         if (string.IsNullOrWhiteSpace(currency))
+        {
             throw new ArgumentException(
                 nameof(currency));
+        }
 
         return new PaymentAttempt(
             orderId,
@@ -102,6 +116,45 @@ public sealed class PaymentAttempt
             idempotencyKey.Trim(),
             amount,
             currency.Trim());
+    }
+
+    public void MarkGatewayCreated(
+        string gatewayName,
+        string gatewayReference)
+    {
+        if (Status !=
+            PaymentAttemptStatus.Pending)
+        {
+            if (Status ==
+                PaymentAttemptStatus.Succeeded)
+            {
+                return;
+            }
+
+            throw new InvalidOperationException(
+                "Only pending payment attempts can be initialized.");
+        }
+
+        if (string.IsNullOrWhiteSpace(gatewayName))
+        {
+            throw new ArgumentException(
+                nameof(gatewayName));
+        }
+
+        if (string.IsNullOrWhiteSpace(gatewayReference))
+        {
+            throw new ArgumentException(
+                nameof(gatewayReference));
+        }
+
+        GatewayName =
+            gatewayName.Trim();
+
+        GatewayReference =
+            gatewayReference.Trim();
+
+        FailureCode = null;
+        FailureMessage = null;
     }
 
     public void MarkSucceeded(
@@ -122,12 +175,16 @@ public sealed class PaymentAttempt
         }
 
         if (string.IsNullOrWhiteSpace(gatewayName))
+        {
             throw new ArgumentException(
                 nameof(gatewayName));
+        }
 
         if (string.IsNullOrWhiteSpace(gatewayReference))
+        {
             throw new ArgumentException(
                 nameof(gatewayReference));
+        }
 
         GatewayName =
             gatewayName.Trim();
@@ -155,22 +212,20 @@ public sealed class PaymentAttempt
             return;
         }
 
-        if (Status !=
-            PaymentAttemptStatus.Pending)
+        if (Status ==
+            PaymentAttemptStatus.Succeeded)
         {
             throw new InvalidOperationException(
-                "Only pending payment attempts can fail.");
+                "A successful payment attempt cannot be marked as failed.");
         }
 
         FailureCode =
-            string.IsNullOrWhiteSpace(
-                failureCode)
+            string.IsNullOrWhiteSpace(failureCode)
                 ? null
                 : failureCode.Trim();
 
         FailureMessage =
-            string.IsNullOrWhiteSpace(
-                failureMessage)
+            string.IsNullOrWhiteSpace(failureMessage)
                 ? null
                 : failureMessage.Trim();
 
@@ -180,6 +235,8 @@ public sealed class PaymentAttempt
         CompletedAt =
             DateTimeOffset.UtcNow;
     }
+
+
 }
 
 public enum PaymentAttemptStatus

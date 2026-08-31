@@ -5,17 +5,33 @@ using NexaEcommerce.Modules.Orders.Application.Services;
 namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class CheckoutOrchestrator(
-    IInventoryService inventory,
-    IOrderService orders)
+IInventoryService inventory,
+IOrderService orders)
 {
-    public async Task<OrderDto> ExecuteAsync(
-        string tenantId,
-        string userId,
-        string idempotencyKey,
-        CheckoutRequest request,
-        CancellationToken cancellationToken = default)
+    private static readonly TimeSpan ReservationLifetime =
+    TimeSpan.FromMinutes(15);
+
+public async Task<OrderDto> ExecuteAsync(
+    string tenantId,
+    string userId,
+    string idempotencyKey,
+    CheckoutRequest request,
+    CancellationToken cancellationToken = default)
     {
-        var existing =
+        ValidateInput(
+            tenantId,
+            userId,
+            idempotencyKey,
+            request);
+
+        /*
+         * CreateFromCheckoutAsync is idempotent.
+         *
+         * When the same key is retried, it returns the
+         * already existing order instead of creating a
+         * second order.
+         */
+        var order =
             await orders.CreateFromCheckoutAsync(
                 tenantId,
                 userId,
@@ -24,78 +40,117 @@ public sealed class CheckoutOrchestrator(
                 cancellationToken);
 
         /*
-         * If the idempotency key already belongs to an order,
-         * do not create another reservation flow here.
+         * The order is already past PendingPayment only
+         * when a previous checkout attempt already completed
+         * its business transition.
          *
-         * The caller can safely retry the HTTP request.
+         * This makes the HTTP operation safe to retry.
          */
-        if (existing.Status !=
-            "PendingPayment")
+        if (!string.Equals(
+                order.Status,
+                "PendingPayment",
+                StringComparison.OrdinalIgnoreCase))
         {
-            return existing;
+            return order;
         }
 
-        var reservationKeys =
-            new List<string>(
-                existing.Items.Count);
-
-        try
+        /*
+         * A previous retry may have created reservations already.
+         * We do not blindly reserve again.
+         *
+         * The reservation key is deterministic for every
+         * checkout line, so InventoryService itself also gives us
+         * idempotency at the reservation layer.
+         */
+        foreach (var item in order.Items)
         {
-            foreach (var item in existing.Items)
-            {
-                var reservationKey =
-                    BuildReservationKey(
-                        tenantId,
-                        userId,
-                        idempotencyKey,
-                        item.ProductVariantId);
+            cancellationToken.ThrowIfCancellationRequested();
 
+            var reservationKey =
+                BuildReservationKey(
+                    tenantId,
+                    userId,
+                    idempotencyKey,
+                    item.ProductVariantId);
+
+            var reservation =
                 await inventory.ReserveAsync(
                     tenantId,
                     item.ProductVariantId,
                     item.Quantity,
                     reservationKey,
-                    TimeSpan.FromMinutes(15),
+                    ReservationLifetime,
                     cancellationToken);
 
-                reservationKeys.Add(
-                    reservationKey);
-            }
+            /*
+             * This is the missing link in the existing implementation.
+             *
+             * The reservation must be recorded inside the Order aggregate
+             * so PaymentCompletionOrchestrator can later commit exactly
+             * the reservations belonging to this order.
+             */
+            var expiresAt =
+                reservation.ExpiresAt;
 
-            return existing;
+            await orders.RecordInventoryReservationAsync(
+                tenantId,
+                userId,
+                order.Id,
+                reservationKey,
+                item.ProductVariantId,
+                item.Quantity,
+                expiresAt,
+                cancellationToken);
         }
-        catch
+
+        return
+            await orders.GetAsync(
+                tenantId,
+                order.Id,
+                userId,
+                cancellationToken)
+            ?? order;
+    }
+
+    private static void ValidateInput(
+        string tenantId,
+        string userId,
+        string idempotencyKey,
+        CheckoutRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
         {
-            foreach (var reservationKey
-                     in reservationKeys)
-            {
-                try
-                {
-                    await inventory.ReleaseAsync(
-                        tenantId,
-                        reservationKey,
-                        cancellationToken);
-                }
-                catch
-                {
-                    // Preserve original reservation failure.
-                }
-            }
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
 
-            try
-            {
-                await orders.CancelAsync(
-                    tenantId,
-                    existing.Id,
-                    userId,
-                    cancellationToken);
-            }
-            catch
-            {
-                // Preserve the original checkout failure.
-            }
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException(
+                "User id is required.",
+                nameof(userId));
+        }
 
-            throw;
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            throw new ArgumentException(
+                "Idempotency key is required.",
+                nameof(idempotencyKey));
+        }
+
+        if (idempotencyKey.Trim().Length > 128)
+        {
+            throw new ArgumentException(
+                "Idempotency key cannot exceed 128 characters.",
+                nameof(idempotencyKey));
+        }
+
+        if (request.Items is null ||
+            request.Items.Count == 0)
+        {
+            throw new ArgumentException(
+                "Checkout must contain at least one item.");
         }
     }
 
@@ -105,6 +160,34 @@ public sealed class CheckoutOrchestrator(
         string idempotencyKey,
         Guid productVariantId)
     {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException(
+                "User id is required.",
+                nameof(userId));
+        }
+
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            throw new ArgumentException(
+                "Idempotency key is required.",
+                nameof(idempotencyKey));
+        }
+
+        if (productVariantId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Product variant id is required.",
+                nameof(productVariantId));
+        }
+
         return string.Concat(
             "checkout:",
             tenantId.Trim(),
@@ -115,4 +198,6 @@ public sealed class CheckoutOrchestrator(
             ":",
             productVariantId.ToString("N"));
     }
+
+
 }

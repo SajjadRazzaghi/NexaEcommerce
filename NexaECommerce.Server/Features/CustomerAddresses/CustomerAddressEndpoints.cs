@@ -46,8 +46,8 @@ public sealed class CustomerAddressEndpoints
     }
 
     private static async Task<IResult> GetAll(
-        ICustomerAddressService service,
-        ICurrentTenant tenant,
+        [FromServices] ICustomerAddressService service,
+        [FromServices] ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
@@ -68,8 +68,8 @@ public sealed class CustomerAddressEndpoints
 
     private static async Task<IResult> Get(
         Guid id,
-        ICustomerAddressService service,
-        ICurrentTenant tenant,
+        [FromServices] ICustomerAddressService service,
+        [FromServices] ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
@@ -93,8 +93,8 @@ public sealed class CustomerAddressEndpoints
 
     private static async Task<IResult> Create(
         [FromBody] CreateAddressRequest request,
-        ICustomerAddressService service,
-        ICurrentTenant tenant,
+        [FromServices] ICustomerAddressService service,
+        [FromServices] ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
@@ -130,8 +130,8 @@ public sealed class CustomerAddressEndpoints
     private static async Task<IResult> Update(
         Guid id,
         [FromBody] UpdateAddressRequest request,
-        ICustomerAddressService service,
-        ICurrentTenant tenant,
+        [FromServices] ICustomerAddressService service,
+        [FromServices] ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
@@ -167,8 +167,8 @@ public sealed class CustomerAddressEndpoints
 
     private static async Task<IResult> Delete(
         Guid id,
-        ICustomerAddressService service,
-        ICurrentTenant tenant,
+        [FromServices] ICustomerAddressService service,
+        [FromServices] ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
@@ -192,8 +192,8 @@ public sealed class CustomerAddressEndpoints
 
     private static async Task<IResult> SetDefault(
         Guid id,
-        ICustomerAddressService service,
-        ICurrentTenant tenant,
+        [FromServices] ICustomerAddressService service,
+        [FromServices] ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {

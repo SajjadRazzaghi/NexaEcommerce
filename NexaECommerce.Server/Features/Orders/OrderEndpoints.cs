@@ -32,9 +32,9 @@ public sealed class OrderEndpoints
 
     private static async Task<IResult> Checkout(
         [FromBody] CheckoutRequest request,
-        ICartService cartService,
-        CheckoutOrchestrator checkout,
-        ICurrentTenant tenant,
+      [FromServices] ICartService cartService,
+[FromServices] CheckoutOrchestrator checkout,
+[FromServices] ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
@@ -155,8 +155,11 @@ public sealed class OrderEndpoints
 
     private static async Task<IResult> Get(
         Guid id,
-        NexaEcommerce.Modules.Orders.Application.Services.IOrderService orderService,
-        ICurrentTenant tenant,
+       [FromServices]
+NexaEcommerce.Modules.Orders.Application.Services.IOrderService orderService,
+
+[FromServices]
+ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {

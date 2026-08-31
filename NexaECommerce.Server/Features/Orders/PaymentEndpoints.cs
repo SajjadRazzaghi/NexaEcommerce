@@ -1,20 +1,21 @@
-﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Services;
-using NexaECommerce.Server.Platform.Features;
 using NexaEcommerce.SharedKernel.Abstractions;
+using NexaECommerce.Server.Platform.Features;
+using NexaECommerce.Server.Platform.MultiTenancy;
+using System.Security.Claims;
 
 namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class PaymentEndpoints
-    : IFeatureEndpoints
+: IFeatureEndpoints
 {
     private const string PaymentIdempotencyHeader =
-        "Idempotency-Key";
+    "Idempotency-Key";
 
-    public void Map(
-        IEndpointRouteBuilder app)
+public void Map(
+    IEndpointRouteBuilder app)
     {
         var group =
             app.MapGroup("/api/orders")
@@ -37,17 +38,25 @@ public sealed class PaymentEndpoints
     private static async Task<IResult>
         CreatePaymentAttempt(
             [FromBody]
-            CreatePaymentAttemptRequest request,
-            IPaymentAttemptService paymentAttempts,
-            ICurrentTenant tenant,
+        CreatePaymentAttemptRequest request,
+
+            [FromServices]
+        IPaymentAttemptService paymentAttempts,
+
+            [FromServices]
+        ICurrentTenant tenant,
+
             HttpContext http,
+
             CancellationToken ct)
     {
         var userId =
             GetUserId(http);
 
         if (userId is null)
+        {
             return Results.Unauthorized();
+        }
 
         var idempotencyKey =
             GetIdempotencyKey(http);
@@ -59,6 +68,16 @@ public sealed class PaymentEndpoints
                 {
                     error =
                         $"{PaymentIdempotencyHeader} header is required."
+                });
+        }
+
+        if (idempotencyKey.Length > 128)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        $"{PaymentIdempotencyHeader} cannot exceed 128 characters."
                 });
         }
 
@@ -105,19 +124,29 @@ public sealed class PaymentEndpoints
     private static async Task<IResult>
         GetPaymentAttempt(
             Guid id,
-            IPaymentAttemptService paymentAttempts,
-            ICurrentTenant tenant,
+
+            [FromServices]
+        IPaymentAttemptService paymentAttempts,
+
+            [FromServices]
+        ICurrentTenant tenant,
+
             HttpContext http,
+
             CancellationToken ct)
     {
         var userId =
             GetUserId(http);
 
         if (userId is null)
+        {
             return Results.Unauthorized();
+        }
 
         if (id == Guid.Empty)
+        {
             return Results.NotFound();
+        }
 
         try
         {
@@ -128,12 +157,9 @@ public sealed class PaymentEndpoints
                     id,
                     ct);
 
-            if (result is null)
-            {
-                return Results.NotFound();
-            }
-
-            return Results.Ok(result);
+            return result is null
+                ? Results.NotFound()
+                : Results.Ok(result);
         }
         catch (ArgumentException)
         {
@@ -144,17 +170,25 @@ public sealed class PaymentEndpoints
     private static async Task<IResult>
         CompletePayment(
             [FromBody]
-            CompletePaymentRequest request,
-            PaymentCompletionOrchestrator completion,
-            ICurrentTenant tenant,
+        CompletePaymentRequest request,
+
+            [FromServices]
+        PaymentCompletionOrchestrator completion,
+
+            [FromServices]
+        ICurrentTenant tenant,
+
             HttpContext http,
+
             CancellationToken ct)
     {
         var userId =
             GetUserId(http);
 
         if (userId is null)
+        {
             return Results.Unauthorized();
+        }
 
         if (request.PaymentAttemptId == Guid.Empty)
         {
@@ -219,10 +253,6 @@ public sealed class PaymentEndpoints
         }
         catch (InvalidOperationException ex)
         {
-            /*
-             * Business-state conflicts are intentionally exposed as
-             * 409 rather than becoming generic 500 responses.
-             */
             return Results.Conflict(
                 new
                 {
@@ -262,9 +292,11 @@ public sealed class PaymentEndpoints
             ? null
             : value;
     }
+
+
 }
 
 public sealed record CompletePaymentRequest(
-    Guid PaymentAttemptId,
-    string GatewayName,
-    string GatewayReference);
+Guid PaymentAttemptId,
+string GatewayName,
+string GatewayReference);

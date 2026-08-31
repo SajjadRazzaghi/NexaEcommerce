@@ -5,24 +5,24 @@ using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 namespace NexaEcommerce.Modules.Orders.Application.Services;
 
 public sealed class PaymentAttemptService(
-    IPaymentAttemptRepository paymentAttempts,
-    IOrderRepository orders,
-    IOrderUnitOfWork unitOfWork)
-    : IPaymentAttemptService
+IPaymentAttemptRepository paymentAttempts,
+IOrderRepository orders,
+IOrderUnitOfWork unitOfWork)
+: IPaymentAttemptService
 {
     public async Task<PaymentAttemptDto> CreateAsync(
-        string tenantId,
-        string userId,
-        Guid orderId,
-        string idempotencyKey,
-        CancellationToken cancellationToken = default)
+    string tenantId,
+    string userId,
+    Guid orderId,
+    string idempotencyKey,
+    CancellationToken cancellationToken = default)
     {
         ValidateIdentity(
-            tenantId,
-            userId,
-            idempotencyKey);
+        tenantId,
+        userId,
+        idempotencyKey);
 
-        if (orderId == Guid.Empty)
+    if (orderId == Guid.Empty)
         {
             throw new ArgumentException(
                 "Order id is required.",
@@ -117,6 +117,22 @@ public sealed class PaymentAttemptService(
         string gatewayReference,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(
+                gatewayName))
+        {
+            throw new ArgumentException(
+                "Gateway name is required.",
+                nameof(gatewayName));
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                gatewayReference))
+        {
+            throw new ArgumentException(
+                "Gateway reference is required.",
+                nameof(gatewayReference));
+        }
+
         var attempt =
             await GetEntityAsync(
                 tenantId,
@@ -137,38 +153,9 @@ public sealed class PaymentAttemptService(
                 "A failed payment attempt cannot be marked as succeeded.");
         }
 
-        var order =
-            await orders.GetByIdAsync(
-                tenantId,
-                attempt.OrderId,
-                userId,
-                cancellationToken);
-
-        if (order is null)
-        {
-            throw new InvalidOperationException(
-                "Order was not found.");
-        }
-
-        if (order.Status ==
-            OrderStatus.PendingPayment)
-        {
-            /*
-             * Payment success is the business event that
-             * transitions the order out of PendingPayment.
-             */
-            order.MarkPaid();
-        }
-        else if (order.Status !=
-                 OrderStatus.Paid)
-        {
-            throw new InvalidOperationException(
-                "The order is not in a valid state for successful payment.");
-        }
-
         attempt.MarkSucceeded(
-            gatewayName,
-            gatewayReference);
+            gatewayName.Trim(),
+            gatewayReference.Trim());
 
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -220,6 +207,20 @@ public sealed class PaymentAttemptService(
         Guid paymentAttemptId,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException(
+                "User id is required.",
+                nameof(userId));
+        }
+
         if (paymentAttemptId == Guid.Empty)
         {
             throw new ArgumentException(
@@ -236,7 +237,7 @@ public sealed class PaymentAttemptService(
 
         if (attempt is null)
         {
-            throw new InvalidOperationException(
+            throw new KeyNotFoundException(
                 "Payment attempt was not found.");
         }
 
@@ -293,4 +294,6 @@ public sealed class PaymentAttemptService(
             attempt.CreatedAt,
             attempt.CompletedAt);
     }
+
+
 }
