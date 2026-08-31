@@ -36,3 +36,31 @@ public sealed record OrderDto(
     string ShippingCity,
     string? ShippingPostalCode,
     IReadOnlyList<OrderItemDto> Items);
+
+public sealed record OrderListItemDto(
+    Guid Id,
+    string OrderNumber,
+    string UserId,
+    string Status,
+    string Currency,
+    decimal TotalAmount,
+    int ItemCount,
+    DateTime CreatedAt);
+
+public sealed record OrderListDto(
+    IReadOnlyList<OrderListItemDto> Items,
+    int Page,
+    int PageSize,
+    int TotalItems,
+    int TotalPages,
+    bool HasPrevious,
+    bool HasNext);
+
+public sealed record UpdateOrderStatusRequest(
+    string Status);
+
+public sealed record OrderStatusResultDto(
+    Guid OrderId,
+    string OrderNumber,
+    string PreviousStatus,
+    string CurrentStatus);

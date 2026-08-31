@@ -1,9 +1,12 @@
-﻿using System.Security.Claims;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
+using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.ShoppingCart.Application.Services;
-using NexaECommerce.Server.Platform.Features;
+using NexaECommerce.Server.Platform.MultiTenancy;
 using NexaEcommerce.SharedKernel.Abstractions;
+using NexaECommerce.Server.Platform.Authorization;
+using NexaECommerce.Server.Platform.Features;
+using System.Security.Claims;
 
 namespace NexaECommerce.Server.Features.Orders;
 
@@ -26,15 +29,35 @@ public sealed class OrderEndpoints
             Checkout);
 
         group.MapGet(
+            "/",
+            ListMine)
+            .RequirePermission(OrderPermissions.Read);
+
+        group.MapGet(
+            "/admin",
+            ListAdmin)
+            .RequirePermission(OrderPermissions.Manage);
+
+        group.MapGet(
             "/{id:guid}",
-            Get);
+            Get)
+            .RequirePermission(OrderPermissions.Read);
+
+        group.MapPut(
+            "/{id:guid}/status",
+            UpdateStatus)
+            .RequirePermission(OrderPermissions.UpdateStatus);
+
+        group.MapPost(
+            "/{id:guid}/cancel",
+            Cancel);
     }
 
     private static async Task<IResult> Checkout(
         [FromBody] CheckoutRequest request,
-      [FromServices] ICartService cartService,
-[FromServices] CheckoutOrchestrator checkout,
-[FromServices] ICurrentTenant tenant,
+        [FromServices] ICartService cartService,
+        [FromServices] CheckoutOrchestrator checkout,
+        [FromServices] ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
@@ -43,7 +66,9 @@ public sealed class OrderEndpoints
                 ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrWhiteSpace(userId))
+        {
             return Results.Unauthorized();
+        }
 
         if (!http.Request.Headers.TryGetValue(
                 IdempotencyHeader,
@@ -100,12 +125,6 @@ public sealed class OrderEndpoints
                 });
         }
 
-        /*
-         * Never trust checkout line items from the browser.
-         *
-         * The authoritative quantities come from the current
-         * server-side shopping cart.
-         */
         var serverLines =
             cart.Items
                 .Select(
@@ -153,13 +172,61 @@ public sealed class OrderEndpoints
         }
     }
 
+    private static async Task<IResult> ListMine(
+        [FromServices] IOrderService orderService,
+        [FromServices] ICurrentTenant tenant,
+        HttpContext http,
+        CancellationToken ct,
+        int page = 1,
+        int pageSize = 20,
+        string? status = null)
+    {
+        var userId =
+            http.User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Results.Unauthorized();
+        }
+
+        var result =
+            await orderService.GetUserOrdersAsync(
+                tenant.Id,
+                userId,
+                page,
+                pageSize,
+                status,
+                ct);
+
+        return Results.Ok(result);
+    }
+
+    private static async Task<IResult> ListAdmin(
+        [FromServices] IOrderService orderService,
+        [FromServices] ICurrentTenant tenant,
+        CancellationToken ct,
+        int page = 1,
+        int pageSize = 20,
+        string? status = null,
+        string? search = null)
+    {
+        var result =
+            await orderService.GetTenantOrdersAsync(
+                tenant.Id,
+                page,
+                pageSize,
+                status,
+                search,
+                ct);
+
+        return Results.Ok(result);
+    }
+
     private static async Task<IResult> Get(
         Guid id,
-       [FromServices]
-NexaEcommerce.Modules.Orders.Application.Services.IOrderService orderService,
-
-[FromServices]
-ICurrentTenant tenant,
+        [FromServices] IOrderService orderService,
+        [FromServices] ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
@@ -168,7 +235,9 @@ ICurrentTenant tenant,
                 ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrWhiteSpace(userId))
+        {
             return Results.Unauthorized();
+        }
 
         var order =
             await orderService.GetAsync(
@@ -180,5 +249,98 @@ ICurrentTenant tenant,
         return order is null
             ? Results.NotFound()
             : Results.Ok(order);
+    }
+
+    private static async Task<IResult> UpdateStatus(
+        Guid id,
+        [FromBody] UpdateOrderStatusRequest request,
+        [FromServices] IOrderService orderService,
+        [FromServices] ICurrentTenant tenant,
+        CancellationToken ct)
+    {
+        try
+        {
+            var result =
+                await orderService.UpdateStatusAsync(
+                    tenant.Id,
+                    id,
+                    request.Status,
+                    ct);
+
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+    }
+
+    private static async Task<IResult> Cancel(
+        Guid id,
+        [FromServices] IOrderService orderService,
+        [FromServices] ICurrentTenant tenant,
+        HttpContext http,
+        CancellationToken ct)
+    {
+        var userId =
+            http.User.FindFirstValue(
+                ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            return Results.Unauthorized();
+        }
+
+        try
+        {
+            await orderService.CancelAsync(
+                tenant.Id,
+                id,
+                userId,
+                ct);
+
+            return Results.Ok(
+                new
+                {
+                    message =
+                        "Order cancelled successfully."
+                });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
     }
 }

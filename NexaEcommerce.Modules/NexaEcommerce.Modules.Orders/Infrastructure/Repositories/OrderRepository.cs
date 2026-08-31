@@ -15,7 +15,7 @@ public sealed class OrderRepository(
         string? userId = null,
         CancellationToken cancellationToken = default)
     {
-        var query =
+        IQueryable<Order> query =
             context.Orders
                 .Include(x => x.Items)
                 .Include(x => x.InventoryReservations)
@@ -26,10 +26,8 @@ public sealed class OrderRepository(
 
         if (!string.IsNullOrWhiteSpace(userId))
         {
-            query =
-                query.Where(
-                    x =>
-                        x.UserId == userId);
+            query = query.Where(
+                x => x.UserId == userId);
         }
 
         return await query.FirstOrDefaultAsync(
@@ -42,8 +40,9 @@ public sealed class OrderRepository(
         string? userId = null,
         CancellationToken cancellationToken = default)
     {
-        var query =
+        IQueryable<Order> query =
             context.Orders
+                .AsNoTracking()
                 .Include(x => x.Items)
                 .Include(x => x.InventoryReservations)
                 .Where(
@@ -53,10 +52,8 @@ public sealed class OrderRepository(
 
         if (!string.IsNullOrWhiteSpace(userId))
         {
-            query =
-                query.Where(
-                    x =>
-                        x.UserId == userId);
+            query = query.Where(
+                x => x.UserId == userId);
         }
 
         return await query.FirstOrDefaultAsync(
@@ -70,6 +67,7 @@ public sealed class OrderRepository(
         CancellationToken cancellationToken = default)
     {
         return await context.Orders
+            .AsNoTracking()
             .Include(x => x.Items)
             .Include(x => x.InventoryReservations)
             .FirstOrDefaultAsync(
@@ -78,6 +76,154 @@ public sealed class OrderRepository(
                     x.UserId == userId &&
                     x.IdempotencyKey == idempotencyKey,
                 cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Order>> GetUserOrdersAsync(
+        string tenantId,
+        string userId,
+        int page,
+        int pageSize,
+        string? status = null,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Order> query =
+            context.Orders
+                .AsNoTracking()
+                .Include(x => x.Items)
+                .Include(x => x.InventoryReservations)
+                .Where(
+                    x =>
+                        x.TenantId == tenantId &&
+                        x.UserId == userId);
+
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<OrderStatus>(
+                status,
+                true,
+                out var parsedStatus))
+        {
+            query = query.Where(
+                x => x.Status == parsedStatus);
+        }
+
+        return await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(
+                cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<Order>> GetTenantOrdersAsync(
+        string tenantId,
+        int page,
+        int pageSize,
+        string? status = null,
+        string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Order> query =
+            context.Orders
+                .AsNoTracking()
+                .Include(x => x.Items)
+                .Include(x => x.InventoryReservations)
+                .Where(
+                    x =>
+                        x.TenantId == tenantId);
+
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<OrderStatus>(
+                status,
+                true,
+                out var parsedStatus))
+        {
+            query = query.Where(
+                x => x.Status == parsedStatus);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term =
+                search.Trim();
+
+            query = query.Where(
+                x =>
+                    x.OrderNumber.Contains(term) ||
+                    x.UserId.Contains(term) ||
+                    x.ShippingFullName.Contains(term) ||
+                    x.ShippingPhone.Contains(term));
+        }
+
+        return await query
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(
+                cancellationToken);
+    }
+
+    public async Task<int> CountUserOrdersAsync(
+        string tenantId,
+        string userId,
+        string? status = null,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Order> query =
+            context.Orders.Where(
+                x =>
+                    x.TenantId == tenantId &&
+                    x.UserId == userId);
+
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<OrderStatus>(
+                status,
+                true,
+                out var parsedStatus))
+        {
+            query = query.Where(
+                x => x.Status == parsedStatus);
+        }
+
+        return await query.CountAsync(
+            cancellationToken);
+    }
+
+    public async Task<int> CountTenantOrdersAsync(
+        string tenantId,
+        string? status = null,
+        string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        IQueryable<Order> query =
+            context.Orders.Where(
+                x =>
+                    x.TenantId == tenantId);
+
+        if (!string.IsNullOrWhiteSpace(status) &&
+            Enum.TryParse<OrderStatus>(
+                status,
+                true,
+                out var parsedStatus))
+        {
+            query = query.Where(
+                x => x.Status == parsedStatus);
+        }
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term =
+                search.Trim();
+
+            query = query.Where(
+                x =>
+                    x.OrderNumber.Contains(term) ||
+                    x.UserId.Contains(term) ||
+                    x.ShippingFullName.Contains(term) ||
+                    x.ShippingPhone.Contains(term));
+        }
+
+        return await query.CountAsync(
+            cancellationToken);
     }
 
     public async Task AddAsync(

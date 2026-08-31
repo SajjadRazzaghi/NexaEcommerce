@@ -5,29 +5,30 @@ using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 namespace NexaEcommerce.Modules.Orders.Application.Services;
 
 public sealed class OrderService(
-IOrderRepository repository,
-IOrderProductReader productReader,
-IOrderUnitOfWork unitOfWork)
-: IOrderService
+    IOrderRepository repository,
+    IOrderProductReader productReader,
+    IOrderUnitOfWork unitOfWork)
+    : IOrderService
 {
     public async Task<OrderDto> CreateFromCheckoutAsync(
-    string tenantId,
-    string userId,
-    string idempotencyKey,
-    CheckoutRequest request,
-    CancellationToken cancellationToken = default)
+        string tenantId,
+        string userId,
+        string idempotencyKey,
+        CheckoutRequest request,
+        CancellationToken cancellationToken = default)
     {
         ValidateCheckout(
-        tenantId,
-        userId,
-        idempotencyKey,
-        request);
-    var existing =
-        await repository.GetByIdempotencyKeyAsync(
             tenantId,
             userId,
             idempotencyKey,
-            cancellationToken);
+            request);
+
+        var existing =
+            await repository.GetByIdempotencyKeyAsync(
+                tenantId,
+                userId,
+                idempotencyKey,
+                cancellationToken);
 
         if (existing is not null)
         {
@@ -36,14 +37,12 @@ IOrderUnitOfWork unitOfWork)
 
         var grouped =
             request.Items
-                .GroupBy(
-                    x => x.ProductVariantId)
+                .GroupBy(x => x.ProductVariantId)
                 .Select(
                     x =>
                         new CheckoutLineDto(
                             x.Key,
-                            x.Sum(
-                                i => i.Quantity)))
+                            x.Sum(i => i.Quantity)))
                 .ToList();
 
         var order =
@@ -95,6 +94,209 @@ IOrderUnitOfWork unitOfWork)
             cancellationToken);
 
         return Map(order);
+    }
+
+    public async Task<OrderDto?> GetAsync(
+        string tenantId,
+        Guid id,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        var order =
+            await repository.GetByIdAsync(
+                tenantId,
+                id,
+                userId,
+                cancellationToken);
+
+        return order is null
+            ? null
+            : Map(order);
+    }
+
+    public async Task<OrderListDto> GetUserOrdersAsync(
+        string tenantId,
+        string userId,
+        int page,
+        int pageSize,
+        string? status = null,
+        CancellationToken cancellationToken = default)
+    {
+        NormalizePaging(
+            ref page,
+            ref pageSize);
+
+        var total =
+            await repository.CountUserOrdersAsync(
+                tenantId,
+                userId,
+                status,
+                cancellationToken);
+
+        var orders =
+            await repository.GetUserOrdersAsync(
+                tenantId,
+                userId,
+                page,
+                pageSize,
+                status,
+                cancellationToken);
+
+        return CreateList(
+            orders,
+            page,
+            pageSize,
+            total);
+    }
+
+    public async Task<OrderListDto> GetTenantOrdersAsync(
+        string tenantId,
+        int page,
+        int pageSize,
+        string? status = null,
+        string? search = null,
+        CancellationToken cancellationToken = default)
+    {
+        NormalizePaging(
+            ref page,
+            ref pageSize);
+
+        var total =
+            await repository.CountTenantOrdersAsync(
+                tenantId,
+                status,
+                search,
+                cancellationToken);
+
+        var orders =
+            await repository.GetTenantOrdersAsync(
+                tenantId,
+                page,
+                pageSize,
+                status,
+                search,
+                cancellationToken);
+
+        return CreateList(
+            orders,
+            page,
+            pageSize,
+            total);
+    }
+
+    public async Task<OrderStatusResultDto> UpdateStatusAsync(
+        string tenantId,
+        Guid orderId,
+        string status,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(status))
+        {
+            throw new ArgumentException(
+                "Status is required.",
+                nameof(status));
+        }
+
+        if (!Enum.TryParse<OrderStatus>(
+                status,
+                true,
+                out var targetStatus))
+        {
+            throw new ArgumentException(
+                $"Unknown order status '{status}'.",
+                nameof(status));
+        }
+
+        var order =
+            await repository.GetByIdAsync(
+                tenantId,
+                orderId,
+                null,
+                cancellationToken);
+
+        if (order is null)
+        {
+            throw new KeyNotFoundException(
+                "Order was not found.");
+        }
+
+        var previous =
+            order.Status;
+
+        if (previous == targetStatus)
+        {
+            return new OrderStatusResultDto(
+                order.Id,
+                order.OrderNumber,
+                previous.ToString(),
+                targetStatus.ToString());
+        }
+
+        switch (targetStatus)
+        {
+            case OrderStatus.Paid:
+                order.MarkPaid();
+                break;
+
+            case OrderStatus.Processing:
+                order.StartProcessing();
+                break;
+
+            case OrderStatus.Shipped:
+                order.MarkShipped();
+                break;
+
+            case OrderStatus.Delivered:
+                order.MarkDelivered();
+                break;
+
+            case OrderStatus.Cancelled:
+                order.Cancel();
+                break;
+
+            case OrderStatus.PendingPayment:
+                throw new InvalidOperationException(
+                    "An order cannot be moved back to PendingPayment.");
+
+            default:
+                throw new ArgumentException(
+                    $"Unsupported order status '{status}'.",
+                    nameof(status));
+        }
+
+        await unitOfWork.SaveChangesAsync(
+            cancellationToken);
+
+        return new OrderStatusResultDto(
+            order.Id,
+            order.OrderNumber,
+            previous.ToString(),
+            order.Status.ToString());
+    }
+
+    public async Task CancelAsync(
+        string tenantId,
+        Guid orderId,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        var order =
+            await repository.GetByIdAsync(
+                tenantId,
+                orderId,
+                userId,
+                cancellationToken);
+
+        if (order is null)
+        {
+            throw new KeyNotFoundException(
+                "Order was not found.");
+        }
+
+        order.Cancel();
+
+        await unitOfWork.SaveChangesAsync(
+            cancellationToken);
     }
 
     public async Task<OrderDto> RecordInventoryReservationAsync(
@@ -175,12 +377,6 @@ IOrderUnitOfWork unitOfWork)
                 "Inventory reservations can only be recorded for orders pending payment.");
         }
 
-        /*
-         * Order.AddInventoryReservation is intentionally idempotent.
-         *
-         * Replaying the same checkout request therefore does not create
-         * duplicate OrderInventoryReservation rows.
-         */
         order.AddInventoryReservation(
             reservationKey,
             productVariantId,
@@ -193,47 +389,58 @@ IOrderUnitOfWork unitOfWork)
         return Map(order);
     }
 
-    public async Task<OrderDto?> GetAsync(
-        string tenantId,
-        Guid id,
-        string userId,
-        CancellationToken cancellationToken = default)
+    private static OrderListDto CreateList(
+        IReadOnlyList<Order> orders,
+        int page,
+        int pageSize,
+        int totalItems)
     {
-        var order =
-            await repository.GetByIdAsync(
-                tenantId,
-                id,
-                userId,
-                cancellationToken);
+        var totalPages =
+            totalItems == 0
+                ? 0
+                : (int)Math.Ceiling(
+                    totalItems / (double)pageSize);
 
-        return order is null
-            ? null
-            : Map(order);
+        return new OrderListDto(
+            orders
+                .Select(
+                    x =>
+                        new OrderListItemDto(
+                            x.Id,
+                            x.OrderNumber,
+                            x.UserId,
+                            x.Status.ToString(),
+                            x.Currency,
+                            x.TotalAmount,
+                            x.Items.Count,
+                            x.CreatedAt))
+                .ToList(),
+            page,
+            pageSize,
+            totalItems,
+            totalPages,
+            page > 1,
+            page < totalPages);
     }
 
-    public async Task CancelAsync(
-        string tenantId,
-        Guid orderId,
-        string userId,
-        CancellationToken cancellationToken = default)
+    private static void NormalizePaging(
+        ref int page,
+        ref int pageSize)
     {
-        var order =
-            await repository.GetByIdAsync(
-                tenantId,
-                orderId,
-                userId,
-                cancellationToken);
-
-        if (order is null)
+        if (page < 1)
         {
-            throw new InvalidOperationException(
-                "Order was not found.");
+            page = 1;
         }
 
-        order.Cancel();
+        if (pageSize < 1)
+        {
+            pageSize = 20;
+        }
 
-        await unitOfWork.SaveChangesAsync(
-            cancellationToken);
+        if (pageSize > 100)
+        {
+            pageSize = 100;
+        }
     }
 
     private static void ValidateCheckout(
@@ -346,6 +553,4 @@ IOrderUnitOfWork unitOfWork)
                             x.LineTotal))
                 .ToList());
     }
-
-
 }

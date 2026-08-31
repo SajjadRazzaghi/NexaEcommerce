@@ -22,6 +22,34 @@ public interface IOrderRepository
         string idempotencyKey,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<Order>> GetUserOrdersAsync(
+        string tenantId,
+        string userId,
+        int page,
+        int pageSize,
+        string? status = null,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<Order>> GetTenantOrdersAsync(
+        string tenantId,
+        int page,
+        int pageSize,
+        string? status = null,
+        string? search = null,
+        CancellationToken cancellationToken = default);
+
+    Task<int> CountUserOrdersAsync(
+        string tenantId,
+        string userId,
+        string? status = null,
+        CancellationToken cancellationToken = default);
+
+    Task<int> CountTenantOrdersAsync(
+        string tenantId,
+        string? status = null,
+        string? search = null,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(
         Order order,
         CancellationToken cancellationToken = default);
