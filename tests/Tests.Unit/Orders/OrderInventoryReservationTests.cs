@@ -21,6 +21,42 @@ public sealed class OrderInventoryReservationTests
             "Test Address",
             "Tehran",
             "1234567890");
+  }
+[Fact]
+public void Expired_inventory_reservation_can_be_marked_expired_on_order()
+    {
+        var order =
+            Order.Create(
+                "tenant-1",
+                "user-1",
+                "NX-EXP-001",
+                Guid.NewGuid().ToString("N"),
+                "IRR",
+                0,
+                0,
+                0,
+                "Test User",
+                "09120000000",
+                "Test Address",
+                "Tehran",
+                "1234567890");
+
+        var reservation =
+            order.AddInventoryReservation(
+                "reservation-expired",
+                Guid.NewGuid(),
+                1,
+                DateTimeOffset.UtcNow.AddMinutes(10));
+
+        var changed =
+            order.MarkInventoryReservationExpired(
+                "reservation-expired");
+
+        changed.ShouldBeTrue();
+
+        reservation.Status
+            .ShouldBe(
+                InventoryReservationStatus.Expired);
     }
 
     [Fact]

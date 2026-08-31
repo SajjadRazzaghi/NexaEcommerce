@@ -9,13 +9,13 @@ using System.Security.Claims;
 namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class PaymentEndpoints
-: IFeatureEndpoints
+    : IFeatureEndpoints
 {
     private const string PaymentIdempotencyHeader =
-    "Idempotency-Key";
+        "Idempotency-Key";
 
-public void Map(
-    IEndpointRouteBuilder app)
+    public void Map(
+        IEndpointRouteBuilder app)
     {
         var group =
             app.MapGroup("/api/orders")
@@ -33,18 +33,26 @@ public void Map(
         group.MapPost(
             "/payment/complete",
             CompletePayment);
+
+        group.MapPost(
+            "/payment/fail",
+            FailPayment);
+
+        group.MapPost(
+            "/payment/retry",
+            RetryPayment);
     }
 
     private static async Task<IResult>
         CreatePaymentAttempt(
             [FromBody]
-        CreatePaymentAttemptRequest request,
+            CreatePaymentAttemptRequest request,
 
             [FromServices]
-        IPaymentAttemptService paymentAttempts,
+            IPaymentAttemptService paymentAttempts,
 
             [FromServices]
-        ICurrentTenant tenant,
+            ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -126,10 +134,10 @@ public void Map(
             Guid id,
 
             [FromServices]
-        IPaymentAttemptService paymentAttempts,
+            IPaymentAttemptService paymentAttempts,
 
             [FromServices]
-        ICurrentTenant tenant,
+            ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -148,35 +156,28 @@ public void Map(
             return Results.NotFound();
         }
 
-        try
-        {
-            var result =
-                await paymentAttempts.GetAsync(
-                    tenant.Id,
-                    userId,
-                    id,
-                    ct);
+        var result =
+            await paymentAttempts.GetAsync(
+                tenant.Id,
+                userId,
+                id,
+                ct);
 
-            return result is null
-                ? Results.NotFound()
-                : Results.Ok(result);
-        }
-        catch (ArgumentException)
-        {
-            return Results.NotFound();
-        }
+        return result is null
+            ? Results.NotFound()
+            : Results.Ok(result);
     }
 
     private static async Task<IResult>
         CompletePayment(
             [FromBody]
-        CompletePaymentRequest request,
+            CompletePaymentRequest request,
 
             [FromServices]
-        PaymentCompletionOrchestrator completion,
+            PaymentCompletionOrchestrator completion,
 
             [FromServices]
-        ICurrentTenant tenant,
+            ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -261,6 +262,163 @@ public void Map(
         }
     }
 
+    private static async Task<IResult>
+        FailPayment(
+            [FromBody]
+            FailPaymentRequest request,
+
+            [FromServices]
+            PaymentFailureOrchestrator failure,
+
+            [FromServices]
+            ICurrentTenant tenant,
+
+            HttpContext http,
+
+            CancellationToken ct)
+    {
+        var userId =
+            GetUserId(http);
+
+        if (userId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (request.PaymentAttemptId ==
+            Guid.Empty)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        "Payment attempt id is required."
+                });
+        }
+
+        try
+        {
+            var result =
+                await failure.FailAsync(
+                    tenant.Id,
+                    userId,
+                    request.PaymentAttemptId,
+                    request.FailureCode,
+                    request.FailureMessage,
+                    ct);
+
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+    }
+
+    private static async Task<IResult>
+        RetryPayment(
+            [FromBody]
+            RetryPaymentRequest request,
+
+            [FromServices]
+            PaymentRetryOrchestrator retry,
+
+            [FromServices]
+            ICurrentTenant tenant,
+
+            HttpContext http,
+
+            CancellationToken ct)
+    {
+        var userId =
+            GetUserId(http);
+
+        if (userId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var idempotencyKey =
+            GetIdempotencyKey(http);
+
+        if (idempotencyKey is null)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        $"{PaymentIdempotencyHeader} header is required."
+                });
+        }
+
+        if (request.OrderId == Guid.Empty)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        "Order id is required."
+                });
+        }
+
+        try
+        {
+            var result =
+                await retry.RetryAsync(
+                    tenant.Id,
+                    userId,
+                    request.OrderId,
+                    idempotencyKey,
+                    ct);
+
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+    }
+
     private static string? GetUserId(
         HttpContext http)
     {
@@ -292,11 +450,17 @@ public void Map(
             ? null
             : value;
     }
-
-
 }
 
 public sealed record CompletePaymentRequest(
-Guid PaymentAttemptId,
-string GatewayName,
-string GatewayReference);
+    Guid PaymentAttemptId,
+    string GatewayName,
+    string GatewayReference);
+
+public sealed record FailPaymentRequest(
+    Guid PaymentAttemptId,
+    string? FailureCode,
+    string? FailureMessage);
+
+public sealed record RetryPaymentRequest(
+    Guid OrderId);

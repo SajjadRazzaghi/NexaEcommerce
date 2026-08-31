@@ -12,6 +12,7 @@ using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
 using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Repositories;
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaECommerce.Server.Features.Cart;
+using NexaECommerce.Server.Features.Inventory;
 using NexaECommerce.Server.Features.Orders;
 using NexaECommerce.Server.Platform.MultiTenancy;
 
@@ -109,8 +110,13 @@ public static class ModuleRegistrationExtensions
 
         services.AddScoped<
             PaymentEndpoints>();
+        services.AddScoped<
+    PaymentFailureOrchestrator>();
 
-
+        services.AddScoped<
+            PaymentRetryOrchestrator>();
+        services.AddScoped<
+    InventoryOrderReconciliationService>();
         return services;
     }
 

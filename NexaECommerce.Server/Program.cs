@@ -83,6 +83,10 @@ builder.Services.AddEcommerceModules(builder.Configuration);
 builder.Services.AddHostedService<
     NexaECommerce.Server.Features.Inventory
         .ReservationExpirationWorker>();
+
+builder.Services.AddHostedService<
+    NexaECommerce.Server.Features.Inventory
+        .InventoryOrderReconciliationWorker>();
 // ============================================================
 // 7. Build Application
 // ============================================================
