@@ -25,7 +25,9 @@ public sealed class OrdersDbContext(
     public DbSet<Shipment>
         Shipments =>
         Set<Shipment>();
-
+    public DbSet<ShippingMethod>
+    ShippingMethods =>
+    Set<ShippingMethod>();
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -146,6 +148,71 @@ public sealed class OrdersDbContext(
                         x => x.OrderId)
                     .OnDelete(
                         DeleteBehavior.Cascade);
+               
+modelBuilder.Entity<ShippingMethod>(
+    entity =>
+    {
+        entity.ToTable(
+            "ShippingMethods");
+
+        entity.HasKey(
+            x => x.Id);
+
+        entity.Property(
+            x => x.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
+
+        entity.Property(
+            x => x.Code)
+            .IsRequired()
+            .HasMaxLength(64);
+
+        entity.Property(
+            x => x.Name)
+            .IsRequired()
+            .HasMaxLength(150);
+
+        entity.Property(
+            x => x.Carrier)
+            .IsRequired()
+            .HasMaxLength(100);
+
+        entity.Property(
+            x => x.Price)
+            .HasPrecision(
+                18,
+                2)
+            .IsRequired();
+
+        entity.Property(
+            x => x.SortOrder)
+            .IsRequired();
+
+        entity.Property(
+            x => x.IsActive)
+            .IsRequired();
+
+        entity.Property(
+            x => x.CreatedAt)
+            .IsRequired();
+
+        entity.HasIndex(
+                x => new
+                {
+                    x.TenantId,
+                    x.Code
+                })
+            .IsUnique();
+
+        entity.HasIndex(
+            x => new
+            {
+                x.TenantId,
+                x.IsActive,
+                x.SortOrder
+            });
+    });
             });
 
         modelBuilder.Entity<OrderItem>(

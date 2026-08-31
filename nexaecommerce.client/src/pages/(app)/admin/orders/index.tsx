@@ -18,7 +18,7 @@ import {
     Filter,
     Package,
     Search,
-    Truck,
+  
 } from 'lucide-react';
 
 import {

@@ -11,7 +11,7 @@ public sealed record CheckoutRequest(
     string ShippingAddress,
     string ShippingCity,
     string? ShippingPostalCode,
-    decimal ShippingAmount = 0);
+    Guid ShippingMethodId);
 
 public sealed record OrderItemDto(
     Guid ProductVariantId,

@@ -1,4 +1,10 @@
 import {
+    Check,
+    Package,
+    Truck,
+} from 'lucide-react';
+
+import {
     useState,
 } from 'react';
 
@@ -10,12 +16,6 @@ import {
 import {
     useTranslation,
 } from 'react-i18next';
-
-import {
-    Check,
-    Package,
- 
-} from 'lucide-react';
 
 import {
     useAdminOrder,

@@ -1,3 +1,4 @@
+
 export interface CheckoutLine {
     productVariantId: string;
     quantity: number;
@@ -10,7 +11,7 @@ export interface CheckoutRequest {
     shippingAddress: string;
     shippingCity: string;
     shippingPostalCode?: string | null;
-    shippingAmount: number;
+    shippingMethodId: string;
 }
 
 export interface OrderItemDto {
@@ -39,13 +40,11 @@ export interface OrderDto {
     shippingAmount: number;
     discountAmount: number;
     totalAmount: number;
-
     shippingFullName: string;
     shippingPhone: string;
     shippingAddress: string;
     shippingCity: string;
     shippingPostalCode?: string | null;
-
     items: OrderItemDto[];
 }
 

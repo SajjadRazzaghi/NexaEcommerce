@@ -7,7 +7,8 @@ namespace NexaEcommerce.Modules.Orders.Application.Services;
 public sealed class OrderService(
     IOrderRepository repository,
     IOrderProductReader productReader,
-    IOrderUnitOfWork unitOfWork)
+    IOrderUnitOfWork unitOfWork,
+    IShippingMethodService shippingMethods)
     : IOrderService
 {
     public async Task<OrderDto> CreateFromCheckoutAsync(
@@ -35,14 +36,24 @@ public sealed class OrderService(
             return Map(existing);
         }
 
+        var shippingQuote =
+            await shippingMethods.QuoteAsync(
+                tenantId,
+                request.ShippingMethodId,
+                cancellationToken);
+
         var grouped =
             request.Items
-                .GroupBy(x => x.ProductVariantId)
+                .GroupBy(
+                    x =>
+                        x.ProductVariantId)
                 .Select(
                     x =>
                         new CheckoutLineDto(
                             x.Key,
-                            x.Sum(i => i.Quantity)))
+                            x.Sum(
+                                item =>
+                                    item.Quantity)))
                 .ToList();
 
         var order =
@@ -53,7 +64,7 @@ public sealed class OrderService(
                 idempotencyKey,
                 "IRR",
                 0,
-                request.ShippingAmount,
+                shippingQuote.Price,
                 0,
                 request.ShippingFullName,
                 request.ShippingPhone,
@@ -399,7 +410,8 @@ public sealed class OrderService(
             totalItems == 0
                 ? 0
                 : (int)Math.Ceiling(
-                    totalItems / (double)pageSize);
+                    totalItems /
+                    (double)pageSize);
 
         return new OrderListDto(
             orders
@@ -484,6 +496,14 @@ public sealed class OrderService(
                 "Checkout must contain at least one item.");
         }
 
+        if (request.ShippingMethodId ==
+            Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Shipping method is required.",
+                nameof(request.ShippingMethodId));
+        }
+
         if (string.IsNullOrWhiteSpace(
                 request.ShippingFullName) ||
             string.IsNullOrWhiteSpace(
@@ -497,21 +517,18 @@ public sealed class OrderService(
                 "Shipping information is incomplete.");
         }
 
-        if (request.ShippingAmount < 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(request.ShippingAmount));
-        }
-
         if (request.Items.Any(
-                x => x.ProductVariantId == Guid.Empty))
+                x =>
+                    x.ProductVariantId ==
+                    Guid.Empty))
         {
             throw new ArgumentException(
                 "Product variant id is required.");
         }
 
         if (request.Items.Any(
-                x => x.Quantity <= 0))
+                x =>
+                    x.Quantity <= 0))
         {
             throw new ArgumentException(
                 "Quantity must be greater than zero.");
