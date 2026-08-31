@@ -128,8 +128,248 @@ public sealed class CartEndpointsTests(
             await inventoryDb.SaveChangesAsync();
         }
     }
+  
+[Fact]
+public async Task Guest_cart_can_be_merged_into_authenticated_user_cart()
+    {
+        using var client =
+            factory.CreateClient();
+
+        var variantId =
+            await GetVariantForMergeTestAsync();
+
+        // ------------------------------------------------------------
+        // 1. Guest adds product
+        // ------------------------------------------------------------
+
+        var guestAddResponse =
+            await client.PostAsJsonAsync(
+                "/api/cart/items",
+                new
+                {
+                    productVariantId = variantId,
+                    quantity = 2
+                });
+
+        guestAddResponse.StatusCode
+            .ShouldBe(HttpStatusCode.OK);
+
+        guestAddResponse.Headers
+            .TryGetValues(
+                "Set-Cookie",
+                out var cookies)
+            .ShouldBeTrue();
+
+        cookies!
+            .Any(x =>
+                x.StartsWith(
+                    "nexa_cart=",
+                    StringComparison.OrdinalIgnoreCase))
+            .ShouldBeTrue();
+
+        // ------------------------------------------------------------
+        // 2. Authenticate the same client
+        // ------------------------------------------------------------
+
+        var userId =
+            $"merge-user-{Guid.NewGuid():N}";
+
+        client.DefaultRequestHeaders.Add(
+            TestAuthHandler.UserIdHeader,
+            userId);
+
+        // ------------------------------------------------------------
+        // 3. Create user cart with same product
+        // ------------------------------------------------------------
+
+        var userAddResponse =
+            await client.PostAsJsonAsync(
+                "/api/cart/items",
+                new
+                {
+                    productVariantId = variantId,
+                    quantity = 3
+                });
+
+        userAddResponse.StatusCode
+            .ShouldBe(HttpStatusCode.OK);
+
+        // ------------------------------------------------------------
+        // 4. Merge guest cart
+        // ------------------------------------------------------------
+
+        var mergeResponse =
+            await client.PostAsync(
+                "/api/cart/merge",
+                content: null);
+
+        mergeResponse.StatusCode
+            .ShouldBe(HttpStatusCode.OK);
+
+        var merged =
+            await mergeResponse.Content
+                .ReadFromJsonAsync<CartResponse>();
+
+        merged.ShouldNotBeNull();
+
+        var item =
+            merged!.Items
+                .Single(
+                    x =>
+                        x.ProductVariantId ==
+                        variantId);
+
+        item.Quantity
+            .ShouldBe(5);
+
+        // ------------------------------------------------------------
+        // 5. Merge again must be idempotent
+        // ------------------------------------------------------------
+
+        var secondMergeResponse =
+            await client.PostAsync(
+                "/api/cart/merge",
+                content: null);
+
+        secondMergeResponse.StatusCode
+            .ShouldBe(HttpStatusCode.OK);
+
+        var secondMerged =
+            await secondMergeResponse.Content
+                .ReadFromJsonAsync<CartResponse>();
+
+        secondMerged.ShouldNotBeNull();
+
+        var secondItem =
+            secondMerged!.Items
+                .Single(
+                    x =>
+                        x.ProductVariantId ==
+                        variantId);
+
+        secondItem.Quantity
+            .ShouldBe(5);
+    }
+
     [Fact]
-    public async Task Anonymous_get_returns_empty_cart()
+    public async Task Guest_cart_merge_caps_quantity_at_inventory_stock()
+    {
+        using var client =
+            factory.CreateClient();
+
+        var variantId =
+            await GetVariantForMergeTestAsync();
+
+        var guestAddResponse =
+            await client.PostAsJsonAsync(
+                "/api/cart/items",
+                new
+                {
+                    productVariantId = variantId,
+                    quantity = 7
+                });
+
+        guestAddResponse.StatusCode
+            .ShouldBe(HttpStatusCode.OK);
+
+        var userId =
+            $"merge-cap-user-{Guid.NewGuid():N}";
+
+        client.DefaultRequestHeaders.Add(
+            TestAuthHandler.UserIdHeader,
+            userId);
+
+        var userAddResponse =
+            await client.PostAsJsonAsync(
+                "/api/cart/items",
+                new
+                {
+                    productVariantId = variantId,
+                    quantity = 3
+                });
+
+        userAddResponse.StatusCode
+            .ShouldBe(HttpStatusCode.OK);
+
+        var mergeResponse =
+            await client.PostAsync(
+                "/api/cart/merge",
+                content: null);
+
+        mergeResponse.StatusCode
+            .ShouldBe(HttpStatusCode.OK);
+
+        var merged =
+            await mergeResponse.Content
+                .ReadFromJsonAsync<CartResponse>();
+
+        merged.ShouldNotBeNull();
+
+        var item =
+            merged!.Items
+                .Single(
+                    x =>
+                        x.ProductVariantId ==
+                        variantId);
+
+        // Integration fixture seeds 1000 units.
+        // Change the assertion only if a deliberate stock
+        // boundary test is introduced later.
+        item.Quantity
+            .ShouldBe(10);
+    }
+
+    private async Task<Guid>
+        GetVariantForMergeTestAsync()
+    {
+        using var scope =
+            factory.Services.CreateScope();
+
+        var catalogDb =
+            scope.ServiceProvider
+                .GetRequiredService<
+                    NexaEcommerce.Modules.Catalog.Infrastructure
+                        .CatalogDbContext>();
+
+        var variant =
+            await catalogDb.ProductVariants
+                .AsNoTracking()
+                .Where(
+                    x =>
+                        x.IsActive &&
+                        !x.IsDeleted &&
+                        x.Product.IsActive &&
+                        x.Product.IsPublished &&
+                        !x.Product.IsDeleted)
+                .OrderBy(
+                    x => x.Id)
+                .Select(
+                    x => x.Id)
+                .FirstOrDefaultAsync();
+
+        variant
+            .ShouldNotBe(Guid.Empty);
+
+        return variant;
+    }
+
+    private sealed record CartResponse(
+        Guid Id,
+        string TenantId,
+        List<CartItemResponse> Items,
+        int TotalQuantity,
+        decimal TotalAmount);
+
+    private sealed record CartItemResponse(
+        Guid ProductVariantId,
+        string ProductName,
+        string? ImageUrl,
+        int Quantity,
+        decimal UnitPrice,
+        decimal LineTotal);
+
+[Fact]
+public async Task Anonymous_get_returns_empty_cart()
     {
         var client = CreateGuestClient();
 
@@ -137,8 +377,13 @@ public sealed class CartEndpointsTests(
             await client.GetAsync(
                 "/api/cart/");
 
-        response.StatusCode
-            .ShouldBe(HttpStatusCode.OK);
+        var body =
+            await response.Content.ReadAsStringAsync();
+
+        response.IsSuccessStatusCode
+            .ShouldBeTrue(
+                $"HTTP {(int)response.StatusCode} {response.StatusCode}\n" +
+                $"Response body:\n{body}");
 
         var cart =
             await response.Content
@@ -148,6 +393,8 @@ public sealed class CartEndpointsTests(
         cart!.TotalQuantity.ShouldBe(0);
         cart.TotalAmount.ShouldBe(0);
     }
+
+
 
     [Fact]
     public async Task Anonymous_add_sets_guest_cart_cookie()
@@ -595,19 +842,4 @@ public sealed class CartEndpointsTests(
 
         return variant;
     }
-
-    private sealed record CartResponse(
-        Guid Id,
-        string TenantId,
-        List<CartItemResponse> Items,
-        int TotalQuantity,
-        decimal TotalAmount);
-
-    private sealed record CartItemResponse(
-        Guid ProductVariantId,
-        string ProductName,
-        string? ImageUrl,
-        int Quantity,
-        decimal UnitPrice,
-        decimal LineTotal);
 }

@@ -11,4 +11,10 @@ public interface IStockReader
         string tenantId,
         Guid productVariantId,
         CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyDictionary<Guid, int>>
+        GetAvailableQuantitiesAsync(
+            string tenantId,
+            IEnumerable<Guid> productVariantIds,
+            CancellationToken cancellationToken = default);
 }

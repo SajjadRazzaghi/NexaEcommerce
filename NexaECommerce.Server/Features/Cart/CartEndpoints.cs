@@ -1,56 +1,46 @@
-﻿using Microsoft.AspNetCore.Cors.Infrastructure;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.DependencyInjection;
 using NexaEcommerce.Modules.ShoppingCart.Application.DTOs;
 using NexaEcommerce.Modules.ShoppingCart.Application.Services;
+using NexaEcommerce.SharedKernel.Abstractions;
 using NexaECommerce.Server.Platform.Features;
 using NexaECommerce.Server.Platform.MultiTenancy;
-using NexaEcommerce.SharedKernel.Abstractions;
 using System.Security.Claims;
 
 namespace NexaECommerce.Server.Features.Cart;
 
-public sealed class CartEndpoints
-    : IFeatureEndpoints
+public sealed class CartEndpoints : IFeatureEndpoints
 {
-    private const string GuestCartCookie =
-        "nexa_cart";
+    private const string GuestCartCookie = "nexa_cart";
 
-    public void Map(
-        IEndpointRouteBuilder app)
+    public void Map(IEndpointRouteBuilder app)
     {
         var group =
             app.MapGroup("/api/cart")
                 .WithTags("Cart");
 
-        group.MapGet(
-            "/",
-            Get);
-
-        group.MapPost(
-            "/items",
-            AddItem);
-        group.MapPost(
-    "/merge",
-    Merge);
-        group.MapPut(
-            "/items",
-            SetQuantity);
-
+        group.MapGet("/", Get);
+        group.MapPost("/items", AddItem);
+        group.MapPost("/merge", Merge);
+        group.MapPut("/items", SetQuantity);
         group.MapDelete(
             "/items/{productVariantId:guid}",
             RemoveItem);
-
-        group.MapDelete(
-            "/",
-            Clear);
+        group.MapDelete("/", Clear);
     }
 
     private static async Task<IResult> Get(
-        ICartService cartService,
-        ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
+        var cartService =
+            http.RequestServices
+                .GetRequiredService<ICartService>();
+
+        var tenant =
+            http.RequestServices
+                .GetRequiredService<ICurrentTenant>();
+
         var userId =
             GetUserId(http);
 
@@ -71,11 +61,17 @@ public sealed class CartEndpoints
 
     private static async Task<IResult> AddItem(
         [FromBody] AddCartItemDto request,
-        ICartService cartService,
-        ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
+        var cartService =
+            http.RequestServices
+                .GetRequiredService<ICartService>();
+
+        var tenant =
+            http.RequestServices
+                .GetRequiredService<ICurrentTenant>();
+
         try
         {
             var userId =
@@ -100,27 +96,42 @@ public sealed class CartEndpoints
         catch (KeyNotFoundException ex)
         {
             return Results.NotFound(
-                new { error = ex.Message });
+                new
+                {
+                    error = ex.Message
+                });
         }
         catch (ArgumentOutOfRangeException ex)
         {
             return Results.BadRequest(
-                new { error = ex.Message });
+                new
+                {
+                    error = ex.Message
+                });
         }
         catch (InvalidOperationException ex)
         {
             return Results.Conflict(
-                new { error = ex.Message });
+                new
+                {
+                    error = ex.Message
+                });
         }
     }
 
     private static async Task<IResult> SetQuantity(
         [FromBody] SetCartItemQuantityDto request,
-        ICartService cartService,
-        ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
+        var cartService =
+            http.RequestServices
+                .GetRequiredService<ICartService>();
+
+        var tenant =
+            http.RequestServices
+                .GetRequiredService<ICurrentTenant>();
+
         try
         {
             var userId =
@@ -145,22 +156,34 @@ public sealed class CartEndpoints
         catch (KeyNotFoundException ex)
         {
             return Results.NotFound(
-                new { error = ex.Message });
+                new
+                {
+                    error = ex.Message
+                });
         }
         catch (InvalidOperationException ex)
         {
             return Results.Conflict(
-                new { error = ex.Message });
+                new
+                {
+                    error = ex.Message
+                });
         }
     }
 
     private static async Task<IResult> RemoveItem(
         Guid productVariantId,
-        ICartService cartService,
-        ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
+        var cartService =
+            http.RequestServices
+                .GetRequiredService<ICartService>();
+
+        var tenant =
+            http.RequestServices
+                .GetRequiredService<ICurrentTenant>();
+
         var userId =
             GetUserId(http);
 
@@ -181,11 +204,17 @@ public sealed class CartEndpoints
     }
 
     private static async Task<IResult> Clear(
-        ICartService cartService,
-        ICurrentTenant tenant,
         HttpContext http,
         CancellationToken ct)
     {
+        var cartService =
+            http.RequestServices
+                .GetRequiredService<ICartService>();
+
+        var tenant =
+            http.RequestServices
+                .GetRequiredService<ICurrentTenant>();
+
         var userId =
             GetUserId(http);
 
@@ -203,12 +232,19 @@ public sealed class CartEndpoints
 
         return Results.Ok(result);
     }
-private static async Task<IResult> Merge(
-    ICartService cartService,
-    ICurrentTenant tenant,
-    HttpContext http,
-    CancellationToken ct)
+
+    private static async Task<IResult> Merge(
+        HttpContext http,
+        CancellationToken ct)
     {
+        var cartService =
+            http.RequestServices
+                .GetRequiredService<ICartService>();
+
+        var tenant =
+            http.RequestServices
+                .GetRequiredService<ICurrentTenant>();
+
         var userId =
             GetUserId(http);
 
@@ -264,7 +300,6 @@ private static async Task<IResult> Merge(
         }
     }
 
-
     private static string? GetUserId(
         HttpContext http)
     {
@@ -279,7 +314,9 @@ private static async Task<IResult> Merge(
         bool create = false)
     {
         if (!string.IsNullOrWhiteSpace(userId))
+        {
             return null;
+        }
 
         if (http.Request.Cookies.TryGetValue(
                 GuestCartCookie,
@@ -290,7 +327,9 @@ private static async Task<IResult> Merge(
         }
 
         if (!create)
+        {
             return null;
+        }
 
         var token =
             Convert.ToHexString(

@@ -80,7 +80,9 @@ builder.Services.AddCors(options =>
 // 6. Catalog Module
 // ============================================================
 builder.Services.AddEcommerceModules(builder.Configuration);
-
+builder.Services.AddHostedService<
+    NexaECommerce.Server.Features.Inventory
+        .ReservationExpirationWorker>();
 // ============================================================
 // 7. Build Application
 // ============================================================

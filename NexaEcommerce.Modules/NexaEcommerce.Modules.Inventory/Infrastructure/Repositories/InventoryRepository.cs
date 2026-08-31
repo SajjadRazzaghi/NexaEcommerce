@@ -49,6 +49,30 @@ public sealed class InventoryRepository(
                 cancellationToken);
     }
 
+    public async Task<IReadOnlyList<StockReservation>>
+        GetExpiredReservationsAsync(
+            DateTimeOffset now,
+            int batchSize,
+            CancellationToken cancellationToken = default)
+    {
+        if (batchSize <= 0)
+            throw new ArgumentOutOfRangeException(
+                nameof(batchSize));
+
+        return await context.StockReservations
+            .Include(x => x.StockItem)
+            .Where(
+                x =>
+                    x.Status ==
+                        StockReservationStatus.Active &&
+                    x.ExpiresAt <= now)
+            .OrderBy(
+                x => x.ExpiresAt)
+            .Take(batchSize)
+            .ToListAsync(
+                cancellationToken);
+    }
+
     public async Task AddStockAsync(
         StockItem stockItem,
         CancellationToken cancellationToken = default)

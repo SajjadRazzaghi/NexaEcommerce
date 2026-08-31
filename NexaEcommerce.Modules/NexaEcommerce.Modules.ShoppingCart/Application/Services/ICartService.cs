@@ -36,4 +36,12 @@ public interface ICartService
         string? userId,
         string? guestToken,
         CancellationToken cancellationToken = default);
+
+Task<CartDto> MergeGuestCartAsync(
+    string tenantId,
+    string userId,
+    string guestToken,
+    CancellationToken cancellationToken = default);
+
+
 }
