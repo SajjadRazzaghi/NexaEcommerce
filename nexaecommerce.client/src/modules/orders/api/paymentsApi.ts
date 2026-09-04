@@ -50,7 +50,10 @@ export async function createPaymentAttempt(
             },
         );
 
-    return data;
+    
+return data;
+
+
 }
 
 export async function getPaymentAttempt(
@@ -58,10 +61,13 @@ export async function getPaymentAttempt(
 ): Promise<PaymentAttemptDto> {
     const { data } =
         await api.get<PaymentAttemptDto>(
-            `/ api / orders / payment - attempts / ${ id } `,
+            `/api/orders/payment-attempts/${id}`,
         );
 
-    return data;
+    
+return data;
+
+
 }
 
 export async function completePayment(
@@ -73,7 +79,10 @@ export async function completePayment(
             request,
         );
 
-    return data;
+    
+return data;
+
+
 }
 
 export async function failPayment(
@@ -85,7 +94,10 @@ export async function failPayment(
             request,
         );
 
-    return data;
+    
+return data;
+
+
 }
 
 export async function retryPayment(
@@ -106,6 +118,8 @@ export async function retryPayment(
             },
         );
 
-    return data;
-}
+    
+return data;
 
+
+}
