@@ -1,4 +1,6 @@
-﻿using NexaEcommerce.Modules.Inventory.Application.Services;
+﻿using System.Security.Cryptography;
+using System.Text;
+using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Services;
 
@@ -40,7 +42,7 @@ public sealed class CheckoutOrchestrator(
             return order;
         }
 
-        var recordedReservationKeys =
+        var acquiredReservationKeys =
             new List<string>();
 
         try
@@ -55,6 +57,15 @@ public sealed class CheckoutOrchestrator(
                         userId,
                         idempotencyKey,
                         item.ProductVariantId);
+
+                /*
+                 * Register the key before calling Inventory.
+                 *
+                 * If ReserveAsync succeeds but recording the reservation
+                 * on the order fails, compensation must still release it.
+                 */
+                acquiredReservationKeys.Add(
+                    reservationKey);
 
                 var reservation =
                     await inventory.ReserveAsync(
@@ -74,9 +85,6 @@ public sealed class CheckoutOrchestrator(
                     item.Quantity,
                     reservation.ExpiresAt,
                     cancellationToken);
-
-                recordedReservationKeys.Add(
-                    reservationKey);
             }
 
             return
@@ -93,7 +101,7 @@ public sealed class CheckoutOrchestrator(
                 tenantId,
                 userId,
                 order.Id,
-                recordedReservationKeys);
+                acquiredReservationKeys);
 
             throw;
         }
@@ -116,9 +124,11 @@ public sealed class CheckoutOrchestrator(
             }
             catch
             {
-                // Compensation must continue for other reservations.
-                // The failed reservation remains observable and can
-                // be recovered by a later operational process.
+                /*
+                 * Compensation must continue for all remaining
+                 * reservations. Reconciliation can handle a
+                 * reservation that remains inconsistent.
+                 */
             }
         }
 
@@ -131,8 +141,9 @@ public sealed class CheckoutOrchestrator(
         }
         catch
         {
-            // The original checkout exception remains the primary
-            // application failure.
+            /*
+             * Preserve the original checkout exception.
+             */
         }
     }
 
@@ -177,7 +188,8 @@ public sealed class CheckoutOrchestrator(
             request.Items.Count == 0)
         {
             throw new ArgumentException(
-                "Checkout must contain at least one item.");
+                "Checkout must contain at least one item.",
+                nameof(request));
         }
     }
 
@@ -218,15 +230,24 @@ public sealed class CheckoutOrchestrator(
                 nameof(productVariantId));
         }
 
+        var material =
+            string.Concat(
+                tenantId.Trim(),
+                "|",
+                userId.Trim(),
+                "|",
+                idempotencyKey.Trim(),
+                "|",
+                productVariantId.ToString("N"));
+
+        var hash =
+            SHA256.HashData(
+                Encoding.UTF8.GetBytes(material));
+
         return string.Concat(
             "checkout:",
-            tenantId.Trim(),
-            ":",
-            userId.Trim(),
-            ":",
-            idempotencyKey.Trim(),
-            ":",
-            productVariantId.ToString("N"));
+            Convert.ToHexString(hash)
+                .ToLowerInvariant());
     }
 }
 
