@@ -1,60 +1,55 @@
-import React, { useState } from 'react';
-import { useCartMutations } from '@/modules/cart/hooks/useCartMutations';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
+
 import {
-    Card,
-    CardContent,
-    CardMedia,
-    Typography,
     Box,
     Button,
+    Card,
+    CardContent,
     Chip,
     IconButton,
     Rating,
     Stack,
     Tooltip,
+    Typography,
 } from '@mui/material';
 
 import {
-    ShoppingCartOutlined,
-    FavoriteBorder,
     Favorite,
-    VisibilityOutlined,
+    FavoriteBorder,
+    ShoppingCartOutlined,
 } from '@mui/icons-material';
 
-import type { Product } from '../types/product.types';
+import type { ProductListItem } from '../api/products';
 
 interface ProductCardProps {
-    product: Product;
+    product: ProductListItem;
 }
 
-const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+export default function ProductCard({ product }: ProductCardProps) {
     const [favorite, setFavorite] = useState(false);
-    const { add } = useCartMutations();
+
     const price = product.finalPrice ?? product.price;
 
     const hasDiscount =
-        product.comparePrice !== undefined &&
-        product.comparePrice !== null &&
+        product.comparePrice != null &&
         product.comparePrice > price;
 
     const discountPercentage =
-        hasDiscount && product.comparePrice
-            ? Math.round(
-                ((product.comparePrice - price) / product.comparePrice) * 100
-            )
-            : product.discountPercentage ?? 0;
+        product.discountPercentage > 0
+            ? Math.round(product.discountPercentage)
+            : hasDiscount && product.comparePrice
+                ? Math.round(
+                    ((product.comparePrice - price) /
+                        product.comparePrice) *
+                    100,
+                )
+                : 0;
 
-    const formatPrice = (value: number) => {
-        return new Intl.NumberFormat('fa-IR').format(value);
-    };
+    const image = product.mainImage || '/placeholder.jpg';
 
-    const image =
-        product.images && product.images.length > 0
-            ? product.images.find((item) => item.isMain)?.imageUrl ??
-            product.images[0]?.imageUrl ??
-            '/placeholder.jpg'
-            : '/placeholder.jpg';
+    const formatPrice = (value: number) =>
+        new Intl.NumberFormat('en-US').format(value);
 
     return (
         <Card
@@ -65,48 +60,45 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 position: 'relative',
                 overflow: 'hidden',
                 borderRadius: 3,
-                border: '1px solid',
-                borderColor: 'divider',
-                backgroundColor: 'background.paper',
-                transition: 'all 0.3s ease',
-
+                transition: 'transform .2s ease, box-shadow .2s ease',
                 '&:hover': {
-                    transform: 'translateY(-6px)',
-                    boxShadow: '0 14px 35px rgba(0,0,0,0.12)',
-                    borderColor: 'primary.main',
+                    transform: 'translateY(-4px)',
+                    boxShadow: 6,
                 },
             }}
         >
-            {/* Discount */}
             {discountPercentage > 0 && (
                 <Chip
-                    label={`${discountPercentage}% تخفیف`}
+                    label={`${discountPercentage}% OFF`}
                     color="error"
                     size="small"
                     sx={{
                         position: 'absolute',
                         top: 12,
                         right: 12,
-                        zIndex: 3,
+                        zIndex: 2,
                         fontWeight: 700,
                     }}
                 />
             )}
 
-            {/* Favorite */}
-            <Tooltip title={favorite ? 'حذف از علاقه‌مندی‌ها' : 'افزودن به علاقه‌مندی‌ها'}>
+            <Tooltip
+                title={
+                    favorite
+                        ? 'Remove from favorites'
+                        : 'Add to favorites'
+                }
+            >
                 <IconButton
-                    onClick={() => setFavorite((value) => !value)}
+                    onClick={() =>
+                        setFavorite((value) => !value)
+                    }
                     sx={{
                         position: 'absolute',
                         top: 8,
                         left: 8,
-                        zIndex: 3,
-                        backgroundColor: 'rgba(255,255,255,0.92)',
-
-                        '&:hover': {
-                            backgroundColor: '#fff',
-                        },
+                        zIndex: 2,
+                        bgcolor: 'rgba(255,255,255,.9)',
                     }}
                 >
                     {favorite ? (
@@ -117,36 +109,33 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                 </IconButton>
             </Tooltip>
 
-            {/* Image */}
             <Box
                 component={Link}
                 to={`/products/${product.id}`}
                 sx={{
                     display: 'block',
-                    textDecoration: 'none',
                     overflow: 'hidden',
-                    backgroundColor: '#f7f7f7',
+                    bgcolor: 'background.default',
                 }}
             >
-                <CardMedia
+                <Box
                     component="img"
-                    image={image}
+                    src={image}
                     alt={product.name}
                     sx={{
-                        height: {
-                            xs: 220,
-                            sm: 230,
-                            md: 240,
-                        },
+                        display: 'block',
+                        width: '100%',
+                        height: 240,
                         objectFit: 'cover',
-                        transition: 'transform 0.5s ease',
-
-                        '.MuiCard-root:hover &': {
-                            transform: 'scale(1.05)',
-                        },
+                        transition: 'transform .3s ease',
                     }}
                     onError={(event) => {
-                        event.currentTarget.src = '/placeholder.jpg';
+                        const element =
+                            event.currentTarget as HTMLImageElement;
+
+                        if (!element.src.endsWith('/placeholder.jpg')) {
+                            element.src = '/placeholder.jpg';
+                        }
                     }}
                 />
             </Box>
@@ -156,25 +145,21 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                     display: 'flex',
                     flexDirection: 'column',
                     flexGrow: 1,
-                    p: 2,
-                    textAlign: 'right',
+                    gap: 1,
                 }}
             >
-                {/* Brand */}
                 {product.brandName && (
                     <Typography
                         variant="caption"
                         color="text.secondary"
                         sx={{
-                            mb: 0.5,
-                            fontWeight: 500,
+                            fontWeight: 600,
                         }}
                     >
                         {product.brandName}
                     </Typography>
                 )}
 
-                {/* Product name */}
                 <Typography
                     component={Link}
                     to={`/products/${product.id}`}
@@ -183,35 +168,26 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         color: 'text.primary',
                         textDecoration: 'none',
                         fontWeight: 700,
-                        lineHeight: 1.8,
-                        minHeight: 58,
-
+                        minHeight: 52,
+                        lineHeight: 1.6,
                         display: '-webkit-box',
                         WebkitLineClamp: 2,
                         WebkitBoxOrient: 'vertical',
                         overflow: 'hidden',
-
-                        '&:hover': {
-                            color: 'primary.main',
-                        },
                     }}
                 >
                     {product.name}
                 </Typography>
 
-                {/* Rating */}
                 <Stack
                     direction="row"
                     spacing={1}
                     sx={{
-                        mt: 1,
-                        direction: 'ltr',
                         alignItems: 'center',
                     }}
                 >
-                
                     <Rating
-                        value={4.5}
+                        value={0}
                         precision={0.5}
                         size="small"
                         readOnly
@@ -221,119 +197,64 @@ const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
                         variant="caption"
                         color="text.secondary"
                     >
-                        4.5
+                        No reviews
                     </Typography>
                 </Stack>
 
                 <Box sx={{ flexGrow: 1 }} />
 
-                {/* Price */}
-                <Box sx={{ mt: 2 }}>
-                    {hasDiscount && product.comparePrice && (
-                        <Typography
-                            variant="body2"
-                            color="text.secondary"
-                            sx={{
-                                textDecoration: 'line-through',
-                                mb: 0.3,
-                            }}
-                        >
-                            {formatPrice(product.comparePrice)} تومان
-                        </Typography>
-                    )}
-
+                {hasDiscount && product.comparePrice != null && (
                     <Typography
-                        variant="h6"
-                        color="primary"
+                        variant="body2"
+                        color="text.secondary"
                         sx={{
-                            fontWeight: 800,
-                            fontSize: '1.15rem',
+                            textDecoration: 'line-through',
                         }}
                     >
-                        {formatPrice(price)} تومان
+                        {formatPrice(product.comparePrice)}{' '}
+                        {product.currency}
                     </Typography>
-                </Box>
+                )}
 
-                {/* Stock */}
-                <Box sx={{ mt: 1 }}>
-                    <Typography
-                        variant="caption"
-                        sx={{
-                            color: product.isInStock
-                                ? 'success.main'
-                                : 'error.main',
-                            fontWeight: 600,
-                        }}
-                    >
-                        {product.isInStock
-                            ? '● موجود در انبار'
-                            : '● ناموجود'}
-                    </Typography>
-                </Box>
-
-                {/* Actions */}
-                <Stack
-                    direction="row"
-                    spacing={1}
+                <Typography
+                    variant="h6"
+                    color="primary"
                     sx={{
-                        mt: 2,
+                        fontWeight: 800,
                     }}
                 >
-                
-                   
-                    <Button
-                        component={Link}
-                        to={`/products/${product.id}`}
-                        variant="outlined"
-                        color="primary"
-                        startIcon={<VisibilityOutlined />}
-                        sx={{
-                            minWidth: 48,
-                            borderRadius: 2,
-                            flex: 1,
-                            fontWeight: 600,
-                        }}
-                    >
-                        مشاهده
-                    </Button>
+                    {formatPrice(price)} {product.currency}
+                </Typography>
 
-                    <Button
-                        variant="contained"
-                        disabled={
-                            !product.isInStock ||
-                            add.isPending
-                        }
-                        startIcon={<ShoppingCartOutlined />}
-                        sx={{
-                            borderRadius: 2,
-                            flex: 1.5,
-                            fontWeight: 700,
-                        }}
-                        onClick={() => {
-                            const variant =
-                                product.variants?.find(
-                                    (item) =>
-                                        item.isActive &&
-                                        item.stockQuantity > 0,
-                                );
+                <Typography
+                    variant="caption"
+                    sx={{
+                        color: product.isInStock
+                            ? 'success.main'
+                            : 'error.main',
+                        fontWeight: 600,
+                    }}
+                >
+                    {product.isInStock
+                        ? '● In stock'
+                        : '● Out of stock'}
+                </Typography>
 
-                            if (!variant) {
-                                return;
-                            }
-
-                            add.mutate({
-                                productVariantId:
-                                    variant.id,
-                                quantity: 1,
-                            });
-                        }}
-                    >
-                        افزودن به سبد
-                    </Button>
-                </Stack>
+                <Button
+                    component={Link}
+                    to={`/products/${product.id}`}
+                    variant="contained"
+                    startIcon={<ShoppingCartOutlined />}
+                    disabled={!product.isInStock}
+                    sx={{
+                        mt: 1,
+                        borderRadius: 2,
+                        fontWeight: 700,
+                    }}
+                >
+                    View & Buy
+                </Button>
             </CardContent>
         </Card>
     );
-};
-
-export default ProductCard;
+}

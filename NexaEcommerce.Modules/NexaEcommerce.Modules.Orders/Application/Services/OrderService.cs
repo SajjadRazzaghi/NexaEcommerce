@@ -5,31 +5,31 @@ using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 namespace NexaEcommerce.Modules.Orders.Application.Services;
 
 public sealed class OrderService(
-    IOrderRepository repository,
-    IOrderProductReader productReader,
-    IOrderUnitOfWork unitOfWork,
-    IShippingMethodService shippingMethods)
-    : IOrderService
+IOrderRepository repository,
+IOrderProductReader productReader,
+IOrderUnitOfWork unitOfWork,
+IShippingMethodService shippingMethods)
+: IOrderService
 {
     public async Task<OrderDto> CreateFromCheckoutAsync(
-        string tenantId,
-        string userId,
-        string idempotencyKey,
-        CheckoutRequest request,
-        CancellationToken cancellationToken = default)
+    string tenantId,
+    string userId,
+    string idempotencyKey,
+    CheckoutRequest request,
+    CancellationToken cancellationToken = default)
     {
         ValidateCheckout(
+        tenantId,
+        userId,
+        idempotencyKey,
+        request);
+
+    var existing =
+        await repository.GetByIdempotencyKeyAsync(
             tenantId,
             userId,
             idempotencyKey,
-            request);
-
-        var existing =
-            await repository.GetByIdempotencyKeyAsync(
-                tenantId,
-                userId,
-                idempotencyKey,
-                cancellationToken);
+            cancellationToken);
 
         if (existing is not null)
         {
@@ -570,4 +570,5 @@ public sealed class OrderService(
                             x.LineTotal))
                 .ToList());
     }
+
 }

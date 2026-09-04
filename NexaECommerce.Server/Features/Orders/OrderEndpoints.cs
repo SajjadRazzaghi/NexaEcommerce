@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.ShoppingCart.Application.Services;
@@ -58,6 +59,7 @@ public sealed class OrderEndpoints
         [FromServices] ICartService cartService,
         [FromServices] CheckoutOrchestrator checkout,
         [FromServices] ICurrentTenant tenant,
+        [FromServices] ILogger<OrderEndpoints> logger,
         HttpContext http,
         CancellationToken ct)
     {
@@ -87,8 +89,7 @@ public sealed class OrderEndpoints
                 .FirstOrDefault()?
                 .Trim();
 
-        if (string.IsNullOrWhiteSpace(
-                idempotencyKey))
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
             return Results.BadRequest(
                 new
@@ -125,6 +126,10 @@ public sealed class OrderEndpoints
                 });
         }
 
+        /*
+         * The server is authoritative for cart contents.
+         * Client-submitted item ids/quantities are ignored here.
+         */
         var serverLines =
             cart.Items
                 .Select(
@@ -149,6 +154,30 @@ public sealed class OrderEndpoints
                     idempotencyKey,
                     serverRequest,
                     ct);
+
+            try
+            {
+                await cartService.ClearAsync(
+                    tenant.Id,
+                    userId,
+                    null,
+                    ct);
+            }
+            catch (Exception ex)
+                when (ex is not OperationCanceledException)
+            {
+                /*
+                 * The order is already valid.
+                 * Keep the checkout successful and log the stale-cart
+                 * condition for operational recovery.
+                 */
+                logger.LogError(
+                    ex,
+                    "Checkout succeeded but cart cleanup failed. Tenant={TenantId}, User={UserId}, Order={OrderId}",
+                    tenant.Id,
+                    userId,
+                    order.Id);
+            }
 
             return Results.Created(
                 $"/api/orders/{order.Id}",

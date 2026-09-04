@@ -191,9 +191,8 @@ public sealed class OrderCancellationOrchestratorTests
                 Arg.Any<CancellationToken>());
     }
 
- 
-[Fact]
-public async Task Cancel_throws_when_order_does_not_exist()
+    [Fact]
+    public async Task Cancel_throws_when_order_does_not_exist()
     {
         var orderId =
             Guid.NewGuid();
@@ -229,6 +228,7 @@ public async Task Cancel_throws_when_order_does_not_exist()
                     "missing-user",
                     orderId));
     }
+
     [Fact]
     public async Task Cancel_rejects_shipped_order()
     {

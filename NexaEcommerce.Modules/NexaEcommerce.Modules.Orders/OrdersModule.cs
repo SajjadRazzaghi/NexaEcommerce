@@ -1,7 +1,7 @@
-﻿
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NexaEcommerce.Modules.Orders.Application.Payments;
+using NexaEcommerce.Modules.Orders.Application.Pricing;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 using NexaEcommerce.Modules.Orders.Infrastructure.Payments;
@@ -56,6 +56,14 @@ public static class OrdersModule
             OrderUnitOfWork>();
 
         // ========================================================
+        // Pricing
+        // ========================================================
+
+        services.AddScoped<
+            IPricingCalculator,
+            PricingCalculator>();
+
+        // ========================================================
         // Payments
         // ========================================================
 
@@ -101,6 +109,11 @@ public static class OrdersModule
         services.AddScoped<
             IShipmentService,
             ShipmentService>();
+
+
+        services.AddScoped<
+    IPricingCalculator,
+    PricingCalculator>();
 
         return services;
     }

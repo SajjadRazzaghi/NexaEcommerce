@@ -19,11 +19,21 @@ import {
     useNavigate,
 } from 'react-router-dom';
 
-import { useTranslation } from 'react-i18next';
+import {
+    useTranslation,
+} from 'react-i18next';
 
-import { useCart } from '@/modules/cart/hooks/useCart';
-import { useCheckout } from '@/modules/orders/hooks/useCheckout';
-import { useShippingMethods } from '@/modules/orders/hooks/useShippingMethods';
+import {
+    useCart,
+} from '@/modules/cart/hooks/useCart';
+
+import {
+    useCheckout,
+} from '@/modules/orders/hooks/useCheckout';
+
+import {
+    useShippingMethods,
+} from '@/modules/orders/hooks/useShippingMethods';
 
 import type {
     CheckoutRequest,
@@ -57,7 +67,10 @@ function SkeletonLine({
 }
 
 export default function CheckoutPage() {
-    const { t, i18n } =
+    const {
+        t,
+        i18n,
+    } =
         useTranslation();
 
     
@@ -230,6 +243,7 @@ const handleSubmit = (
                 item => ({
                     productVariantId:
                         item.productVariantId,
+
                     quantity:
                         item.quantity,
                 }),
@@ -257,25 +271,36 @@ const handleSubmit = (
     checkout.mutate(
         {
             request,
+
             idempotencyKey:
                 checkoutKeyRef.current,
         },
         {
-            onSuccess: order => {
-                navigate(
-                    `/ orders / ${ order.id } `,
-                    {
-                        replace: true,
-                    },
-                );
-            },
+            onSuccess:
+                order => {
+                    navigate(
+                        `/ orders / payment / ${ order.id } `,
+                        {
+                            replace: true,
+                        },
+                    );
+                },
         },
     );
 };
 
-if (cartQuery.isLoading) {
+if (
+    cartQuery.isLoading
+) {
     return (
-        <div className="mx-auto max-w-7xl space-y-6 p-4 md:p-6">
+        <div
+            dir={
+                isFa
+                    ? 'rtl'
+                    : 'ltr'
+            }
+            className="mx-auto max-w-7xl space-y-6 p-4 md:p-6"
+        >
             <SkeletonLine className="h-8 w-40" />
 
             <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
@@ -298,10 +323,16 @@ if (cartQuery.isLoading) {
     );
 }
 
-if (cartQuery.isError) {
+if (
+    cartQuery.isError
+) {
     return (
         <div
-            dir={isFa ? 'rtl' : 'ltr'}
+            dir={
+                isFa
+                    ? 'rtl'
+                    : 'ltr'
+            }
             className="mx-auto max-w-3xl p-6"
         >
             <div className="rounded-2xl border p-10 text-center">
@@ -345,7 +376,11 @@ if (
 ) {
     return (
         <div
-            dir={isFa ? 'rtl' : 'ltr'}
+            dir={
+                isFa
+                    ? 'rtl'
+                    : 'ltr'
+            }
             className="mx-auto max-w-3xl p-6"
         >
             <div className="rounded-2xl border p-10 text-center">
@@ -387,7 +422,11 @@ if (
 
 return (
     <div
-        dir={isFa ? 'rtl' : 'ltr'}
+        dir={
+            isFa
+                ? 'rtl'
+                : 'ltr'
+        }
         className="mx-auto max-w-7xl space-y-6 p-4 md:p-6"
     >
         <header>
@@ -778,7 +817,8 @@ return (
                     disabled={
                         checkout.isPending ||
                         shippingMethodsQuery.isLoading ||
-                        shippingMethodsQuery.isError
+                        shippingMethodsQuery.isError ||
+                        !shippingMethodsQuery.data?.length
                     }
                     className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                 >

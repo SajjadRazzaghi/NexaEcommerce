@@ -18,7 +18,6 @@ import {
     Filter,
     Package,
     Search,
-  
 } from 'lucide-react';
 
 import {
@@ -34,14 +33,14 @@ const PAGE_SIZE = 20;
 const statuses: Array<
     OrderStatus | ''
 > = [
-    '',
-    'PendingPayment',
-    'Paid',
-    'Processing',
-    'Shipped',
-    'Delivered',
-    'Cancelled',
-];
+        '',
+        'PendingPayment',
+        'Paid',
+        'Processing',
+        'Shipped',
+        'Delivered',
+        'Cancelled',
+    ];
 
 function statusLabel(
     status: OrderStatus | '',
@@ -53,13 +52,14 @@ function statusLabel(
             : 'All statuses';
     }
 
-    const labels: Record<
-        OrderStatus,
-        {
-            en: string;
-            fa: string;
-        }
-    > = {
+    const labels:
+        Record<
+            OrderStatus,
+            {
+                en: string;
+                fa: string;
+            }
+        > = {
         PendingPayment: {
             en: 'Pending payment',
             fa: 'در انتظار پرداخت',
@@ -91,6 +91,30 @@ function statusLabel(
         : labels[status].en;
 }
 
+function statusClass(
+    status: OrderStatus,
+) {
+    switch (status) {
+        case 'Cancelled':
+            return 'border-destructive/40 text-destructive';
+
+        case 'Delivered':
+            return 'border-emerald-500/40 text-emerald-600 dark:text-emerald-400';
+
+        case 'Shipped':
+            return 'border-blue-500/40 text-blue-600 dark:text-blue-400';
+
+        case 'Processing':
+            return 'border-amber-500/40 text-amber-600 dark:text-amber-400';
+
+        case 'Paid':
+            return 'border-primary/40 text-primary';
+
+        default:
+            return 'border-border text-muted-foreground';
+    }
+}
+
 export default function AdminOrdersPage() {
     const { i18n } =
         useTranslation();
@@ -111,20 +135,21 @@ export default function AdminOrdersPage() {
     const [search, setSearch] =
         useState('');
 
-    const query = useMemo(
-        () => ({
-            page,
-            pageSize:
-                PAGE_SIZE,
-            status,
-            search,
-        }),
-        [
-            page,
-            search,
-            status,
-        ],
-    );
+    const query =
+        useMemo(
+            () => ({
+                page,
+                pageSize:
+                    PAGE_SIZE,
+                status,
+                search,
+            }),
+            [
+                page,
+                status,
+                search,
+            ],
+        );
 
     const {
         data,
@@ -132,6 +157,7 @@ export default function AdminOrdersPage() {
         isFetching,
         isError,
         error,
+        refetch,
     } =
         useAdminOrders(
             query,
@@ -139,85 +165,77 @@ export default function AdminOrdersPage() {
 
     const text = isFa
         ? {
-              title:
-                  'مدیریت سفارش‌ها',
-              description:
-                  'مدیریت سفارش‌ها، وضعیت پرداخت و ارسال.',
-              search:
-                  'جستجوی سفارش...',
-              filter:
-                  'وضعیت',
-              loading:
-                  'در حال بارگذاری سفارش‌ها...',
-              error:
-                  'خطا در دریافت سفارش‌ها.',
-              empty:
-                  'سفارشی پیدا نشد.',
-              order:
-                  'سفارش',
-              customer:
-                  'مشتری',
-              status:
-                  'وضعیت',
-              total:
-                  'مبلغ',
-              date:
-                  'تاریخ',
-              actions:
-                  'عملیات',
-              view:
-                  'مشاهده',
-              page:
-                  'صفحه',
-              previous:
-                  'قبلی',
-              next:
-                  'بعدی',
-              items:
-                  'مورد',
-              processing:
-                  'در حال دریافت...',
-          }
+            title:
+                'مدیریت سفارش‌ها',
+            description:
+                'مدیریت سفارش‌ها، وضعیت پرداخت و فرایند ارسال.',
+            search:
+                'جستجوی سفارش...',
+            status:
+                'وضعیت',
+            loading:
+                'در حال بارگذاری سفارش‌ها...',
+            error:
+                'دریافت سفارش‌ها با مشکل مواجه شد.',
+            retry:
+                'تلاش دوباره',
+            empty:
+                'سفارشی پیدا نشد.',
+            order:
+                'سفارش',
+            customer:
+                'مشتری',
+            total:
+                'مبلغ',
+            date:
+                'تاریخ',
+            actions:
+                'عملیات',
+            view:
+                'مشاهده',
+            page:
+                'صفحه',
+            previous:
+                'قبلی',
+            next:
+                'بعدی',
+        }
         : {
-              title:
-                  'Order Management',
-              description:
-                  'Manage orders, payment status and fulfillment.',
-              search:
-                  'Search orders...',
-              filter:
-                  'Status',
-              loading:
-                  'Loading orders...',
-              error:
-                  'Failed to load orders.',
-              empty:
-                  'No orders found.',
-              order:
-                  'Order',
-              customer:
-                  'Customer',
-              status:
-                  'Status',
-              total:
-                  'Total',
-              date:
-                  'Date',
-              actions:
-                  'Actions',
-              view:
-                  'View',
-              page:
-                  'Page',
-              previous:
-                  'Previous',
-              next:
-                  'Next',
-              items:
-                  'items',
-              processing:
-                  'Refreshing...',
-          };
+            title:
+                'Order Management',
+            description:
+                'Manage orders, payment status and fulfillment.',
+            search:
+                'Search orders...',
+            status:
+                'Status',
+            loading:
+                'Loading orders...',
+            error:
+                'We could not load orders.',
+            retry:
+                'Try again',
+            empty:
+                'No orders found.',
+            order:
+                'Order',
+            customer:
+                'Customer',
+            total:
+                'Total',
+            date:
+                'Date',
+            actions:
+                'Actions',
+            view:
+                'View',
+            page:
+                'Page',
+            previous:
+                'Previous',
+            next:
+                'Next',
+        };
 
     return (
         <div
@@ -233,7 +251,7 @@ export default function AdminOrdersPage() {
                     {text.title}
                 </h1>
 
-                <p className="text-muted-foreground mt-1">
+                <p className="mt-1 text-muted-foreground">
                     {
                         text.description
                     }
@@ -243,23 +261,25 @@ export default function AdminOrdersPage() {
             <section className="rounded-xl border p-4">
                 <div className="flex flex-col gap-3 lg:flex-row">
                     <div className="relative flex-1">
-                        <Search className="text-muted-foreground absolute start-3 top-1/2 size-4 -translate-y-1/2" />
+                        <Search className="absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
 
                         <input
                             value={
                                 search
                             }
-                            onChange={event => {
-                                setPage(
-                                    1,
-                                );
+                            onChange={
+                                event => {
+                                    setPage(
+                                        1,
+                                    );
 
-                                setSearch(
-                                    event
-                                        .target
-                                        .value,
-                                );
-                            }}
+                                    setSearch(
+                                        event
+                                            .target
+                                            .value,
+                                    );
+                                }
+                            }
                             placeholder={
                                 text.search
                             }
@@ -268,30 +288,33 @@ export default function AdminOrdersPage() {
                     </div>
 
                     <div className="flex items-center gap-2 lg:w-64">
-                        <Filter className="text-muted-foreground size-4" />
+                        <Filter className="size-4 text-muted-foreground" />
 
                         <select
                             value={
                                 status
                             }
-                            onChange={event => {
-                                setPage(
-                                    1,
-                                );
+                            onChange={
+                                event => {
+                                    setPage(
+                                        1,
+                                    );
 
-                                setStatus(
-                                    event
-                                        .target
-                                        .value as OrderStatus | '',
-                                );
-                            }}
+                                    setStatus(
+                                        event
+                                            .target
+                                            .value as OrderStatus | '',
+                                    );
+                                }
+                            }
                             className="w-full rounded-lg border bg-background px-3 py-2.5 text-sm"
                         >
                             {statuses.map(
                                 value => (
                                     <option
                                         key={
-                                            value
+                                            value ||
+                                            'all'
                                         }
                                         value={
                                             value
@@ -310,41 +333,66 @@ export default function AdminOrdersPage() {
 
                 {isFetching &&
                     !isLoading && (
-                        <div className="text-muted-foreground mt-3 text-xs">
-                            {
-                                text.processing
-                            }
+                        <div className="mt-3 text-xs text-muted-foreground">
+                            ...
                         </div>
                     )}
             </section>
 
             {isLoading && (
-                <div className="rounded-xl border p-8 text-center text-sm">
-                    {
-                        text.loading
-                    }
+                <div className="space-y-3">
+                    {[1, 2, 3, 4].map(
+                        item => (
+                            <div
+                                key={
+                                    item
+                                }
+                                className="animate-pulse rounded-xl border p-5"
+                            >
+                                <div className="h-5 w-40 rounded bg-muted" />
+
+                                <div className="mt-4 h-4 w-64 rounded bg-muted" />
+
+                                <div className="mt-4 h-4 w-28 rounded bg-muted" />
+                            </div>
+                        ),
+                    )}
                 </div>
             )}
 
             {isError && (
-                <div className="rounded-xl border border-destructive/40 p-8 text-center text-sm text-destructive">
-                    {error instanceof
-                    Error
-                        ? error.message
-                        : text.error}
+                <div className="rounded-xl border border-destructive/30 p-10 text-center">
+                    <p className="text-sm text-destructive">
+                        {error instanceof Error
+                            ? error.message
+                            : text.error}
+                    </p>
+
+                    <button
+                        type="button"
+                        onClick={() =>
+                            void refetch()
+                        }
+                        className="mt-5 rounded-lg border px-4 py-2 text-sm"
+                    >
+                        {
+                            text.retry
+                        }
+                    </button>
                 </div>
             )}
 
             {!isLoading &&
                 !isError &&
-                data &&
-                data.items.length ===
-                    0 && (
+                data?.items.length ===
+                0 && (
                     <div className="rounded-xl border border-dashed p-12 text-center">
-                        <Package className="text-muted-foreground mx-auto size-10" />
+                        <Package className="mx-auto size-10 text-muted-foreground" />
 
                         <h2 className="mt-4 font-semibold">
-                            {text.empty}
+                            {
+                                text.empty
+                            }
                         </h2>
                     </div>
                 )}
@@ -353,7 +401,7 @@ export default function AdminOrdersPage() {
                 !isError &&
                 data &&
                 data.items.length >
-                    0 && (
+                0 && (
                     <>
                         <div className="overflow-x-auto rounded-xl border">
                             <table className="w-full min-w-[900px] text-sm">
@@ -408,7 +456,7 @@ export default function AdminOrdersPage() {
                                             >
                                                 <td className="px-4 py-4">
                                                     <Link
-                                                        to={`/ admin / orders / ${ order.id } `}
+                                                        to={`/admin/orders/${order.id}`}
                                                         className="font-medium underline-offset-4 hover:underline"
                                                     >
                                                         {
@@ -426,16 +474,26 @@ export default function AdminOrdersPage() {
                                                 </td>
 
                                                 <td className="px-4 py-4">
-                                                    <span className="rounded-full border px-2.5 py-1 text-xs">
-                                                        {statusLabel(
+                                                    <span
+                                                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass(
                                                             order.status,
-                                                            isFa,
-                                                        )}
+                                                        )}`}
+                                                    >
+                                                        {
+                                                            statusLabel(
+                                                                order.status,
+                                                                isFa,
+                                                            )
+                                                        }
                                                     </span>
                                                 </td>
 
                                                 <td className="px-4 py-4 font-medium">
-                                                    {order.totalAmount.toLocaleString()}{' '}
+                                                    {order.totalAmount.toLocaleString(
+                                                        isFa
+                                                            ? 'fa-IR'
+                                                            : undefined,
+                                                    )}{' '}
                                                     {
                                                         order.currency
                                                     }
@@ -453,7 +511,7 @@ export default function AdminOrdersPage() {
 
                                                 <td className="px-4 py-4 text-end">
                                                     <Link
-                                                        to={`/ admin / orders / ${ order.id } `}
+                                                        to={`/admin/orders/${order.id}`}
                                                         className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-medium"
                                                     >
                                                         <Eye className="size-3.5" />
@@ -471,15 +529,18 @@ export default function AdminOrdersPage() {
                         </div>
 
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="text-muted-foreground text-sm">
+                            <div className="text-sm text-muted-foreground">
                                 {
                                     text.page
                                 }{' '}
-                                {data.page}{' '}
-                                /{' '}
                                 {
-                                    data.totalPages
-                                }
+                                    data.page
+                                }{' '}
+                                /{' '}
+                                {Math.max(
+                                    data.totalPages,
+                                    1,
+                                )}
                             </div>
 
                             <div className="flex gap-2">
@@ -494,7 +555,7 @@ export default function AdminOrdersPage() {
                                                 Math.max(
                                                     1,
                                                     value -
-                                                        1,
+                                                    1,
                                                 ),
                                         )
                                     }

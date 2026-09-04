@@ -1,6 +1,5 @@
 import {
     useMemo,
-    useState,
 } from 'react';
 
 import {
@@ -33,6 +32,10 @@ import {
 } from 'react-router-dom';
 
 import {
+    useTranslation,
+} from 'react-i18next';
+
+import {
     useProducts,
     useFeaturedProducts,
 } from '../hooks/useProducts';
@@ -49,486 +52,679 @@ export default function ProductListPage() {
     const [
         searchParams,
         setSearchParams,
-    ] = useSearchParams();
+    ] =
+        useSearchParams();
 
-    const [
-        activeTab,
-        setActiveTab,
-    ] = useState(0);
+    
+const {
+    i18n,
+} =
+    useTranslation();
 
-    const page = Math.max(
-        Number(
-            searchParams.get(
-                'page',
-            ) ?? '1',
-        ),
-        1,
+const isFa =
+    i18n.language
+        .toLowerCase()
+        .startsWith('fa');
+
+const text = isFa
+    ? {
+          title:
+              'محصولات',
+          subtitle:
+              'جدیدترین محصولات فروشگاه',
+          search:
+              'جستجوی محصول...',
+          sort:
+              'مرتب‌سازی',
+          newest:
+              'جدیدترین',
+          priceAsc:
+              'ارزان‌ترین',
+          priceDesc:
+              'گران‌ترین',
+          name:
+              'نام',
+          popular:
+              'محبوب‌ترین',
+          all:
+              'همه محصولات',
+          featured:
+              'پیشنهاد ویژه',
+          updating:
+              'در حال بروزرسانی محصولات...',
+          loading:
+              'در حال بارگذاری محصولات...',
+          error:
+              'خطا در دریافت محصولات.',
+          emptyTitle:
+              'محصولی پیدا نشد',
+          emptyText:
+              'فیلترها یا عبارت جستجو را تغییر دهید.',
+      }
+    : {
+          title:
+              'Products',
+          subtitle:
+              'Discover the latest products in our store.',
+          search:
+              'Search products...',
+          sort:
+              'Sort by',
+          newest:
+              'Newest',
+          priceAsc:
+              'Lowest price',
+          priceDesc:
+              'Highest price',
+          name:
+              'Name',
+          popular:
+              'Most popular',
+          all:
+              'All products',
+          featured:
+              'Featured',
+          updating:
+              'Updating products...',
+          loading:
+              'Loading products...',
+          error:
+              'Failed to load products.',
+          emptyTitle:
+              'No products found',
+          emptyText:
+              'Try changing your search or filters.',
+      };
+
+    const activeTab = Number(
+        searchParams.get('tab') ?? '0',
     );
 
-    const search =
+const page = Math.max(
+    Number(
         searchParams.get(
-            'search',
-        ) ?? '';
+            'page',
+        ) ?? '1',
+    ),
+    1,
+);
 
-    const sortBy =
-        (searchParams.get(
-            'sortBy',
-        ) ?? 'newest') as ProductFilter['sortBy'];
+const search =
+    searchParams.get(
+        'search',
+    ) ?? '';
 
-    const categoryId =
-        searchParams.get(
-            'categoryId',
-        ) ?? undefined;
+const sortBy =
+    (searchParams.get(
+        'sortBy',
+    ) ??
+        'newest') as ProductFilter['sortBy'];
 
-    const minPrice =
-        Number(
-            searchParams.get(
-                'minPrice',
-            ) ?? '0',
-        );
+const categoryId =
+    searchParams.get(
+        'categoryId',
+    ) ??
+    undefined;
 
-    const maxPrice =
-        Number(
-            searchParams.get(
-                'maxPrice',
-            ) ?? '0',
-        );
+const minPrice = Number(
+    searchParams.get(
+        'minPrice',
+    ) ?? '0',
+);
 
-    const isInStock =
-        searchParams.get(
-            'isInStock',
-        ) === 'true';
+const maxPrice = Number(
+    searchParams.get(
+        'maxPrice',
+    ) ?? '0',
+);
 
-    const filters =
-        useMemo<ProductFilter>(
-            () => ({
-                page,
-                pageSize:
-                    PAGE_SIZE,
-                search:
-                    search ||
-                    undefined,
-                categoryId,
-                minPrice:
-                    minPrice > 0
-                        ? minPrice
-                        : undefined,
-                maxPrice:
-                    maxPrice > 0
-                        ? maxPrice
-                        : undefined,
-                isInStock:
-                    isInStock ||
-                    undefined,
-                sortBy,
-            }),
-            [
-                page,
-                search,
-                categoryId,
-                minPrice,
-                maxPrice,
-                isInStock,
-                sortBy,
-            ],
-        );
+const isInStock =
+    searchParams.get(
+        'isInStock',
+    ) ===
+    'true';
 
-    const {
-        data,
-        isLoading,
-        isFetching,
-        error,
-    } = useProducts(
+const filters =
+    useMemo<ProductFilter>(
+        () => ({
+            page,
+            pageSize:
+                PAGE_SIZE,
+            search:
+                search ||
+                undefined,
+            categoryId,
+            minPrice:
+                minPrice > 0
+                    ? minPrice
+                    : undefined,
+            maxPrice:
+                maxPrice > 0
+                    ? maxPrice
+                    : undefined,
+            isInStock:
+                isInStock ||
+                undefined,
+            sortBy,
+        }),
+        [
+            page,
+            search,
+            categoryId,
+            minPrice,
+            maxPrice,
+            isInStock,
+            sortBy,
+        ],
+    );
+
+const {
+    data,
+    isLoading,
+    isFetching,
+    error,
+} =
+    useProducts(
         filters,
     );
 
-    const {
-        data:
+const {
+    data:
         featuredProducts =
-        [],
-    } =
-        useFeaturedProducts(
-            8,
+            [],
+} =
+    useFeaturedProducts(
+        8,
+    );
+
+const displayProducts =
+    activeTab === 0
+        ? data?.items ?? []
+        : featuredProducts.map(
+              product => ({
+                  id:
+                      product.id,
+                  name:
+                      product.name,
+                  sku:
+                      product.sku,
+                  slug:
+                      product.slug,
+                  price:
+                      product.price,
+                  comparePrice:
+                      product.comparePrice,
+                  finalPrice:
+                      product.finalPrice,
+                  discountPercentage:
+                      product.discountPercentage,
+                  currency:
+                      product.currency,
+                  brandId:
+                      product.brandId,
+                  brandName:
+                      product.brandName,
+                  isActive:
+                      product.isActive,
+                  isFeatured:
+                      product.isFeatured,
+                  isPublished:
+                      product.isPublished,
+                  isInStock:
+                      product.isInStock,
+                  stockQuantity:
+                      product.stockQuantity,
+                  mainImage:
+                      product.images.find(
+                          image =>
+                              image.isMain,
+                      )?.imageUrl ??
+                      product.images[0]
+                          ?.imageUrl ??
+                      null,
+                  categoryNames:
+                      product.categories,
+                  categoryIds:
+                      product.categoryIds,
+                  createdAt:
+                      product.createdAt,
+              }),
+          );
+
+const totalPages =
+    data?.totalPages ?? 0;
+
+function updateParam(
+    key: string,
+    value:
+        | string
+        | number
+        | boolean
+        | null,
+) {
+    const next =
+        new URLSearchParams(
+            searchParams,
         );
 
-    const displayProducts =
-        activeTab === 0
-            ? data?.items ?? []
-            : featuredProducts;
-
-    const totalPages =
-        data?.totalPages ?? 0;
-
-    function updateParam(
-        key: string,
-        value:
-            | string
-            | number
-            | boolean
-            | null,
-    ) {
-        const next =
-            new URLSearchParams(
-                searchParams,
-            );
-
-        next.set(
-            'page',
-            '1',
-        );
-
-        if (
-            value === null ||
-            value === '' ||
-            value === false
-        ) {
-            next.delete(key);
-        } else {
-            next.set(
-                key,
-                String(value),
-            );
-        }
-
-        setSearchParams(
-            next,
-        );
-    }
+    next.set(
+        'page',
+        '1',
+    );
 
     if (
-        isLoading &&
-        !data
+        value === null ||
+        value === '' ||
+        value === false
     ) {
-        return (
-            <Box
-                sx={{
-                    minHeight:
-                        '65vh',
-                    display:
-                        'flex',
-                    alignItems:
-                        'center',
-                    justifyContent:
-                        'center',
-                }}
-            >
-                <CircularProgress />
-            </Box>
+        next.delete(key);
+    } else {
+        next.set(
+            key,
+            String(value),
         );
     }
 
-    if (error) {
-        return (
-            <Container
-                maxWidth="lg"
-                sx={{
-                    py: 6,
-                }}
-            >
-                <Alert severity="error">
-                    خطا در دریافت محصولات.
-                </Alert>
-            </Container>
-        );
-    }
+    setSearchParams(
+        next,
+    );
+}
 
+function changeTab(
+    value: number,
+) {
+    const next =
+        new URLSearchParams(
+            searchParams,
+        );
+
+    next.set(
+        'tab',
+        String(value),
+    );
+    next.set(
+        'page',
+        '1',
+    );
+
+    setSearchParams(
+        next,
+    );
+}
+
+if (
+    isLoading &&
+    !data
+) {
     return (
         <Box
             sx={{
                 minHeight:
-                    '100vh',
-                backgroundColor:
-                    '#fafafa',
-                py: {
-                    xs: 3,
-                    md: 5,
-                },
+                    '65vh',
+                display:
+                    'flex',
+                flexDirection:
+                    'column',
+                alignItems:
+                    'center',
+                justifyContent:
+                    'center',
+                gap: 2,
                 direction:
-                    'rtl',
+                    isFa
+                        ? 'rtl'
+                        : 'ltr',
             }}
         >
-            <Container
-                maxWidth="xl"
+            <CircularProgress />
+            <Typography
+                color="text.secondary"
             >
-                <Stack
-                    spacing={3}
+                {text.loading}
+            </Typography>
+        </Box>
+    );
+}
+
+if (error) {
+    return (
+        <Container
+            maxWidth="lg"
+            sx={{
+                py: 6,
+                direction:
+                    isFa
+                        ? 'rtl'
+                        : 'ltr',
+            }}
+        >
+            <Alert severity="error">
+                {
+                    text.error
+                }
+            </Alert>
+        </Container>
+    );
+}
+
+return (
+    <Box
+        sx={{
+            minHeight:
+                '100vh',
+            backgroundColor:
+                '#fafafa',
+            py: {
+                xs: 3,
+                md: 5,
+            },
+            direction:
+                isFa
+                    ? 'rtl'
+                    : 'ltr',
+        }}
+    >
+        <Container
+            maxWidth="xl"
+        >
+            <Stack
+                spacing={3}
+            >
+                <Box>
+                    <Typography
+                        variant="h3"
+                        component="h1"
+                        sx={{
+                            fontWeight: 900,
+                            fontSize: {
+                                xs: '2rem',
+                                md: '3rem',
+                            },
+                        }}
+                    >
+                        {
+                            text.title
+                        }
+                    </Typography>
+
+                    <Typography
+                        color="text.secondary"
+                        sx={{
+                            mt: 1,
+                        }}
+                    >
+                        {
+                            text.subtitle
+                        }
+                    </Typography>
+                </Box>
+
+                <Box
+                    sx={{
+                        backgroundColor:
+                            '#fff',
+                        border:
+                            '1px solid',
+                        borderColor:
+                            'divider',
+                        borderRadius:
+                            3,
+                        p: 2,
+                    }}
                 >
-                    <Box>
-                        <Typography
-                            variant="h3"
-                            component="h1"
+                    <Stack
+                        direction={{
+                            xs: 'column',
+                            md: 'row',
+                        }}
+                        spacing={2}
+                    >
+                        <TextField
+                            fullWidth
+                            size="small"
+                            value={
+                                search
+                            }
+                            placeholder={
+                                text.search
+                            }
+                            onChange={event =>
+                                updateParam(
+                                    'search',
+                                    event
+                                        .target
+                                        .value,
+                                )
+                            }
+                            slotProps={{
+                                input: {
+                                    startAdornment:
+                                        (
+                                            <InputAdornment position="start">
+                                                <Search />
+                                            </InputAdornment>
+                                        ),
+                                },
+                            }}
+                        />
+
+                        <FormControl
+                            size="small"
                             sx={{
-                                fontWeight:
-                                    900,
-                                fontSize:
-                                {
-                                    xs: '2rem',
-                                    md: '3rem',
+                                minWidth: {
+                                    xs:
+                                        '100%',
+                                    md:
+                                        210,
                                 },
                             }}
                         >
-                            محصولات
-                        </Typography>
-
-                        <Typography
-                            color="text.secondary"
-                        >
-                            جدیدترین محصولات
-                            فروشگاه
-                        </Typography>
-                    </Box>
-
-                    <Box
-                        sx={{
-                            backgroundColor:
-                                '#fff',
-                            border:
-                                '1px solid',
-                            borderColor:
-                                'divider',
-                            borderRadius: 3,
-                            p: 2,
-                        }}
-                    >
-                        <Stack
-                            direction={{
-                                xs: 'column',
-                                md: 'row',
-                            }}
-                            spacing={2}
-                        >
-                            <TextField
-                                fullWidth
-                                size="small"
-                                value={
-                                    search
+                            <InputLabel>
+                                {
+                                    text.sort
                                 }
-                                placeholder="جستجوی محصول..."
-                                onChange={(
-                                    event,
-                                ) =>
+                            </InputLabel>
+
+                            <Select
+                                value={
+                                    sortBy
+                                }
+                                label={
+                                    text.sort
+                                }
+                                onChange={event =>
                                     updateParam(
-                                        'search',
+                                        'sortBy',
                                         event
                                             .target
                                             .value,
                                     )
                                 }
-                                slotProps={{
-                                    input: {
-                                        startAdornment:
-                                            (
-                                                <InputAdornment position="start">
-                                                    <Search />
-                                                </InputAdornment>
-                                            ),
-                                    },
-                                }}
-                            />
-
-                            <FormControl
-                                size="small"
-                                sx={{
-                                    minWidth:
-                                    {
-                                        xs:
-                                            '100%',
-                                        md:
-                                            200,
-                                    },
-                                }}
                             >
-                                <InputLabel>
-                                    مرتب‌سازی
-                                </InputLabel>
-
-                                <Select
-                                    value={
-                                        sortBy
+                                <MenuItem value="newest">
+                                    {
+                                        text.newest
                                     }
-                                    label="مرتب‌سازی"
-                                    onChange={(
-                                        event,
-                                    ) =>
-                                        updateParam(
-                                            'sortBy',
-                                            event
-                                                .target
-                                                .value,
-                                        )
+                                </MenuItem>
+
+                                <MenuItem value="price_asc">
+                                    {
+                                        text.priceAsc
                                     }
-                                >
-                                    <MenuItem value="newest">
-                                        جدیدترین
-                                    </MenuItem>
+                                </MenuItem>
 
-                                    <MenuItem value="price_asc">
-                                        ارزان‌ترین
-                                    </MenuItem>
+                                <MenuItem value="price_desc">
+                                    {
+                                        text.priceDesc
+                                    }
+                                </MenuItem>
 
-                                    <MenuItem value="price_desc">
-                                        گران‌ترین
-                                    </MenuItem>
+                                <MenuItem value="name">
+                                    {
+                                        text.name
+                                    }
+                                </MenuItem>
 
-                                    <MenuItem value="name">
-                                        نام
-                                    </MenuItem>
+                                <MenuItem value="popular">
+                                    {
+                                        text.popular
+                                    }
+                                </MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Stack>
+                </Box>
 
-                                    <MenuItem value="popular">
-                                        محبوب‌ترین
-                                    </MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Stack>
-                    </Box>
-
-                    <Tabs
-                        value={
-                            activeTab
-                        }
-                        onChange={(
-                            _event,
+                <Tabs
+                    value={
+                        activeTab
+                    }
+                    onChange={(
+                        _event,
+                        value,
+                    ) =>
+                        changeTab(
                             value,
-                        ) =>
-                            setActiveTab(
-                                value,
-                            )
+                        )
+                    }
+                >
+                    <Tab
+                        icon={
+                            <ShoppingBagOutlined />
                         }
+                        iconPosition="start"
+                        label={`${ text.all } (${ data?.total ?? 0 })`}
+                    />
+
+                    <Tab
+                        icon={
+                            <LocalFireDepartment />
+                        }
+                        iconPosition="start"
+                        label={`${ text.featured } (${ featuredProducts.length })`}
+                    />
+                </Tabs>
+
+                {isFetching && (
+                    <Typography
+                        variant="caption"
+                        color="text.secondary"
                     >
-                        <Tab
-                            icon={
-                                <ShoppingBagOutlined />
-                            }
-                            iconPosition="start"
-                            label={`همه محصولات (${data?.total ??
-                                0
-                                })`}
-                        />
+                        {
+                            text.updating
+                        }
+                    </Typography>
+                )}
 
-                        <Tab
-                            icon={
-                                <LocalFireDepartment />
-                            }
-                            iconPosition="start"
-                            label={`پیشنهاد ویژه (${featuredProducts.length})`}
-                        />
-                    </Tabs>
-
-                    {isFetching && (
+                {displayProducts.length ===
+                0 ? (
+                    <Box
+                        sx={{
+                            py: 10,
+                            textAlign:
+                                'center',
+                        }}
+                    >
                         <Typography
-                            variant="caption"
-                            color="text.secondary"
-                        >
-                            Updating products...
-                        </Typography>
-                    )}
-
-                    {displayProducts.length ===
-                        0 ? (
-                        <Box
+                            variant="h5"
                             sx={{
-                                py: 10,
-                                textAlign:
-                                    'center',
+                                fontWeight:
+                                    800,
                             }}
                         >
-                            <Typography
-                                variant="h5"
-                                sx={{
-                                    fontWeight:
-                                        800,
-                                }}
-                            >
-                                محصولی پیدا نشد
-                            </Typography>
+                            {
+                                text.emptyTitle
+                            }
+                        </Typography>
 
-                            <Typography
-                                color="text.secondary"
-                            >
-                                فیلترها یا
-                                عبارت جستجو
-                                را تغییر
-                                دهید.
-                            </Typography>
-                        </Box>
-                    ) : (
-                        <Grid
-                            container
-                            spacing={3}
+                        <Typography
+                            color="text.secondary"
+                            sx={{
+                                mt: 1,
+                            }}
                         >
-                            {displayProducts.map(
-                                (
-                                    product,
-                                ) => (
-                                    <Grid
-                                        key={
-                                            product.id
-                                        }
-                                        size={{
-                                            xs: 12,
-                                            sm: 6,
-                                            md: 4,
-                                            lg: 3,
-                                        }}
-                                    >
-                                        <ProductCard
-                                            product={
-                                                product
-                                            }
-                                        />
-                                    </Grid>
-                                ),
-                            )}
-                        </Grid>
-                    )}
-
-                    {activeTab ===
-                        0 &&
-                        totalPages >
-                        1 && (
-                            <Box
-                                sx={{
-                                    display:
-                                        'flex',
-                                    justifyContent:
-                                        'center',
-                                    py: 4,
-                                }}
-                            >
-                                <Pagination
-                                    page={
-                                        page
+                            {
+                                text.emptyText
+                            }
+                        </Typography>
+                    </Box>
+                ) : (
+                    <Grid
+                        container
+                        spacing={3}
+                    >
+                        {displayProducts.map(
+                            product => (
+                                <Grid
+                                    key={
+                                        product.id
                                     }
-                                    count={
-                                        totalPages
-                                    }
-                                    onChange={(
-                                        _event,
-                                        value,
-                                    ) => {
-                                        const next =
-                                            new URLSearchParams(
-                                                searchParams,
-                                            );
-
-                                        next.set(
-                                            'page',
-                                            String(
-                                                value,
-                                            ),
-                                        );
-
-                                        setSearchParams(
-                                            next,
-                                        );
+                                    size={{
+                                        xs: 12,
+                                        sm: 6,
+                                        md: 4,
+                                        lg: 3,
                                     }}
-                                    showFirstButton
-                                    showLastButton
-                                />
-                            </Box>
+                                >
+                                    <ProductCard
+                                        product={
+                                            product
+                                        }
+                                    />
+                                </Grid>
+                            ),
                         )}
-                </Stack>
-            </Container>
-        </Box>
-    );
+                    </Grid>
+                )}
+
+                {activeTab === 0 &&
+                    totalPages >
+                        1 && (
+                        <Box
+                            sx={{
+                                display:
+                                    'flex',
+                                justifyContent:
+                                    'center',
+                                py: 4,
+                            }}
+                        >
+                            <Pagination
+                                page={
+                                    page
+                                }
+                                count={
+                                    totalPages
+                                }
+                                onChange={(
+                                    _event,
+                                    value,
+                                ) => {
+                                    const next =
+                                        new URLSearchParams(
+                                            searchParams,
+                                        );
+
+                                    next.set(
+                                        'page',
+                                        String(
+                                            value,
+                                        ),
+                                    );
+
+                                    setSearchParams(
+                                        next,
+                                    );
+                                }}
+                                showFirstButton
+                                showLastButton
+                            />
+                        </Box>
+                    )}
+            </Stack>
+        </Container>
+    </Box>
+);
+
+
 }

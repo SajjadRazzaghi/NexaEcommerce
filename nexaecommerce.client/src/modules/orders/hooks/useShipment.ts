@@ -1,4 +1,3 @@
-
 import {
     useMutation,
     useQuery,
@@ -10,6 +9,7 @@ import {
     deliverOrder,
     getShipment,
     shipOrder,
+    updateShipmentTrackingNumber,
 } from '../api/shipmentApi';
 
 export function shipmentQueryKey(
@@ -26,9 +26,10 @@ export function useShipment(
     orderId?: string,
 ) {
     return useQuery({
-        queryKey: shipmentQueryKey(
-            orderId ?? '',
-        ),
+        queryKey:
+            shipmentQueryKey(
+                orderId ?? '',
+            ),
         queryFn: () =>
             getShipment(
                 orderId!,
@@ -46,29 +47,29 @@ export function useShipmentMutations(
 
     async function invalidate() {
         await Promise.all([
-            queryClient.invalidateQueries(
-                {
-                    queryKey:
-                        shipmentQueryKey(
-                            orderId,
-                        ),
-                },
-            ),
-            queryClient.invalidateQueries(
-                {
-                    queryKey: [
-                        'order',
+            queryClient.invalidateQueries({
+                queryKey:
+                    shipmentQueryKey(
                         orderId,
-                    ],
-                },
-            ),
-            queryClient.invalidateQueries(
-                {
-                    queryKey: [
-                        'orders',
-                    ],
-                },
-            ),
+                    ),
+            }),
+            queryClient.invalidateQueries({
+                queryKey: [
+                    'order',
+                    orderId,
+                ],
+            }),
+            queryClient.invalidateQueries({
+                queryKey: [
+                    'admin',
+                    'orders',
+                ],
+            }),
+            queryClient.invalidateQueries({
+                queryKey: [
+                    'orders',
+                ],
+            }),
         ]);
     }
 
@@ -87,6 +88,21 @@ export function useShipmentMutations(
                     orderId,
                     shippingMethod,
                     carrier,
+                    trackingNumber,
+                ),
+            onSuccess:
+                invalidate,
+        });
+
+    const updateTracking =
+        useMutation({
+            mutationFn: ({
+                trackingNumber,
+            }: {
+                trackingNumber: string;
+                }) =>
+                updateShipmentTrackingNumber(
+                    orderId,
                     trackingNumber,
                 ),
             onSuccess:
@@ -115,6 +131,7 @@ export function useShipmentMutations(
 
     return {
         create,
+        updateTracking,
         ship,
         deliver,
     };

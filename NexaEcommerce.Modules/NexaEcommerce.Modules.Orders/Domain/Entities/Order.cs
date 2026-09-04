@@ -82,7 +82,13 @@ public sealed class Order : AggregateRoot
     public string ShippingCity { get; private set; } = null!;
 
     public string? ShippingPostalCode { get; private set; }
+    public decimal TaxableAmount { get; private set; }
 
+    public decimal TaxRatePercent { get; private set; }
+
+    public decimal TaxAmount { get; private set; }
+
+    public string? CouponCode { get; private set; }
     public IReadOnlyCollection<OrderItem> Items =>
         _items.AsReadOnly();
 
@@ -268,6 +274,112 @@ public sealed class Order : AggregateRoot
         return item;
     }
 
+    public void ApplyPricing(
+        decimal subtotal,
+        decimal shippingAmount,
+        decimal discountAmount,
+        decimal totalAmount)
+    {
+        if (subtotal < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(subtotal));
+        }
+
+        if (shippingAmount < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(shippingAmount));
+        }
+
+        if (discountAmount < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(discountAmount));
+        }
+
+        if (totalAmount < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(totalAmount));
+        }
+
+        Subtotal = subtotal;
+        ShippingAmount = shippingAmount;
+        DiscountAmount = discountAmount;
+        TotalAmount = totalAmount;
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
+    public void ApplyPricing(
+    decimal subtotal,
+    decimal shippingAmount,
+    decimal discountAmount,
+    decimal taxableAmount,
+    decimal taxRatePercent,
+    decimal taxAmount,
+    decimal totalAmount,
+    string? couponCode)
+    {
+        if (subtotal < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(subtotal));
+        }
+
+        if (shippingAmount < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(shippingAmount));
+        }
+
+        if (discountAmount < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(discountAmount));
+        }
+
+        if (taxableAmount < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(taxableAmount));
+        }
+
+        if (taxRatePercent < 0m ||
+            taxRatePercent > 100m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(taxRatePercent));
+        }
+
+        if (taxAmount < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(taxAmount));
+        }
+
+        if (totalAmount < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(totalAmount));
+        }
+
+        Subtotal = subtotal;
+        ShippingAmount = shippingAmount;
+        DiscountAmount = discountAmount;
+        TaxableAmount = taxableAmount;
+        TaxRatePercent = taxRatePercent;
+        TaxAmount = taxAmount;
+        TotalAmount = totalAmount;
+        CouponCode =
+            string.IsNullOrWhiteSpace(couponCode)
+                ? null
+                : couponCode.Trim();
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
     public OrderInventoryReservation
         AddInventoryReservation(
             string reservationKey,
@@ -389,6 +501,7 @@ public sealed class Order : AggregateRoot
         }
 
         var reservation =
+
             _inventoryReservations.FirstOrDefault(
                 x =>
                     string.Equals(
@@ -397,7 +510,9 @@ public sealed class Order : AggregateRoot
                         StringComparison.Ordinal));
 
         if (reservation is null)
+        {
             return false;
+        }
 
         reservation.MarkExpired();
 
@@ -520,11 +635,6 @@ public sealed class Order : AggregateRoot
         Subtotal =
             _items.Sum(
                 x => x.LineTotal);
-
-        TotalAmount =
-            Subtotal +
-            ShippingAmount -
-            DiscountAmount;
 
         UpdatedAt =
             DateTime.UtcNow;

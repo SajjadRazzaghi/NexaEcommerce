@@ -9,13 +9,14 @@ using System.Security.Claims;
 namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class PaymentEndpoints
-    : IFeatureEndpoints
+: IFeatureEndpoints
 {
     private const string PaymentIdempotencyHeader =
-        "Idempotency-Key";
+    "Idempotency-Key";
 
-    public void Map(
-        IEndpointRouteBuilder app)
+
+public void Map(
+    IEndpointRouteBuilder app)
     {
         var group =
             app.MapGroup("/api/orders")
@@ -26,9 +27,17 @@ public sealed class PaymentEndpoints
             "/payment-attempts",
             CreatePaymentAttempt);
 
+        group.MapPost(
+            "/payment/start",
+            StartPayment);
+
         group.MapGet(
             "/payment-attempts/{id:guid}",
             GetPaymentAttempt);
+
+        group.MapPost(
+            "/payment/verify",
+            VerifyPayment);
 
         group.MapPost(
             "/payment/complete",
@@ -46,13 +55,13 @@ public sealed class PaymentEndpoints
     private static async Task<IResult>
         CreatePaymentAttempt(
             [FromBody]
-            CreatePaymentAttemptRequest request,
+        CreatePaymentAttemptRequest request,
 
             [FromServices]
-            IPaymentAttemptService paymentAttempts,
+        IPaymentAttemptService paymentAttempts,
 
             [FromServices]
-            ICurrentTenant tenant,
+        ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -130,14 +139,229 @@ public sealed class PaymentEndpoints
     }
 
     private static async Task<IResult>
+        StartPayment(
+            [FromBody]
+        StartPaymentRequest request,
+
+            [FromServices]
+        IPaymentService payments,
+
+            [FromServices]
+        ICurrentTenant tenant,
+
+            HttpContext http,
+
+            CancellationToken ct)
+    {
+        var userId =
+            GetUserId(http);
+
+        if (userId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        var idempotencyKey =
+            GetIdempotencyKey(http);
+
+        if (idempotencyKey is null)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        $"{PaymentIdempotencyHeader} header is required."
+                });
+        }
+
+        if (idempotencyKey.Length > 128)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        $"{PaymentIdempotencyHeader} cannot exceed 128 characters."
+                });
+        }
+
+        if (request.OrderId == Guid.Empty)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        "Order id is required."
+                });
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                request.GatewayName))
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        "Gateway name is required."
+                });
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                request.CallbackUrl))
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        "Callback URL is required."
+                });
+        }
+
+        if (!Uri.TryCreate(
+                request.CallbackUrl.Trim(),
+                UriKind.Absolute,
+                out var callbackUri) ||
+            (callbackUri.Scheme != Uri.UriSchemeHttp &&
+             callbackUri.Scheme != Uri.UriSchemeHttps))
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        "Callback URL must be an absolute HTTP or HTTPS URL."
+                });
+        }
+
+        try
+        {
+            var result =
+                await payments.CreatePaymentAsync(
+                    tenant.Id,
+                    userId,
+                    request.OrderId,
+                    idempotencyKey,
+                    request.GatewayName.Trim(),
+                    callbackUri.ToString(),
+                    ct);
+
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+    }
+
+    private static async Task<IResult>
+        VerifyPayment(
+            [FromBody]
+        VerifyPaymentRequest request,
+
+            [FromServices]
+        IPaymentService payments,
+
+            [FromServices]
+        ICurrentTenant tenant,
+
+            HttpContext http,
+
+            CancellationToken ct)
+    {
+        var userId =
+            GetUserId(http);
+
+        if (userId is null)
+        {
+            return Results.Unauthorized();
+        }
+
+        if (request.PaymentAttemptId == Guid.Empty)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        "Payment attempt id is required."
+                });
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                request.GatewayReference))
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        "Gateway reference is required."
+                });
+        }
+
+        try
+        {
+            var result =
+                await payments.VerifyPaymentAsync(
+                    tenant.Id,
+                    userId,
+                    request.PaymentAttemptId,
+                    request.GatewayReference.Trim(),
+                    ct);
+
+            return Results.Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+    }
+
+    private static async Task<IResult>
         GetPaymentAttempt(
             Guid id,
 
             [FromServices]
-            IPaymentAttemptService paymentAttempts,
+        IPaymentAttemptService paymentAttempts,
 
             [FromServices]
-            ICurrentTenant tenant,
+        ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -171,13 +395,13 @@ public sealed class PaymentEndpoints
     private static async Task<IResult>
         CompletePayment(
             [FromBody]
-            CompletePaymentRequest request,
+        CompletePaymentRequest request,
 
             [FromServices]
-            PaymentCompletionOrchestrator completion,
+        PaymentCompletionOrchestrator completion,
 
             [FromServices]
-            ICurrentTenant tenant,
+        ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -265,13 +489,13 @@ public sealed class PaymentEndpoints
     private static async Task<IResult>
         FailPayment(
             [FromBody]
-            FailPaymentRequest request,
+        FailPaymentRequest request,
 
             [FromServices]
-            PaymentFailureOrchestrator failure,
+        PaymentFailureOrchestrator failure,
 
             [FromServices]
-            ICurrentTenant tenant,
+        ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -338,13 +562,13 @@ public sealed class PaymentEndpoints
     private static async Task<IResult>
         RetryPayment(
             [FromBody]
-            RetryPaymentRequest request,
+        RetryPaymentRequest request,
 
             [FromServices]
-            PaymentRetryOrchestrator retry,
+        PaymentRetryOrchestrator retry,
 
             [FromServices]
-            ICurrentTenant tenant,
+        ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -368,6 +592,16 @@ public sealed class PaymentEndpoints
                 {
                     error =
                         $"{PaymentIdempotencyHeader} header is required."
+                });
+        }
+
+        if (idempotencyKey.Length > 128)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        $"{PaymentIdempotencyHeader} cannot exceed 128 characters."
                 });
         }
 
@@ -450,17 +684,28 @@ public sealed class PaymentEndpoints
             ? null
             : value;
     }
+
+
 }
 
+public sealed record StartPaymentRequest(
+Guid OrderId,
+string GatewayName,
+string CallbackUrl);
+
+public sealed record VerifyPaymentRequest(
+Guid PaymentAttemptId,
+string GatewayReference);
+
 public sealed record CompletePaymentRequest(
-    Guid PaymentAttemptId,
-    string GatewayName,
-    string GatewayReference);
+Guid PaymentAttemptId,
+string GatewayName,
+string GatewayReference);
 
 public sealed record FailPaymentRequest(
-    Guid PaymentAttemptId,
-    string? FailureCode,
-    string? FailureMessage);
+Guid PaymentAttemptId,
+string? FailureCode,
+string? FailureMessage);
 
 public sealed record RetryPaymentRequest(
-    Guid OrderId);
+Guid OrderId);

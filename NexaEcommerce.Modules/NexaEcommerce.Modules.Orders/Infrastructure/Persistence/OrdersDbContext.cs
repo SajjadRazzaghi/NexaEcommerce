@@ -28,6 +28,19 @@ public sealed class OrdersDbContext(
     public DbSet<ShippingMethod>
     ShippingMethods =>
     Set<ShippingMethod>();
+
+    public DbSet<Coupon>
+    Coupons =>
+    Set<Coupon>();
+
+
+    public DbSet<CouponRedemption>
+        CouponRedemptions =>
+        Set<CouponRedemption>();
+
+    public DbSet<TaxRate>
+        TaxRates =>
+        Set<TaxRate>();
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
@@ -148,6 +161,88 @@ public sealed class OrdersDbContext(
                         x => x.OrderId)
                     .OnDelete(
                         DeleteBehavior.Cascade);
+
+                entity.Property(
+    x => x.CouponCode)
+    .HasMaxLength(64);
+
+                entity.Property(
+                    x => x.TaxAmount)
+                    .HasPrecision(18, 2);
+
+                entity.Property(
+                    x => x.TaxRatePercent)
+                    .HasPrecision(9, 4);
+
+                modelBuilder.Entity<Coupon>(
+    entity =>
+    {
+        entity.ToTable(
+            "Coupons");
+
+        entity.HasKey(
+            x => x.Id);
+
+        entity.Property(
+            x => x.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
+
+        entity.Property(
+            x => x.Code)
+            .IsRequired()
+            .HasMaxLength(64);
+
+        entity.Property(
+            x => x.Name)
+            .IsRequired()
+            .HasMaxLength(150);
+
+        entity.Property(
+            x => x.DiscountType)
+            .IsRequired();
+
+        entity.Property(
+            x => x.DiscountValue)
+            .HasPrecision(18, 2)
+            .IsRequired();
+
+        entity.Property(
+            x => x.MinimumOrderAmount)
+            .HasPrecision(18, 2);
+
+        entity.Property(
+            x => x.MaximumDiscountAmount)
+            .HasPrecision(18, 2);
+
+        entity.Property(
+            x => x.UsageLimit);
+
+        entity.Property(
+            x => x.IsActive)
+            .IsRequired();
+
+        entity.Property(
+            x => x.CreatedAt)
+            .IsRequired();
+
+        entity.HasIndex(
+                x => new
+                {
+                    x.TenantId,
+                    x.Code
+                })
+            .IsUnique();
+
+        entity.HasIndex(
+            x => new
+            {
+                x.TenantId,
+                x.IsActive,
+                x.ExpiresAt
+            });
+    });
+
                
 modelBuilder.Entity<ShippingMethod>(
     entity =>
@@ -442,5 +537,186 @@ modelBuilder.Entity<ShippingMethod>(
                     .HasFilter(
                         "[TrackingNumber] IS NOT NULL");
             });
+   
+modelBuilder.Entity<Coupon>(
+    entity =>
+    {
+        entity.ToTable(
+            "Coupons");
+
+        entity.HasKey(
+            x => x.Id);
+
+        entity.Property(
+            x => x.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
+
+        entity.Property(
+            x => x.Code)
+            .IsRequired()
+            .HasMaxLength(64);
+
+        entity.Property(
+            x => x.Name)
+            .IsRequired()
+            .HasMaxLength(150);
+
+        entity.Property(
+            x => x.DiscountType)
+            .IsRequired();
+
+        entity.Property(
+            x => x.DiscountValue)
+            .HasPrecision(18, 2)
+            .IsRequired();
+
+        entity.Property(
+            x => x.MinimumOrderAmount)
+            .HasPrecision(18, 2);
+
+        entity.Property(
+            x => x.MaximumDiscountAmount)
+            .HasPrecision(18, 2);
+
+        entity.Property(
+            x => x.StartsAt);
+
+        entity.Property(
+            x => x.ExpiresAt);
+
+        entity.Property(
+            x => x.UsageLimit);
+
+        entity.Property(
+            x => x.IsActive)
+            .IsRequired();
+
+        entity.HasIndex(
+                x => new
+                {
+                    x.TenantId,
+                    x.Code
+                })
+            .IsUnique();
+    });
+
+        modelBuilder.Entity<CouponRedemption>(
+            entity =>
+            {
+                entity.ToTable(
+                    "CouponRedemptions");
+
+                entity.HasKey(
+                    x => x.Id);
+
+                entity.Property(
+                    x => x.TenantId)
+                    .IsRequired()
+                    .HasMaxLength(64);
+
+                entity.Property(
+                    x => x.CouponId)
+                    .IsRequired();
+
+                entity.Property(
+                    x => x.OrderId)
+                    .IsRequired();
+
+                entity.Property(
+                    x => x.UserId)
+                    .IsRequired()
+                    .HasMaxLength(450);
+
+                entity.Property(
+                    x => x.CouponCode)
+                    .IsRequired()
+                    .HasMaxLength(64);
+
+                entity.Property(
+                    x => x.DiscountAmount)
+                    .HasPrecision(18, 2)
+                    .IsRequired();
+
+                entity.HasIndex(
+                        x => new
+                        {
+                            x.TenantId,
+                            x.OrderId
+                        })
+                    .IsUnique();
+
+                entity.HasIndex(
+                    x => new
+                    {
+                        x.TenantId,
+                        x.CouponId
+                    });
+
+                entity.HasIndex(
+                        x => new
+                        {
+                            x.TenantId,
+                            x.CouponId,
+                            x.UserId
+                        })
+                    .IsUnique();
+            });
+
+        modelBuilder.Entity<TaxRate>(
+            entity =>
+            {
+                entity.ToTable(
+                    "TaxRates");
+
+                entity.HasKey(
+                    x => x.Id);
+
+                entity.Property(
+                    x => x.TenantId)
+                    .IsRequired()
+                    .HasMaxLength(64);
+
+                entity.Property(
+                    x => x.Code)
+                    .IsRequired()
+                    .HasMaxLength(64);
+
+                entity.Property(
+                    x => x.Name)
+                    .IsRequired()
+                    .HasMaxLength(150);
+
+                entity.Property(
+                    x => x.RatePercent)
+                    .HasPrecision(9, 4)
+                    .IsRequired();
+
+                entity.Property(
+                    x => x.IsDefault)
+                    .IsRequired();
+
+                entity.Property(
+                    x => x.IsActive)
+                    .IsRequired();
+
+                entity.HasIndex(
+                        x => new
+                        {
+                            x.TenantId,
+                            x.Code
+                        })
+                    .IsUnique();
+
+                entity.HasIndex(
+                        x => new
+                        {
+                            x.TenantId,
+                            x.IsDefault
+                        })
+                    .HasFilter(
+                        "[IsDefault] = 1");
+            });
+
     }
 }

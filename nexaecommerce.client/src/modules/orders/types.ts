@@ -1,4 +1,3 @@
-
 export interface CheckoutLine {
     productVariantId: string;
     quantity: number;
@@ -12,6 +11,7 @@ export interface CheckoutRequest {
     shippingCity: string;
     shippingPostalCode?: string | null;
     shippingMethodId: string;
+    couponCode?: string | null;
 }
 
 export interface OrderItemDto {
@@ -36,15 +36,19 @@ export interface OrderDto {
     orderNumber: string;
     status: OrderStatus;
     currency: string;
+
     subtotal: number;
     shippingAmount: number;
     discountAmount: number;
+    couponCode?: string | null;
     totalAmount: number;
+
     shippingFullName: string;
     shippingPhone: string;
     shippingAddress: string;
     shippingCity: string;
     shippingPostalCode?: string | null;
+
     items: OrderItemDto[];
 }
 

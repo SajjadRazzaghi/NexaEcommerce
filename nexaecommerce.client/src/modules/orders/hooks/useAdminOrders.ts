@@ -12,6 +12,7 @@ import {
 
 import type {
     AdminOrdersQuery,
+    UpdateOrderStatusRequest,
 } from '../api/adminOrdersApi';
 
 export const adminOrdersQueryKey = (
@@ -73,40 +74,43 @@ export function useAdminOrderMutations() {
 
     const updateStatus =
         useMutation({
-            mutationFn:
-                ({
+            mutationFn: ({
+                id,
+                status,
+            }: {
+                id: string;
+                status: NonNullable<
+                    UpdateOrderStatusRequest['status']
+                >;
+            }) =>
+                updateOrderStatus(
                     id,
-                    status,
-                }: {
-                    id: string;
-                    status: AdminOrdersQuery['status'];
-                }) =>
-                    updateOrderStatus(
-                        id,
-                        {
-                            status:
-                                status as never,
-                        },
-                    ),
+                    {
+                        status,
+                    },
+                ),
             onSuccess:
                 async result => {
                     await Promise.all([
-                        queryClient.invalidateQueries(
-                            {
-                                queryKey: [
-                                    'admin',
-                                    'orders',
-                                ],
-                            },
-                        ),
-                        queryClient.invalidateQueries(
-                            {
-                                queryKey: [
-                                    'order',
-                                    result.orderId,
-                                ],
-                            },
-                        ),
+                        queryClient.invalidateQueries({
+                            queryKey: [
+                                'admin',
+                                'orders',
+                            ],
+                        }),
+                        queryClient.invalidateQueries({
+                            queryKey: [
+                                'admin',
+                                'orders',
+                                result.orderId,
+                            ],
+                        }),
+                        queryClient.invalidateQueries({
+                            queryKey: [
+                                'order',
+                                result.orderId,
+                            ],
+                        }),
                     ]);
                 },
         });

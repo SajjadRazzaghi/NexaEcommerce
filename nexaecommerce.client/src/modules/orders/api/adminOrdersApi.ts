@@ -1,8 +1,8 @@
 import api from '@/services/api';
 
 import type {
-    OrderListDto,
     OrderDto,
+    OrderListDto,
     OrderStatus,
 } from '../types';
 
@@ -15,6 +15,13 @@ export interface AdminOrdersQuery {
 
 export interface UpdateOrderStatusRequest {
     status: OrderStatus;
+}
+
+export interface UpdateOrderStatusResponse {
+    orderId: string;
+    orderNumber: string;
+    previousStatus: string;
+    currentStatus: string;
 }
 
 export async function getAdminOrders(
@@ -35,8 +42,7 @@ export async function getAdminOrders(
                     page,
                     pageSize,
                     status:
-                        status ||
-                        undefined,
+                        status || undefined,
                     search:
                         search.trim() ||
                         undefined,
@@ -52,7 +58,7 @@ export async function getAdminOrder(
 ): Promise<OrderDto> {
     const { data } =
         await api.get<OrderDto>(
-            `/ api / orders / ${ id } `,
+            `/api/orders/${id}`,
         );
 
     return data;
@@ -61,17 +67,12 @@ export async function getAdminOrder(
 export async function updateOrderStatus(
     id: string,
     request: UpdateOrderStatusRequest,
-): Promise<{
-    orderId: string;
-    orderNumber: string;
-    previousStatus: string;
-    currentStatus: string;
-}> {
+): Promise<UpdateOrderStatusResponse> {
     const { data } =
-        await api.put(
-            `/ api / orders / ${ id }/status`,
-request,
+        await api.put<UpdateOrderStatusResponse>(
+            `/api/orders/${id}/status`,
+            request,
         );
 
-return data;
+    return data;
 }

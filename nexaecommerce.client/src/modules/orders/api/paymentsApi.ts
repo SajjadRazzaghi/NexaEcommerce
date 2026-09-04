@@ -4,6 +4,23 @@ import type {
     PaymentAttemptDto,
 } from '../types';
 
+export interface StartPaymentRequest {
+    orderId: string;
+    gatewayName: string;
+    callbackUrl: string;
+}
+
+export interface CreatePaymentResultDto {
+    paymentAttemptId: string;
+    orderId: string;
+    gatewayName: string;
+    status: string;
+    amount: number;
+    currency: string;
+    paymentUrl?: string | null;
+    gatewayReference?: string | null;
+}
+
 export interface CreatePaymentAttemptRequest {
     orderId: string;
 }
@@ -14,24 +31,37 @@ export interface CompletePaymentRequest {
     gatewayReference: string;
 }
 
+export interface VerifyPaymentRequest {
+    paymentAttemptId: string;
+    gatewayReference: string;
+}
+
 export interface FailPaymentRequest {
     paymentAttemptId: string;
     failureCode?: string | null;
     failureMessage?: string | null;
 }
 
-export interface RetryPaymentResponse {
-    id: string;
-    orderId: string;
-    status: string;
-    amount: number;
-    currency: string;
-    gatewayName?: string | null;
-    gatewayReference?: string | null;
-    failureCode?: string | null;
-    failureMessage?: string | null;
-    createdAt: string;
-    completedAt?: string | null;
+export async function startPayment(
+    request: StartPaymentRequest,
+    idempotencyKey: string,
+): Promise<CreatePaymentResultDto> {
+    const { data } =
+        await api.post<CreatePaymentResultDto>(
+            '/api/orders/payment/start',
+            request,
+            {
+                headers: {
+                    'Idempotency-Key':
+                        idempotencyKey,
+                },
+            },
+        );
+
+    
+return data;
+
+
 }
 
 export async function createPaymentAttempt(
@@ -62,6 +92,21 @@ export async function getPaymentAttempt(
     const { data } =
         await api.get<PaymentAttemptDto>(
             `/api/orders/payment-attempts/${id}`,
+        );
+
+    
+return data;
+
+
+}
+
+export async function verifyPayment(
+    request: VerifyPaymentRequest,
+): Promise<PaymentAttemptDto> {
+    const { data } =
+        await api.post<PaymentAttemptDto>(
+            '/api/orders/payment/verify',
+            request,
         );
 
     
