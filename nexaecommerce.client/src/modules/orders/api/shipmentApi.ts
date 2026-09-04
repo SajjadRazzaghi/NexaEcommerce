@@ -10,11 +10,12 @@ export async function getShipment(
     try {
         const { data } =
             await api.get<ShipmentDto>(
-                `/ api / orders / ${ orderId }/shipment`,
+                `/api/orders/${orderId}/shipment`,
             );
 
-return data;
-    } catch (error) {
+        
+    return data;
+} catch (error) {
     const status =
         (
             error as {
@@ -30,48 +31,77 @@ return data;
 
     throw error;
 }
-}
+
+
+    }
 
 export async function createShipment(
-    orderId: string,
-    shippingMethod: string,
-    carrier: string,
-    trackingNumber?: string | null,
-): Promise<ShipmentDto> {
-    const { data } =
-        await api.post<ShipmentDto>(
-            `/api/orders/${orderId}/shipment`,
-            {
-                orderId,
-                shippingMethod,
-                carrier,
-                trackingNumber:
-                    trackingNumber ??
-                    null,
-            },
-        );
+        orderId: string,
+        shippingMethod: string,
+        carrier: string,
+        trackingNumber?: string | null,
+    ): Promise<ShipmentDto> {
+        const { data } =
+            await api.post<ShipmentDto>(
+                `/api/orders/${orderId}/shipment`,
+                {
+                    orderId,
+                    shippingMethod,
+                    carrier,
+                    trackingNumber:
+                        trackingNumber?.trim() || null,
+                },
+            );
 
-    return data;
-}
+        
+return data;
 
-export async function shipOrder(
-    orderId: string,
-): Promise<ShipmentDto> {
-    const { data } =
-        await api.post<ShipmentDto>(
-            `/api/orders/${orderId}/shipment/ship`,
-        );
 
-    return data;
-}
+    }
 
-export async function deliverOrder(
-    orderId: string,
-): Promise<ShipmentDto> {
-    const { data } =
-        await api.post<ShipmentDto>(
-            `/api/orders/${orderId}/shipment/deliver`,
-        );
+    export async function updateShipmentTrackingNumber(
+        orderId: string,
+        trackingNumber: string,
+    ): Promise<ShipmentDto> {
+        const { data } =
+            await api.put<ShipmentDto>(
+                `/api/orders/${orderId}/shipment/tracking`,
+                {
+                    trackingNumber:
+                        trackingNumber.trim(),
+                },
+            );
 
-    return data;
-}
+        
+return data;
+
+
+    }
+
+    export async function shipOrder(
+        orderId: string,
+    ): Promise<ShipmentDto> {
+        const { data } =
+            await api.post<ShipmentDto>(
+                `/api/orders/${orderId}/shipment/ship`,
+            );
+
+        
+return data;
+
+
+    }
+
+    export async function deliverOrder(
+        orderId: string,
+    ): Promise<ShipmentDto> {
+        const { data } =
+            await api.post<ShipmentDto>(
+                `/api/orders/${orderId}/shipment/deliver`,
+            );
+
+        
+return data;
+
+
+    }
