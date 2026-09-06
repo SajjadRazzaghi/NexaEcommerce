@@ -27,4 +27,14 @@ public sealed class UpdateProductDto
     public bool IsFeatured { get; set; }
 
     public bool IsPublished { get; set; }
+
+    /// <summary>
+    /// Desired variant state after product update.
+    ///
+    /// Existing variants must carry their Id.
+    /// New variants may omit Id.
+    /// Variants omitted from the request are deactivated
+    /// only when the request contains existing variant IDs.
+    /// </summary>
+    public List<UpdateProductVariantDto> Variants { get; set; } = new();
 }

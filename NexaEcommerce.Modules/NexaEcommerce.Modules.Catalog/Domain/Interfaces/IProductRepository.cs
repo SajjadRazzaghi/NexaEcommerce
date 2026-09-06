@@ -17,6 +17,11 @@ public interface IProductRepository
         Guid? excludeId = null,
         CancellationToken cancellationToken = default);
 
+    Task<bool> ExistsByVariantSkuAsync(
+        string sku,
+        Guid? excludeId = null,
+        CancellationToken cancellationToken = default);
+
     Task<bool> ExistsBySlugAsync(
         string slug,
         Guid? excludeId = null,
@@ -62,4 +67,13 @@ public interface IProductRepository
     void Update(Product product);
 
     void Delete(Product product);
+    Task DeleteVariantAttributeMappingsAsync(
+    Guid variantId,
+    IReadOnlyCollection<Guid> attributeValueIds,
+    CancellationToken cancellationToken = default);
+
+    Task AddVariantAttributeMappingsAsync(
+        Guid variantId,
+        IReadOnlyCollection<Guid> attributeValueIds,
+        CancellationToken cancellationToken = default);
 }

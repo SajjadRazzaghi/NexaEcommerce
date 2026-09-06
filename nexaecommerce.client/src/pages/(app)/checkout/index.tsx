@@ -62,7 +62,7 @@ function SkeletonLine({
     return (
         <div
             className={`animate-pulse rounded-lg bg-muted ${className}`}
-        />
+       />
     );
 }
 
@@ -279,7 +279,7 @@ const handleSubmit = (
             onSuccess:
                 order => {
                     navigate(
-                        `/ orders / payment / ${ order.id } `,
+                        `/orders/payment/${ order.id } `,
                         {
                             replace: true,
                         },
@@ -301,22 +301,22 @@ if (
             }
             className="mx-auto max-w-7xl space-y-6 p-4 md:p-6"
         >
-            <SkeletonLine className="h-8 w-40" />
+            <SkeletonLine className="h-8 w-40"/>
 
             <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
                 <div className="space-y-4 rounded-2xl border p-6">
-                    <SkeletonLine className="h-10 w-full" />
-                    <SkeletonLine className="h-10 w-full" />
-                    <SkeletonLine className="h-28 w-full" />
-                    <SkeletonLine className="h-10 w-full" />
-                    <SkeletonLine className="h-12 w-full" />
+                    <SkeletonLine className="h-10 w-full"/>
+                    <SkeletonLine className="h-10 w-full"/>
+                    <SkeletonLine className="h-28 w-full"/>
+                    <SkeletonLine className="h-10 w-full"/>
+                    <SkeletonLine className="h-12 w-full"/>
                 </div>
 
                 <div className="space-y-4 rounded-2xl border p-6">
-                    <SkeletonLine className="h-6 w-32" />
-                    <SkeletonLine className="h-5 w-full" />
-                    <SkeletonLine className="h-5 w-full" />
-                    <SkeletonLine className="h-8 w-full" />
+                    <SkeletonLine className="h-6 w-32"/>
+                    <SkeletonLine className="h-5 w-full"/>
+                    <SkeletonLine className="h-5 w-full"/>
+                    <SkeletonLine className="h-8 w-full"/>
                 </div>
             </div>
         </div>
@@ -384,7 +384,7 @@ if (
             className="mx-auto max-w-3xl p-6"
         >
             <div className="rounded-2xl border p-10 text-center">
-                <Package className="mx-auto size-12 text-muted-foreground" />
+                <Package className="mx-auto size-12 text-muted-foreground"/>
 
                 <h1 className="mt-4 text-2xl font-semibold">
                     {getText(
@@ -405,9 +405,9 @@ if (
                     className="mt-6 inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium"
                 >
                     {isFa ? (
-                        <ArrowRight className="size-4" />
+                        <ArrowRight className="size-4"/>
                     ) : (
-                        <ArrowLeft className="size-4" />
+                        <ArrowLeft className="size-4"/>
                     )}
 
                     {getText(
@@ -432,7 +432,7 @@ return (
         <header>
             <div className="flex items-center gap-3">
                 <div className="rounded-xl border p-2">
-                    <CreditCard className="size-5" />
+                    <CreditCard className="size-5"/>
                 </div>
 
                 <div>
@@ -509,7 +509,7 @@ return (
             <section className="space-y-6">
                 <div className="rounded-2xl border p-5 md:p-6">
                     <div className="flex items-center gap-3">
-                        <MapPin className="size-5" />
+                        <MapPin className="size-5"/>
 
                         <div>
                             <h2 className="font-semibold">
@@ -547,7 +547,7 @@ return (
                                 autoComplete="name"
                                 required
                                 className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring"
-                            />
+                           />
                         </label>
 
                         <label className="grid gap-2">
@@ -569,7 +569,7 @@ return (
                                 inputMode="tel"
                                 required
                                 className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring"
-                            />
+                           />
                         </label>
 
                         <label className="grid gap-2 md:col-span-2">
@@ -591,7 +591,7 @@ return (
                                 required
                                 rows={4}
                                 className="resize-y rounded-xl border bg-background px-3 py-3 outline-none focus:ring-2 focus:ring-ring"
-                            />
+                           />
                         </label>
 
                         <label className="grid gap-2">
@@ -612,7 +612,7 @@ return (
                                 autoComplete="address-level2"
                                 required
                                 className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring"
-                            />
+                           />
                         </label>
 
                         <label className="grid gap-2">
@@ -633,14 +633,14 @@ return (
                                 autoComplete="postal-code"
                                 inputMode="numeric"
                                 className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring"
-                            />
+                           />
                         </label>
                     </div>
                 </div>
 
                 <div className="rounded-2xl border p-5 md:p-6">
                     <div className="flex items-center gap-3">
-                        <Truck className="size-5" />
+                        <Truck className="size-5"/>
 
                         <div>
                             <h2 className="font-semibold">
@@ -661,8 +661,8 @@ return (
 
                     {shippingMethodsQuery.isLoading ? (
                         <div className="mt-6 space-y-3">
-                            <SkeletonLine className="h-20 w-full" />
-                            <SkeletonLine className="h-20 w-full" />
+                            <SkeletonLine className="h-20 w-full"/>
+                            <SkeletonLine className="h-20 w-full"/>
                         </div>
                     ) : shippingMethodsQuery.isError ? (
                         <div className="mt-6 rounded-xl border p-4">
@@ -714,7 +714,7 @@ return (
                                                     )
                                                 }
                                                 className="sr-only"
-                                            />
+                                           />
 
                                             <div className="flex items-center justify-between gap-4">
                                                 <div>

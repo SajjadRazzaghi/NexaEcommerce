@@ -1,5 +1,6 @@
 import api from '@/services/api';
 
+
 export interface ShippingMethod {
     id: string;
     code: string;
@@ -10,6 +11,7 @@ export interface ShippingMethod {
     isActive: boolean;
 }
 
+
 export interface ShippingQuote {
     shippingMethodId: string;
     code: string;
@@ -17,6 +19,7 @@ export interface ShippingQuote {
     carrier: string;
     price: number;
 }
+
 
 export interface CreateShippingMethodRequest {
     code: string;
@@ -26,6 +29,7 @@ export interface CreateShippingMethodRequest {
     sortOrder?: number;
 }
 
+
 export interface UpdateShippingMethodRequest {
     name: string;
     carrier: string;
@@ -33,39 +37,43 @@ export interface UpdateShippingMethodRequest {
     sortOrder: number;
 }
 
+
 export async function getShippingMethods(): Promise<
     ShippingMethod[]
 > {
     const { data } =
         await api.get<ShippingMethod[]>(
-            '/api/shipping-methods',
+            '/shipping-methods',
         );
 
     return data;
 }
+
 
 export async function getAdminShippingMethods(): Promise<
     ShippingMethod[]
 > {
     const { data } =
         await api.get<ShippingMethod[]>(
-            '/api/shipping-methods/admin',
+            '/shipping-methods/admin',
         );
 
     return data;
 }
+
 
 export async function createShippingMethod(
     request: CreateShippingMethodRequest,
 ): Promise<ShippingMethod> {
     const { data } =
         await api.post<ShippingMethod>(
-            '/api/shipping-methods',
+            '/shipping-methods',
             request,
         );
 
     return data;
 }
+
 
 export async function updateShippingMethod(
     id: string,
@@ -73,40 +81,44 @@ export async function updateShippingMethod(
 ): Promise<ShippingMethod> {
     const { data } =
         await api.put<ShippingMethod>(
-            `/api/shipping-methods/${id}`,
+            `/ shipping - methods / ${ id } `,
             request,
         );
 
     return data;
 }
 
+
 export async function setShippingMethodActive(
     id: string,
     active: boolean,
 ): Promise<void> {
     await api.put(
-        `/api/shipping-methods/${id}/active`,
-        {
-            active,
+        `/ shipping - methods / ${ id }/active`,
+{
+    active,
         },
     );
 }
+
 
 export async function deleteShippingMethod(
     id: string,
 ): Promise<void> {
     await api.delete(
-        `/api/shipping-methods/${id}`,
+        `/shipping-methods/${id}`,
     );
 }
+
 
 export async function getShippingQuote(
     id: string,
 ): Promise<ShippingQuote> {
     const { data } =
         await api.get<ShippingQuote>(
-            `/api/shipping-methods/${id}/quote`,
+            `/shipping-methods/${id}/quote`,
         );
 
     return data;
 }
+

@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Catalog.Domain.Entities;
+using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
 using NexaEcommerce.Modules.Catalog.Domain.Interfaces;
 
 namespace NexaEcommerce.Modules.Catalog.Infrastructure.Repositories;
@@ -23,6 +24,7 @@ public sealed class ProductRepository : IProductRepository
         CancellationToken cancellationToken = default)
     {
         return await _context.Products
+            .AsSplitQuery()
 
             .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
@@ -31,7 +33,7 @@ public sealed class ProductRepository : IProductRepository
 
             .Include(p => p.Variants)
                 .ThenInclude(v => v.AttributeValues)
-                    .ThenInclude(av => av.AttributeValue)
+                    .ThenInclude(vav => vav.AttributeValue)
                         .ThenInclude(av => av.ProductAttribute)
 
             .Include(p => p.Attributes)
@@ -59,19 +61,24 @@ public sealed class ProductRepository : IProductRepository
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(slug))
+        {
             return null;
+        }
 
         var normalizedSlug =
-            slug.Trim().ToLowerInvariant();
+            slug.Trim()
+                .ToLowerInvariant();
 
         return await _context.Products
             .AsNoTracking()
+            .AsSplitQuery()
 
-            .Where(p =>
-                p.Slug == normalizedSlug &&
-                !p.IsDeleted &&
-                p.IsActive &&
-                p.IsPublished)
+            .Where(
+                p =>
+                    p.Slug == normalizedSlug &&
+                    !p.IsDeleted &&
+                    p.IsActive &&
+                    p.IsPublished)
 
             .Include(p => p.ProductCategories)
                 .ThenInclude(pc => pc.Category)
@@ -80,7 +87,7 @@ public sealed class ProductRepository : IProductRepository
 
             .Include(p => p.Variants)
                 .ThenInclude(v => v.AttributeValues)
-                    .ThenInclude(av => av.AttributeValue)
+                    .ThenInclude(vav => vav.AttributeValue)
                         .ThenInclude(av => av.ProductAttribute)
 
             .Include(p => p.Attributes)
@@ -97,7 +104,7 @@ public sealed class ProductRepository : IProductRepository
     }
 
     // ============================================================
-    // SKU Exists
+    // Product SKU Exists
     // ============================================================
 
     public async Task<bool> ExistsBySkuAsync(
@@ -106,7 +113,9 @@ public sealed class ProductRepository : IProductRepository
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(sku))
+        {
             return false;
+        }
 
         var normalizedSku =
             sku.Trim();
@@ -117,8 +126,41 @@ public sealed class ProductRepository : IProductRepository
             .AnyAsync(
                 p =>
                     p.Sku == normalizedSku &&
-                    (!excludeId.HasValue ||
-                     p.Id != excludeId.Value),
+                    (
+                        !excludeId.HasValue ||
+                        p.Id != excludeId.Value
+                    ),
+                cancellationToken);
+    }
+
+    // ============================================================
+    // Variant SKU Exists
+    // ============================================================
+
+    public async Task<bool> ExistsByVariantSkuAsync(
+        string sku,
+        Guid? excludeId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(sku))
+        {
+            return false;
+        }
+
+        var normalizedSku =
+            sku.Trim();
+
+        return await _context
+            .Set<ProductVariant>()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .AnyAsync(
+                v =>
+                    v.Sku == normalizedSku &&
+                    (
+                        !excludeId.HasValue ||
+                        v.Id != excludeId.Value
+                    ),
                 cancellationToken);
     }
 
@@ -132,10 +174,13 @@ public sealed class ProductRepository : IProductRepository
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(slug))
+        {
             return false;
+        }
 
         var normalizedSlug =
-            slug.Trim().ToLowerInvariant();
+            slug.Trim()
+                .ToLowerInvariant();
 
         return await _context.Products
             .IgnoreQueryFilters()
@@ -143,13 +188,15 @@ public sealed class ProductRepository : IProductRepository
             .AnyAsync(
                 p =>
                     p.Slug == normalizedSlug &&
-                    (!excludeId.HasValue ||
-                     p.Id != excludeId.Value),
+                    (
+                        !excludeId.HasValue ||
+                        p.Id != excludeId.Value
+                    ),
                 cancellationToken);
     }
 
     // ============================================================
-    // Get All - Storefront
+    // Get All
     // ============================================================
 
     public async Task<IEnumerable<Product>> GetAllAsync(
@@ -157,10 +204,13 @@ public sealed class ProductRepository : IProductRepository
     {
         return await _context.Products
             .AsNoTracking()
-            .Where(p =>
-                !p.IsDeleted &&
-                p.IsActive &&
-                p.IsPublished)
+            .AsSplitQuery()
+
+            .Where(
+                p =>
+                    !p.IsDeleted &&
+                    p.IsActive &&
+                    p.IsPublished)
 
             .Include(p => p.Images)
 
@@ -192,12 +242,17 @@ public sealed class ProductRepository : IProductRepository
     {
         return await _context.Products
             .AsNoTracking()
-            .Where(p =>
-                !p.IsDeleted &&
-                p.IsActive &&
-                p.IsPublished &&
-                p.ProductCategories.Any(
-                    pc => pc.CategoryId == categoryId))
+            .AsSplitQuery()
+
+            .Where(
+                p =>
+                    !p.IsDeleted &&
+                    p.IsActive &&
+                    p.IsPublished &&
+                    p.ProductCategories.Any(
+                        pc =>
+                            pc.CategoryId ==
+                            categoryId))
 
             .Include(p => p.Images)
 
@@ -228,31 +283,42 @@ public sealed class ProductRepository : IProductRepository
         CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(searchTerm))
+        {
             return await GetAllAsync(
                 cancellationToken);
+        }
 
         var term =
             searchTerm.Trim();
 
         return await _context.Products
             .AsNoTracking()
-            .Where(p =>
-                !p.IsDeleted &&
-                p.IsActive &&
-                p.IsPublished)
+            .AsSplitQuery()
 
-            .Where(p =>
-                EF.Functions.Like(
-                    p.Name,
-                    $"%{term}%") ||
+            .Where(
+                p =>
+                    !p.IsDeleted &&
+                    p.IsActive &&
+                    p.IsPublished)
 
-                EF.Functions.Like(
-                    p.Description ?? string.Empty,
-                    $"%{term}%") ||
+            .Where(
+                p =>
+                    EF.Functions.Like(
+                        p.Name,
+                        $"%{term}%")
 
-                EF.Functions.Like(
-                    p.Sku,
-                    $"%{term}%"))
+                    ||
+
+                    EF.Functions.Like(
+                        p.Description ??
+                        string.Empty,
+                        $"%{term}%")
+
+                    ||
+
+                    EF.Functions.Like(
+                        p.Sku,
+                        $"%{term}%"))
 
             .Include(p => p.Images)
 
@@ -292,11 +358,14 @@ public sealed class ProductRepository : IProductRepository
 
         return await _context.Products
             .AsNoTracking()
-            .Where(p =>
-                !p.IsDeleted &&
-                p.IsActive &&
-                p.IsPublished &&
-                p.IsFeatured)
+            .AsSplitQuery()
+
+            .Where(
+                p =>
+                    !p.IsDeleted &&
+                    p.IsActive &&
+                    p.IsPublished &&
+                    p.IsFeatured)
 
             .Include(p => p.Images)
 
@@ -358,21 +427,29 @@ public sealed class ProductRepository : IProductRepository
         var query =
             _context.Products
                 .AsNoTracking()
-                .Where(p => !p.IsDeleted);
+                .Where(
+                    p =>
+                        !p.IsDeleted);
 
         // --------------------------------------------------------
         // Visibility
         // --------------------------------------------------------
 
         if (!includeInactive)
+        {
             query =
                 query.Where(
-                    p => p.IsActive);
+                    p =>
+                        p.IsActive);
+        }
 
         if (!includeUnpublished)
+        {
             query =
                 query.Where(
-                    p => p.IsPublished);
+                    p =>
+                        p.IsPublished);
+        }
 
         // --------------------------------------------------------
         // Status
@@ -382,16 +459,18 @@ public sealed class ProductRepository : IProductRepository
         {
             query =
                 query.Where(
-                    p => p.IsActive ==
-                         isActive.Value);
+                    p =>
+                        p.IsActive ==
+                        isActive.Value);
         }
 
         if (isPublished.HasValue)
         {
             query =
                 query.Where(
-                    p => p.IsPublished ==
-                         isPublished.Value);
+                    p =>
+                        p.IsPublished ==
+                        isPublished.Value);
         }
 
         // --------------------------------------------------------
@@ -402,10 +481,11 @@ public sealed class ProductRepository : IProductRepository
         {
             query =
                 query.Where(
-                    p => p.ProductCategories.Any(
-                        pc =>
-                            pc.CategoryId ==
-                            categoryId.Value));
+                    p =>
+                        p.ProductCategories.Any(
+                            pc =>
+                                pc.CategoryId ==
+                                categoryId.Value));
         }
 
         // --------------------------------------------------------
@@ -416,8 +496,9 @@ public sealed class ProductRepository : IProductRepository
         {
             query =
                 query.Where(
-                    p => p.BrandId ==
-                         brandId.Value);
+                    p =>
+                        p.BrandId ==
+                        brandId.Value);
         }
 
         // --------------------------------------------------------
@@ -428,16 +509,18 @@ public sealed class ProductRepository : IProductRepository
         {
             query =
                 query.Where(
-                    p => p.Price >=
-                         minPrice.Value);
+                    p =>
+                        p.Price >=
+                        minPrice.Value);
         }
 
         if (maxPrice.HasValue)
         {
             query =
                 query.Where(
-                    p => p.Price <=
-                         maxPrice.Value);
+                    p =>
+                        p.Price <=
+                        maxPrice.Value);
         }
 
         // --------------------------------------------------------
@@ -448,8 +531,9 @@ public sealed class ProductRepository : IProductRepository
         {
             query =
                 query.Where(
-                    p => p.IsFeatured ==
-                         isFeatured.Value);
+                    p =>
+                        p.IsFeatured ==
+                        isFeatured.Value);
         }
 
         // --------------------------------------------------------
@@ -461,16 +545,17 @@ public sealed class ProductRepository : IProductRepository
             query =
                 isInStock.Value
                     ? query.Where(
-                        p => p.Variants.Any(
-                            v =>
-                                v.IsActive &&
-                                v.StockQuantity > 0))
-
+                        p =>
+                            p.Variants.Any(
+                                v =>
+                                    v.IsActive &&
+                                    v.StockQuantity > 0))
                     : query.Where(
-                        p => !p.Variants.Any(
-                            v =>
-                                v.IsActive &&
-                                v.StockQuantity > 0));
+                        p =>
+                            !p.Variants.Any(
+                                v =>
+                                    v.IsActive &&
+                                    v.StockQuantity > 0));
         }
 
         // --------------------------------------------------------
@@ -487,12 +572,16 @@ public sealed class ProductRepository : IProductRepository
                     p =>
                         EF.Functions.Like(
                             p.Name,
-                            $"%{term}%") ||
+                            $"%{term}%")
+
+                        ||
 
                         EF.Functions.Like(
                             p.Description ??
                             string.Empty,
-                            $"%{term}%") ||
+                            $"%{term}%")
+
+                        ||
 
                         EF.Functions.Like(
                             p.Sku,
@@ -534,11 +623,13 @@ public sealed class ProductRepository : IProductRepository
                         ? query.OrderBy(
                             p =>
                                 p.Reviews.Count(
-                                    r => r.IsApproved))
+                                    r =>
+                                        r.IsApproved))
                         : query.OrderByDescending(
                             p =>
                                 p.Reviews.Count(
-                                    r => r.IsApproved)),
+                                    r =>
+                                        r.IsApproved)),
 
                 _ =>
                     desc
@@ -562,6 +653,7 @@ public sealed class ProductRepository : IProductRepository
 
         var items =
             await query
+                .AsSplitQuery()
 
                 .Include(p => p.Images)
 
@@ -591,6 +683,202 @@ public sealed class ProductRepository : IProductRepository
     }
 
     // ============================================================
+    // Delete Variant Attribute Mappings
+    // ============================================================
+
+    public async Task DeleteVariantAttributeMappingsAsync(
+        Guid variantId,
+        IReadOnlyCollection<Guid> attributeValueIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (variantId == Guid.Empty)
+        {
+            return;
+        }
+
+        if (attributeValueIds.Count == 0)
+        {
+            return;
+        }
+
+        var ids =
+            attributeValueIds
+                .Where(
+                    id =>
+                        id != Guid.Empty)
+                .Distinct()
+                .ToArray();
+
+        if (ids.Length == 0)
+        {
+            return;
+        }
+
+        var mappings =
+            await _context
+                .Set<VariantAttributeValue>()
+                .IgnoreQueryFilters()
+                .Where(
+                    x =>
+                        x.ProductVariantId ==
+                        variantId &&
+
+                        ids.Contains(
+                            x.AttributeValueId))
+                .ToListAsync(
+                    cancellationToken);
+
+        if (mappings.Count == 0)
+        {
+            return;
+        }
+
+        _context
+            .Set<VariantAttributeValue>()
+            .RemoveRange(
+                mappings);
+    }
+
+    // ============================================================
+    // Add Variant Attribute Mappings
+    // ============================================================
+
+    public async Task AddVariantAttributeMappingsAsync(
+        Guid variantId,
+        IReadOnlyCollection<Guid> attributeValueIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (variantId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Variant id is required.",
+                nameof(variantId));
+        }
+
+        if (attributeValueIds.Count == 0)
+        {
+            return;
+        }
+
+        var ids =
+            attributeValueIds
+                .Where(
+                    id =>
+                        id != Guid.Empty)
+                .Distinct()
+                .ToArray();
+
+        if (ids.Length == 0)
+        {
+            return;
+        }
+
+        // --------------------------------------------------------
+        // Verify variant
+        // --------------------------------------------------------
+
+        var variantExists =
+            await _context
+                .Set<ProductVariant>()
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .AnyAsync(
+                    x =>
+                        x.Id ==
+                        variantId,
+                    cancellationToken);
+
+        if (!variantExists)
+        {
+            throw new KeyNotFoundException(
+                $"Product variant '{variantId}' was not found.");
+        }
+
+        // --------------------------------------------------------
+        // Verify AttributeValue records
+        // --------------------------------------------------------
+
+        var existingAttributeValueIds =
+            await _context
+                .Set<AttributeValue>()
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(
+                    x =>
+                        ids.Contains(
+                            x.Id))
+                .Select(
+                    x => x.Id)
+                .ToListAsync(
+                    cancellationToken);
+
+        var missingIds =
+            ids
+                .Except(
+                    existingAttributeValueIds)
+                .ToArray();
+
+        if (missingIds.Length > 0)
+        {
+            throw new KeyNotFoundException(
+                $"The following attribute values were not found: {string.Join(", ", missingIds)}");
+        }
+
+        // --------------------------------------------------------
+        // Find existing mappings
+        // --------------------------------------------------------
+
+        var existingMappings =
+            await _context
+                .Set<VariantAttributeValue>()
+                .IgnoreQueryFilters()
+                .AsNoTracking()
+                .Where(
+                    x =>
+                        x.ProductVariantId ==
+                        variantId &&
+
+                        ids.Contains(
+                            x.AttributeValueId))
+                .Select(
+                    x =>
+                        x.AttributeValueId)
+                .ToListAsync(
+                    cancellationToken);
+
+        var existingIds =
+            existingMappings.ToHashSet();
+
+        var newIds =
+            ids
+                .Where(
+                    id =>
+                        !existingIds.Contains(
+                            id))
+                .ToArray();
+
+        if (newIds.Length == 0)
+        {
+            return;
+        }
+
+        var mappings =
+            newIds
+                .Select(
+                    attributeValueId =>
+                        new VariantAttributeValue(
+                            variantId,
+                            attributeValueId))
+                .ToList();
+
+        await _context
+            .Set<VariantAttributeValue>()
+            .AddRangeAsync(
+                mappings,
+                cancellationToken);
+    }
+
+    // ============================================================
     // Add
     // ============================================================
 
@@ -598,6 +886,9 @@ public sealed class ProductRepository : IProductRepository
         Product product,
         CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(
+            product);
+
         await _context.Products.AddAsync(
             product,
             cancellationToken);
@@ -610,8 +901,18 @@ public sealed class ProductRepository : IProductRepository
     public void Update(
         Product product)
     {
-        _context.Products.Update(
-            product);
+        /*
+         * ProductRepository.GetByIdAsync returns a tracked aggregate.
+         *
+         * Do NOT call DbSet.Update(product) here.
+         *
+         * Calling Update() on the entire graph can mark Brand,
+         * Manufacturer, Reviews, Images, Variants and their children
+         * as Modified. This is especially dangerous for entities that
+         * use RowVersion concurrency.
+         *
+         * EF Core change tracking will detect the actual changes.
+         */
     }
 
     // ============================================================
@@ -621,11 +922,17 @@ public sealed class ProductRepository : IProductRepository
     public void Delete(
         Product product)
     {
-        product.IsDeleted = true;
+        ArgumentNullException.ThrowIfNull(
+            product);
+
+        product.IsDeleted =
+            true;
+
         product.DeletedAt =
             DateTime.UtcNow;
 
-        _context.Products.Update(
-            product);
+        /*
+         * Product is already tracked.
+         */
     }
 }

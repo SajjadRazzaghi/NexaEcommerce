@@ -672,37 +672,69 @@ public sealed class CatalogDbContext : DbContext
     // =========================================================
     // Variant Attribute Value
     // =========================================================
-
-    private static void ConfigureVariantAttributeValue(
-        ModelBuilder modelBuilder)
+private static void ConfigureVariantAttributeValue(
+    ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<VariantAttributeValue>(entity =>
-        {
-            entity.ToTable("VariantAttributeValues");
-
-            entity.HasKey(x => x.Id);
-
-            entity.HasIndex(x => new
+        modelBuilder.Entity<VariantAttributeValue>(
+            entity =>
             {
-                x.ProductVariantId,
-                x.AttributeValueId
-            })
-            .IsUnique();
+                entity.ToTable(
+                    "VariantAttributeValues");
 
-            entity.HasOne(x => x.ProductVariant)
-                .WithMany(x => x.AttributeValues)
-                .HasForeignKey(x => x.ProductVariantId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.HasKey(
+                    x => x.Id);
 
-            entity.HasOne(x => x.AttributeValue)
-                .WithMany()
-                .HasForeignKey(x => x.AttributeValueId)
-                .OnDelete(DeleteBehavior.Restrict);
+                entity.HasIndex(
+                        x => new
+                        {
+                            x.ProductVariantId,
+                            x.AttributeValueId
+                        })
+                    .IsUnique();
 
-            entity.HasQueryFilter(
-                x => !x.IsDeleted);
-        });
+                // -----------------------------------------------------
+                // ProductVariant -> VariantAttributeValue
+                // -----------------------------------------------------
+                //
+                // A variant owns the relationship rows.
+                // Removing a mapping is therefore safe to cascade.
+                //
+                entity.HasOne(
+                        x => x.ProductVariant)
+                    .WithMany(
+                        x => x.AttributeValues)
+                    .HasForeignKey(
+                        x => x.ProductVariantId)
+                    .OnDelete(
+                        DeleteBehavior.Cascade);
+
+                // -----------------------------------------------------
+                // AttributeValue -> VariantAttributeValue
+                // -----------------------------------------------------
+                //
+                // IMPORTANT:
+                // The inverse navigation exists on AttributeValue:
+                //
+                // ICollection<VariantAttributeValue>
+                //     VariantAttributeValues
+                //
+                // Explicitly mapping it prevents EF Core from
+                // inventing a shadow FK such as AttributeValueId1.
+                //
+                entity.HasOne(
+                        x => x.AttributeValue)
+                    .WithMany(
+                        x => x.VariantAttributeValues)
+                    .HasForeignKey(
+                        x => x.AttributeValueId)
+                    .OnDelete(
+                        DeleteBehavior.Restrict);
+
+                entity.HasQueryFilter(
+                    x => !x.IsDeleted);
+            });
     }
+
 
     // =========================================================
     // Catalog Attribute

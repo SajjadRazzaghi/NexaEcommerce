@@ -26,6 +26,26 @@ import {
 import { useProduct } from '../hooks/useProducts';
 import { useCartMutations } from '@/modules/cart/hooks/useCartMutations';
 
+type SelectedAttributes = Record<string, string>;
+
+function getAttributeValue(
+    variant: {
+        attributes?: {
+            attributeCode: string;
+            attributeValueId: string;
+        }[];
+    },
+    code: string,
+) {
+    return (
+        variant.attributes?.find(
+            (attribute) =>
+                attribute.attributeCode.toLowerCase() ===
+                code.toLowerCase(),
+        )?.attributeValueId ?? null
+    );
+}
+
 export default function ProductDetailPage() {
     const { id } = useParams<{ id: string }>();
 
@@ -37,29 +57,197 @@ export default function ProductDetailPage() {
 
     const { add } = useCartMutations();
 
-    const [imageIndex, setImageIndex] = useState(0);
-    const [variantId, setVariantId] = useState<string | null>(null);
-    const [quantity, setQuantity] = useState(1);
-    const [added, setAdded] = useState(false);
+    const [imageIndex, setImageIndex] =
+        useState(0);
 
-    const availableVariants = useMemo(
-        () =>
-            product?.variants?.filter(
-                (variant) =>
-                    variant.isActive &&
-                    variant.stockQuantity > 0,
-            ) ?? [],
-        [product],
-    );
+    const [
+        selectedAttributes,
+        setSelectedAttributes,
+    ] =
+        useState<SelectedAttributes>({});
 
-    const activeVariantId =
-        variantId ?? availableVariants[0]?.id ?? null;
+    const [variantId, setVariantId] =
+        useState<string | null>(null);
 
-    const activeVariant = availableVariants.find(
-        (variant) => variant.id === activeVariantId,
-    );
+    const [quantity, setQuantity] =
+        useState(1);
 
-    const images = product?.images ?? [];
+    const [added, setAdded] =
+        useState(false);
+
+    const availableVariants =
+        useMemo(
+            () =>
+                product?.variants?.filter(
+                    (variant) =>
+                        variant.isActive &&
+                        variant.stockQuantity > 0,
+                ) ?? [],
+            [product],
+        );
+
+    const genericVariantMode =
+        availableVariants.some(
+            (variant) =>
+                (variant.attributes?.length ?? 0) >
+                0,
+        );
+
+    const attributeGroups =
+        useMemo(() => {
+            if (!genericVariantMode) {
+                return [];
+            }
+
+            const groups = new Map<
+                string,
+                {
+                    code: string;
+                    name: string;
+                    values: {
+                        id: string;
+                        label: string;
+                        colorHex?: string | null;
+                    }[];
+                }
+            >();
+
+            for (const variant of availableVariants) {
+                for (const attribute of
+                    variant.attributes ?? []) {
+                    const key =
+                        attribute.attributeCode
+                            .toLowerCase();
+
+                    if (!groups.has(key)) {
+                        groups.set(key, {
+                            code:
+                                attribute.attributeCode,
+                            name:
+                                attribute.attributeName,
+                            values: [],
+                        });
+                    }
+
+                    const group =
+                        groups.get(key)!;
+
+                    if (
+                        !group.values.some(
+                            (value) =>
+                                value.id ===
+                                attribute.attributeValueId,
+                        )
+                    ) {
+                        group.values.push({
+                            id:
+                                attribute.attributeValueId,
+                            label:
+                                attribute.displayValue ||
+                                attribute.value,
+                            colorHex:
+                                attribute.colorHex,
+                        });
+                    }
+                }
+            }
+
+            return Array.from(
+                groups.values(),
+            );
+        }, [
+            availableVariants,
+            genericVariantMode,
+        ]);
+
+    const selectedEntries =
+        Object.entries(
+            selectedAttributes,
+        );
+
+    const activeVariant =
+        useMemo(() => {
+            if (
+                variantId &&
+                availableVariants.some(
+                    (variant) =>
+                        variant.id ===
+                        variantId,
+                )
+            ) {
+                return availableVariants.find(
+                    (variant) =>
+                        variant.id ===
+                        variantId,
+                );
+            }
+
+            if (
+                genericVariantMode &&
+                selectedEntries.length > 0
+            ) {
+                const exact =
+                    availableVariants.find(
+                        (variant) =>
+                            selectedEntries.every(
+                                ([code, valueId]) =>
+                                    getAttributeValue(
+                                        variant,
+                                        code,
+                                    ) === valueId,
+                            ),
+                    );
+
+                if (exact) {
+                    return exact;
+                }
+
+                const partial =
+                    availableVariants.find(
+                        (variant) =>
+                            selectedEntries.every(
+                                ([code, valueId]) =>
+                                    getAttributeValue(
+                                        variant,
+                                        code,
+                                    ) === valueId,
+                            ),
+                    );
+
+                if (partial) {
+                    return partial;
+                }
+            }
+
+            return (
+                availableVariants[0] ??
+                product?.variants?.find(
+                    (variant) =>
+                        variant.isActive,
+                ) ??
+                null
+            );
+        }, [
+            availableVariants,
+            genericVariantMode,
+            product,
+            selectedEntries,
+            variantId,
+        ]);
+
+    const legacyVariants =
+        useMemo(
+            () =>
+                availableVariants.filter(
+                    (variant) =>
+                        !variant.attributes ||
+                        variant.attributes.length === 0,
+                ),
+            [availableVariants],
+        );
+
+    const images =
+        product?.images ?? [];
 
     const imageUrl =
         images[imageIndex]?.imageUrl ??
@@ -77,16 +265,125 @@ export default function ProductDetailPage() {
         product?.price ??
         0;
 
-    const formatPrice = (value: number) =>
-        new Intl.NumberFormat('en-US').format(value);
+    const formatPrice = (
+        value: number,
+    ) =>
+        new Intl.NumberFormat(
+            'en-US',
+        ).format(value);
+
+    const handleAttributeSelect = (
+        code: string,
+        valueId: string,
+    ) => {
+        setSelectedAttributes(
+            (current) => ({
+                ...current,
+                [code]: valueId,
+            }),
+        );
+
+        setVariantId(null);
+        setQuantity(1);
+        setAdded(false);
+    };
+
+    const isAttributeValueAvailable = (
+        code: string,
+        valueId: string,
+    ) => {
+        return availableVariants.some(
+            (variant) => {
+                const currentValue =
+                    getAttributeValue(
+                        variant,
+                        code,
+                    );
+
+                if (
+                    currentValue !==
+                    valueId
+                ) {
+                    return false;
+                }
+
+                return selectedEntries
+                    .filter(
+                        ([selectedCode]) =>
+                            selectedCode.toLowerCase() !==
+                            code.toLowerCase(),
+                    )
+                    .every(
+                        (
+                            [
+                                selectedCode,
+                                selectedValueId,
+                            ],
+                        ) =>
+                            getAttributeValue(
+                                variant,
+                                selectedCode,
+                            ) ===
+                            selectedValueId,
+                    );
+            },
+        );
+    };
+
+    const decrease = () => {
+        setQuantity(
+            (value) =>
+                Math.max(
+                    1,
+                    value - 1,
+                ),
+        );
+    };
+
+    const increase = () => {
+        setQuantity(
+            (value) =>
+                Math.min(
+                    maxQuantity || 1,
+                    value + 1,
+                ),
+        );
+    };
+
+    const addToCart = () => {
+        if (
+            !activeVariant?.id ||
+            maxQuantity <= 0
+        ) {
+            return;
+        }
+
+        add.mutate(
+            {
+                productVariantId:
+                    activeVariant.id,
+                quantity,
+            },
+            {
+                onSuccess: () => {
+                    setAdded(true);
+                },
+            },
+        );
+    };
 
     if (isLoading) {
         return (
-            <Container maxWidth="xl" sx={{ py: 5 }}>
+            <Container
+                maxWidth="xl"
+                sx={{ py: 5 }}
+            >
                 <Skeleton
                     variant="rectangular"
                     height={500}
-                    sx={{ borderRadius: 3 }}
+                    sx={{
+                        borderRadius: 3,
+                    }}
                 />
             </Container>
         );
@@ -94,8 +391,24 @@ export default function ProductDetailPage() {
 
     if (error) {
         return (
-            <Container maxWidth="lg" sx={{ py: 6 }}>
-                <Alert severity="error">
+            <Container
+                maxWidth="lg"
+                sx={{ py: 6 }}
+            >
+                <Alert
+                    severity="error"
+                    action={
+                        <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() =>
+                                window.location.reload()
+                            }
+                        >
+                            Retry
+                        </Button>
+                    }
+                >
                     Failed to load product.
                 </Alert>
             </Container>
@@ -104,10 +417,16 @@ export default function ProductDetailPage() {
 
     if (!product) {
         return (
-            <Container maxWidth="lg" sx={{ py: 6 }}>
+            <Container
+                maxWidth="lg"
+                sx={{ py: 6 }}
+            >
                 <Typography
                     variant="h5"
-                    sx={{ fontWeight: 800, mb: 2 }}
+                    sx={{
+                        fontWeight: 800,
+                        mb: 2,
+                    }}
                 >
                     Product not found
                 </Typography>
@@ -124,50 +443,37 @@ export default function ProductDetailPage() {
         );
     }
 
-    const decrease = () => {
-        setQuantity((value) => Math.max(1, value - 1));
-    };
-
-    const increase = () => {
-        setQuantity((value) =>
-            Math.min(maxQuantity || 1, value + 1),
-        );
-    };
-
-    const addToCart = () => {
-        if (!activeVariantId || maxQuantity <= 0) {
-            return;
-        }
-
-        add.mutate(
-            {
-                productVariantId: activeVariantId,
-                quantity,
-            },
-            {
-                onSuccess: () => {
-                    setAdded(true);
-                },
-            },
-        );
-    };
-
     return (
-        <Box sx={{ py: { xs: 3, md: 5 } }}>
+        <Box
+            sx={{
+                py: {
+                    xs: 3,
+                    md: 5,
+                },
+            }}
+        >
             <Container maxWidth="xl">
                 <Stack spacing={3}>
                     <Button
                         component={Link}
                         to="/products"
-                        startIcon={<ArrowBack />}
-                        sx={{ alignSelf: 'flex-start' }}
+                        startIcon={
+                            <ArrowBack />
+                        }
+                        sx={{
+                            alignSelf:
+                                'flex-start',
+                        }}
                     >
                         Back to products
                     </Button>
 
                     <Card
                         sx={{
-                            p: { xs: 2, md: 4 },
+                            p: {
+                                xs: 2,
+                                md: 4,
+                            },
                             borderRadius: 4,
                         }}
                     >
@@ -189,19 +495,25 @@ export default function ProductDetailPage() {
                                 <Box
                                     component="img"
                                     src={imageUrl}
-                                    alt={product.name}
+                                    alt={
+                                        product.name
+                                    }
                                     sx={{
-                                        width: '100%',
+                                        width:
+                                            '100%',
                                         height: {
                                             xs: 350,
                                             md: 520,
                                         },
-                                        objectFit: 'contain',
+                                        objectFit:
+                                            'contain',
                                         borderRadius: 3,
                                         bgcolor:
                                             'background.default',
                                     }}
-                                    onError={(event) => {
+                                    onError={(
+                                        event,
+                                    ) => {
                                         const element =
                                             event.currentTarget as HTMLImageElement;
 
@@ -216,58 +528,65 @@ export default function ProductDetailPage() {
                                     }}
                                 />
 
-                                {images.length > 1 && (
-                                    <Stack
-                                        direction="row"
-                                        spacing={1}
-                                        sx={{
-                                            mt: 2,
-                                            overflowX: 'auto',
-                                        }}
-                                    >
-                                        {images.map(
-                                            (image, index) => (
-                                                <IconButton
-                                                    key={image.id}
-                                                    onClick={() =>
-                                                        setImageIndex(
-                                                            index,
-                                                        )
-                                                    }
-                                                    sx={{
-                                                        p: 0.5,
-                                                        border:
-                                                            '2px solid',
-                                                        borderColor:
-                                                            imageIndex ===
-                                                                index
-                                                                ? 'primary.main'
-                                                                : 'transparent',
-                                                        borderRadius: 2,
-                                                    }}
-                                                >
-                                                    <Box
-                                                        component="img"
-                                                        src={
-                                                            image.imageUrl
+                                {images.length >
+                                    1 && (
+                                        <Stack
+                                            direction="row"
+                                            spacing={1}
+                                            sx={{
+                                                mt: 2,
+                                                overflowX:
+                                                    'auto',
+                                            }}
+                                        >
+                                            {images.map(
+                                                (
+                                                    image,
+                                                    index,
+                                                ) => (
+                                                    <IconButton
+                                                        key={
+                                                            image.id
                                                         }
-                                                        alt={
-                                                            image.altText ??
-                                                            product.name
+                                                        onClick={() =>
+                                                            setImageIndex(
+                                                                index,
+                                                            )
                                                         }
                                                         sx={{
-                                                            width: 70,
-                                                            height: 70,
-                                                            objectFit:
-                                                                'cover',
-                                                            borderRadius: 1.5,
+                                                            p: 0.5,
+                                                            border:
+                                                                '2px solid',
+                                                            borderColor:
+                                                                imageIndex ===
+                                                                    index
+                                                                    ? 'primary.main'
+                                                                    : 'transparent',
+                                                            borderRadius: 2,
                                                         }}
-                                                    />
-                                                </IconButton>
-                                            ),
-                                        )}
-                                    </Stack>
-                                )}
+                                                    >
+                                                        <Box
+                                                            component="img"
+                                                            src={
+                                                                image.imageUrl
+                                                            }
+                                                            alt={
+                                                                image.altText ??
+                                                                product.name
+                                                            }
+                                                            sx={{
+                                                                width: 70,
+                                                                height: 70,
+                                                                objectFit:
+                                                                    'cover',
+                                                                borderRadius: 1.5,
+                                                            }}
+                                                        />
+                                                    </IconButton>
+                                                ),
+                                            )}
+                                        </Stack>
+                                    )}
                             </Box>
 
                             <Box
@@ -278,7 +597,9 @@ export default function ProductDetailPage() {
                                     },
                                 }}
                             >
-                                <Stack spacing={2.5}>
+                                <Stack
+                                    spacing={2.5}
+                                >
                                     {product.brandName && (
                                         <Typography
                                             variant="body2"
@@ -287,7 +608,9 @@ export default function ProductDetailPage() {
                                                 fontWeight: 600,
                                             }}
                                         >
-                                            {product.brandName}
+                                            {
+                                                product.brandName
+                                            }
                                         </Typography>
                                     )}
 
@@ -299,14 +622,18 @@ export default function ProductDetailPage() {
                                             lineHeight: 1.2,
                                         }}
                                     >
-                                        {product.name}
+                                        {
+                                            product.name
+                                        }
                                     </Typography>
 
                                     <Typography
                                         variant="body2"
                                         color="text.secondary"
                                     >
-                                        SKU: {product.sku}
+                                        SKU:{' '}
+                                        {activeVariant?.sku ||
+                                            product.sku}
                                     </Typography>
 
                                     <Divider />
@@ -326,7 +653,9 @@ export default function ProductDetailPage() {
                                                     {formatPrice(
                                                         product.comparePrice,
                                                     )}{' '}
-                                                    {product.currency}
+                                                    {
+                                                        product.currency
+                                                    }
                                                 </Typography>
                                             )}
 
@@ -338,98 +667,247 @@ export default function ProductDetailPage() {
                                                 mt: 0.5,
                                             }}
                                         >
-                                            {formatPrice(price)}{' '}
-                                            {product.currency}
+                                            {formatPrice(
+                                                price,
+                                            )}{' '}
+                                            {
+                                                product.currency
+                                            }
                                         </Typography>
                                     </Box>
 
-                                    {availableVariants.length > 0 && (
-                                        <Box>
-                                            <Typography
-                                                variant="h6"
-                                                sx={{
-                                                    fontWeight: 800,
-                                                    mb: 1,
-                                                }}
-                                            >
-                                                Choose variant
-                                            </Typography>
-
+                                    {genericVariantMode &&
+                                        attributeGroups.length >
+                                        0 && (
                                             <Stack
-                                                direction="row"
-                                                spacing={1}
-                                                useFlexGap
-                                                sx={{
-                                                    flexWrap: 'wrap',
-                                                }}
+                                                spacing={
+                                                    2.5
+                                                }
                                             >
-                                                {availableVariants.map(
-                                                    (variant) => (
-                                                        <Button
-                                                            key={
-                                                                variant.id
-                                                            }
-                                                            variant={
-                                                                activeVariantId ===
-                                                                    variant.id
-                                                                    ? 'contained'
-                                                                    : 'outlined'
-                                                            }
-                                                            onClick={() => {
-                                                                setVariantId(
-                                                                    variant.id,
-                                                                );
-                                                                setQuantity(
-                                                                    1,
-                                                                );
-                                                                setAdded(
-                                                                    false,
-                                                                );
-                                                            }}
-                                                            sx={{
-                                                                textTransform:
-                                                                    'none',
-                                                                borderRadius: 2,
-                                                            }}
-                                                        >
-                                                            {[
-                                                                variant.color,
-                                                                variant.size,
-                                                                variant.sku,
-                                                            ]
-                                                                .filter(
-                                                                    Boolean,
-                                                                )
-                                                                .join(
-                                                                    ' • ',
-                                                                )}
-                                                        </Button>
-                                                    ),
+                                                {attributeGroups.map(
+                                                    (
+                                                        group,
+                                                    ) => {
+                                                        const selectedValueId =
+                                                            selectedAttributes[
+                                                            group
+                                                                .code
+                                                                .toLowerCase()
+                                                            ] ??
+                                                            getAttributeValue(
+                                                                activeVariant ??
+                                                                {
+                                                                    attributes:
+                                                                        [],
+                                                                },
+                                                                group.code,
+                                                            );
+
+                                                        return (
+                                                            <Box
+                                                                key={
+                                                                    group.code
+                                                                }
+                                                            >
+                                                                <Typography
+                                                                    variant="h6"
+                                                                    sx={{
+                                                                        fontWeight: 800,
+                                                                        mb: 1,
+                                                                    }}
+                                                                >
+                                                                    {
+                                                                        group.name
+                                                                    }
+                                                                </Typography>
+
+                                                                <Stack
+                                                                    direction="row"
+                                                                    spacing={
+                                                                        1
+                                                                    }
+                                                                    useFlexGap
+                                                                    sx={{
+                                                                        flexWrap:
+                                                                            'wrap',
+                                                                    }}
+                                                                >
+                                                                    {group.values.map(
+                                                                        (
+                                                                            value,
+                                                                        ) => {
+                                                                            const selected =
+                                                                                selectedValueId ===
+                                                                                value.id;
+
+                                                                            const available =
+                                                                                isAttributeValueAvailable(
+                                                                                    group.code,
+                                                                                    value.id,
+                                                                                );
+
+                                                                            return (
+                                                                                <Button
+                                                                                    key={
+                                                                                        value.id
+                                                                                    }
+                                                                                    variant={
+                                                                                        selected
+                                                                                            ? 'contained'
+                                                                                            : 'outlined'
+                                                                                    }
+                                                                                    disabled={
+                                                                                        !available
+                                                                                    }
+                                                                                    onClick={() =>
+                                                                                        handleAttributeSelect(
+                                                                                            group.code,
+                                                                                            value.id,
+                                                                                        )
+                                                                                    }
+                                                                                    sx={{
+                                                                                        minWidth:
+                                                                                            80,
+                                                                                        textTransform:
+                                                                                            'none',
+                                                                                        borderRadius: 2,
+                                                                                        opacity:
+                                                                                            available
+                                                                                                ? 1
+                                                                                                : 0.45,
+                                                                                    }}
+                                                                                >
+                                                                                    {value.colorHex && (
+                                                                                        <Box
+                                                                                            component="span"
+                                                                                            sx={{
+                                                                                                width: 16,
+                                                                                                height: 16,
+                                                                                                mr: 1,
+                                                                                                borderRadius:
+                                                                                                    '50%',
+                                                                                                backgroundColor:
+                                                                                                    value.colorHex,
+                                                                                                border: '1px solid',
+                                                                                                borderColor:
+                                                                                                    'divider',
+                                                                                            }}
+                                                                                        />
+                                                                                    )}
+
+                                                                                    {
+                                                                                        value.label
+                                                                                    }
+                                                                                </Button>
+                                                                            );
+                                                                        },
+                                                                    )}
+                                                                </Stack>
+                                                            </Box>
+                                                        );
+                                                    },
                                                 )}
                                             </Stack>
-                                        </Box>
-                                    )}
+                                        )}
 
-                                    {activeVariant && (
-                                        <Alert
-                                            severity="success"
-                                            icon={
-                                                <CheckCircleOutlined />
-                                            }
-                                        >
-                                            In stock:{' '}
-                                            {
-                                                activeVariant.stockQuantity
-                                            }
-                                        </Alert>
-                                    )}
+                                    {!genericVariantMode &&
+                                        legacyVariants.length >
+                                        0 && (
+                                            <Box>
+                                                <Typography
+                                                    variant="h6"
+                                                    sx={{
+                                                        fontWeight: 800,
+                                                        mb: 1,
+                                                    }}
+                                                >
+                                                    Choose variant
+                                                </Typography>
 
-                                    {availableVariants.length === 0 && (
-                                        <Alert severity="warning">
-                                            This product is currently
-                                            out of stock.
-                                        </Alert>
-                                    )}
+                                                <Stack
+                                                    direction="row"
+                                                    spacing={
+                                                        1
+                                                    }
+                                                    useFlexGap
+                                                    sx={{
+                                                        flexWrap:
+                                                            'wrap',
+                                                    }}
+                                                >
+                                                    {legacyVariants.map(
+                                                        (
+                                                            variant,
+                                                        ) => (
+                                                            <Button
+                                                                key={
+                                                                    variant.id
+                                                                }
+                                                                variant={
+                                                                    activeVariant?.id ===
+                                                                        variant.id
+                                                                        ? 'contained'
+                                                                        : 'outlined'
+                                                                }
+                                                                onClick={() => {
+                                                                    setVariantId(
+                                                                        variant.id,
+                                                                    );
+                                                                    setQuantity(
+                                                                        1,
+                                                                    );
+                                                                    setAdded(
+                                                                        false,
+                                                                    );
+                                                                }}
+                                                                sx={{
+                                                                    textTransform:
+                                                                        'none',
+                                                                    borderRadius: 2,
+                                                                }}
+                                                            >
+                                                                {[
+                                                                    variant.color,
+                                                                    variant.size,
+                                                                    variant.sku,
+                                                                ]
+                                                                    .filter(
+                                                                        Boolean,
+                                                                    )
+                                                                    .join(
+                                                                        ' • ',
+                                                                    )}
+                                                            </Button>
+                                                        ),
+                                                    )}
+                                                </Stack>
+                                            </Box>
+                                        )}
+
+                                    {activeVariant &&
+                                        activeVariant.stockQuantity >
+                                        0 && (
+                                            <Alert
+                                                severity="success"
+                                                icon={
+                                                    <CheckCircleOutlined />
+                                                }
+                                            >
+                                                In stock:{' '}
+                                                {
+                                                    activeVariant.stockQuantity
+                                                }
+                                            </Alert>
+                                        )}
+
+                                    {(!activeVariant ||
+                                        activeVariant.stockQuantity <=
+                                        0) && (
+                                            <Alert severity="warning">
+                                                This product is currently
+                                                out of stock.
+                                            </Alert>
+                                        )}
 
                                     <Box>
                                         <Typography
@@ -446,24 +924,33 @@ export default function ProductDetailPage() {
                                             direction="row"
                                             spacing={1}
                                             sx={{
-                                                alignItems: 'center',
+                                                alignItems:
+                                                    'center',
                                             }}
                                         >
                                             <IconButton
-                                                onClick={decrease}
+                                                onClick={
+                                                    decrease
+                                                }
                                                 disabled={
-                                                    quantity <= 1
+                                                    quantity <=
+                                                    1
                                                 }
                                             >
                                                 <Remove />
                                             </IconButton>
 
                                             <TextField
-                                                value={quantity}
-                                                onChange={(event) => {
+                                                value={
+                                                    quantity
+                                                }
+                                                onChange={(
+                                                    event,
+                                                ) => {
                                                     const value =
                                                         Number(
-                                                            event.target
+                                                            event
+                                                                .target
                                                                 .value,
                                                         );
 
@@ -490,13 +977,15 @@ export default function ProductDetailPage() {
                                                 }}
                                                 sx={{
                                                     width: 90,
-                                                    '& input': {
+                                                    '& input':
+                                                    {
                                                         textAlign:
                                                             'center',
                                                     },
                                                 }}
                                                 slotProps={{
-                                                    htmlInput: {
+                                                    htmlInput:
+                                                    {
                                                         min: 1,
                                                         max:
                                                             maxQuantity ||
@@ -506,9 +995,12 @@ export default function ProductDetailPage() {
                                             />
 
                                             <IconButton
-                                                onClick={increase}
+                                                onClick={
+                                                    increase
+                                                }
                                                 disabled={
-                                                    maxQuantity <= 0 ||
+                                                    maxQuantity <=
+                                                    0 ||
                                                     quantity >=
                                                     maxQuantity
                                                 }
@@ -530,11 +1022,14 @@ export default function ProductDetailPage() {
                                             )
                                         }
                                         disabled={
-                                            !activeVariantId ||
-                                            maxQuantity <= 0 ||
+                                            !activeVariant?.id ||
+                                            maxQuantity <=
+                                            0 ||
                                             add.isPending
                                         }
-                                        onClick={addToCart}
+                                        onClick={
+                                            addToCart
+                                        }
                                         sx={{
                                             py: 1.5,
                                             borderRadius: 2.5,
@@ -550,7 +1045,9 @@ export default function ProductDetailPage() {
 
                                     {added && (
                                         <Button
-                                            component={Link}
+                                            component={
+                                                Link
+                                            }
                                             to="/cart"
                                             variant="outlined"
                                             fullWidth
@@ -564,7 +1061,9 @@ export default function ProductDetailPage() {
                                     )}
 
                                     {add.isError && (
-                                        <Alert severity="error">
+                                        <Alert
+                                            severity="error"
+                                        >
                                             Could not add the product
                                             to the cart.
                                         </Alert>
@@ -600,7 +1099,9 @@ export default function ProductDetailPage() {
                                     {product.description && (
                                         <Box>
                                             <Divider
-                                                sx={{ my: 2 }}
+                                                sx={{
+                                                    my: 2,
+                                                }}
                                             />
 
                                             <Typography
@@ -611,7 +1112,9 @@ export default function ProductDetailPage() {
                                                         'pre-line',
                                                 }}
                                             >
-                                                {product.description}
+                                                {
+                                                    product.description
+                                                }
                                             </Typography>
                                         </Box>
                                     )}
@@ -624,4 +1127,3 @@ export default function ProductDetailPage() {
         </Box>
     );
 }
-

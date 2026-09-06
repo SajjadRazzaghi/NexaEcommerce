@@ -129,17 +129,18 @@ public sealed class OrderRepository(
                 500);
 
         return await context.Orders
-            .Include(x => x.Items)
-            .Include(x => x.InventoryReservations)
-            .Where(
-                x =>
-                    x.TenantId == tenantId &&
-                    x.InventoryReservations.Any())
-            .OrderBy(
-                x => x.UpdatedAt ?? x.CreatedAt)
-            .Take(batchSize)
-            .ToListAsync(
-                cancellationToken);
+    .AsSplitQuery()
+    .Include(x => x.Items)
+    .Include(x => x.InventoryReservations)
+    .Where(
+        x =>
+            x.TenantId == tenantId &&
+            x.InventoryReservations.Any())
+    .OrderBy(
+        x => x.UpdatedAt ?? x.CreatedAt)
+    .Take(batchSize)
+    .ToListAsync(
+        cancellationToken);
     }
 
     public async Task<IReadOnlyList<Order>> GetUserOrdersAsync(
@@ -151,7 +152,7 @@ public sealed class OrderRepository(
         CancellationToken cancellationToken = default)
     {
         IQueryable<Order> query =
-            context.Orders
+            context.Orders.AsSplitQuery()
                 .AsNoTracking()
                 .Include(x => x.Items)
                 .Include(x => x.InventoryReservations)
@@ -190,7 +191,7 @@ public sealed class OrderRepository(
         CancellationToken cancellationToken = default)
     {
         IQueryable<Order> query =
-            context.Orders
+            context.Orders.AsSplitQuery()
                 .AsNoTracking()
                 .Include(x => x.Items)
                 .Include(x => x.InventoryReservations)

@@ -13,15 +13,15 @@ export type ProductVariant = {
     id: string;
     sku: string;
 
-    // Backward-compatible convenience fields
     color?: string | null;
     size?: string | null;
 
     priceOverride?: number | null;
+    comparePrice?: number | null;
+
     stockQuantity: number;
     isActive: boolean;
 
-    // Generic catalog-defined attributes
     attributes?: ProductVariantAttribute[];
 };
 
@@ -88,6 +88,7 @@ export type ProductListItem = {
     comparePrice?: number | null;
     finalPrice: number;
     discountPercentage: number;
+
     currency: string;
 
     brandId?: string | null;
@@ -101,6 +102,7 @@ export type ProductListItem = {
     stockQuantity: number;
 
     mainImage?: string | null;
+
     categoryNames: string[];
     categoryIds: string[];
 
@@ -118,34 +120,38 @@ export type ProductListResponse = {
 export type ProductFilter = {
     page?: number;
     pageSize?: number;
+
     search?: string;
+
     categoryId?: string;
     brandId?: string;
+
     isActive?: boolean;
     isFeatured?: boolean;
     isInStock?: boolean;
+
     minPrice?: number;
     maxPrice?: number;
 
     sortBy?:
-    | 'newest'
-    | 'price_asc'
-    | 'price_desc'
-    | 'name'
-    | 'popular';
+        | 'newest'
+        | 'price_asc'
+        | 'price_desc'
+        | 'name'
+        | 'popular';
 
     desc?: boolean;
 };
 
 export type CreateProductVariantDto = {
     sku: string;
+
     color?: string;
     size?: string;
 
     priceOverride?: number;
     stockQuantity: number;
 
-    // Generic catalog attribute values
     attributeValueIds?: string[];
 };
 
@@ -168,6 +174,28 @@ export type CreateProductDto = {
     images: string[];
 };
 
+export type UpdateProductVariantDto = {
+    id?: string;
+
+    sku: string;
+
+    color?: string | null;
+    size?: string | null;
+
+    priceOverride?: number | null;
+    comparePrice?: number | null;
+
+   /**
+     * Only used when creating a new variant.
+     * Existing variant stock is controlled by Inventory.
+     */
+    stockQuantity?: number;
+
+    isActive: boolean;
+
+    attributeValueIds?: string[];
+};
+
 export type UpdateProductDto = {
     name: string;
     price: number;
@@ -181,16 +209,21 @@ export type UpdateProductDto = {
     discountPercentage?: number | null;
 
     brandId?: string | null;
+    manufacturerId?: string | null;
 
     categoryIds: string[];
 
     isActive: boolean;
     isFeatured: boolean;
     isPublished: boolean;
+
+    variants: UpdateProductVariantDto[];
 };
 
 export const productsApi = {
-    getAll: (params?: ProductFilter) =>
+    getAll: (
+        params?: ProductFilter,
+    ) =>
         api.get<ProductListResponse>(
             '/products',
             { params },
@@ -206,7 +239,9 @@ export const productsApi = {
             { params },
         ),
 
-    getFeatured: (count = 8) =>
+    getFeatured: (
+        count = 8,
+    ) =>
         api.get<Product[]>(
             '/products/featured',
             {
@@ -214,14 +249,18 @@ export const productsApi = {
             },
         ),
 
-    getById: (id: string) =>
+    getById: (
+        id: string,
+    ) =>
         api.get<Product>(
-            `/ products / ${ id } `,
+            `/products/${ id } `,
         ),
 
-    getBySlug: (slug: string) =>
+    getBySlug: (
+        slug: string,
+    ) =>
         api.get<Product>(
-            `/ products / slug / ${ encodeURIComponent(slug) } `,
+            `/products/slug/${ encodeURIComponent(slug) } `,
         ),
 
     search: (
@@ -243,7 +282,7 @@ export const productsApi = {
         params?: ProductFilter,
     ) =>
         api.get<Product[]>(
-            `/ products / category / ${ categoryId } `,
+            `/products/category/${ categoryId } `,
             { params },
         ),
 
@@ -260,7 +299,7 @@ export const productsApi = {
         data: UpdateProductDto,
     ) =>
         api.put<void>(
-            `/ products / ${ id } `,
+            `/products/${ id } `,
             data,
         ),
 
@@ -269,7 +308,7 @@ export const productsApi = {
         quantity: number,
     ) =>
         api.patch<void>(
-            `/ products / ${ id }/stock`,
+            `/products/${ id }/stock`,
 { quantity },
         ),
 
@@ -291,8 +330,11 @@ toggleActive: (
             { value: isFeatured },
         ),
 
-        delete: (id: string) =>
+        delete: (
+            id: string,
+        ) =>
             api.del<void>(
                 `/products/${id}`,
             ),
 };
+

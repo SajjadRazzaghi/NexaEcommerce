@@ -1,10 +1,10 @@
 import api from '@/services/api';
 
 import type {
-    CheckoutRequest,
     OrderDto,
     OrderListDto,
 } from '../types';
+
 
 export async function getMyOrders(
     page = 1,
@@ -13,7 +13,7 @@ export async function getMyOrders(
 ): Promise<OrderListDto> {
     const { data } =
         await api.get<OrderListDto>(
-            '/api/orders',
+            '/orders',
             {
                 params: {
                     page,
@@ -26,22 +26,45 @@ export async function getMyOrders(
     return data;
 }
 
+
 export async function getOrder(
     id: string,
 ): Promise<OrderDto> {
+    if (!id.trim()) {
+        throw new Error(
+            'Order id is required.',
+        );
+    }
+
     const { data } =
         await api.get<OrderDto>(
-            `/ api / orders / ${ id } `,
+            `/ orders / ${ id.trim() } `,
         );
 
     return data;
 }
 
+
 export async function createCheckout(
-    request: CheckoutRequest,
+    request: {
+        items: Array<{
+            productVariantId: string;
+            quantity: number;
+        }>;
+        shippingFullName: string;
+        shippingPhone: string;
+        shippingAddress: string;
+        shippingCity: string;
+        shippingPostalCode?: string | null;
+        shippingMethodId: string;
+        couponCode?: string | null;
+    },
     idempotencyKey: string,
 ): Promise<OrderDto> {
-    if (!idempotencyKey.trim()) {
+    const normalizedKey =
+        idempotencyKey.trim();
+
+    if (!normalizedKey) {
         throw new Error(
             'Idempotency key is required.',
         );
@@ -49,15 +72,16 @@ export async function createCheckout(
 
     const { data } =
         await api.post<OrderDto>(
-            '/api/orders/checkout',
+            '/orders/checkout',
             request,
             {
                 headers: {
                     'Idempotency-Key':
-                        idempotencyKey.trim(),
+                        normalizedKey,
                 },
             },
         );
 
     return data;
 }
+

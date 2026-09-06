@@ -1,13 +1,10 @@
-using System.Text.RegularExpressions;
-
 using AutoMapper;
-
 using NexaEcommerce.Modules.Catalog.Application.DTOs;
 using NexaEcommerce.Modules.Catalog.Domain.Entities;
 using NexaEcommerce.Modules.Catalog.Domain.Interfaces;
-
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaEcommerce.SharedKernel.Pagination;
+using System.Text.RegularExpressions;
 
 namespace NexaEcommerce.Modules.Catalog.Application.Services;
 
@@ -423,7 +420,10 @@ public sealed class ProductService : IProductService
             product,
             updateDto.CategoryIds,
             cancellationToken);
-
+        await SynchronizeVariantsAsync(
+    product,
+    updateDto.Variants,
+    cancellationToken);
         _productRepository.Update(
             product);
 
@@ -840,4 +840,372 @@ public sealed class ProductService : IProductService
 
         return slug.Trim('-');
     }
+    private async Task SynchronizeVariantsAsync(
+        Product product,
+        IEnumerable<UpdateProductVariantDto>? variantDtos,
+        CancellationToken cancellationToken)
+    {
+        var requested =
+            (variantDtos ??
+             Enumerable.Empty<UpdateProductVariantDto>())
+            .ToList();
+
+        // No variant list means:
+        // preserve the existing lifecycle for backwards compatibility.
+        if (requested.Count == 0)
+            return;
+
+        var duplicateIds =
+            requested
+                .Where(x => x.Id.HasValue &&
+                            x.Id.Value != Guid.Empty)
+                .GroupBy(x => x.Id!.Value)
+                .Where(x => x.Count() > 1)
+                .Select(x => x.Key)
+                .ToList();
+
+        if (duplicateIds.Count > 0)
+        {
+            throw new ArgumentException(
+                "The same variant cannot appear more than once.");
+        }
+
+        var normalizedSkus =
+            requested
+                .Select(
+                    x => x.Sku.Trim())
+                .ToList();
+
+        if (normalizedSkus.Any(
+                string.IsNullOrWhiteSpace))
+        {
+            throw new ArgumentException(
+                "Every variant SKU is required.");
+        }
+
+        var duplicateSkus =
+            normalizedSkus
+                .GroupBy(
+                    x => x,
+                    StringComparer.OrdinalIgnoreCase)
+                .Where(x => x.Count() > 1)
+                .Select(x => x.Key)
+                .ToList();
+
+        if (duplicateSkus.Count > 0)
+        {
+            throw new ArgumentException(
+                $"Duplicate variant SKU detected: {string.Join(", ", duplicateSkus)}.");
+        }
+
+        var hasExistingIds =
+            requested.Any(
+                x => x.Id.HasValue &&
+                     x.Id.Value != Guid.Empty);
+
+        var matchedExisting =
+            new HashSet<Guid>();
+
+        foreach (var dto in requested)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var sku = dto.Sku.Trim();
+
+            if (dto.Id.HasValue &&
+                dto.Id.Value != Guid.Empty)
+            {
+                var variant =
+                    product.Variants.FirstOrDefault(
+                        x => x.Id == dto.Id.Value);
+
+                if (variant is null)
+                {
+                    throw new KeyNotFoundException(
+                        $"Product variant '{dto.Id}' was not found.");
+                }
+
+                if (variant.ProductId != product.Id)
+                {
+                    throw new InvalidOperationException(
+                        "The specified variant does not belong to this product.");
+                }
+
+                if (await _productRepository.ExistsByVariantSkuAsync(
+                        sku,
+                        variant.Id,
+                        cancellationToken))
+                {
+                    throw new ArgumentException(
+                        $"Variant SKU '{sku}' already exists.");
+                }
+
+                variant.ChangeSku(sku);
+
+                variant.ChangePrice(
+                    dto.PriceOverride ??
+                    product.Price);
+
+                variant.SetComparePrice(
+                    dto.ComparePrice);
+
+                variant.SetActive(
+                    dto.IsActive);
+
+                await ReplaceVariantAttributesAsync(
+                    product,
+                    variant,
+                    dto,
+                    cancellationToken);
+
+                matchedExisting.Add(
+                    variant.Id);
+
+                // IMPORTANT:
+                // StockQuantity is deliberately NOT changed here
+                // for an existing variant.
+                continue;
+            }
+
+            if (await _productRepository.ExistsByVariantSkuAsync(
+                    sku,
+                    cancellationToken: cancellationToken))
+            {
+                throw new ArgumentException(
+                    $"Variant SKU '{sku}' already exists.");
+            }
+
+            var newVariant =
+                product.AddVariant(
+                    sku,
+                    dto.PriceOverride ??
+                    product.Price,
+                    dto.ComparePrice);
+
+            if (dto.StockQuantity.HasValue)
+            {
+                if (dto.StockQuantity.Value < 0)
+                {
+                    throw new ArgumentException(
+                        $"Stock quantity for variant '{sku}' cannot be negative.");
+                }
+
+                newVariant.ChangeStock(
+                    dto.StockQuantity.Value);
+            }
+
+            newVariant.SetActive(
+                dto.IsActive);
+
+            await ReplaceVariantAttributesAsync(
+                product,
+                newVariant,
+                dto,
+                cancellationToken);
+        }
+
+        // Only synchronize removals when the request contains
+        // explicit existing IDs. This prevents legacy callers
+        // that send SKU-only variants from accidentally disabling
+        // every current variant.
+        if (hasExistingIds)
+        {
+            foreach (var existingVariant in
+                     product.Variants.ToList())
+            {
+                if (!matchedExisting.Contains(
+                        existingVariant.Id) &&
+                    !requested.Any(
+                        x => x.Id == existingVariant.Id))
+                {
+                    existingVariant.Deactivate();
+                }
+            }
+        }
+
+        var activeVariants =
+            product.Variants
+                .Where(x => x.IsActive)
+                .ToList();
+
+        if (activeVariants.Count == 0)
+        {
+            throw new ArgumentException(
+                "A product must have at least one active variant.");
+        }
+
+        ValidateVariantAttributeCombinations(
+            activeVariants);
+    }
+    private async Task ReplaceVariantAttributesAsync(
+    Product product,
+    ProductVariant variant,
+    UpdateProductVariantDto dto,
+    CancellationToken cancellationToken)
+    {
+        variant.AttributeValues.Clear();
+
+        AddVariantAttribute(
+            product,
+            variant,
+            dto.Color,
+            "Color",
+            "color");
+
+        AddVariantAttribute(
+            product,
+            variant,
+            dto.Size,
+            "Size",
+            "size");
+
+        var requestedIds =
+            (dto.AttributeValueIds ??
+             Enumerable.Empty<Guid>())
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToArray();
+
+        if (requestedIds.Length == 0)
+            return;
+
+        var catalogAttributes =
+            await _catalogAttributeRepository.GetAllAsync(
+                cancellationToken);
+
+        var selectedValues =
+            new List<
+                NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes.AttributeValue>();
+
+        var selectedAttributeIds =
+            new HashSet<Guid>();
+
+        foreach (var valueId in requestedIds)
+        {
+            var catalogAttribute =
+                catalogAttributes.FirstOrDefault(
+                    attribute =>
+                        attribute.Values.Any(
+                            value => value.Id == valueId));
+
+            if (catalogAttribute is null)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute value '{valueId}' was not found.",
+                    nameof(dto.AttributeValueIds));
+            }
+
+            if (!catalogAttribute.IsActive)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute '{catalogAttribute.Name}' is inactive.",
+                    nameof(dto.AttributeValueIds));
+            }
+
+            if (!catalogAttribute.IsVariantAttribute)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute '{catalogAttribute.Name}' is not configured as a variant attribute.",
+                    nameof(dto.AttributeValueIds));
+            }
+
+            if (!selectedAttributeIds.Add(
+                    catalogAttribute.Id))
+            {
+                throw new ArgumentException(
+                    $"Variant '{variant.Sku}' contains more than one value for attribute '{catalogAttribute.Name}'.");
+            }
+
+            var catalogValue =
+                catalogAttribute.Values.FirstOrDefault(
+                    value => value.Id == valueId);
+
+            if (catalogValue is null)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute value '{valueId}' was not found.",
+                    nameof(dto.AttributeValueIds));
+            }
+
+            if (!catalogValue.IsActive)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute value '{catalogValue.Value}' is inactive.",
+                    nameof(dto.AttributeValueIds));
+            }
+
+            var productAttribute =
+                product.Attributes.FirstOrDefault(
+                    attribute =>
+                        string.Equals(
+                            attribute.Code,
+                            catalogAttribute.Code,
+                            StringComparison.OrdinalIgnoreCase));
+
+            productAttribute ??=
+                product.AddAttribute(
+                    catalogAttribute.Name,
+                    catalogAttribute.Code);
+
+            var productValue =
+                productAttribute.Values.FirstOrDefault(
+                    value =>
+                        string.Equals(
+                            value.Value,
+                            catalogValue.Value,
+                            StringComparison.OrdinalIgnoreCase));
+
+            productValue ??=
+                productAttribute.AddValue(
+                    catalogValue.Value,
+                    catalogValue.DisplayValue ??
+                    catalogValue.Value,
+                    catalogValue.ColorHex);
+
+            selectedValues.Add(
+                productValue);
+        }
+
+        foreach (var value in selectedValues)
+        {
+            variant.AddAttributeValue(
+                value);
+        }
+    }
+    private static void ValidateVariantAttributeCombinations(
+    IEnumerable<ProductVariant> variants)
+    {
+        var signatures =
+            new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
+
+        foreach (var variant in variants)
+        {
+            var signature =
+                string.Join(
+                    "|",
+                    variant.AttributeValues
+                        .Where(
+                            x => x.AttributeValue != null &&
+                                 x.AttributeValue.ProductAttribute != null)
+                        .Select(
+                            x =>
+                                $"{x.AttributeValue!.ProductAttribute!.Code}:{x.AttributeValueId}")
+                        .OrderBy(
+                            x => x,
+                            StringComparer.OrdinalIgnoreCase));
+
+            // Variants without attributes are allowed for simple products.
+            if (string.IsNullOrWhiteSpace(signature))
+                continue;
+
+            if (!signatures.Add(signature))
+            {
+                throw new ArgumentException(
+                    $"Duplicate variant attribute combination detected for SKU '{variant.Sku}'.");
+            }
+        }
+    }
+
+
 }

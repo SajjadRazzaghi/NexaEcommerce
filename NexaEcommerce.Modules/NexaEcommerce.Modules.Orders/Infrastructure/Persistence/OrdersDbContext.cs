@@ -173,7 +173,9 @@ public sealed class OrdersDbContext(
                 entity.Property(
                     x => x.TaxRatePercent)
                     .HasPrecision(9, 4);
-
+                entity.Property(
+                    x => x.TaxableAmount)
+                    .HasPrecision(18, 2);
                 modelBuilder.Entity<Coupon>(
     entity =>
     {

@@ -1,5 +1,5 @@
-using NexaEcommerce.SharedKernel.Domain;
 using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
+using NexaEcommerce.SharedKernel.Domain;
 
 namespace NexaEcommerce.Modules.Catalog.Domain.Entities;
 
@@ -19,8 +19,11 @@ public class ProductVariant : BaseEntity
 
     public Product Product { get; private set; } = null!;
 
-    public ICollection<VariantAttributeValue> AttributeValues { get; private set; }
-        = new List<VariantAttributeValue>();
+    public ICollection<VariantAttributeValue> AttributeValues
+    {
+        get;
+        private set;
+    } = new List<VariantAttributeValue>();
 
     private ProductVariant()
     {
@@ -33,16 +36,26 @@ public class ProductVariant : BaseEntity
         int stockQuantity)
     {
         if (string.IsNullOrWhiteSpace(sku))
-            throw new ArgumentException("SKU is required.", nameof(sku));
+        {
+            throw new ArgumentException(
+                "SKU is required.",
+                nameof(sku));
+        }
 
         if (price < 0)
-            throw new ArgumentOutOfRangeException(nameof(price));
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(price));
+        }
 
         if (stockQuantity < 0)
-            throw new ArgumentOutOfRangeException(nameof(stockQuantity));
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(stockQuantity));
+        }
 
         ProductId = productId;
-        Sku = sku;
+        Sku = sku.Trim();
         PriceOverride = price;
         StockQuantity = stockQuantity;
         IsActive = true;
@@ -51,25 +64,34 @@ public class ProductVariant : BaseEntity
     public void ChangeSku(string sku)
     {
         if (string.IsNullOrWhiteSpace(sku))
+        {
             throw new ArgumentException(
                 "SKU is required.",
                 nameof(sku));
+        }
 
-        Sku = sku;
+        Sku = sku.Trim();
     }
 
     public void ChangePrice(decimal price)
     {
         if (price < 0)
-            throw new ArgumentOutOfRangeException(nameof(price));
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(price));
+        }
 
         PriceOverride = price;
     }
 
-    public void SetComparePrice(decimal? comparePrice)
+    public void SetComparePrice(
+        decimal? comparePrice)
     {
         if (comparePrice < 0)
-            throw new ArgumentOutOfRangeException(nameof(comparePrice));
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(comparePrice));
+        }
 
         ComparePrice = comparePrice;
     }
@@ -77,7 +99,10 @@ public class ProductVariant : BaseEntity
     public void ChangeStock(int quantity)
     {
         if (quantity < 0)
-            throw new ArgumentOutOfRangeException(nameof(quantity));
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(quantity));
+        }
 
         StockQuantity = quantity;
     }
@@ -85,7 +110,10 @@ public class ProductVariant : BaseEntity
     public void IncreaseStock(int quantity)
     {
         if (quantity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(quantity));
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(quantity));
+        }
 
         StockQuantity += quantity;
     }
@@ -93,11 +121,16 @@ public class ProductVariant : BaseEntity
     public void DecreaseStock(int quantity)
     {
         if (quantity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(quantity));
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(quantity));
+        }
 
         if (quantity > StockQuantity)
+        {
             throw new InvalidOperationException(
                 "Insufficient stock.");
+        }
 
         StockQuantity -= quantity;
     }
@@ -112,12 +145,21 @@ public class ProductVariant : BaseEntity
         IsActive = false;
     }
 
-    public void AddAttributeValue(AttributeValue attributeValue)
+    public void SetActive(bool isActive)
     {
-        ArgumentNullException.ThrowIfNull(attributeValue);
+        IsActive = isActive;
+    }
 
-        if (AttributeValues.Any(x =>
-            x.AttributeValueId == attributeValue.Id))
+    public void AddAttributeValue(
+        AttributeValue attributeValue)
+    {
+        ArgumentNullException.ThrowIfNull(
+            attributeValue);
+
+        if (AttributeValues.Any(
+                x =>
+                    x.AttributeValueId ==
+                    attributeValue.Id))
         {
             return;
         }
@@ -128,14 +170,76 @@ public class ProductVariant : BaseEntity
                 attributeValue.Id));
     }
 
-    public void RemoveAttributeValue(Guid attributeValueId)
+    public void RemoveAttributeValue(
+        Guid attributeValueId)
     {
-        var existing = AttributeValues.FirstOrDefault(
-            x => x.AttributeValueId == attributeValueId);
+        var existing =
+            AttributeValues.FirstOrDefault(
+                x =>
+                    x.AttributeValueId ==
+                    attributeValueId);
 
         if (existing is not null)
         {
-            AttributeValues.Remove(existing);
+            AttributeValues.Remove(
+                existing);
+        }
+    }
+
+    public void ReplaceAttributeValues(
+        IEnumerable<AttributeValue> attributeValues)
+    {
+        ArgumentNullException.ThrowIfNull(
+            attributeValues);
+
+        var desiredIds =
+            attributeValues
+                .Select(x => x.Id)
+                .Distinct()
+                .ToHashSet();
+
+        /*
+         * Remove only mappings that are no longer required.
+         *
+         * We do not call Clear() because EF Core can interpret
+         * a required relationship being severed as an invalid
+         * orphan state depending on the tracked graph.
+         */
+        var existingMappings =
+            AttributeValues.ToList();
+
+        foreach (
+            var mapping in existingMappings)
+        {
+            if (!desiredIds.Contains(
+                    mapping.AttributeValueId))
+            {
+                AttributeValues.Remove(
+                    mapping);
+            }
+        }
+
+        var existingIds =
+            AttributeValues
+                .Select(
+                    x =>
+                        x.AttributeValueId)
+                .ToHashSet();
+
+        foreach (
+            var attributeValue
+            in attributeValues)
+        {
+            if (
+                !existingIds.Contains(
+                    attributeValue.Id))
+            {
+                AttributeValues.Add(
+                    new VariantAttributeValue(
+                        Id,
+                        attributeValue.Id));
+            }
         }
     }
 }
+

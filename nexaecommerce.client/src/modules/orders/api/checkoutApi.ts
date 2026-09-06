@@ -1,3 +1,4 @@
+
 import api from '@/services/api';
 
 import type {
@@ -5,11 +6,15 @@ import type {
     OrderDto,
 } from '../types';
 
+
 export async function createCheckout(
     request: CheckoutRequest,
     idempotencyKey: string,
 ): Promise<OrderDto> {
-    if (!idempotencyKey.trim()) {
+    const normalizedKey =
+        idempotencyKey.trim();
+
+    if (!normalizedKey) {
         throw new Error(
             'Checkout idempotency key is required.',
         );
@@ -17,12 +22,12 @@ export async function createCheckout(
 
     const { data } =
         await api.post<OrderDto>(
-            '/api/orders/checkout',
+            '/orders/checkout',
             request,
             {
                 headers: {
                     'Idempotency-Key':
-                        idempotencyKey,
+                        normalizedKey,
                 },
             },
         );
