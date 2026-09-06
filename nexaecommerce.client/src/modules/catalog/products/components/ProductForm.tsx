@@ -41,7 +41,6 @@ import { useBrands } from '@/modules/catalog/brands/hooks';
 import { useCategories } from '@/modules/catalog/categories/hooks';
 import {
     useCatalogAttributes,
-    getAttributeByCode,
 } from '@/modules/catalog/catalogAttributes/hooks';
 
 import type {
@@ -74,8 +73,11 @@ const variantSchema = z.object({
         .int()
         .min(0)
         .default(0),
-});
 
+    attributeValueIds: z
+        .array(z.string())
+        .default([]),
+});
 const imageSchema = z.object({
     imageUrl: z
         .string()
@@ -204,6 +206,7 @@ type FormValues = {
         size: string;
         priceOverride?: number;
         stockQuantity: number;
+        attributeValueIds: string[];
     }[];
 
     images: {
@@ -236,8 +239,9 @@ const emptyValues: FormValues = {
 function toValues(
     product?: Product,
 ): FormValues {
-    if (!product)
+    if (!product) {
         return emptyValues;
+    }
 
     return {
         name: product.name,
@@ -264,27 +268,49 @@ function toValues(
         variants: product.variants.map(
             (variant) => ({
                 sku: variant.sku,
-                color: variant.color || '',
-                size: variant.size || '',
+
+                color:
+                    variant.color || '',
+
+                size:
+                    variant.size || '',
+
                 priceOverride:
-                    variant.priceOverride ||
+                    variant.priceOverride ??
                     undefined,
+
                 stockQuantity:
                     variant.stockQuantity,
+
+                attributeValueIds:
+                    (
+                        variant.attributes ??
+                        []
+                    )
+                        .map(
+                            (
+                                attribute,
+                            ) =>
+                                attribute.attributeValueId,
+                        )
+                        .filter(Boolean),
             }),
         ),
 
         images: product.images.map(
             (image) => ({
-                imageUrl: image.imageUrl,
+                imageUrl:
+                    image.imageUrl,
+
                 altText:
                     image.altText || '',
-                isMain: image.isMain,
+
+                isMain:
+                    image.isMain,
             }),
         ),
     };
 }
-
 export function ProductForm({
     product,
     mode,
@@ -317,24 +343,42 @@ export function ProductForm({
     const {
         data: attributes,
     } = useCatalogAttributes();
-
-    const colorAttribute =
+    const variantAttributes =
         useMemo(
             () =>
-                getAttributeByCode(
-                    attributes,
-                    'color',
-                ),
-            [attributes],
-        );
-
-    const sizeAttribute =
-        useMemo(
-            () =>
-                getAttributeByCode(
-                    attributes,
-                    'size',
-                ),
+                (attributes ?? [])
+                    .filter(
+                        (attribute) =>
+                            attribute.isActive &&
+                            attribute.isVariantAttribute,
+                    )
+                    .map(
+                        (attribute) => ({
+                            ...attribute,
+                            values:
+                                (
+                                    attribute.values ??
+                                    []
+                                )
+                                    .filter(
+                                        (value) =>
+                                            value.isActive,
+                                    )
+                                    .sort(
+                                        (
+                                            a,
+                                            b,
+                                        ) =>
+                                            a.displayOrder -
+                                            b.displayOrder,
+                                    ),
+                        }),
+                    )
+                    .sort(
+                        (a, b) =>
+                            a.displayOrder -
+                            b.displayOrder,
+                    ),
             [attributes],
         );
 
@@ -426,28 +470,37 @@ export function ProductForm({
 
                                     stockQuantity:
                                         variant.stockQuantity,
+
+                                    attributeValueIds:
+                                        Array.from(
+                                            new Set(
+                                                (
+                                                    variant.attributeValueIds ??
+                                                    []
+                                                ).filter(Boolean),
+                                            ),
+                                        ),
                                 }),
                             );
-
                         if (
                             variants.length ===
                             0
                         ) {
                             variants.push({
-                                sku: `${
-    values.sku?.trim() ||
-        'PRODUCT'
-} -DEFAULT`,
+                                sku: `${values.sku?.trim() ||
+                                    'PRODUCT'
+                                    }-DEFAULT`,
 
                                 color: '',
                                 size: '',
 
                                 stockQuantity:
-                                    values.stockQuantity ??
-                                    0,
+                                    values.stockQuantity ?? 0,
 
                                 priceOverride:
                                     undefined,
+
+                                attributeValueIds: [],
                             });
                         }
 
@@ -552,6 +605,7 @@ export function ProductForm({
                 priceOverride:
                     undefined,
                 stockQuantity: 0,
+                attributeValueIds: [],
             });
         };
 
@@ -580,12 +634,7 @@ export function ProductForm({
                   categoriesData as any
               )?.items || [];
 
-    const getLabel =
-        (
-            value?: string | null,
-        ) =>
-            value
-                ?.trim() || '';
+    
 
     return (
         <Form {...form}>
@@ -1095,13 +1144,9 @@ export function ProductForm({
 
                                         <FormGrid columns={4}>
                                             <FormField
-                                                control={
-                                                    form.control
-                                                }
-                                                name={`variants.${ index }.sku`}
-                                                render={({
-                                                    field,
-                                                }) => (
+                                                control={form.control}
+                                                name={`variants.${index}.sku`}
+                                                render={({ field }) => (
                                                     <FormItem>
                                                         <FormLabel>
                                                             SKU
@@ -1120,141 +1165,9 @@ export function ProductForm({
                                             />
 
                                             <FormField
-                                                control={
-                                                    form.control
-                                                }
-                                                name={`variants.${ index }.color`}
-                                                render={({
-                                                    field,
-                                                }) => (
-                                                    <FormItem>
-                                                        <FormLabel>
-                                                            {getLabel(
-                                                                colorAttribute?.name,
-                                                            ) ||
-                                                                'Color'}
-                                                        </FormLabel>
-
-                                                        <FormControl>
-                                                            <select
-                                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                                                value={
-                                                                    field.value ||
-                                                                    ''
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    field.onChange(
-                                                                        event
-                                                                            .target
-                                                                            .value,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <option value="">
-                                                                    Select
-                                                                    Color
-                                                                </option>
-
-                                                                {colorAttribute?.values.map(
-                                                                    (
-                                                                        value,
-                                                                    ) => (
-                                                                        <option
-                                                                            key={
-                                                                                value.id
-                                                                            }
-                                                                            value={
-                                                                                value.displayValue ||
-                                                                                value.value
-                                                                            }
-                                                                        >
-                                                                            {value.displayValue ||
-                                                                                value.value}
-                                                                        </option>
-                                                                    ),
-                                                                )}
-                                                            </select>
-                                                        </FormControl>
-
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-
-                                            <FormField
-                                                control={
-                                                    form.control
-                                                }
-                                                name={`variants.${ index }.size`}
-                                                render={({
-                                                    field,
-                                                }) => (
-                                                    <FormItem>
-                                                        <FormLabel>
-                                                            {getLabel(
-                                                                sizeAttribute?.name,
-                                                            ) ||
-                                                                'Size'}
-                                                        </FormLabel>
-
-                                                        <FormControl>
-                                                            <select
-                                                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                                                value={
-                                                                    field.value ||
-                                                                    ''
-                                                                }
-                                                                onChange={(
-                                                                    event,
-                                                                ) =>
-                                                                    field.onChange(
-                                                                        event
-                                                                            .target
-                                                                            .value,
-                                                                    )
-                                                                }
-                                                            >
-                                                                <option value="">
-                                                                    Select
-                                                                    Size
-                                                                </option>
-
-                                                                {sizeAttribute?.values.map(
-                                                                    (
-                                                                        value,
-                                                                    ) => (
-                                                                        <option
-                                                                            key={
-                                                                                value.id
-                                                                            }
-                                                                            value={
-                                                                                value.displayValue ||
-                                                                                value.value
-                                                                            }
-                                                                        >
-                                                                            {value.displayValue ||
-                                                                                value.value}
-                                                                        </option>
-                                                                    ),
-                                                                )}
-                                                            </select>
-                                                        </FormControl>
-
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-
-                                            <FormField
-                                                control={
-                                                    form.control
-                                                }
-                                                name={`variants.${ index }.stockQuantity`}
-                                                render={({
-                                                    field,
-                                                }) => (
+                                                control={form.control}
+                                                name={`variants.${index}.stockQuantity`}
+                                                render={({ field }) => (
                                                     <FormItem>
                                                         <FormLabel>
                                                             Stock
@@ -1283,7 +1196,245 @@ export function ProductForm({
                                                     </FormItem>
                                                 )}
                                             />
+
+                                            <FormField
+                                                control={form.control}
+                                                name={`variants.${index}.priceOverride`}
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>
+                                                            Variant Price
+                                                        </FormLabel>
+
+                                                        <FormControl>
+                                                            <Input
+                                                                type="number"
+                                                                min={0}
+                                                                step={1000}
+                                                                value={
+                                                                    field.value ??
+                                                                    ''
+                                                                }
+                                                                onChange={(
+                                                                    event,
+                                                                ) =>
+                                                                    field.onChange(
+                                                                        event.target
+                                                                            .value
+                                                                            ? Number(
+                                                                                event
+                                                                                    .target
+                                                                                    .value,
+                                                                            )
+                                                                            : undefined,
+                                                                    )
+                                                                }
+                                                                placeholder="Optional"
+                                                            />
+                                                        </FormControl>
+
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
+
+                                            <div className="text-muted-foreground flex items-end pb-2 text-xs">
+                                                {
+                                                    variantAttributes.length
+                                                }{' '}
+                                                variant attributes
+                                            </div>
                                         </FormGrid>
+
+                                        {variantAttributes.length > 0 && (
+                                            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                                {variantAttributes.map(
+                                                    (attribute) => {
+                                                        const selectedIds =
+                                                            form.watch(
+                                                                `variants.${index}.attributeValueIds`,
+                                                            ) || [];
+
+                                                        const selectedValueId =
+                                                            selectedIds.find(
+                                                                (valueId) =>
+                                                                    attribute.values.some(
+                                                                        (value) =>
+                                                                            value.id ===
+                                                                            valueId,
+                                                                    ),
+                                                            ) || '';
+
+                                                        return (
+                                                            <div
+                                                                key={
+                                                                    attribute.id
+                                                                }
+                                                                className="space-y-2"
+                                                            >
+                                                                <FormLabel>
+                                                                    {
+                                                                        attribute.name
+                                                                    }
+
+                                                                    {attribute.isRequired && (
+                                                                        <span className="ms-1 text-destructive">
+                                                                            *
+                                                                        </span>
+                                                                    )}
+                                                                </FormLabel>
+
+                                                                <select
+                                                                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                                    value={
+                                                                        selectedValueId
+                                                                    }
+                                                                    onChange={(
+                                                                        event,
+                                                                    ) => {
+                                                                        const nextValueId =
+                                                                            event
+                                                                                .target
+                                                                                .value;
+
+                                                                        const currentIds =
+                                                                            form.getValues(
+                                                                                `variants.${index}.attributeValueIds`,
+                                                                            ) || [];
+
+                                                                        const idsWithoutCurrentAttribute =
+                                                                            currentIds.filter(
+                                                                                (
+                                                                                    valueId,
+                                                                                ) =>
+                                                                                    !attribute.values.some(
+                                                                                        (
+                                                                                            value,
+                                                                                        ) =>
+                                                                                            value.id ===
+                                                                                            valueId,
+                                                                                    ),
+                                                                            );
+
+                                                                        const nextIds =
+                                                                            nextValueId
+                                                                                ? [
+                                                                                    ...idsWithoutCurrentAttribute,
+                                                                                    nextValueId,
+                                                                                ]
+                                                                                : idsWithoutCurrentAttribute;
+
+                                                                        form.setValue(
+                                                                            `variants.${index}.attributeValueIds`,
+                                                                            nextIds,
+                                                                            {
+                                                                                shouldDirty:
+                                                                                    true,
+                                                                                shouldTouch:
+                                                                                    true,
+                                                                                shouldValidate:
+                                                                                    true,
+                                                                            },
+                                                                        );
+
+                                                                        const selectedValue =
+                                                                            attribute.values.find(
+                                                                                (
+                                                                                    value,
+                                                                                ) =>
+                                                                                    value.id ===
+                                                                                    nextValueId,
+                                                                            );
+
+                                                                        if (
+                                                                            attribute.code.toLowerCase() ===
+                                                                            'color'
+                                                                        ) {
+                                                                            form.setValue(
+                                                                                `variants.${index}.color`,
+                                                                                selectedValue?.displayValue ||
+                                                                                selectedValue?.value ||
+                                                                                '',
+                                                                                {
+                                                                                    shouldDirty:
+                                                                                        true,
+                                                                                },
+                                                                            );
+                                                                        }
+
+                                                                        if (
+                                                                            attribute.code.toLowerCase() ===
+                                                                            'size'
+                                                                        ) {
+                                                                            form.setValue(
+                                                                                `variants.${index}.size`,
+                                                                                selectedValue?.displayValue ||
+                                                                                selectedValue?.value ||
+                                                                                '',
+                                                                                {
+                                                                                    shouldDirty:
+                                                                                        true,
+                                                                                },
+                                                                            );
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    <option value="">
+                                                                        Select{' '}
+                                                                        {
+                                                                            attribute.name
+                                                                        }
+                                                                    </option>
+
+                                                                    {attribute.values.map(
+                                                                        (value) => (
+                                                                            <option
+                                                                                key={
+                                                                                    value.id
+                                                                                }
+                                                                                value={
+                                                                                    value.id
+                                                                                }
+                                                                            >
+                                                                                {value.displayValue ||
+                                                                                    value.value}
+                                                                            </option>
+                                                                        ),
+                                                                    )}
+                                                                </select>
+
+                                                                {attribute.displayType
+                                                                    ?.toLowerCase() ===
+                                                                    'color' &&
+                                                                    selectedValueId && (
+                                                                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                                                            <span
+                                                                                className="size-4 rounded-full border"
+                                                                                style={{
+                                                                                    backgroundColor:
+                                                                                        attribute.values.find(
+                                                                                            (
+                                                                                                value,
+                                                                                            ) =>
+                                                                                                value.id ===
+                                                                                                selectedValueId,
+                                                                                        )
+                                                                                            ?.colorHex ||
+                                                                                        'transparent',
+                                                                                }}
+                                                                            />
+
+                                                                            <span>
+                                                                                Selected
+                                                                            </span>
+                                                                        </div>
+                                                                    )}
+                                                            </div>
+                                                        );
+                                                    },
+                                                )}
+                                            </div>
+                                        )}
                                     </div>
                                 ),
                             )}
