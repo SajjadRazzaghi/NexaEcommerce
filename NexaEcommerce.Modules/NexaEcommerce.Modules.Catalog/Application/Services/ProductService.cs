@@ -1,8 +1,11 @@
 using System.Text.RegularExpressions;
+
 using AutoMapper;
+
 using NexaEcommerce.Modules.Catalog.Application.DTOs;
 using NexaEcommerce.Modules.Catalog.Domain.Entities;
 using NexaEcommerce.Modules.Catalog.Domain.Interfaces;
+
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaEcommerce.SharedKernel.Pagination;
 
@@ -12,17 +15,20 @@ public sealed class ProductService : IProductService
 {
     private readonly IProductRepository _productRepository;
     private readonly ICategoryRepository _categoryRepository;
+    private readonly ICatalogAttributeRepository _catalogAttributeRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
 
     public ProductService(
         IProductRepository productRepository,
         ICategoryRepository categoryRepository,
+        ICatalogAttributeRepository catalogAttributeRepository,
         IUnitOfWork unitOfWork,
         IMapper mapper)
     {
         _productRepository = productRepository;
         _categoryRepository = categoryRepository;
+        _catalogAttributeRepository = catalogAttributeRepository;
         _unitOfWork = unitOfWork;
         _mapper = mapper;
     }
@@ -266,6 +272,7 @@ public sealed class ProductService : IProductService
                     0,
                     variantDto.StockQuantity));
 
+            // Legacy Color support
             AddVariantAttribute(
                 product,
                 variant,
@@ -273,12 +280,20 @@ public sealed class ProductService : IProductService
                 "Color",
                 "color");
 
+            // Legacy Size support
             AddVariantAttribute(
                 product,
                 variant,
                 variantDto.Size,
                 "Size",
                 "size");
+
+            // Generic catalog attributes
+            await AddCatalogVariantAttributesAsync(
+                product,
+                variant,
+                variantDto.AttributeValueIds,
+                cancellationToken);
         }
 
         // A product always has a stock-bearing variant.
@@ -409,7 +424,8 @@ public sealed class ProductService : IProductService
             updateDto.CategoryIds,
             cancellationToken);
 
-        _productRepository.Update(product);
+        _productRepository.Update(
+            product);
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -452,7 +468,8 @@ public sealed class ProductService : IProductService
                 .ChangeStock(quantity);
         }
 
-        _productRepository.Update(product);
+        _productRepository.Update(
+            product);
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -474,7 +491,8 @@ public sealed class ProductService : IProductService
 
         product.SetActive(isActive);
 
-        _productRepository.Update(product);
+        _productRepository.Update(
+            product);
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -497,7 +515,8 @@ public sealed class ProductService : IProductService
         product.SetFeatured(
             isFeatured);
 
-        _productRepository.Update(product);
+        _productRepository.Update(
+            product);
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -516,7 +535,8 @@ public sealed class ProductService : IProductService
                 id,
                 cancellationToken);
 
-        _productRepository.Delete(product);
+        _productRepository.Delete(
+            product);
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -600,7 +620,7 @@ public sealed class ProductService : IProductService
     }
 
     // ============================================================
-    // Variant Attributes
+    // Legacy Variant Attributes
     // ============================================================
 
     private static void AddVariantAttribute(
@@ -613,7 +633,17 @@ public sealed class ProductService : IProductService
         if (string.IsNullOrWhiteSpace(value))
             return;
 
+        var normalizedValue =
+            value.Trim();
+
         var attribute =
+            product.Attributes.FirstOrDefault(
+                x => string.Equals(
+                    x.Code,
+                    code,
+                    StringComparison.OrdinalIgnoreCase));
+
+        attribute ??=
             product.AddAttribute(
                 name,
                 code);
@@ -622,16 +652,119 @@ public sealed class ProductService : IProductService
             attribute.Values.FirstOrDefault(
                 x => string.Equals(
                     x.Value,
-                    value.Trim(),
+                    normalizedValue,
                     StringComparison.OrdinalIgnoreCase));
 
         attributeValue ??=
             attribute.AddValue(
-                value.Trim(),
-                value.Trim());
+                normalizedValue,
+                normalizedValue);
 
         variant.AddAttributeValue(
             attributeValue);
+    }
+
+    // ============================================================
+    // Generic Catalog Variant Attributes
+    // ============================================================
+
+    private async Task AddCatalogVariantAttributesAsync(
+        Product product,
+        ProductVariant variant,
+        IEnumerable<Guid>? attributeValueIds,
+        CancellationToken cancellationToken)
+    {
+        var requestedIds =
+            (attributeValueIds ??
+             Enumerable.Empty<Guid>())
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToHashSet();
+
+        if (requestedIds.Count == 0)
+            return;
+
+        // Load the catalog attributes and their values once.
+        var catalogAttributes =
+            await _catalogAttributeRepository.GetAllAsync(
+                cancellationToken);
+
+        foreach (var attributeValueId in requestedIds)
+        {
+            var catalogAttribute =
+                catalogAttributes.FirstOrDefault(
+                    attribute => attribute.Values.Any(
+                        value => value.Id == attributeValueId));
+
+            if (catalogAttribute is null)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute for value '{attributeValueId}' was not found.",
+                    nameof(attributeValueIds));
+            }
+
+            if (!catalogAttribute.IsActive)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute '{catalogAttribute.Name}' is inactive.",
+                    nameof(attributeValueIds));
+            }
+
+            if (!catalogAttribute.IsVariantAttribute)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute '{catalogAttribute.Name}' is not configured as a variant attribute.",
+                    nameof(attributeValueIds));
+            }
+
+            var catalogValue =
+                catalogAttribute.Values.FirstOrDefault(
+                    value => value.Id == attributeValueId);
+
+            if (catalogValue is null)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute value '{attributeValueId}' was not found.",
+                    nameof(attributeValueIds));
+            }
+
+            if (!catalogValue.IsActive)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute value '{catalogValue.Value}' is inactive.",
+                    nameof(attributeValueIds));
+            }
+
+            // Reuse the product attribute if it already exists.
+            var productAttribute =
+                product.Attributes.FirstOrDefault(
+                    attribute => string.Equals(
+                        attribute.Code,
+                        catalogAttribute.Code,
+                        StringComparison.OrdinalIgnoreCase));
+
+            productAttribute ??=
+                product.AddAttribute(
+                    catalogAttribute.Name,
+                    catalogAttribute.Code);
+
+            // Reuse the product attribute value if it already exists.
+            var productAttributeValue =
+                productAttribute.Values.FirstOrDefault(
+                    value => string.Equals(
+                        value.Value,
+                        catalogValue.Value,
+                        StringComparison.OrdinalIgnoreCase));
+
+            productAttributeValue ??=
+                productAttribute.AddValue(
+                    catalogValue.Value,
+                    catalogValue.DisplayValue,
+                    catalogValue.ColorHex);
+
+            variant.AddAttributeValue(
+                productAttributeValue);
+        }
     }
 
     // ============================================================

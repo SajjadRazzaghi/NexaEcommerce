@@ -1,13 +1,28 @@
 import { api } from '@/lib/api/client';
 
+export type ProductVariantAttribute = {
+    attributeValueId: string;
+    attributeCode: string;
+    attributeName: string;
+    value: string;
+    displayValue?: string | null;
+    colorHex?: string | null;
+};
+
 export type ProductVariant = {
     id: string;
     sku: string;
+
+    // Backward-compatible convenience fields
     color?: string | null;
     size?: string | null;
+
     priceOverride?: number | null;
     stockQuantity: number;
     isActive: boolean;
+
+    // Generic catalog-defined attributes
+    attributes?: ProductVariantAttribute[];
 };
 
 export type ProductImage = {
@@ -68,21 +83,27 @@ export type ProductListItem = {
     name: string;
     sku: string;
     slug: string;
+
     price: number;
     comparePrice?: number | null;
     finalPrice: number;
     discountPercentage: number;
     currency: string;
+
     brandId?: string | null;
     brandName?: string | null;
+
     isActive: boolean;
     isFeatured: boolean;
     isPublished: boolean;
     isInStock: boolean;
+
     stockQuantity: number;
+
     mainImage?: string | null;
     categoryNames: string[];
     categoryIds: string[];
+
     createdAt: string;
 };
 
@@ -105,12 +126,14 @@ export type ProductFilter = {
     isInStock?: boolean;
     minPrice?: number;
     maxPrice?: number;
+
     sortBy?:
     | 'newest'
     | 'price_asc'
     | 'price_desc'
     | 'name'
     | 'popular';
+
     desc?: boolean;
 };
 
@@ -118,33 +141,49 @@ export type CreateProductVariantDto = {
     sku: string;
     color?: string;
     size?: string;
+
     priceOverride?: number;
     stockQuantity: number;
+
+    // Generic catalog attribute values
+    attributeValueIds?: string[];
 };
 
 export type CreateProductDto = {
     name: string;
     price: number;
+
     currency?: string;
     sku?: string;
+
     description?: string;
     shortDescription?: string;
+
     brandId?: string;
+
     categoryIds: string[];
+
     variants: CreateProductVariantDto[];
+
     images: string[];
 };
 
 export type UpdateProductDto = {
     name: string;
     price: number;
+
     currency?: string;
+
     description?: string;
     shortDescription?: string;
+
     comparePrice?: number | null;
     discountPercentage?: number | null;
+
     brandId?: string | null;
+
     categoryIds: string[];
+
     isActive: boolean;
     isFeatured: boolean;
     isPublished: boolean;
@@ -177,12 +216,12 @@ export const productsApi = {
 
     getById: (id: string) =>
         api.get<Product>(
-            `/products/${id}`,
+            `/ products / ${ id } `,
         ),
 
     getBySlug: (slug: string) =>
         api.get<Product>(
-            `/products/slug/${encodeURIComponent(slug)}`,
+            `/ products / slug / ${ encodeURIComponent(slug) } `,
         ),
 
     search: (
@@ -204,7 +243,7 @@ export const productsApi = {
         params?: ProductFilter,
     ) =>
         api.get<Product[]>(
-            `/products/category/${categoryId}`,
+            `/ products / category / ${ categoryId } `,
             { params },
         ),
 
@@ -221,7 +260,7 @@ export const productsApi = {
         data: UpdateProductDto,
     ) =>
         api.put<void>(
-            `/products/${id}`,
+            `/ products / ${ id } `,
             data,
         ),
 
@@ -230,18 +269,18 @@ export const productsApi = {
         quantity: number,
     ) =>
         api.patch<void>(
-            `/products/${id}/stock`,
-            { quantity },
+            `/ products / ${ id }/stock`,
+{ quantity },
         ),
 
-    toggleActive: (
-        id: string,
-        isActive: boolean,
-    ) =>
-        api.patch<void>(
-            `/products/${id}/active`,
-            { value: isActive },
-        ),
+toggleActive: (
+    id: string,
+    isActive: boolean,
+) =>
+    api.patch<void>(
+        `/products/${id}/active`,
+        { value: isActive },
+    ),
 
     toggleFeatured: (
         id: string,
@@ -252,8 +291,8 @@ export const productsApi = {
             { value: isFeatured },
         ),
 
-    delete: (id: string) =>
-        api.del<void>(
-            `/products/${id}`,
-        ),
+        delete: (id: string) =>
+            api.del<void>(
+                `/products/${id}`,
+            ),
 };

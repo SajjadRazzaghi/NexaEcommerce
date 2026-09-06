@@ -3,3 +3,4 @@ import ProductDetailPage from '@/modules/catalog/products/pages/ProductDetailPag
 export default function ProductDetailRoute() {
     return <ProductDetailPage />;
 }
+

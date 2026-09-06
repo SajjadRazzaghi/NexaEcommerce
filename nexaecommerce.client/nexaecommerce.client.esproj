@@ -14,5 +14,6 @@
   <ItemGroup>
     <Folder Include="src\assets\fonts\IRANSans\fonts\woff2\" />
     <Folder Include="src\modules\cart\store\cartSlice\" />
+    <Folder Include="src\modules\catalog\catalogAttributes\" />
   </ItemGroup>
 </Project>
