@@ -4,13 +4,11 @@ import type {
     PaymentAttemptDto,
 } from '../types';
 
-
 export interface StartPaymentRequest {
     orderId: string;
     gatewayName: string;
     callbackUrl: string;
 }
-
 
 export interface CreatePaymentResultDto {
     paymentAttemptId: string;
@@ -23,11 +21,9 @@ export interface CreatePaymentResultDto {
     gatewayReference?: string | null;
 }
 
-
 export interface CreatePaymentAttemptRequest {
     orderId: string;
 }
-
 
 export interface CompletePaymentRequest {
     paymentAttemptId: string;
@@ -35,19 +31,16 @@ export interface CompletePaymentRequest {
     gatewayReference: string;
 }
 
-
 export interface VerifyPaymentRequest {
     paymentAttemptId: string;
     gatewayReference: string;
 }
-
 
 export interface FailPaymentRequest {
     paymentAttemptId: string;
     failureCode?: string | null;
     failureMessage?: string | null;
 }
-
 
 function requireId(
     value: string,
@@ -58,13 +51,12 @@ function requireId(
 
     if (!normalized) {
         throw new Error(
-            `${ fieldName } is required.`,
+            `${fieldName} is required.`,
         );
     }
 
     return normalized;
 }
-
 
 function requireIdempotencyKey(
     value: string,
@@ -80,7 +72,6 @@ function requireIdempotencyKey(
 
     return normalized;
 }
-
 
 export async function startPayment(
     request: StartPaymentRequest,
@@ -106,7 +97,6 @@ export async function startPayment(
     return data;
 }
 
-
 export async function createPaymentAttempt(
     request: CreatePaymentAttemptRequest,
     idempotencyKey: string,
@@ -131,7 +121,6 @@ export async function createPaymentAttempt(
     return data;
 }
 
-
 export async function getPaymentAttempt(
     id: string,
 ): Promise<PaymentAttemptDto> {
@@ -149,7 +138,6 @@ export async function getPaymentAttempt(
     return data;
 }
 
-
 export async function verifyPayment(
     request: VerifyPaymentRequest,
 ): Promise<PaymentAttemptDto> {
@@ -161,7 +149,6 @@ export async function verifyPayment(
 
     return data;
 }
-
 
 export async function completePayment(
     request: CompletePaymentRequest,
@@ -175,7 +162,6 @@ export async function completePayment(
     return data;
 }
 
-
 export async function failPayment(
     request: FailPaymentRequest,
 ): Promise<unknown> {
@@ -187,7 +173,6 @@ export async function failPayment(
 
     return data;
 }
-
 
 export async function retryPayment(
     orderId: string,
@@ -221,4 +206,3 @@ export async function retryPayment(
 
     return data;
 }
-

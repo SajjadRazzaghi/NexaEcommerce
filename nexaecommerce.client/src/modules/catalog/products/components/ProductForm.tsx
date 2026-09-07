@@ -335,6 +335,7 @@ type FormValues = {
     stockQuantity: number;
 
     isActive: boolean;
+    isPublished: boolean;
     isFeatured: boolean;
     isInStock: boolean;
 
@@ -381,6 +382,7 @@ const emptyValues: FormValues = {
     stockQuantity: 0,
 
     isActive: true,
+    isPublished: true,
     isFeatured: false,
     isInStock: true,
 
@@ -569,7 +571,8 @@ function toValues(
 
         isActive:
             product.isActive,
-
+        isPublished:
+            product.isPublished,
         isFeatured:
             product.isFeatured,
 

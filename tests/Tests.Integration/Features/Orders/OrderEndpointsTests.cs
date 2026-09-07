@@ -14,7 +14,7 @@ public sealed class OrderEndpointsTests(
     {
         var client =
             factory.CreateAuthenticatedClient(
-                "checkout-user-1");
+                "checkout-debug-user");
 
         var response =
             await client.PostAsJsonAsync(
@@ -26,12 +26,17 @@ public sealed class OrderEndpointsTests(
                     shippingAddress = "Test Address",
                     shippingCity = "Tehran",
                     shippingPostalCode = "1234567890"
-                });
+                },
+                TestContext.Current.CancellationToken);
 
-        response.StatusCode
-            .ShouldBe(HttpStatusCode.BadRequest);
+        var body =
+            await response.Content.ReadAsStringAsync(
+                TestContext.Current.CancellationToken);
+
+        throw new Xunit.Sdk.XunitException(
+            $"STATUS={(int)response.StatusCode} " +
+            $"{response.StatusCode}\nBODY={body}");
     }
-
     [Fact]
     public async Task Checkout_with_empty_idempotency_key_returns_bad_request()
     {
