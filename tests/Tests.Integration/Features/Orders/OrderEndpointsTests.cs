@@ -14,29 +14,35 @@ public sealed class OrderEndpointsTests(
     {
         var client =
             factory.CreateAuthenticatedClient(
-                "checkout-debug-user");
+                "checkout-user-1");
 
         var response =
             await client.PostAsJsonAsync(
                 "/api/orders/checkout",
                 new
                 {
-                    shippingFullName = "Test User",
-                    shippingPhone = "09000000000",
-                    shippingAddress = "Test Address",
-                    shippingCity = "Tehran",
-                    shippingPostalCode = "1234567890"
+                    shippingFullName =
+                        "Test User",
+
+                    shippingPhone =
+                        "09000000000",
+
+                    shippingAddress =
+                        "Test Address",
+
+                    shippingCity =
+                        "Tehran",
+
+                    shippingPostalCode =
+                        "1234567890",
                 },
                 TestContext.Current.CancellationToken);
 
-        var body =
-            await response.Content.ReadAsStringAsync(
-                TestContext.Current.CancellationToken);
-
-        throw new Xunit.Sdk.XunitException(
-            $"STATUS={(int)response.StatusCode} " +
-            $"{response.StatusCode}\nBODY={body}");
+        response.StatusCode
+            .ShouldBe(
+                HttpStatusCode.BadRequest);
     }
+
     [Fact]
     public async Task Checkout_with_empty_idempotency_key_returns_bad_request()
     {
@@ -55,25 +61,32 @@ public sealed class OrderEndpointsTests(
                         {
                             shippingFullName =
                                 "Test User",
+
                             shippingPhone =
                                 "09000000000",
+
                             shippingAddress =
                                 "Test Address",
+
                             shippingCity =
                                 "Tehran",
+
                             shippingPostalCode =
-                                "1234567890"
-                        })
+                                "1234567890",
+                        }),
             };
 
-        request.Headers.Add(
+        request.Headers.TryAddWithoutValidation(
             "Idempotency-Key",
             " ");
 
         var response =
-            await client.SendAsync(request);
+            await client.SendAsync(
+                request,
+                TestContext.Current.CancellationToken);
 
         response.StatusCode
-            .ShouldBe(HttpStatusCode.BadRequest);
+            .ShouldBe(
+                HttpStatusCode.BadRequest);
     }
 }

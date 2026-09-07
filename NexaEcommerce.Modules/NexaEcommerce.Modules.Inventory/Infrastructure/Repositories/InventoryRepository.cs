@@ -41,7 +41,8 @@ public sealed class InventoryRepository(
         CancellationToken cancellationToken = default)
     {
         return await context.StockReservations
-            .Include(x => x.StockItem)
+            .Include(
+                x => x.StockItem)
             .FirstOrDefaultAsync(
                 x =>
                     x.TenantId == tenantId &&
@@ -56,11 +57,14 @@ public sealed class InventoryRepository(
             CancellationToken cancellationToken = default)
     {
         if (batchSize <= 0)
+        {
             throw new ArgumentOutOfRangeException(
                 nameof(batchSize));
+        }
 
         return await context.StockReservations
-            .Include(x => x.StockItem)
+            .Include(
+                x => x.StockItem)
             .Where(
                 x =>
                     x.Status ==
@@ -89,5 +93,29 @@ public sealed class InventoryRepository(
         await context.StockReservations.AddAsync(
             reservation,
             cancellationToken);
+    }
+
+    public async Task ReloadStockAsync(
+        StockItem stockItem,
+        CancellationToken cancellationToken = default)
+    {
+        await context.Entry(
+                stockItem)
+            .ReloadAsync(
+                cancellationToken);
+    }
+
+    public void Detach(
+        object entity)
+    {
+        var entry =
+            context.Entry(entity);
+
+        if (entry.State !=
+            EntityState.Detached)
+        {
+            entry.State =
+                EntityState.Detached;
+        }
     }
 }

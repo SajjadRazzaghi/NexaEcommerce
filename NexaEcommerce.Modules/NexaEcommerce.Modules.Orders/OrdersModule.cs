@@ -16,7 +16,8 @@ public static class OrdersModule
         this IServiceCollection services,
         string connectionString)
     {
-        if (string.IsNullOrWhiteSpace(connectionString))
+        if (string.IsNullOrWhiteSpace(
+                connectionString))
         {
             throw new ArgumentException(
                 "Connection string cannot be null or empty.",
@@ -66,6 +67,34 @@ public static class OrdersModule
         services.AddScoped<
             IPricingCalculator,
             PricingCalculator>();
+
+        // ========================================================
+        // Coupons
+        // ========================================================
+
+        services.AddScoped<
+            ICouponRepository,
+            CouponRepository>();
+
+        services.AddScoped<
+            ICouponRedemptionRepository,
+            CouponRedemptionRepository>();
+
+        services.AddScoped<
+            ICouponService,
+            CouponService>();
+
+        // ========================================================
+        // Tax Rates
+        // ========================================================
+
+        services.AddScoped<
+            ITaxRateRepository,
+            TaxRateRepository>();
+
+        services.AddScoped<
+            ITaxRateService,
+            TaxRateService>();
 
         // ========================================================
         // Payments

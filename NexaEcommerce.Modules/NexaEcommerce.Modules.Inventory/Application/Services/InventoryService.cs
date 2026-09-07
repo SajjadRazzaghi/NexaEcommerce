@@ -11,8 +11,9 @@ public sealed class InventoryService(
     IInventoryRepository repository,
     IInventoryUnitOfWork unitOfWork)
     : IInventoryService
-   
 {
+    private const int ReservationConcurrencyRetries = 3;
+
     public async Task<StockDto?> GetStockAsync(
         string tenantId,
         Guid productVariantId,
@@ -28,19 +29,22 @@ public sealed class InventoryService(
             ? null
             : Map(stock);
     }
-public async Task<StockReservationDto?> GetReservationAsync(
-    string tenantId,
-    string reservationKey,
-    CancellationToken cancellationToken = default)
+
+    public async Task<StockReservationDto?> GetReservationAsync(
+        string tenantId,
+        string reservationKey,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
+        if (string.IsNullOrWhiteSpace(
+                tenantId))
         {
             throw new ArgumentException(
                 "Tenant id is required.",
                 nameof(tenantId));
         }
 
-        if (string.IsNullOrWhiteSpace(reservationKey))
+        if (string.IsNullOrWhiteSpace(
+                reservationKey))
         {
             throw new ArgumentException(
                 "Reservation key is required.",
@@ -57,6 +61,7 @@ public async Task<StockReservationDto?> GetReservationAsync(
             ? null
             : Map(reservation);
     }
+
     public async Task<StockDto> SetStockAsync(
         string tenantId,
         Guid productVariantId,
@@ -64,8 +69,10 @@ public async Task<StockReservationDto?> GetReservationAsync(
         CancellationToken cancellationToken = default)
     {
         if (quantity < 0)
+        {
             throw new ArgumentOutOfRangeException(
                 nameof(quantity));
+        }
 
         var stock =
             await repository.GetStockAsync(
@@ -87,7 +94,8 @@ public async Task<StockReservationDto?> GetReservationAsync(
         }
         else
         {
-            if (stock.ReservedQuantity > quantity)
+            if (stock.ReservedQuantity >
+                quantity)
             {
                 throw new InvalidOperationException(
                     "New stock quantity cannot be lower than reserved quantity.");
@@ -97,12 +105,19 @@ public async Task<StockReservationDto?> GetReservationAsync(
                 stock.TotalQuantity;
 
             var difference =
-                quantity - currentTotal;
+                quantity -
+                currentTotal;
 
             if (difference > 0)
-                stock.Add(difference);
+            {
+                stock.Add(
+                    difference);
+            }
             else if (difference < 0)
-                stock.Remove(-difference);
+            {
+                stock.Remove(
+                    -difference);
+            }
         }
 
         await unitOfWork.SaveChangesAsync(
@@ -143,11 +158,13 @@ public async Task<StockReservationDto?> GetReservationAsync(
         }
         else if (quantity > 0)
         {
-            stock.Add(quantity);
+            stock.Add(
+                quantity);
         }
         else if (quantity < 0)
         {
-            stock.Remove(-quantity);
+            stock.Remove(
+                -quantity);
         }
 
         await unitOfWork.SaveChangesAsync(
@@ -165,98 +182,187 @@ public async Task<StockReservationDto?> GetReservationAsync(
         CancellationToken cancellationToken = default)
     {
         if (quantity <= 0)
+        {
             throw new ArgumentOutOfRangeException(
                 nameof(quantity));
+        }
 
-        if (string.IsNullOrWhiteSpace(reservationKey))
+        if (string.IsNullOrWhiteSpace(
+                reservationKey))
+        {
             throw new ArgumentException(
                 "Reservation key is required.",
                 nameof(reservationKey));
+        }
 
         if (reservationKey.Length > 128)
+        {
             throw new ArgumentException(
                 "Reservation key cannot exceed 128 characters.",
                 nameof(reservationKey));
+        }
 
         if (expiration <= TimeSpan.Zero)
+        {
             throw new ArgumentOutOfRangeException(
                 nameof(expiration));
+        }
 
         var normalizedKey =
             reservationKey.Trim();
 
-        var existing =
-            await repository.GetReservationAsync(
-                tenantId,
-                normalizedKey,
-                cancellationToken);
-
-        if (existing is not null)
+        for (
+            var attempt = 1;
+            attempt <= ReservationConcurrencyRetries;
+            attempt++)
         {
-            if (existing.ProductVariantId !=
-                productVariantId ||
-                existing.Quantity != quantity)
-            {
-                throw new InvalidOperationException(
-                    "Reservation key is already used for another reservation.");
-            }
+            cancellationToken.ThrowIfCancellationRequested();
 
-            return Map(existing);
-        }
-
-        var stock =
-            await repository.GetStockAsync(
-                tenantId,
-                productVariantId,
-                cancellationToken);
-
-        if (stock is null)
-        {
-            throw new InvalidOperationException(
-                "Stock record was not found.");
-        }
-
-        stock.Reserve(quantity);
-
-        var reservation =
-            StockReservation.Create(
-                tenantId,
-                normalizedKey,
-                productVariantId,
-                stock.Id,
-                quantity,
-                DateTimeOffset.UtcNow.Add(
-                    expiration));
-
-        await repository.AddReservationAsync(
-            reservation,
-            cancellationToken);
-
-        try
-        {
-            await unitOfWork.SaveChangesAsync(
-                cancellationToken);
-        }
-        catch (DbUpdateConcurrencyException)
-        {
-            throw new InvalidOperationException(
-                "Stock changed while the reservation was being created. Please retry.");
-        }
-        catch (DbUpdateException)
-        {
-            var persisted =
+            var existing =
                 await repository.GetReservationAsync(
                     tenantId,
                     normalizedKey,
                     cancellationToken);
 
-            if (persisted is not null)
-                return Map(persisted);
+            if (existing is not null)
+            {
+                if (existing.ProductVariantId !=
+                        productVariantId ||
+                    existing.Quantity !=
+                        quantity)
+                {
+                    throw new InvalidOperationException(
+                        "Reservation key is already used for another reservation.");
+                }
 
-            throw;
+                return Map(existing);
+            }
+
+            var stock =
+                await repository.GetStockAsync(
+                    tenantId,
+                    productVariantId,
+                    cancellationToken);
+
+            if (stock is null)
+            {
+                throw new InvalidOperationException(
+                    "Stock record was not found.");
+            }
+
+            /*
+             * Reserve() checks current available quantity and increments
+             * the application-managed Version concurrency token.
+             */
+            stock.Reserve(
+                quantity);
+
+            var reservation =
+                StockReservation.Create(
+                    tenantId,
+                    normalizedKey,
+                    productVariantId,
+                    stock.Id,
+                    quantity,
+                    DateTimeOffset.UtcNow.Add(
+                        expiration));
+
+            await repository.AddReservationAsync(
+                reservation,
+                cancellationToken);
+
+            try
+            {
+                await unitOfWork.SaveChangesAsync(
+                    cancellationToken);
+
+                return Map(reservation);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                /*
+                 * This transaction lost an optimistic concurrency race.
+                 *
+                 * The StockItem has already been modified in memory and
+                 * the StockReservation is now in Added state. Both must be
+                 * discarded before the retry.
+                 */
+                repository.Detach(
+                    reservation);
+
+                /*
+                 * Refresh the StockItem from the database so its current
+                 * Version and quantities become the new baseline.
+                 */
+                try
+                {
+                    await repository.ReloadStockAsync(
+                        stock,
+                        cancellationToken);
+                }
+                catch
+                {
+                    /*
+                     * If reload fails, a new repository/context operation
+                     * would be required. Preserve the concurrency exception
+                     * rather than returning a misleading success.
+                     */
+                    throw;
+                }
+
+                if (attempt ==
+                    ReservationConcurrencyRetries)
+                {
+                    throw new InvalidOperationException(
+                        "Stock changed while the reservation was being created. Please retry.",
+                        null);
+                }
+
+                /*
+                 * Small bounded backoff prevents hot-looping when several
+                 * buyers hit the same stock item at once.
+                 */
+                await Task.Delay(
+                    TimeSpan.FromMilliseconds(
+                        25 * attempt),
+                    cancellationToken);
+            }
+            catch (DbUpdateException)
+            {
+                /*
+                 * A unique reservation-key race can occur if another
+                 * request created this reservation between our initial
+                 * read and insert.
+                 */
+                repository.Detach(
+                    reservation);
+
+                var persisted =
+                    await repository.GetReservationAsync(
+                        tenantId,
+                        normalizedKey,
+                        cancellationToken);
+
+                if (persisted is not null)
+                {
+                    if (persisted.ProductVariantId !=
+                            productVariantId ||
+                        persisted.Quantity !=
+                            quantity)
+                    {
+                        throw new InvalidOperationException(
+                            "Reservation key is already used for another reservation.");
+                    }
+
+                    return Map(persisted);
+                }
+
+                throw;
+            }
         }
 
-        return Map(reservation);
+        throw new InvalidOperationException(
+            "Stock reservation could not be completed.");
     }
 
     public async Task<StockReservationDto> ReleaseAsync(
@@ -271,8 +377,10 @@ public async Task<StockReservationDto?> GetReservationAsync(
                 cancellationToken);
 
         if (reservation is null)
+        {
             throw new KeyNotFoundException(
                 "Reservation was not found.");
+        }
 
         if (reservation.Status ==
             StockReservationStatus.Released)
@@ -294,8 +402,10 @@ public async Task<StockReservationDto?> GetReservationAsync(
                 cancellationToken);
 
         if (stock is null)
+        {
             throw new InvalidOperationException(
                 "Stock record was not found.");
+        }
 
         if (reservation.IsExpired)
         {
@@ -330,8 +440,10 @@ public async Task<StockReservationDto?> GetReservationAsync(
                 cancellationToken);
 
         if (reservation is null)
+        {
             throw new KeyNotFoundException(
                 "Reservation was not found.");
+        }
 
         if (reservation.Status ==
             StockReservationStatus.Committed)
@@ -358,8 +470,10 @@ public async Task<StockReservationDto?> GetReservationAsync(
                 cancellationToken);
 
         if (stock is null)
+        {
             throw new InvalidOperationException(
                 "Stock record was not found.");
+        }
 
         stock.Commit(
             reservation.Quantity);

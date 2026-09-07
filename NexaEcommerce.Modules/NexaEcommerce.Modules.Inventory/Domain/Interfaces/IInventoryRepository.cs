@@ -19,10 +19,11 @@ public interface IInventoryRepository
         string reservationKey,
         CancellationToken cancellationToken = default);
 
-    Task<IReadOnlyList<StockReservation>> GetExpiredReservationsAsync(
-        DateTimeOffset now,
-        int batchSize,
-        CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<StockReservation>>
+        GetExpiredReservationsAsync(
+            DateTimeOffset now,
+            int batchSize,
+            CancellationToken cancellationToken = default);
 
     Task AddStockAsync(
         StockItem stockItem,
@@ -31,4 +32,11 @@ public interface IInventoryRepository
     Task AddReservationAsync(
         StockReservation reservation,
         CancellationToken cancellationToken = default);
+
+    Task ReloadStockAsync(
+        StockItem stockItem,
+        CancellationToken cancellationToken = default);
+
+    void Detach(
+        object entity);
 }
