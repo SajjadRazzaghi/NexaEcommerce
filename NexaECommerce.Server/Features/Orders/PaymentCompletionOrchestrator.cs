@@ -1,4 +1,5 @@
 ﻿using NexaEcommerce.Modules.Inventory.Application.Services;
+using NexaEcommerce.Modules.Orders.Application.Payments;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
@@ -6,60 +7,38 @@ using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class PaymentCompletionOrchestrator(
-IPaymentAttemptRepository paymentAttemptRepository,
-IOrderRepository orderRepository,
-IInventoryService inventory,
-IOrderUnitOfWork unitOfWork)
+    IPaymentAttemptRepository paymentAttemptRepository,
+    IOrderRepository orderRepository,
+    IInventoryService inventory,
+    IOrderUnitOfWork unitOfWork,
+    PaymentGatewayService gateways)
 {
     public async Task<PaymentCompletionResult> CompleteAsync(
-    string tenantId,
-    string userId,
-    Guid paymentAttemptId,
-    string gatewayName,
-    string gatewayReference,
-    CancellationToken cancellationToken = default)
+        string tenantId,
+        string userId,
+        Guid paymentAttemptId,
+        string gatewayName,
+        string gatewayReference,
+        CancellationToken cancellationToken = default)
     {
         ValidateInput(
-        tenantId,
-        userId,
-        paymentAttemptId,
-        gatewayName,
-        gatewayReference);
-
-    var paymentAttempt =
-        await paymentAttemptRepository.GetByIdAsync(
             tenantId,
             userId,
             paymentAttemptId,
-            cancellationToken);
+            gatewayName,
+            gatewayReference);
+
+        var paymentAttempt =
+            await paymentAttemptRepository.GetByIdAsync(
+                tenantId,
+                userId,
+                paymentAttemptId,
+                cancellationToken);
 
         if (paymentAttempt is null)
         {
             throw new KeyNotFoundException(
                 "Payment attempt was not found.");
-        }
-
-        /*
-         * A successful payment completion is idempotent.
-         *
-         * This is essential for real payment gateways because
-         * callbacks/webhooks may be delivered more than once.
-         */
-        if (paymentAttempt.Status ==
-            PaymentAttemptStatus.Succeeded)
-        {
-            return new PaymentCompletionResult(
-                paymentAttempt.Id,
-                paymentAttempt.OrderId,
-                "Succeeded",
-                true);
-        }
-
-        if (paymentAttempt.Status ==
-            PaymentAttemptStatus.Failed)
-        {
-            throw new InvalidOperationException(
-                "A failed payment attempt cannot be completed.");
         }
 
         var order =
@@ -73,6 +52,28 @@ IOrderUnitOfWork unitOfWork)
         {
             throw new InvalidOperationException(
                 "Order was not found.");
+        }
+
+        /*
+         * Fully completed payment is terminal and idempotent.
+         */
+        if (paymentAttempt.Status ==
+            PaymentAttemptStatus.Succeeded &&
+            order.Status ==
+            OrderStatus.Paid)
+        {
+            return new PaymentCompletionResult(
+                paymentAttempt.Id,
+                paymentAttempt.OrderId,
+                "Succeeded",
+                true);
+        }
+
+        if (paymentAttempt.Status ==
+            PaymentAttemptStatus.Failed)
+        {
+            throw new InvalidOperationException(
+                "A failed payment attempt cannot be completed.");
         }
 
         if (order.Status ==
@@ -93,15 +94,20 @@ IOrderUnitOfWork unitOfWork)
                 "The order is already in a post-payment lifecycle state.");
         }
 
+        /*
+         * If the order was already marked Paid but the attempt did not
+         * reach Succeeded, repair the payment attempt state.
+         */
         if (order.Status ==
             OrderStatus.Paid)
         {
-            /*
-             * Order is already paid but PaymentAttempt is still pending.
-             *
-             * This can only happen after a partial previous operation.
-             * Completing the payment attempt restores consistency.
-             */
+            if (paymentAttempt.Status !=
+                PaymentAttemptStatus.Pending)
+            {
+                throw new InvalidOperationException(
+                    "Payment attempt is not in a recoverable state.");
+            }
+
             paymentAttempt.MarkSucceeded(
                 gatewayName.Trim(),
                 gatewayReference.Trim());
@@ -123,19 +129,126 @@ IOrderUnitOfWork unitOfWork)
                 "The order is not in a valid state for payment completion.");
         }
 
-        /*
-         * Every reservation must be committed before the order
-         * becomes Paid.
-         *
-         * If a reservation is missing, payment completion must fail
-         * rather than creating an order whose stock is not secured.
-         */
         if (order.InventoryReservations.Count == 0)
         {
             throw new InvalidOperationException(
                 "The order does not contain inventory reservations.");
         }
 
+        var normalizedGatewayName =
+            gatewayName.Trim();
+
+        var normalizedGatewayReference =
+            gatewayReference.Trim();
+
+        /*
+         * For a normal Pending payment attempt, Completion performs
+         * its own gateway verification.
+         *
+         * This prevents a caller from making an order Paid merely
+         * by posting an arbitrary gateway reference to /complete.
+         *
+         * When the attempt is already Succeeded but the Order is still
+         * PendingPayment, we treat that as a recoverable legacy/partial
+         * state and continue with finalization.
+         */
+        if (paymentAttempt.Status ==
+            PaymentAttemptStatus.Pending)
+        {
+            if (string.IsNullOrWhiteSpace(
+                    paymentAttempt.GatewayName))
+            {
+                throw new InvalidOperationException(
+                    "Payment gateway has not been initialized for this payment attempt.");
+            }
+
+            if (!string.Equals(
+                    paymentAttempt.GatewayName,
+                    normalizedGatewayName,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "Gateway name does not match the payment attempt.");
+            }
+
+            if (!string.IsNullOrWhiteSpace(
+                    paymentAttempt.GatewayReference) &&
+                !string.Equals(
+                    paymentAttempt.GatewayReference,
+                    normalizedGatewayReference,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "Gateway reference does not match the payment attempt.");
+            }
+
+            var gateway =
+                gateways.Get(
+                    paymentAttempt.GatewayName);
+
+            var gatewayVerification =
+                await gateway.VerifyAsync(
+                    new PaymentGatewayVerifyRequest(
+                        order.OrderNumber,
+                        paymentAttempt.Amount,
+                        normalizedGatewayReference),
+                    cancellationToken);
+
+            if (!gatewayVerification.Succeeded)
+            {
+                throw new InvalidOperationException(
+                    gatewayVerification.ErrorMessage ??
+                    "Payment gateway verification failed.");
+            }
+
+            var verifiedReference =
+                string.IsNullOrWhiteSpace(
+                    gatewayVerification.GatewayReference)
+                    ? normalizedGatewayReference
+                    : gatewayVerification.GatewayReference.Trim();
+
+            if (!string.Equals(
+                    verifiedReference,
+                    normalizedGatewayReference,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "The gateway verification reference does not match the requested payment reference.");
+            }
+
+            /*
+             * Keep the gateway identity/reference persisted while the
+             * payment attempt remains Pending. The Paid transition is
+             * still performed only below after inventory is committed.
+             */
+            if (string.IsNullOrWhiteSpace(
+                    paymentAttempt.GatewayReference))
+            {
+                paymentAttempt.MarkGatewayCreated(
+                    gateway.Name,
+                    verifiedReference);
+
+                await unitOfWork.SaveChangesAsync(
+                    cancellationToken);
+            }
+        }
+        else if (paymentAttempt.Status !=
+                 PaymentAttemptStatus.Succeeded)
+        {
+            throw new InvalidOperationException(
+                "Payment attempt is not in a valid state for completion.");
+        }
+
+        /*
+         * Commit every reservation.
+         *
+         * This operation is intentionally retry-safe:
+         * already-committed reservations are skipped by Inventory.
+         *
+         * If a later reservation fails, an earlier committed reservation
+         * remains committed. A subsequent completion retry continues from
+         * the remaining active reservations.
+         */
         foreach (var reservation in
                  order.InventoryReservations)
         {
@@ -147,7 +260,6 @@ IOrderUnitOfWork unitOfWork)
                     continue;
 
                 case InventoryReservationStatus.Reserved:
-
                     await inventory.CommitAsync(
                         tenantId,
                         reservation.ReservationKey,
@@ -171,14 +283,20 @@ IOrderUnitOfWork unitOfWork)
         }
 
         /*
-         * Inventory is now committed.
+         * At this point inventory is committed.
          *
-         * PaymentAttempt and Order are transitioned together from
-         * the Orders aggregate's unit of work.
+         * Now finalize the payment attempt and the order in the Orders
+         * unit of work.
          */
         paymentAttempt.MarkSucceeded(
-            gatewayName.Trim(),
-            gatewayReference.Trim());
+            string.IsNullOrWhiteSpace(
+                paymentAttempt.GatewayName)
+                ? normalizedGatewayName
+                : paymentAttempt.GatewayName,
+            string.IsNullOrWhiteSpace(
+                paymentAttempt.GatewayReference)
+                ? normalizedGatewayReference
+                : paymentAttempt.GatewayReference);
 
         order.MarkPaid();
 
@@ -199,14 +317,16 @@ IOrderUnitOfWork unitOfWork)
         string gatewayName,
         string gatewayReference)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
+        if (string.IsNullOrWhiteSpace(
+                tenantId))
         {
             throw new ArgumentException(
                 "Tenant id is required.",
                 nameof(tenantId));
         }
 
-        if (string.IsNullOrWhiteSpace(userId))
+        if (string.IsNullOrWhiteSpace(
+                userId))
         {
             throw new ArgumentException(
                 "User id is required.",
@@ -220,25 +340,26 @@ IOrderUnitOfWork unitOfWork)
                 nameof(paymentAttemptId));
         }
 
-        if (string.IsNullOrWhiteSpace(gatewayName))
+        if (string.IsNullOrWhiteSpace(
+                gatewayName))
         {
             throw new ArgumentException(
                 "Gateway name is required.",
                 nameof(gatewayName));
         }
 
-        if (string.IsNullOrWhiteSpace(gatewayReference))
+        if (string.IsNullOrWhiteSpace(
+                gatewayReference))
         {
             throw new ArgumentException(
                 "Gateway reference is required.",
                 nameof(gatewayReference));
         }
     }
-
 }
 
 public sealed record PaymentCompletionResult(
-Guid PaymentAttemptId,
-Guid OrderId,
-string Status,
-bool AlreadyCompleted);
+    Guid PaymentAttemptId,
+    Guid OrderId,
+    string Status,
+    bool AlreadyCompleted);

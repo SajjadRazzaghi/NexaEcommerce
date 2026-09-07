@@ -23,6 +23,10 @@ public static class OrdersModule
                 nameof(connectionString));
         }
 
+        // ========================================================
+        // Database
+        // ========================================================
+
         services.AddDbContext<OrdersDbContext>(
             options =>
             {
@@ -109,11 +113,6 @@ public static class OrdersModule
         services.AddScoped<
             IShipmentService,
             ShipmentService>();
-
-
-        services.AddScoped<
-    IPricingCalculator,
-    PricingCalculator>();
 
         return services;
     }

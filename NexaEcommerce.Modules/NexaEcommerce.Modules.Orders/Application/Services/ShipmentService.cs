@@ -56,6 +56,24 @@ public sealed class ShipmentService(
             tenantId,
             orderId);
 
+        ValidateText(
+            shippingMethod,
+            nameof(shippingMethod),
+            100);
+
+        ValidateText(
+            carrier,
+            nameof(carrier),
+            100);
+
+        if (!string.IsNullOrWhiteSpace(trackingNumber) &&
+            trackingNumber.Trim().Length > 200)
+        {
+            throw new ArgumentException(
+                "Tracking number cannot exceed 200 characters.",
+                nameof(trackingNumber));
+        }
+
         var order =
             await orders.GetByIdAsync(
                 tenantId,
@@ -76,6 +94,18 @@ public sealed class ShipmentService(
                 "A shipment can only be created for an order in Processing status.");
         }
 
+        var normalizedShippingMethod =
+            shippingMethod.Trim();
+
+        var normalizedCarrier =
+            carrier.Trim();
+
+        var normalizedTrackingNumber =
+            string.IsNullOrWhiteSpace(
+                trackingNumber)
+                ? null
+                : trackingNumber.Trim();
+
         var existing =
             await shipments.GetByOrderIdAsync(
                 tenantId,
@@ -84,6 +114,39 @@ public sealed class ShipmentService(
 
         if (existing is not null)
         {
+            /*
+             * Shipment creation is intentionally idempotent when the
+             * request describes the same shipment.
+             *
+             * A different shipment definition for the same order is
+             * a business conflict and must not silently disappear.
+             */
+            var sameShippingMethod =
+                string.Equals(
+                    existing.ShippingMethod,
+                    normalizedShippingMethod,
+                    StringComparison.Ordinal);
+
+            var sameCarrier =
+                string.Equals(
+                    existing.Carrier,
+                    normalizedCarrier,
+                    StringComparison.Ordinal);
+
+            var sameTrackingNumber =
+                string.Equals(
+                    existing.TrackingNumber,
+                    normalizedTrackingNumber,
+                    StringComparison.Ordinal);
+
+            if (!sameShippingMethod ||
+                !sameCarrier ||
+                !sameTrackingNumber)
+            {
+                throw new InvalidOperationException(
+                    "A shipment already exists for this order with different shipping details.");
+            }
+
             return Map(existing);
         }
 
@@ -91,9 +154,9 @@ public sealed class ShipmentService(
             Shipment.Create(
                 order.Id,
                 tenantId,
-                shippingMethod,
-                carrier,
-                trackingNumber);
+                normalizedShippingMethod,
+                normalizedCarrier,
+                normalizedTrackingNumber);
 
         await shipments.AddAsync(
             shipment,
@@ -178,6 +241,21 @@ public sealed class ShipmentService(
                 "Shipment was not found.");
         }
 
+        /*
+         * Shipment.MarkShipped() is itself idempotent for an already
+         * shipped shipment, but the Order state must also agree.
+         *
+         * A repeated request after persistence therefore simply returns
+         * the existing shipped shipment.
+         */
+        if (shipment.Status ==
+            ShipmentStatus.Shipped &&
+            order.Status ==
+            OrderStatus.Shipped)
+        {
+            return Map(shipment);
+        }
+
         shipment.MarkShipped();
 
         order.MarkShipped();
@@ -222,6 +300,18 @@ public sealed class ShipmentService(
                 "Shipment was not found.");
         }
 
+        /*
+         * Delivery is idempotent only when both sides of the lifecycle
+         * already agree.
+         */
+        if (shipment.Status ==
+            ShipmentStatus.Delivered &&
+            order.Status ==
+            OrderStatus.Delivered)
+        {
+            return Map(shipment);
+        }
+
         shipment.MarkDelivered();
 
         order.MarkDelivered();
@@ -264,6 +354,26 @@ public sealed class ShipmentService(
             throw new ArgumentException(
                 "Order id is required.",
                 nameof(orderId));
+        }
+    }
+
+    private static void ValidateText(
+        string value,
+        string parameterName,
+        int maxLength)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException(
+                $"{parameterName} is required.",
+                parameterName);
+        }
+
+        if (value.Trim().Length > maxLength)
+        {
+            throw new ArgumentException(
+                $"{parameterName} cannot exceed {maxLength} characters.",
+                parameterName);
         }
     }
 }

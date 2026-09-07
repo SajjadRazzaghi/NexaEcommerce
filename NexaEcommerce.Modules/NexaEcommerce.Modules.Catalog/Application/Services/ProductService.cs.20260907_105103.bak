@@ -952,7 +952,11 @@ public sealed class ProductService : IProductService
                 variant.SetActive(
                     dto.IsActive);
 
-                await ReplaceVariantAttributesAsync(product, variant, dto, persistMappingsExplicitly: true, cancellationToken);
+                await ReplaceVariantAttributesAsync(
+                    product,
+                    variant,
+                    dto,
+                    cancellationToken);
 
                 matchedExisting.Add(
                     variant.Id);
@@ -993,7 +997,11 @@ public sealed class ProductService : IProductService
             newVariant.SetActive(
                 dto.IsActive);
 
-            await ReplaceVariantAttributesAsync(product, newVariant, dto, persistMappingsExplicitly: false, cancellationToken);
+            await ReplaceVariantAttributesAsync(
+                product,
+                newVariant,
+                dto,
+                cancellationToken);
         }
 
         // Only synchronize removals when the request contains
@@ -1030,27 +1038,13 @@ public sealed class ProductService : IProductService
             activeVariants);
     }
     private async Task ReplaceVariantAttributesAsync(
-        Product product,
-        ProductVariant variant,
-        UpdateProductVariantDto dto,
-        bool persistMappingsExplicitly,
-        CancellationToken cancellationToken)
+    Product product,
+    ProductVariant variant,
+    UpdateProductVariantDto dto,
+    CancellationToken cancellationToken)
     {
-        if (!persistMappingsExplicitly)
-        {
-            // New variants are still part of the Product aggregate and have
-            // not been persisted yet. Let EF persist their mapping children
-            // together with the new ProductVariant.
-            variant.AttributeValues.Clear();
-        }
+        variant.AttributeValues.Clear();
 
-        var selectedValues =
-            new List<
-                NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes.AttributeValue>();
-
-        // ------------------------------------------------------------
-        // Legacy Color
-        // ------------------------------------------------------------
         AddVariantAttribute(
             product,
             variant,
@@ -1058,31 +1052,6 @@ public sealed class ProductService : IProductService
             "Color",
             "color");
 
-        if (!string.IsNullOrWhiteSpace(dto.Color))
-        {
-            var colorAttribute =
-                product.Attributes.FirstOrDefault(
-                    x => string.Equals(
-                        x.Code,
-                        "color",
-                        StringComparison.OrdinalIgnoreCase));
-
-            var colorValue =
-                colorAttribute?.Values.FirstOrDefault(
-                    x => string.Equals(
-                        x.Value,
-                        dto.Color.Trim(),
-                        StringComparison.OrdinalIgnoreCase));
-
-            if (colorValue is not null)
-            {
-                selectedValues.Add(colorValue);
-            }
-        }
-
-        // ------------------------------------------------------------
-        // Legacy Size
-        // ------------------------------------------------------------
         AddVariantAttribute(
             product,
             variant,
@@ -1090,186 +1059,118 @@ public sealed class ProductService : IProductService
             "Size",
             "size");
 
-        if (!string.IsNullOrWhiteSpace(dto.Size))
-        {
-            var sizeAttribute =
-                product.Attributes.FirstOrDefault(
-                    x => string.Equals(
-                        x.Code,
-                        "size",
-                        StringComparison.OrdinalIgnoreCase));
-
-            var sizeValue =
-                sizeAttribute?.Values.FirstOrDefault(
-                    x => string.Equals(
-                        x.Value,
-                        dto.Size.Trim(),
-                        StringComparison.OrdinalIgnoreCase));
-
-            if (sizeValue is not null)
-            {
-                selectedValues.Add(sizeValue);
-            }
-        }
-
-        // ------------------------------------------------------------
-        // Generic catalog attributes
-        // ------------------------------------------------------------
         var requestedIds =
-            (dto.AttributeValueIds ?? Enumerable.Empty<Guid>())
-                .Where(x => x != Guid.Empty)
-                .Distinct()
-                .ToArray();
+            (dto.AttributeValueIds ??
+             Enumerable.Empty<Guid>())
+            .Where(x => x != Guid.Empty)
+            .Distinct()
+            .ToArray();
 
-        if (requestedIds.Length > 0)
+        if (requestedIds.Length == 0)
+            return;
+
+        var catalogAttributes =
+            await _catalogAttributeRepository.GetAllAsync(
+                cancellationToken);
+
+        var selectedValues =
+            new List<
+                NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes.AttributeValue>();
+
+        var selectedAttributeIds =
+            new HashSet<Guid>();
+
+        foreach (var valueId in requestedIds)
         {
-            var catalogAttributes =
-                await _catalogAttributeRepository.GetAllAsync(
-                    cancellationToken);
+            var catalogAttribute =
+                catalogAttributes.FirstOrDefault(
+                    attribute =>
+                        attribute.Values.Any(
+                            value => value.Id == valueId));
 
-            var selectedAttributeIds =
-                new HashSet<Guid>();
-
-            foreach (var valueId in requestedIds)
+            if (catalogAttribute is null)
             {
-                var catalogAttribute =
-                    catalogAttributes.FirstOrDefault(
-                        attribute =>
-                            attribute.Values.Any(
-                                value => value.Id == valueId));
+                throw new ArgumentException(
+                    $"Catalog attribute value '{valueId}' was not found.",
+                    nameof(dto.AttributeValueIds));
+            }
 
-                if (catalogAttribute is null)
-                {
-                    throw new ArgumentException(
-                        $"Catalog attribute value '{valueId}' was not found.",
-                        nameof(dto.AttributeValueIds));
-                }
+            if (!catalogAttribute.IsActive)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute '{catalogAttribute.Name}' is inactive.",
+                    nameof(dto.AttributeValueIds));
+            }
 
-                if (!catalogAttribute.IsActive)
-                {
-                    throw new ArgumentException(
-                        $"Catalog attribute '{catalogAttribute.Name}' is inactive.",
-                        nameof(dto.AttributeValueIds));
-                }
+            if (!catalogAttribute.IsVariantAttribute)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute '{catalogAttribute.Name}' is not configured as a variant attribute.",
+                    nameof(dto.AttributeValueIds));
+            }
 
-                if (!catalogAttribute.IsVariantAttribute)
-                {
-                    throw new ArgumentException(
-                        $"Catalog attribute '{catalogAttribute.Name}' is not configured as a variant attribute.",
-                        nameof(dto.AttributeValueIds));
-                }
+            if (!selectedAttributeIds.Add(
+                    catalogAttribute.Id))
+            {
+                throw new ArgumentException(
+                    $"Variant '{variant.Sku}' contains more than one value for attribute '{catalogAttribute.Name}'.");
+            }
 
-                if (!selectedAttributeIds.Add(catalogAttribute.Id))
-                {
-                    throw new ArgumentException(
-                        $"Variant '{variant.Sku}' contains more than one value for attribute '{catalogAttribute.Name}'.");
-                }
+            var catalogValue =
+                catalogAttribute.Values.FirstOrDefault(
+                    value => value.Id == valueId);
 
-                var catalogValue =
-                    catalogAttribute.Values.FirstOrDefault(
-                        value => value.Id == valueId);
+            if (catalogValue is null)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute value '{valueId}' was not found.",
+                    nameof(dto.AttributeValueIds));
+            }
 
-                if (catalogValue is null)
-                {
-                    throw new ArgumentException(
-                        $"Catalog attribute value '{valueId}' was not found.",
-                        nameof(dto.AttributeValueIds));
-                }
+            if (!catalogValue.IsActive)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute value '{catalogValue.Value}' is inactive.",
+                    nameof(dto.AttributeValueIds));
+            }
 
-                if (!catalogValue.IsActive)
-                {
-                    throw new ArgumentException(
-                        $"Catalog attribute value '{catalogValue.Value}' is inactive.",
-                        nameof(dto.AttributeValueIds));
-                }
-
-                var productAttribute =
-                    product.Attributes.FirstOrDefault(
-                        attribute => string.Equals(
+            var productAttribute =
+                product.Attributes.FirstOrDefault(
+                    attribute =>
+                        string.Equals(
                             attribute.Code,
                             catalogAttribute.Code,
                             StringComparison.OrdinalIgnoreCase));
 
-                productAttribute ??=
-                    product.AddAttribute(
-                        catalogAttribute.Name,
-                        catalogAttribute.Code);
+            productAttribute ??=
+                product.AddAttribute(
+                    catalogAttribute.Name,
+                    catalogAttribute.Code);
 
-                var productValue =
-                    productAttribute.Values.FirstOrDefault(
-                        value => string.Equals(
+            var productValue =
+                productAttribute.Values.FirstOrDefault(
+                    value =>
+                        string.Equals(
                             value.Value,
                             catalogValue.Value,
                             StringComparison.OrdinalIgnoreCase));
 
-                productValue ??=
-                    productAttribute.AddValue(
-                        catalogValue.Value,
-                        catalogValue.DisplayValue ?? catalogValue.Value,
-                        catalogValue.ColorHex);
+            productValue ??=
+                productAttribute.AddValue(
+                    catalogValue.Value,
+                    catalogValue.DisplayValue ??
+                    catalogValue.Value,
+                    catalogValue.ColorHex);
 
-                selectedValues.Add(productValue);
-
-                if (!persistMappingsExplicitly)
-                {
-                    variant.AddAttributeValue(productValue);
-                }
-            }
+            selectedValues.Add(
+                productValue);
         }
 
-        var desiredIds =
-            selectedValues
-                .Select(x => x.Id)
-                .Distinct()
-                .ToArray();
-
-        if (persistMappingsExplicitly)
+        foreach (var value in selectedValues)
         {
-            var currentIds =
-                variant.AttributeValues
-                    .Select(x => x.AttributeValueId)
-                    .Distinct()
-                    .ToArray();
-
-            var idsToDelete =
-                currentIds
-                    .Except(desiredIds)
-                    .ToArray();
-
-            var idsToAdd =
-                desiredIds
-                    .Except(currentIds)
-                    .ToArray();
-
-            if (idsToDelete.Length > 0)
-            {
-                await _productRepository.DeleteVariantAttributeMappingsAsync(
-                    variant.Id,
-                    idsToDelete,
-                    cancellationToken);
-
-                foreach (var attributeValueId in idsToDelete)
-                {
-                    variant.RemoveAttributeValue(attributeValueId);
-                }
-            }
-
-            if (idsToAdd.Length > 0)
-            {
-                await _productRepository.AddVariantAttributeMappingsAsync(
-                    variant.Id,
-                    idsToAdd,
-                    cancellationToken);
-            }
+            variant.AddAttributeValue(
+                value);
         }
-        else
-        {
-            // For a brand-new variant, the legacy values were already added
-            // above and generic values were added directly to the aggregate.
-            // Nothing further is required here.
-        }
-
-        return;
     }
     private static void ValidateVariantAttributeCombinations(
     IEnumerable<ProductVariant> variants)

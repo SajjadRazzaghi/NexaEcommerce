@@ -636,6 +636,20 @@ public sealed class Order : AggregateRoot
             _items.Sum(
                 x => x.LineTotal);
 
+        TotalAmount =
+            Math.Max(
+                0m,
+                Subtotal +
+                ShippingAmount -
+                DiscountAmount +
+                TaxAmount);
+
+        TaxableAmount =
+            Math.Max(
+                0m,
+                Subtotal -
+                DiscountAmount);
+
         UpdatedAt =
             DateTime.UtcNow;
     }

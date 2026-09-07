@@ -1,35 +1,39 @@
 using NexaEcommerce.Modules.Orders.Application.DTOs;
+using NexaEcommerce.Modules.Orders.Application.Pricing;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 
 namespace NexaEcommerce.Modules.Orders.Application.Services;
 
 public sealed class OrderService(
-IOrderRepository repository,
-IOrderProductReader productReader,
-IOrderUnitOfWork unitOfWork,
-IShippingMethodService shippingMethods)
-: IOrderService
+    IOrderRepository repository,
+    IOrderProductReader productReader,
+    IOrderUnitOfWork unitOfWork,
+    IShippingMethodService shippingMethods,
+    IPricingCalculator pricingCalculator,
+    ICouponService couponService,
+    ITaxRateService taxRateService)
+    : IOrderService
 {
     public async Task<OrderDto> CreateFromCheckoutAsync(
-    string tenantId,
-    string userId,
-    string idempotencyKey,
-    CheckoutRequest request,
-    CancellationToken cancellationToken = default)
+        string tenantId,
+        string userId,
+        string idempotencyKey,
+        CheckoutRequest request,
+        CancellationToken cancellationToken = default)
     {
         ValidateCheckout(
-        tenantId,
-        userId,
-        idempotencyKey,
-        request);
-
-    var existing =
-        await repository.GetByIdempotencyKeyAsync(
             tenantId,
             userId,
             idempotencyKey,
-            cancellationToken);
+            request);
+
+        var existing =
+            await repository.GetByIdempotencyKeyAsync(
+                tenantId,
+                userId,
+                idempotencyKey,
+                cancellationToken);
 
         if (existing is not null)
         {
@@ -45,15 +49,13 @@ IShippingMethodService shippingMethods)
         var grouped =
             request.Items
                 .GroupBy(
-                    x =>
-                        x.ProductVariantId)
+                    x => x.ProductVariantId)
                 .Select(
                     x =>
                         new CheckoutLineDto(
                             x.Key,
                             x.Sum(
-                                item =>
-                                    item.Quantity)))
+                                item => item.Quantity)))
                 .ToList();
 
         var order =
@@ -63,9 +65,9 @@ IShippingMethodService shippingMethods)
                 GenerateOrderNumber(),
                 idempotencyKey,
                 "IRR",
-                0,
+                0m,
                 shippingQuote.Price,
-                0,
+                0m,
                 request.ShippingFullName,
                 request.ShippingPhone,
                 request.ShippingAddress,
@@ -89,12 +91,140 @@ IShippingMethodService shippingMethods)
                     $"Product variant {line.ProductVariantId} is no longer available.");
             }
 
+            if (product.Price < 0m)
+            {
+                throw new InvalidOperationException(
+                    $"Product variant {line.ProductVariantId} has an invalid price.");
+            }
+
             order.AddItem(
                 product.Id,
                 product.Sku,
                 product.ProductName,
                 product.Price,
                 line.Quantity);
+        }
+
+        /*
+         * ------------------------------------------------------------
+         * Financial pricing
+         * ------------------------------------------------------------
+         *
+         * All amounts below are calculated on the backend.
+         *
+         * Frontend totals are never trusted.
+         */
+
+        var subtotal =
+            order.Items.Sum(
+                x => x.LineTotal);
+
+        decimal discountAmount = 0m;
+
+        string? normalizedCouponCode = null;
+
+        if (!string.IsNullOrWhiteSpace(
+                request.CouponCode))
+        {
+            normalizedCouponCode =
+                request.CouponCode
+                    .Trim()
+                    .ToUpperInvariant();
+
+            var couponValidation =
+                await couponService.ValidateAsync(
+                    tenantId,
+                    userId,
+                    normalizedCouponCode,
+                    subtotal,
+                    cancellationToken);
+
+            if (!couponValidation.IsValid)
+            {
+                throw new InvalidOperationException(
+                    couponValidation.Message ??
+                    $"Coupon '{normalizedCouponCode}' is not valid.");
+            }
+
+            discountAmount =
+                couponValidation.DiscountAmount;
+        }
+
+        decimal taxRatePercent = 0m;
+
+        if (request.TaxRateId.HasValue)
+        {
+            var taxRate =
+                await taxRateService.GetAsync(
+                    tenantId,
+                    request.TaxRateId.Value,
+                    cancellationToken);
+
+            if (taxRate is null)
+            {
+                throw new InvalidOperationException(
+                    "Selected tax rate was not found.");
+            }
+
+            if (!taxRate.IsActive)
+            {
+                throw new InvalidOperationException(
+                    "Selected tax rate is not active.");
+            }
+
+            taxRatePercent =
+                taxRate.RatePercent;
+        }
+        else
+        {
+            var defaultTax =
+                await taxRateService.CalculateDefaultAsync(
+                    tenantId,
+                    Math.Max(
+                        0m,
+                        subtotal -
+                        discountAmount),
+                    cancellationToken);
+
+            if (defaultTax is not null)
+            {
+                taxRatePercent =
+                    defaultTax.RatePercent;
+            }
+        }
+
+        var pricing =
+            pricingCalculator.Calculate(
+                new PricingInput(
+                    subtotal,
+                    shippingQuote.Price,
+                    discountAmount,
+                    taxRatePercent));
+
+        order.ApplyPricing(
+            pricing.Subtotal,
+            pricing.ShippingAmount,
+            pricing.DiscountAmount,
+            pricing.TaxableAmount,
+            pricing.TaxRatePercent,
+            pricing.TaxAmount,
+            pricing.TotalAmount,
+            normalizedCouponCode);
+
+        /*
+         * Coupon redemption belongs to the same business operation.
+         *
+         * CouponService has its own idempotent per-order redemption check.
+         */
+        if (normalizedCouponCode is not null)
+        {
+            await couponService.RedeemAsync(
+                tenantId,
+                userId,
+                order.Id,
+                normalizedCouponCode,
+                pricing.Subtotal,
+                cancellationToken);
         }
 
         await repository.AddAsync(
@@ -245,25 +375,25 @@ IShippingMethodService shippingMethods)
 
         switch (targetStatus)
         {
-            case OrderStatus.Paid:
-                order.MarkPaid();
-                break;
-
             case OrderStatus.Processing:
                 order.StartProcessing();
-                break;
-
-            case OrderStatus.Shipped:
-                order.MarkShipped();
-                break;
-
-            case OrderStatus.Delivered:
-                order.MarkDelivered();
                 break;
 
             case OrderStatus.Cancelled:
                 order.Cancel();
                 break;
+
+            case OrderStatus.Paid:
+                throw new InvalidOperationException(
+                    "Paid status can only be established by successful payment completion.");
+
+            case OrderStatus.Shipped:
+                throw new InvalidOperationException(
+                    "Shipped status can only be established by the shipment workflow.");
+
+            case OrderStatus.Delivered:
+                throw new InvalidOperationException(
+                    "Delivered status can only be established by the shipment workflow.");
 
             case OrderStatus.PendingPayment:
                 throw new InvalidOperationException(
@@ -320,53 +450,14 @@ IShippingMethodService shippingMethods)
         DateTimeOffset expiresAt,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
-        {
-            throw new ArgumentException(
-                "Tenant id is required.",
-                nameof(tenantId));
-        }
-
-        if (string.IsNullOrWhiteSpace(userId))
-        {
-            throw new ArgumentException(
-                "User id is required.",
-                nameof(userId));
-        }
-
-        if (orderId == Guid.Empty)
-        {
-            throw new ArgumentException(
-                "Order id is required.",
-                nameof(orderId));
-        }
-
-        if (string.IsNullOrWhiteSpace(reservationKey))
-        {
-            throw new ArgumentException(
-                "Reservation key is required.",
-                nameof(reservationKey));
-        }
-
-        if (productVariantId == Guid.Empty)
-        {
-            throw new ArgumentException(
-                "Product variant id is required.",
-                nameof(productVariantId));
-        }
-
-        if (quantity <= 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(quantity));
-        }
-
-        if (expiresAt <= DateTimeOffset.UtcNow)
-        {
-            throw new ArgumentException(
-                "Reservation expiration must be in the future.",
-                nameof(expiresAt));
-        }
+        ValidateInventoryReservation(
+            tenantId,
+            userId,
+            orderId,
+            reservationKey,
+            productVariantId,
+            quantity,
+            expiresAt);
 
         var order =
             await repository.GetByIdAsync(
@@ -461,28 +552,34 @@ IShippingMethodService shippingMethods)
         string idempotencyKey,
         CheckoutRequest request)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
+        ArgumentNullException.ThrowIfNull(
+            request);
+
+        if (string.IsNullOrWhiteSpace(
+                tenantId))
         {
             throw new ArgumentException(
                 "Tenant id is required.",
                 nameof(tenantId));
         }
 
-        if (string.IsNullOrWhiteSpace(userId))
+        if (string.IsNullOrWhiteSpace(
+                userId))
         {
             throw new ArgumentException(
                 "User id is required.",
                 nameof(userId));
         }
 
-        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        if (string.IsNullOrWhiteSpace(
+                idempotencyKey))
         {
             throw new ArgumentException(
                 "Idempotency key is required.",
                 nameof(idempotencyKey));
         }
 
-        if (idempotencyKey.Length > 128)
+        if (idempotencyKey.Trim().Length > 128)
         {
             throw new ArgumentException(
                 "Idempotency key cannot exceed 128 characters.",
@@ -493,7 +590,8 @@ IShippingMethodService shippingMethods)
             request.Items.Count == 0)
         {
             throw new ArgumentException(
-                "Checkout must contain at least one item.");
+                "Checkout must contain at least one item.",
+                nameof(request));
         }
 
         if (request.ShippingMethodId ==
@@ -514,7 +612,8 @@ IShippingMethodService shippingMethods)
                 request.ShippingCity))
         {
             throw new ArgumentException(
-                "Shipping information is incomplete.");
+                "Shipping information is incomplete.",
+                nameof(request));
         }
 
         if (request.Items.Any(
@@ -523,7 +622,8 @@ IShippingMethodService shippingMethods)
                     Guid.Empty))
         {
             throw new ArgumentException(
-                "Product variant id is required.");
+                "Product variant id is required.",
+                nameof(request));
         }
 
         if (request.Items.Any(
@@ -531,7 +631,85 @@ IShippingMethodService shippingMethods)
                     x.Quantity <= 0))
         {
             throw new ArgumentException(
-                "Quantity must be greater than zero.");
+                "Quantity must be greater than zero.",
+                nameof(request));
+        }
+
+        if (!string.IsNullOrWhiteSpace(
+                request.CouponCode) &&
+            request.CouponCode.Trim().Length > 64)
+        {
+            throw new ArgumentException(
+                "Coupon code cannot exceed 64 characters.",
+                nameof(request.CouponCode));
+        }
+
+        if (request.TaxRateId.HasValue &&
+            request.TaxRateId.Value ==
+            Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Tax rate id is invalid.",
+                nameof(request.TaxRateId));
+        }
+    }
+
+    private static void ValidateInventoryReservation(
+        string tenantId,
+        string userId,
+        Guid orderId,
+        string reservationKey,
+        Guid productVariantId,
+        int quantity,
+        DateTimeOffset expiresAt)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException(
+                "User id is required.",
+                nameof(userId));
+        }
+
+        if (orderId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Order id is required.",
+                nameof(orderId));
+        }
+
+        if (string.IsNullOrWhiteSpace(
+                reservationKey))
+        {
+            throw new ArgumentException(
+                "Reservation key is required.",
+                nameof(reservationKey));
+        }
+
+        if (productVariantId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Product variant id is required.",
+                nameof(productVariantId));
+        }
+
+        if (quantity <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(quantity));
+        }
+
+        if (expiresAt <= DateTimeOffset.UtcNow)
+        {
+            throw new ArgumentException(
+                "Reservation expiration must be in the future.",
+                nameof(expiresAt));
         }
     }
 
@@ -552,7 +730,11 @@ IShippingMethodService shippingMethods)
             order.Subtotal,
             order.ShippingAmount,
             order.DiscountAmount,
+            order.TaxableAmount,
+            order.TaxRatePercent,
+            order.TaxAmount,
             order.TotalAmount,
+            order.CouponCode,
             order.ShippingFullName,
             order.ShippingPhone,
             order.ShippingAddress,
@@ -570,5 +752,4 @@ IShippingMethodService shippingMethods)
                             x.LineTotal))
                 .ToList());
     }
-
 }

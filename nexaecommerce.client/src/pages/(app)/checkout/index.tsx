@@ -279,7 +279,7 @@ const handleSubmit = (
             onSuccess:
                 order => {
                     navigate(
-                        `/orders/payment/${ order.id } `,
+                        `/orders/payment/${order.id}`,
                         {
                             replace: true,
                         },

@@ -143,7 +143,7 @@ export async function getPaymentAttempt(
 
     const { data } =
         await api.get<PaymentAttemptDto>(
-            `/ orders / payment - attempts / ${ normalizedId } `,
+            `/orders/payment-attempts/${normalizedId}`,
         );
 
     return data;

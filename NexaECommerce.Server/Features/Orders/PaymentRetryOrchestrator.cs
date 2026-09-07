@@ -30,11 +30,20 @@ public sealed class PaymentRetryOrchestrator(
             orderId,
             idempotencyKey);
 
+        var normalizedTenantId =
+            tenantId.Trim();
+
+        var normalizedUserId =
+            userId.Trim();
+
+        var normalizedIdempotencyKey =
+            idempotencyKey.Trim();
+
         var order =
             await orderRepository.GetByIdAsync(
-                tenantId,
+                normalizedTenantId,
                 orderId,
-                userId,
+                normalizedUserId,
                 cancellationToken);
 
         if (order is null)
@@ -100,15 +109,15 @@ public sealed class PaymentRetryOrchestrator(
 
                 var reservationKey =
                     BuildReservationKey(
-                        tenantId,
-                        userId,
+                        normalizedTenantId,
+                        normalizedUserId,
                         orderId,
-                        idempotencyKey,
+                        normalizedIdempotencyKey,
                         item.ProductVariantId);
 
                 var reservation =
                     await inventory.ReserveAsync(
-                        tenantId,
+                        normalizedTenantId,
                         item.ProductVariantId,
                         item.Quantity,
                         reservationKey,
@@ -121,29 +130,53 @@ public sealed class PaymentRetryOrchestrator(
                     item.Quantity,
                     reservation.ExpiresAt);
 
-                createdReservations.Add(
-                    reservationKey);
+                /*
+                 * ReserveAsync is idempotent by reservation key.
+                 *
+                 * The key is deterministic for this retry request,
+                 * so a retry of the exact same operation does not create
+                 * another inventory reservation.
+                 */
+                if (!createdReservations.Contains(
+                        reservationKey,
+                        StringComparer.Ordinal))
+                {
+                    createdReservations.Add(
+                        reservationKey);
+                }
             }
 
             await orderUnitOfWork.SaveChangesAsync(
                 cancellationToken);
 
+            /*
+             * PaymentAttempt creation is itself idempotent.
+             *
+             * A repeated retry request with the same Idempotency-Key
+             * returns the existing payment attempt.
+             */
             return await paymentAttempts.CreateAsync(
-                tenantId,
-                userId,
+                normalizedTenantId,
+                normalizedUserId,
                 order.Id,
-                idempotencyKey,
+                normalizedIdempotencyKey,
                 cancellationToken);
         }
         catch
         {
+            /*
+             * Release reservations created by this retry operation.
+             *
+             * Inventory release is intentionally best-effort here so
+             * that the original business exception is preserved.
+             */
             foreach (var reservationKey in
                      createdReservations.AsEnumerable().Reverse())
             {
                 try
                 {
                     await inventory.ReleaseAsync(
-                        tenantId,
+                        normalizedTenantId,
                         reservationKey,
                         cancellationToken);
                 }
@@ -151,8 +184,9 @@ public sealed class PaymentRetryOrchestrator(
                 {
                     /*
                      * Preserve the original failure.
-                     * A later reconciliation process can recover
-                     * a reservation which could not be released here.
+                     *
+                     * Inventory reconciliation can recover a reservation
+                     * which could not be released here.
                      */
                 }
             }
@@ -174,8 +208,17 @@ public sealed class PaymentRetryOrchestrator(
                 }
             }
 
-            await orderUnitOfWork.SaveChangesAsync(
-                cancellationToken);
+            try
+            {
+                await orderUnitOfWork.SaveChangesAsync(
+                    cancellationToken);
+            }
+            catch
+            {
+                /*
+                 * Preserve the original business exception.
+                 */
+            }
 
             throw;
         }
@@ -214,14 +257,16 @@ public sealed class PaymentRetryOrchestrator(
         Guid orderId,
         string idempotencyKey)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
+        if (string.IsNullOrWhiteSpace(
+                tenantId))
         {
             throw new ArgumentException(
                 "Tenant id is required.",
                 nameof(tenantId));
         }
 
-        if (string.IsNullOrWhiteSpace(userId))
+        if (string.IsNullOrWhiteSpace(
+                userId))
         {
             throw new ArgumentException(
                 "User id is required.",
@@ -235,7 +280,8 @@ public sealed class PaymentRetryOrchestrator(
                 nameof(orderId));
         }
 
-        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        if (string.IsNullOrWhiteSpace(
+                idempotencyKey))
         {
             throw new ArgumentException(
                 "Idempotency key is required.",

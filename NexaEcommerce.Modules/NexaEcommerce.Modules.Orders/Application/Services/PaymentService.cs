@@ -6,28 +6,28 @@ using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 namespace NexaEcommerce.Modules.Orders.Application.Services;
 
 public sealed class PaymentService(
-IPaymentAttemptRepository paymentAttempts,
-IOrderRepository orders,
-IOrderUnitOfWork unitOfWork,
-PaymentGatewayService gateways,
-IPaymentAttemptService paymentAttemptService)
-: IPaymentService
+    IPaymentAttemptRepository paymentAttempts,
+    IOrderRepository orders,
+    IOrderUnitOfWork unitOfWork,
+    PaymentGatewayService gateways,
+    IPaymentAttemptService paymentAttemptService)
+    : IPaymentService
 {
     public async Task<CreatePaymentResultDto> CreatePaymentAsync(
-    string tenantId,
-    string userId,
-    Guid orderId,
-    string idempotencyKey,
-    string gatewayName,
-    string callbackUrl,
-    CancellationToken cancellationToken = default)
+        string tenantId,
+        string userId,
+        Guid orderId,
+        string idempotencyKey,
+        string gatewayName,
+        string callbackUrl,
+        CancellationToken cancellationToken = default)
     {
         ValidateIdentity(
-        tenantId,
-        userId,
-        idempotencyKey);
+            tenantId,
+            userId,
+            idempotencyKey);
 
-    if (orderId == Guid.Empty)
+        if (orderId == Guid.Empty)
         {
             throw new ArgumentException(
                 "Order id is required.",
@@ -109,9 +109,6 @@ IPaymentAttemptService paymentAttemptService)
         var gateway =
             gateways.Get(gatewayName);
 
-        /*
-         * A previously successful attempt is terminal.
-         */
         if (paymentAttempt.Status ==
             PaymentAttemptStatus.Succeeded)
         {
@@ -127,10 +124,6 @@ IPaymentAttemptService paymentAttemptService)
                 paymentAttempt.GatewayReference);
         }
 
-        /*
-         * A failed attempt must not silently become a new payment under
-         * the same idempotency key.
-         */
         if (paymentAttempt.Status ==
             PaymentAttemptStatus.Failed)
         {
@@ -138,11 +131,6 @@ IPaymentAttemptService paymentAttemptService)
                 "The payment attempt has already failed. Use a new idempotency key.");
         }
 
-        /*
-         * The gateway may already have been initialized during a retry.
-         * Return the existing payment information rather than creating a
-         * second gateway transaction.
-         */
         if (!string.IsNullOrWhiteSpace(
                 paymentAttempt.GatewayReference))
         {
@@ -267,11 +255,14 @@ IPaymentAttemptService paymentAttemptService)
                 "Payment gateway has not been initialized for this payment attempt.");
         }
 
+        var normalizedReference =
+            gatewayReference.Trim();
+
         if (!string.IsNullOrWhiteSpace(
                 attempt.GatewayReference) &&
             !string.Equals(
                 attempt.GatewayReference,
-                gatewayReference.Trim(),
+                normalizedReference,
                 StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
@@ -287,7 +278,7 @@ IPaymentAttemptService paymentAttemptService)
                 new PaymentGatewayVerifyRequest(
                     attempt.OrderId.ToString("N"),
                     attempt.Amount,
-                    gatewayReference.Trim()),
+                    normalizedReference),
                 cancellationToken);
 
         if (!result.Succeeded)
@@ -305,14 +296,36 @@ IPaymentAttemptService paymentAttemptService)
                 "Payment verification failed.");
         }
 
-        return await paymentAttemptService.MarkSucceededAsync(
-            tenantId,
-            userId,
-            paymentAttemptId,
-            gateway.Name,
-            result.GatewayReference ??
-                gatewayReference.Trim(),
-            cancellationToken);
+        var verifiedReference =
+            string.IsNullOrWhiteSpace(
+                result.GatewayReference)
+                ? normalizedReference
+                : result.GatewayReference.Trim();
+
+        /*
+         * IMPORTANT:
+         *
+         * Verification only proves that the gateway reports
+         * a successful transaction.
+         *
+         * It does NOT finalize the payment attempt and does NOT
+         * mark the order as Paid.
+         *
+         * Finalization belongs exclusively to
+         * PaymentCompletionOrchestrator.
+         */
+        if (string.IsNullOrWhiteSpace(
+                attempt.GatewayReference))
+        {
+            attempt.MarkGatewayCreated(
+                gateway.Name,
+                verifiedReference);
+
+            await unitOfWork.SaveChangesAsync(
+                cancellationToken);
+        }
+
+        return Map(attempt);
     }
 
     private static void ValidateIdentity(
@@ -320,21 +333,24 @@ IPaymentAttemptService paymentAttemptService)
         string userId,
         string idempotencyKey)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
+        if (string.IsNullOrWhiteSpace(
+                tenantId))
         {
             throw new ArgumentException(
                 "Tenant id is required.",
                 nameof(tenantId));
         }
 
-        if (string.IsNullOrWhiteSpace(userId))
+        if (string.IsNullOrWhiteSpace(
+                userId))
         {
             throw new ArgumentException(
                 "User id is required.",
                 nameof(userId));
         }
 
-        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        if (string.IsNullOrWhiteSpace(
+                idempotencyKey))
         {
             throw new ArgumentException(
                 "Payment idempotency key is required.",
@@ -365,6 +381,4 @@ IPaymentAttemptService paymentAttemptService)
             attempt.CreatedAt,
             attempt.CompletedAt);
     }
-
-
 }

@@ -6,52 +6,15 @@ using Shouldly;
 namespace NexaECommerce.Tests.Integration.Features.Orders;
 
 [Collection(IntegrationCollection.Name)]
-public sealed class PaymentEndpointsTests(
+public sealed class PaymentCompletionTests(
     CustomWebApplicationFactory factory)
 {
-    [Fact]
-    public async Task Creating_payment_attempt_without_idempotency_key_returns_bad_request()
-    {
-        var client =
-            factory.CreateAuthenticatedClient(
-                "payment-user-1");
-
-        var response =
-            await client.PostAsJsonAsync(
-                "/api/orders/payment-attempts",
-                new
-                {
-                    orderId =
-                        Guid.NewGuid()
-                },
-                TestContext.Current.CancellationToken);
-
-        response.StatusCode
-            .ShouldBe(HttpStatusCode.BadRequest);
-    }
-
-    [Fact]
-    public async Task Getting_unknown_payment_attempt_returns_not_found()
-    {
-        var client =
-            factory.CreateAuthenticatedClient(
-                "payment-user-2");
-
-        var response =
-            await client.GetAsync(
-                $"/api/orders/payment-attempts/{Guid.NewGuid()}",
-                TestContext.Current.CancellationToken);
-
-        response.StatusCode
-            .ShouldBe(HttpStatusCode.NotFound);
-    }
-
     [Fact]
     public async Task Completing_unknown_payment_attempt_returns_not_found()
     {
         var client =
             factory.CreateAuthenticatedClient(
-                "payment-user-3");
+                "payment-completion-user-1");
 
         var response =
             await client.PostAsJsonAsync(
@@ -72,21 +35,23 @@ public sealed class PaymentEndpointsTests(
     }
 
     [Fact]
-    public async Task Verify_payment_without_reference_returns_bad_request()
+    public async Task Completing_without_payment_attempt_id_returns_bad_request()
     {
         var client =
             factory.CreateAuthenticatedClient(
-                "payment-user-4");
+                "payment-completion-user-2");
 
         var response =
             await client.PostAsJsonAsync(
-                "/api/orders/payment/verify",
+                "/api/orders/payment/complete",
                 new
                 {
                     paymentAttemptId =
-                        Guid.NewGuid(),
+                        Guid.Empty,
+                    gatewayName =
+                        "TestGateway",
                     gatewayReference =
-                        ""
+                        "REF-002"
                 },
                 TestContext.Current.CancellationToken);
 
@@ -95,11 +60,11 @@ public sealed class PaymentEndpointsTests(
     }
 
     [Fact]
-    public async Task Complete_payment_without_gateway_name_returns_bad_request()
+    public async Task Completing_without_gateway_name_returns_bad_request()
     {
         var client =
             factory.CreateAuthenticatedClient(
-                "payment-user-5");
+                "payment-completion-user-3");
 
         var response =
             await client.PostAsJsonAsync(
@@ -111,7 +76,7 @@ public sealed class PaymentEndpointsTests(
                     gatewayName =
                         "",
                     gatewayReference =
-                        "REF-005"
+                        "REF-003"
                 },
                 TestContext.Current.CancellationToken);
 
@@ -120,11 +85,11 @@ public sealed class PaymentEndpointsTests(
     }
 
     [Fact]
-    public async Task Complete_payment_without_gateway_reference_returns_bad_request()
+    public async Task Completing_without_gateway_reference_returns_bad_request()
     {
         var client =
             factory.CreateAuthenticatedClient(
-                "payment-user-6");
+                "payment-completion-user-4");
 
         var response =
             await client.PostAsJsonAsync(
@@ -145,15 +110,36 @@ public sealed class PaymentEndpointsTests(
     }
 
     [Fact]
-    public async Task Getting_payment_attempt_with_empty_id_returns_not_found()
+    public async Task Creating_payment_attempt_without_idempotency_key_returns_bad_request()
     {
         var client =
             factory.CreateAuthenticatedClient(
-                "payment-user-7");
+                "payment-completion-user-5");
+
+        var response =
+            await client.PostAsJsonAsync(
+                "/api/orders/payment-attempts",
+                new
+                {
+                    orderId =
+                        Guid.NewGuid()
+                },
+                TestContext.Current.CancellationToken);
+
+        response.StatusCode
+            .ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task Getting_unknown_payment_attempt_returns_not_found()
+    {
+        var client =
+            factory.CreateAuthenticatedClient(
+                "payment-completion-user-6");
 
         var response =
             await client.GetAsync(
-                "/api/orders/payment-attempts/00000000-0000-0000-0000-000000000000",
+                $"/api/orders/payment-attempts/{Guid.NewGuid()}",
                 TestContext.Current.CancellationToken);
 
         response.StatusCode
