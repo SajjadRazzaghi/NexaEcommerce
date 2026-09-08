@@ -59,22 +59,22 @@ public sealed class CheckoutOrchestrator(
                         item.ProductVariantId);
 
                 /*
-                 * Register the key before calling Inventory.
+                 * Reserve first.
                  *
-                 * If ReserveAsync succeeds but recording the reservation
-                 * on the order fails, compensation must still release it.
+                 * Only register the reservation for compensation after
+                 * Inventory has successfully persisted it.
                  */
+                var reservation =
+      await inventory.ReserveAsync(
+          tenantId,
+          item.ProductVariantId,
+          item.Quantity,
+          reservationKey,
+          ReservationLifetime,
+          cancellationToken);
+
                 acquiredReservationKeys.Add(
                     reservationKey);
-
-                var reservation =
-                    await inventory.ReserveAsync(
-                        tenantId,
-                        item.ProductVariantId,
-                        item.Quantity,
-                        reservationKey,
-                        ReservationLifetime,
-                        cancellationToken);
 
                 await orders.RecordInventoryReservationAsync(
                     tenantId,
@@ -114,7 +114,9 @@ public sealed class CheckoutOrchestrator(
         IReadOnlyCollection<string> reservationKeys)
     {
         foreach (var reservationKey in
-                 reservationKeys.Reverse())
+                 reservationKeys
+                     .Distinct(StringComparer.Ordinal)
+                     .Reverse())
         {
             try
             {
@@ -125,9 +127,9 @@ public sealed class CheckoutOrchestrator(
             catch
             {
                 /*
-                 * Compensation must continue for all remaining
-                 * reservations. Reconciliation can handle a
-                 * reservation that remains inconsistent.
+                 * Continue compensating the remaining reservations.
+                 * Reconciliation can repair a reservation that remains
+                 * inconsistent.
                  */
             }
         }
@@ -153,6 +155,9 @@ public sealed class CheckoutOrchestrator(
         string idempotencyKey,
         CheckoutRequest request)
     {
+        ArgumentNullException.ThrowIfNull(
+            request);
+
         if (string.IsNullOrWhiteSpace(
                 tenantId))
         {
@@ -242,7 +247,8 @@ public sealed class CheckoutOrchestrator(
 
         var hash =
             SHA256.HashData(
-                Encoding.UTF8.GetBytes(material));
+                Encoding.UTF8.GetBytes(
+                    material));
 
         return string.Concat(
             "checkout:",

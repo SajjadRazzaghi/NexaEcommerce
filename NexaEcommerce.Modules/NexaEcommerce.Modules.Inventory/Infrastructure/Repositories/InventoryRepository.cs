@@ -41,8 +41,7 @@ public sealed class InventoryRepository(
         CancellationToken cancellationToken = default)
     {
         return await context.StockReservations
-            .Include(
-                x => x.StockItem)
+            .Include(x => x.StockItem)
             .FirstOrDefaultAsync(
                 x =>
                     x.TenantId == tenantId &&
@@ -63,8 +62,7 @@ public sealed class InventoryRepository(
         }
 
         return await context.StockReservations
-            .Include(
-                x => x.StockItem)
+            .Include(x => x.StockItem)
             .Where(
                 x =>
                     x.Status ==
@@ -95,27 +93,9 @@ public sealed class InventoryRepository(
             cancellationToken);
     }
 
-    public async Task ReloadStockAsync(
-        StockItem stockItem,
-        CancellationToken cancellationToken = default)
+    public void ClearTracking()
     {
-        await context.Entry(
-                stockItem)
-            .ReloadAsync(
-                cancellationToken);
-    }
-
-    public void Detach(
-        object entity)
-    {
-        var entry =
-            context.Entry(entity);
-
-        if (entry.State !=
-            EntityState.Detached)
-        {
-            entry.State =
-                EntityState.Detached;
-        }
+        context.ChangeTracker.Clear();
     }
 }
+
