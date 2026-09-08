@@ -10,49 +10,47 @@ interface RequestOptions {
 }
 
 function buildUrl(
-  path: string,
-  params?: Record<string, unknown>,
+    path: string,
+    params?: Record<string, unknown>,
 ) {
-  if (
-    !params ||
-    Object.keys(params).length === 0
-  ) {
-    return `${ BASE }${ path } `;
-  }
-
-  const separator = path.includes('?')
-    ? '&'
-    : '?';
-
-  const search =
-    new URLSearchParams();
-
-  for (const [
-    key,
-    value,
-  ] of Object.entries(params)) {
     if (
-      value === undefined ||
-      value === null ||
-      value === ''
+        !params ||
+        Object.keys(params).length === 0
     ) {
-      continue;
+        return `${BASE}${path}`;
     }
 
-    search.set(
-      key,
-      String(value),
-    );
-  }
+    const separator = path.includes('?')
+        ? '&'
+        : '?';
 
-  const query =
-    search.toString();
+    const search = new URLSearchParams();
 
-  return query
-    ? `${ BASE }${ path }${ separator }${ query } `
-    : `${ BASE }${ path } `;
+    for (const [
+        key,
+        value,
+    ] of Object.entries(params)) {
+        if (
+            value === undefined ||
+            value === null ||
+            value === ''
+        ) {
+            continue;
+        }
+
+        search.set(
+            key,
+            String(value),
+        );
+    }
+
+    const query =
+        search.toString();
+
+    return query
+        ? `${BASE}${path}${separator}${query}`
+        : `${BASE}${path}`;
 }
-
 function isRecord(
   value: unknown,
 ): value is Record<string, unknown> {

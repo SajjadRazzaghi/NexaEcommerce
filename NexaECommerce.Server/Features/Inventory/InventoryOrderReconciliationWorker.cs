@@ -20,6 +20,28 @@ public sealed class InventoryOrderReconciliationWorker(
         logger.LogInformation(
             "Inventory/order reconciliation worker started.");
 
+        /*
+         * Do not run reconciliation immediately at startup.
+         *
+         * Checkout, inventory seeding and other startup activity can
+         * still be using the same inventory records. The reconciliation
+         * worker modifies inventory/order state and therefore must not
+         * compete with the initial purchase workflow.
+         *
+         * The first run starts after one normal polling interval.
+         */
+        try
+        {
+            await Task.Delay(
+                PollInterval,
+                stoppingToken);
+        }
+        catch (OperationCanceledException)
+            when (stoppingToken.IsCancellationRequested)
+        {
+            return;
+        }
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -87,6 +109,7 @@ public sealed class InventoryOrderReconciliationWorker(
         {
             logger.LogWarning(
                 "Inventory/order reconciliation skipped because no tenant is available.");
+
             return;
         }
 

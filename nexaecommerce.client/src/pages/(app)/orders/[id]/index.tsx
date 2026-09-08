@@ -44,14 +44,14 @@ function statusClass(
 }
 
 
-    }
+   }
 
     export default function OrderDetailsPage() {
-        const { id } =
+        const {id} =
             useParams();
 
         
-const { i18n } =
+const {i18n} =
     useTranslation();
 
 const isFa =
@@ -73,7 +73,7 @@ const {
             getOrder(id!),
         enabled:
             Boolean(id),
-    });
+   });
 
 const {
     data: shipment,
@@ -128,7 +128,7 @@ const text = isFa
               'سفارش ثبت شد',
           payment:
               'پرداخت',
-      }
+     }
     : {
           loading:
               'Loading order...',
@@ -174,7 +174,7 @@ const text = isFa
               'Order placed',
           payment:
               'Payment',
-      };
+     };
 
 if (
     orderLoading ||
@@ -187,12 +187,12 @@ if (
                 isFa
                     ? 'rtl'
                     : 'ltr'
-            }
+           }
         >
             <div className="animate-pulse space-y-4">
-                <div className="h-8 w-64 rounded-lg bg-muted" />
-                <div className="h-5 w-40 rounded-lg bg-muted" />
-                <div className="h-48 rounded-2xl bg-muted" />
+                <div className="h-8 w-64 rounded-lg bg-muted"/>
+                <div className="h-5 w-40 rounded-lg bg-muted"/>
+                <div className="h-48 rounded-2xl bg-muted"/>
             </div>
         </div>
     );
@@ -206,7 +206,7 @@ if (!order) {
                 isFa
                     ? 'rtl'
                     : 'ltr'
-            }
+           }
         >
             {text.notFound}
         </div>
@@ -230,7 +230,7 @@ return (
             isFa
                 ? 'rtl'
                 : 'ltr'
-        }
+       }
     >
         <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
             <div>
@@ -245,7 +245,7 @@ return (
             statusClass(
                 order.status,
             )
-        } `}
+       }`}
                     >
                         {order.status}
                     </span>
@@ -273,7 +273,7 @@ return (
                                 <div
                                     key={
                                         item.productVariantId
-                                    }
+                                   }
                                     className="rounded-xl border p-4"
                                 >
                                     <div className="flex flex-wrap justify-between gap-4">
@@ -281,23 +281,23 @@ return (
                                             <div className="font-semibold">
                                                 {
                                                     item.productName
-                                                }
+                                               }
                                             </div>
 
                                             <div className="mt-1 text-sm text-muted-foreground">
                                                 {
                                                     item.sku
-                                                }
+                                               }
                                             </div>
 
                                             <div className="mt-3 text-sm">
                                                 {
                                                     text.quantity
-                                                }
+                                               }
                                                 :{' '}
                                                 {
                                                     item.quantity
-                                                }
+                                               }
                                             </div>
                                         </div>
 
@@ -305,7 +305,7 @@ return (
                                             {item.lineTotal.toLocaleString()}{' '}
                                             {
                                                 order.currency
-                                            }
+                                           }
                                         </div>
                                     </div>
                                 </div>
@@ -317,12 +317,12 @@ return (
                 {showShipping && (
                     <section className="rounded-2xl border p-6">
                         <div className="flex items-center gap-2">
-                            <Package className="size-5" />
+                            <Package className="size-5"/>
 
                             <h2 className="text-xl font-semibold">
                                 {
                                     text.shipment
-                                }
+                               }
                             </h2>
                         </div>
 
@@ -330,7 +330,7 @@ return (
                             <div className="mt-5 rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
                                 {
                                     text.noShipment
-                                }
+                               }
                             </div>
                         ) : (
                             <>
@@ -338,48 +338,48 @@ return (
                                     <Info
                                         label={
                                             text.method
-                                        }
+                                       }
                                         value={
                                             shipment.shippingMethod
-                                        }
-                                    />
+                                       }
+                                   />
 
                                     <Info
                                         label={
                                             text.carrier
-                                        }
+                                       }
                                         value={
                                             shipment.carrier
-                                        }
-                                    />
+                                       }
+                                   />
 
                                     <Info
                                         label={
                                             text.tracking
-                                        }
+                                       }
                                         value={
                                             shipment.trackingNumber ??
                                             '—'
-                                        }
-                                    />
+                                       }
+                                   />
 
                                     <Info
                                         label={
                                             text.status
-                                        }
+                                       }
                                         value={
                                             shipment.status
-                                        }
-                                    />
+                                       }
+                                   />
                                 </div>
 
                                 <ShipmentTimeline
                                     orderStatus={
                                         order.status
-                                    }
+                                   }
                                     shipmentStatus={
                                         shipment.status
-                                    }
+                                   }
                                     labels={{
                                         orderPlaced:
                                             text.orderPlaced,
@@ -389,8 +389,8 @@ return (
                                             text.shipped,
                                         delivered:
                                             text.delivered,
-                                    }}
-                                />
+                                   }}
+                               />
                             </>
                         )}
                     </section>
@@ -401,39 +401,39 @@ return (
                         <h2 className="text-xl font-semibold">
                             {
                                 text.shipping
-                            }
+                           }
                         </h2>
 
                         <div className="mt-5 rounded-xl border p-5">
                             <div className="font-medium">
                                 {
                                     order.shippingFullName
-                                }
+                               }
                             </div>
 
                             <div className="mt-1 text-sm text-muted-foreground">
                                 {
                                     order.shippingPhone
-                                }
+                               }
                             </div>
 
                             <div className="mt-3 text-sm leading-6 text-muted-foreground">
                                 {
                                     order.shippingAddress
-                                }
+                               }
                             </div>
 
                             <div className="text-sm text-muted-foreground">
                                 {
                                     order.shippingCity
-                                }
+                               }
                             </div>
 
                             {order.shippingPostalCode && (
                                 <div className="mt-1 text-sm text-muted-foreground">
                                     {
                                         order.shippingPostalCode
-                                    }
+                                   }
                                 </div>
                             )}
                         </div>
@@ -461,7 +461,7 @@ return (
                         <span>
                             {
                                 text.shippingCost
-                            }
+                           }
                         </span>
 
                         <span>
@@ -479,14 +479,14 @@ return (
                                 {order.totalAmount.toLocaleString()}{' '}
                                 {
                                     order.currency
-                                }
+                               }
                             </span>
                         </div>
                     </div>
 
                     {showPayment && (
                         <Link
-                            to={`/ orders / payment / ${ order.id } `}
+                            to={`/orders/payment/${order.id}`}
                             className="mt-4 flex w-full items-center justify-center rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
                         >
                             {text.payment}
@@ -499,7 +499,7 @@ return (
 );
 
 
-    }
+   }
 
     interface ShipmentTimelineProps {
         orderStatus: string;
@@ -509,14 +509,14 @@ return (
             pending: string;
             shipped: string;
             delivered: string;
-        };
-    }
+       };
+   }
 
     function ShipmentTimeline({
         orderStatus,
         shipmentStatus,
         labels,
-    }: ShipmentTimelineProps) {
+   }: ShipmentTimelineProps) {
         const delivered =
             shipmentStatus ===
             'Delivered';
@@ -543,28 +543,28 @@ const steps = [
             orderStatus !==
             'PendingPayment',
         icon: Check,
-    },
+   },
     {
         label:
             labels.pending,
         complete:
             processing,
         icon: Clock3,
-    },
+   },
     {
         label:
             labels.shipped,
         complete:
             shipped,
         icon: Truck,
-    },
+   },
     {
         label:
             labels.delivered,
         complete:
             delivered,
         icon: Check,
-    },
+   },
 ];
 
 return (
@@ -579,7 +579,7 @@ return (
                         <div
                             key={
                                 step.label
-                            }
+                           }
                             className="flex items-center gap-3"
                         >
                             <span
@@ -587,9 +587,9 @@ return (
             step.complete
                 ? 'bg-primary text-primary-foreground'
                 : ''
-        } `}
+       }`}
                             >
-                                <Icon className="size-4" />
+                                <Icon className="size-4"/>
                             </span>
 
                             <span
@@ -597,30 +597,30 @@ return (
                                     step.complete
                                         ? 'font-medium'
                                         : 'text-muted-foreground'
-                                }
+                               }
                             >
                                 {
                                     step.label
-                                }
+                               }
                             </span>
                         </div>
                     );
-                },
+               },
             )}
         </div>
     </div>
 );
 
 
-    }
+   }
 
     function Info({
         label,
         value,
-    }: {
+   }: {
         label: string;
         value: string;
-    }) {
+   }) {
         return (<div> <div className="text-xs text-muted-foreground">
             {label} </div>
 

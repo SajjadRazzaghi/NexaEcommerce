@@ -111,7 +111,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
             <Box
                 component={Link}
-                to={`/products/${product.id}`}
+                to={`/products/${encodeURIComponent(product.slug)}`}
                 sx={{
                     display: 'block',
                     overflow: 'hidden',
@@ -162,7 +162,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
                 <Typography
                     component={Link}
-                    to={`/products/${product.id}`}
+                    to={`/products/${encodeURIComponent(product.slug)}`}
                     variant="subtitle1"
                     sx={{
                         color: 'text.primary',
@@ -242,7 +242,7 @@ export default function ProductCard({ product }: ProductCardProps) {
 
                 <Button
                     component={Link}
-                    to={`/products/${product.id}`}
+                    to={`/products/${encodeURIComponent(product.slug)}`}
                     variant="contained"
                     startIcon={<ShoppingCartOutlined />}
                     disabled={!product.isInStock}

@@ -3,7 +3,6 @@ using NexaEcommerce.Modules.Inventory.Application.DTOs;
 using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
 using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence;
-using NexaEcommerce.Modules.Inventory.Infrastructure.Repositories;
 using NexaEcommerce.SharedKernel.Abstractions;
 
 namespace NexaEcommerce.Modules.Inventory.Application.Services;

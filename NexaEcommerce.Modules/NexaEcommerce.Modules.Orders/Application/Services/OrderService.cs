@@ -479,11 +479,16 @@ public sealed class OrderService(
                 "Inventory reservations can only be recorded for orders pending payment.");
         }
 
-        order.AddInventoryReservation(
-            reservationKey,
-            productVariantId,
-            quantity,
-            expiresAt);
+        var reservation =
+           order.AddInventoryReservation(
+               reservationKey,
+               productVariantId,
+               quantity,
+               expiresAt);
+
+        await repository.AddInventoryReservationAsync(
+            reservation,
+            cancellationToken);
 
         await unitOfWork.SaveChangesAsync(
             cancellationToken);

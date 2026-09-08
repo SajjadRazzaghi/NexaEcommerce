@@ -22,7 +22,7 @@ import {
 } from '@mui/icons-material';
 
 import {
-    useParams,
+    useParams, Link
 } from 'react-router-dom';
 
 import {
@@ -665,46 +665,46 @@ export default function ProductDetailPage() {
         );
 
 
-    const handleAddToCart =
-        () => {
-            if (
-                !selectedVariant
-            ) {
-                return;
-            }
+    const [addedToCart, setAddedToCart] =
+        useState(false);
 
-            if (
-                !selectedVariant.isActive
-            ) {
-                return;
-            }
+    const handleAddToCart = () => {
+        if (!selectedVariant) {
+            return;
+        }
 
-            if (
-                selectedVariant.stockQuantity <=
-                0
-            ) {
-                return;
-            }
+        if (!selectedVariant.isActive) {
+            return;
+        }
 
-            if (
-                quantity >
-                selectedVariant.stockQuantity
-            ) {
-                setQuantity(
-                    selectedVariant.stockQuantity,
-                );
+        if (selectedVariant.stockQuantity <= 0) {
+            return;
+        }
 
-                return;
-            }
+        if (
+            quantity >
+            selectedVariant.stockQuantity
+        ) {
+            setQuantity(
+                selectedVariant.stockQuantity,
+            );
 
-            add.mutate({
+            return;
+        }
+
+        add.mutate(
+            {
                 productVariantId:
                     selectedVariant.id,
-
                 quantity,
-            });
-        };
-
+            },
+            {
+                onSuccess: () => {
+                    setAddedToCart(true);
+                },
+            },
+        );
+    };
 
     /*
      * Limit the quantity picker to
@@ -1480,87 +1480,128 @@ export default function ProductDetailPage() {
                             {/* Quantity                                             */}
                             {/* -------------------------------------------------- */}
 
-                            <Stack
-                                direction="row"
-                                spacing={2}
+                            <Box
                                 sx={{
-                                    alignItems:
-                                        'center',
+                                    width: '100%',
+                                    mt: 1,
                                 }}
                             >
-                                <Button
-                                    type="button"
-                                    variant="outlined"
-                                    disabled={
-                                        quantity <=
-                                        1 ||
-                                        add.isPending
-                                    }
-                                    onClick={() =>
-                                        setQuantity(
-                                            value =>
-                                                Math.max(
-                                                    1,
-                                                    value -
-                                                    1,
-                                                ),
-                                        )
-                                    }
-                                >
-                                    −
-                                </Button>
-
                                 <Typography
+                                    variant="body2"
                                     sx={{
-                                        minWidth:
-                                            30,
-
-                                        textAlign:
-                                            'center',
-
-                                        fontWeight:
-                                            800,
+                                        fontWeight: 800,
+                                        mb: 1,
                                     }}
                                 >
-                                    {
-                                        quantity
-                                    }
+                                    تعداد
                                 </Typography>
 
-                                <Button
-                                    type="button"
-                                    variant="outlined"
-                                    disabled={
-                                        !selectedVariant ||
-                                        quantity >=
-                                        maxStock ||
-                                        add.isPending
-                                    }
-                                    onClick={() =>
-                                        setQuantity(
-                                            value =>
-                                                Math.min(
-                                                    maxStock,
-                                                    value +
-                                                    1,
-                                                ),
-                                        )
-                                    }
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        gap: 1,
+                                        width: '100%',
+                                        flexWrap: {
+                                            xs: 'wrap',
+                                            sm: 'nowrap',
+                                        },
+                                    }}
                                 >
-                                    +
-                                </Button>
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            border: '1px solid',
+                                            borderColor: 'divider',
+                                            borderRadius: 2.5,
+                                            overflow: 'hidden',
+                                            flexShrink: 0,
+                                        }}
+                                    >
+                                        <Button
+                                            type="button"
+                                            variant="text"
+                                            disabled={
+                                                quantity <= 1 ||
+                                                add.isPending
+                                            }
+                                            onClick={() =>
+                                                setQuantity(
+                                                    value =>
+                                                        Math.max(
+                                                            1,
+                                                            value - 1,
+                                                        ),
+                                                )
+                                            }
+                                            sx={{
+                                                minWidth: 44,
+                                                width: 44,
+                                                height: 44,
+                                                borderRadius: 0,
+                                                fontSize: '1.25rem',
+                                                p: 0,
+                                            }}
+                                        >
+                                            −
+                                        </Button>
 
-                                <Typography
-                                    variant="caption"
-                                    color="text.secondary"
-                                >
-                                    موجودی:{' '}
-                                    {
-                                        maxStock
-                                    }
-                                </Typography>
-                            </Stack>
+                                        <Typography
+                                            sx={{
+                                                minWidth: 44,
+                                                textAlign: 'center',
+                                                fontWeight: 800,
+                                                userSelect: 'none',
+                                            }}
+                                        >
+                                            {quantity}
+                                        </Typography>
 
+                                        <Button
+                                            type="button"
+                                            variant="text"
+                                            disabled={
+                                                !selectedVariant ||
+                                                quantity >= maxStock ||
+                                                add.isPending
+                                            }
+                                            onClick={() =>
+                                                setQuantity(
+                                                    value =>
+                                                        Math.min(
+                                                            maxStock,
+                                                            value + 1,
+                                                        ),
+                                                )
+                                            }
+                                            sx={{
+                                                minWidth: 44,
+                                                width: 44,
+                                                height: 44,
+                                                borderRadius: 0,
+                                                fontSize: '1.25rem',
+                                                p: 0,
+                                            }}
+                                        >
+                                            +
+                                        </Button>
+                                    </Box>
+
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{
+                                            textAlign: 'right',
+                                            flex: 1,
+                                            minWidth: 0,
+                                        }}
+                                    >
+                                        موجودی: {maxStock}
+                                    </Typography>
+                                </Box>
+                            </Box>
 
                             {/* -------------------------------------------------- */}
                             {/* Add to cart                                          */}
@@ -1573,9 +1614,7 @@ export default function ProductDetailPage() {
                                 startIcon={
                                     add.isPending ? (
                                         <CircularProgress
-                                            size={
-                                                20
-                                            }
+                                            size={18}
                                             color="inherit"
                                         />
                                     ) : (
@@ -1590,14 +1629,23 @@ export default function ProductDetailPage() {
                                     handleAddToCart
                                 }
                                 sx={{
-                                    borderRadius:
-                                        3,
-
-                                    py:
-                                        1.8,
-
-                                    fontWeight:
-                                        800,
+                                    width: '100%',
+                                    borderRadius: 3,
+                                    minHeight: {
+                                        xs: 54,
+                                        sm: 58,
+                                    },
+                                    px: {
+                                        xs: 2,
+                                        sm: 3,
+                                    },
+                                    py: 1.5,
+                                    fontWeight: 800,
+                                    fontSize: {
+                                        xs: '0.95rem',
+                                        sm: '1rem',
+                                    },
+                                    whiteSpace: 'nowrap',
                                 }}
                             >
                                 {add.isPending
@@ -1605,7 +1653,30 @@ export default function ProductDetailPage() {
                                     : 'افزودن به سبد خرید'}
                             </Button>
 
-
+                            {addedToCart && (
+                                <Button
+                                    component={Link}
+                                    to="/cart"
+                                    fullWidth
+                                    size="large"
+                                    variant="outlined"
+                                    sx={{
+                                        minHeight: {
+                                            xs: 52,
+                                            sm: 56,
+                                        },
+                                        borderRadius: 3,
+                                        fontWeight: 800,
+                                        fontSize: {
+                                            xs: '0.95rem',
+                                            sm: '1rem',
+                                        },
+                                        whiteSpace: 'nowrap',
+                                    }}
+                                >
+                                    مشاهده سبد خرید
+                                </Button>
+                            )}
                             {add.isError && (
                                 <Alert
                                     severity="error"

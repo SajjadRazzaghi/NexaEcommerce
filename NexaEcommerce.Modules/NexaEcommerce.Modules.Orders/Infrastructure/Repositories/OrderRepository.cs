@@ -9,6 +9,14 @@ public sealed class OrderRepository(
     OrdersDbContext context)
     : IOrderRepository
 {
+    public async Task AddInventoryReservationAsync(
+    OrderInventoryReservation reservation,
+    CancellationToken cancellationToken = default)
+    {
+        await context.OrderInventoryReservations.AddAsync(
+            reservation,
+            cancellationToken);
+    }
     public async Task<Order?> GetByIdAsync(
         string tenantId,
         Guid id,

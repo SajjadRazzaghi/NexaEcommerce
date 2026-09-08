@@ -68,10 +68,9 @@ public async Task Reserve_translates_concurrency_exception()
                         2,
                         "reservation-concurrency",
                         TimeSpan.FromMinutes(10)));
-
         exception.Message
-            .ShouldContain(
-                "Stock changed while the reservation was being created. Please retry.");
+    .ShouldContain(
+        "Stock could not be reserved because it is being updated concurrently.");
     }
 
     [Fact]

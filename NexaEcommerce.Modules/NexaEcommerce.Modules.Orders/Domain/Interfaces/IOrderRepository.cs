@@ -4,6 +4,9 @@ namespace NexaEcommerce.Modules.Orders.Domain.Interfaces;
 
 public interface IOrderRepository
 {
+    Task AddInventoryReservationAsync(
+    OrderInventoryReservation reservation,
+    CancellationToken cancellationToken = default);
     Task<Order?> GetByIdAsync(
         string tenantId,
         Guid id,

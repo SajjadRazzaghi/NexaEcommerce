@@ -1,101 +1,36 @@
-﻿using Microsoft.EntityFrameworkCore;
-using NexaEcommerce.Modules.Inventory.Domain.Entities;
-using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
-using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence;
+﻿using NexaEcommerce.Modules.Inventory.Domain.Entities;
 
-namespace NexaEcommerce.Modules.Inventory.Infrastructure.Repositories;
+namespace NexaEcommerce.Modules.Inventory.Domain.Interfaces;
 
-public sealed class InventoryRepository(
-    InventoryDbContext context)
-    : IInventoryRepository
+public interface IInventoryRepository
 {
-    public async Task<StockItem?> GetStockAsync(
+    Task<StockItem?> GetStockAsync(
         string tenantId,
         Guid productVariantId,
-        CancellationToken cancellationToken = default)
-    {
-        return await context.StockItems
-            .FirstOrDefaultAsync(
-                x =>
-                    x.TenantId == tenantId &&
-                    x.ProductVariantId == productVariantId,
-                cancellationToken);
-    }
+        CancellationToken cancellationToken = default);
 
-    public async Task<StockItem?> GetStockByIdAsync(
+    Task<StockItem?> GetStockByIdAsync(
         string tenantId,
         Guid stockItemId,
-        CancellationToken cancellationToken = default)
-    {
-        return await context.StockItems
-            .FirstOrDefaultAsync(
-                x =>
-                    x.TenantId == tenantId &&
-                    x.Id == stockItemId,
-                cancellationToken);
-    }
+        CancellationToken cancellationToken = default);
 
-    public async Task<StockReservation?> GetReservationAsync(
+    Task<StockReservation?> GetReservationAsync(
         string tenantId,
         string reservationKey,
-        CancellationToken cancellationToken = default)
-    {
-        return await context.StockReservations
-            .Include(x => x.StockItem)
-            .FirstOrDefaultAsync(
-                x =>
-                    x.TenantId == tenantId &&
-                    x.ReservationKey == reservationKey,
-                cancellationToken);
-    }
+        CancellationToken cancellationToken = default);
 
-    public async Task<IReadOnlyList<StockReservation>>
-        GetExpiredReservationsAsync(
-            DateTimeOffset now,
-            int batchSize,
-            CancellationToken cancellationToken = default)
-    {
-        if (batchSize <= 0)
-        {
-            throw new ArgumentOutOfRangeException(
-                nameof(batchSize));
-        }
+    Task<IReadOnlyList<StockReservation>> GetExpiredReservationsAsync(
+        DateTimeOffset now,
+        int batchSize,
+        CancellationToken cancellationToken = default);
 
-        return await context.StockReservations
-            .Include(x => x.StockItem)
-            .Where(
-                x =>
-                    x.Status ==
-                        StockReservationStatus.Active &&
-                    x.ExpiresAt <= now)
-            .OrderBy(
-                x => x.ExpiresAt)
-            .Take(batchSize)
-            .ToListAsync(
-                cancellationToken);
-    }
-
-    public async Task AddStockAsync(
+    Task AddStockAsync(
         StockItem stockItem,
-        CancellationToken cancellationToken = default)
-    {
-        await context.StockItems.AddAsync(
-            stockItem,
-            cancellationToken);
-    }
+        CancellationToken cancellationToken = default);
 
-    public async Task AddReservationAsync(
+    Task AddReservationAsync(
         StockReservation reservation,
-        CancellationToken cancellationToken = default)
-    {
-        await context.StockReservations.AddAsync(
-            reservation,
-            cancellationToken);
-    }
+        CancellationToken cancellationToken = default);
 
-    public void ClearTracking()
-    {
-        context.ChangeTracker.Clear();
-    }
+    void ClearTracking();
 }
-

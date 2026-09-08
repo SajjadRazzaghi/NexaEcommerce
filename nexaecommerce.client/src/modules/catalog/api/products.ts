@@ -253,14 +253,13 @@ export const productsApi = {
         id: string,
     ) =>
         api.get<Product>(
-            `/products/${ id } `,
+            `/products/${id}`,
         ),
-
     getBySlug: (
         slug: string,
     ) =>
         api.get<Product>(
-            `/products/slug/${ encodeURIComponent(slug) } `,
+            `/products/slug/${encodeURIComponent(slug)}`,
         ),
 
     search: (
@@ -282,7 +281,7 @@ export const productsApi = {
         params?: ProductFilter,
     ) =>
         api.get<Product[]>(
-            `/products/category/${ categoryId } `,
+            `/products/category/${categoryId}`,
             { params },
         ),
 
@@ -299,7 +298,7 @@ export const productsApi = {
         data: UpdateProductDto,
     ) =>
         api.put<void>(
-            `/products/${ id } `,
+            `/products/${id}`,
             data,
         ),
 
@@ -308,7 +307,7 @@ export const productsApi = {
         quantity: number,
     ) =>
         api.patch<void>(
-            `/products/${ id }/stock`,
+            `/products/${id}/stock`,
 { quantity },
         ),
 
