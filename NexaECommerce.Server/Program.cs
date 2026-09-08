@@ -48,7 +48,8 @@ builder.Services.AddPlatform(builder.Configuration);
 // ============================================================
 builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
 {
-    var connectionString = builder.Configuration.GetConnectionString("Default");
+    var connectionString =
+        builder.Configuration.GetConnectionString("Default");
 
     if (string.IsNullOrWhiteSpace(connectionString))
     {
@@ -77,33 +78,52 @@ builder.Services.AddCors(options =>
 });
 
 // ============================================================
-// 6. Catalog Module
+// 6. Ecommerce Modules
 // ============================================================
-builder.Services.AddEcommerceModules(builder.Configuration);
-builder.Services.AddHostedService<
-    NexaECommerce.Server.Features.Inventory
-        .ReservationExpirationWorker>();
+builder.Services.AddEcommerceModules(
+    builder.Configuration);
 
-builder.Services.AddHostedService<
-    NexaECommerce.Server.Features.Inventory
-        .InventoryOrderReconciliationWorker>();
 // ============================================================
-// 7. Build Application
+// 7. Background Workers
+// ============================================================
+//
+// Inventory expiration and reconciliation are operational
+// background processes. Integration tests use isolated databases
+// and deterministic request flows, so these workers must not run
+// in the Testing environment. Running them during tests can mutate
+// the same inventory records that Checkout is validating and
+// reserving.
+//
+// They remain enabled in Development/Production.
+//
+if (!builder.Environment.IsEnvironment("Testing"))
+{
+    builder.Services.AddHostedService<
+        NexaECommerce.Server.Features.Inventory
+            .ReservationExpirationWorker>();
+
+    builder.Services.AddHostedService<
+        NexaECommerce.Server.Features.Inventory
+            .InventoryOrderReconciliationWorker>();
+}
+
+// ============================================================
+// 8. Build Application
 // ============================================================
 var app = builder.Build();
 
 // ============================================================
-// 8. Exception Handling
+// 9. Exception Handling
 // ============================================================
 app.UseExceptionHandler();
 
 // ============================================================
-// 9. Request Logging
+// 10. Request Logging
 // ============================================================
 app.UseSerilogRequestLogging();
 
 // ============================================================
-// 10. Static Files
+// 11. Static Files
 // ============================================================
 app.UseDefaultFiles();
 app.MapStaticAssets();
@@ -119,7 +139,7 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 // ============================================================
-// 11. Swagger / Scalar
+// 12. Swagger / Scalar
 // ============================================================
 if (app.Environment.IsDevelopment())
 {
@@ -144,51 +164,53 @@ if (app.Environment.IsDevelopment())
 }
 
 // ============================================================
-// 12. HTTPS Redirection
+// 13. HTTPS Redirection
 // ============================================================
 app.UseHttpsRedirection();
 
 // ============================================================
-// 13. Routing
+// 14. Routing
 // ============================================================
 app.UseRouting();
 
 // ============================================================
-// 14. CORS
+// 15. CORS
 // ============================================================
 app.UseCors("AllowReactApp");
 
 // ============================================================
-// 15. Authentication
+// 16. Authentication
 // ============================================================
 app.UseAuthentication();
 
 app.UseMiddleware<TenantResolutionMiddleware>();
 
 // ============================================================
-// 16. Authorization
+// 17. Authorization
 // ============================================================
 app.UseAuthorization();
 
 // ============================================================
-// 17. Endpoints
+// 18. Endpoints
 // ============================================================
 app.MapControllers();
 app.MapAllFeatures();
 
 // ============================================================
-// 18. Database Migration
+// 19. Database Migration
 // ============================================================
 using (var scope = app.Services.CreateScope())
 {
     try
     {
         var catalogContext =
-            scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+            scope.ServiceProvider
+                .GetRequiredService<CatalogDbContext>();
 
         await catalogContext.Database.MigrateAsync();
 
-        await DbInitializer.InitializeAsync(catalogContext);
+        await DbInitializer.InitializeAsync(
+            catalogContext);
 
         app.Logger.LogInformation(
             "Catalog database migration completed successfully.");
@@ -202,7 +224,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // ============================================================
-// 19. Run
+// 20. Run
 // ============================================================
 app.Run();
 

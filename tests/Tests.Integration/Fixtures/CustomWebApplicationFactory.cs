@@ -1,4 +1,3 @@
-using System.Security.Claims;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -9,18 +8,24 @@ using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Hosting;
-using NexaECommerce.Server.Data;
-using NexaECommerce.Server.Platform.Authorization;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
 using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence;
+using NexaEcommerce.Modules.Orders.Infrastructure.Persistence;
 using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
+using NexaECommerce.Server.Data;
+using NexaECommerce.Server.Platform.Authorization;
+using System.Security.Claims;
 
 namespace NexaECommerce.Tests.Integration.Fixtures;
 
 public sealed class CustomWebApplicationFactory
     : WebApplicationFactory<Program>, IAsyncLifetime
 {
+    private readonly string _ordersDbPath =
+    Path.Combine(
+        Path.GetTempPath(),
+        $"nexaecommerce-test-orders-{Guid.NewGuid():N}.db");
     public const string LoginEmail =
         "integration-admin@nexaecommerce.test";
 
@@ -62,6 +67,25 @@ public sealed class CustomWebApplicationFactory
         builder.ConfigureTestServices(
             services =>
             {
+                services.RemoveAll(
+    typeof(OrdersDbContext));
+
+                services.RemoveAll(
+                    typeof(
+                        DbContextOptions
+                            <OrdersDbContext>));
+
+                services.RemoveAll(
+                    typeof(
+                        IDbContextOptionsConfiguration
+                            <OrdersDbContext>));
+
+                services.AddDbContext<OrdersDbContext>(
+                    options =>
+                    {
+                        options.UseSqlite(
+                            $"Data Source={_ordersDbPath}");
+                    });
                 // ========================================================
                 // AppDbContext / Identity
                 // ========================================================
@@ -182,11 +206,17 @@ public sealed class CustomWebApplicationFactory
 
     public async ValueTask InitializeAsync()
     {
+       
+       
         using var scope =
             Services.CreateScope();
 
         var sp =
             scope.ServiceProvider;
+        var ordersDb =
+   sp.GetRequiredService<OrdersDbContext>();
+        await ordersDb.Database.EnsureCreatedAsync();
+
 
         // ========================================================
         // Identity database
@@ -447,7 +477,7 @@ public sealed class CustomWebApplicationFactory
         TryDelete(_cartDbPath);
         TryDelete(_inventoryDbPath);
         TryDelete(_hangfirePath);
-
+        TryDelete(_ordersDbPath);
         static void TryDelete(
             string path)
         {
@@ -460,5 +490,6 @@ public sealed class CustomWebApplicationFactory
             {
             }
         }
+       
     }
 }

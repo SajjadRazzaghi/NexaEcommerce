@@ -24,19 +24,20 @@ public sealed class ReservationExpirationWorker(
         logger.LogInformation(
             "Inventory reservation expiration worker started.");
 
+        try
+        {
+            await Task.Delay(
+                PollInterval,
+                stoppingToken);
+        }
+        catch (OperationCanceledException)
+            when (stoppingToken.IsCancellationRequested)
+        {
+            return;
+        }
+
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
-            {
-                await Task.Delay(
-                    PollInterval,
-                    stoppingToken);
-            }
-            catch (OperationCanceledException)
-                when (stoppingToken.IsCancellationRequested)
-            {
-                return;
-            }
             try
             {
                 await ProcessExpiredReservationsAsync(
@@ -70,7 +71,6 @@ public sealed class ReservationExpirationWorker(
         logger.LogInformation(
             "Inventory reservation expiration worker stopped.");
     }
-
     private async Task ProcessExpiredReservationsAsync(
         CancellationToken cancellationToken)
     {
