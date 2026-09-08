@@ -28,6 +28,17 @@ public sealed class ReservationExpirationWorker(
         {
             try
             {
+                await Task.Delay(
+                    PollInterval,
+                    stoppingToken);
+            }
+            catch (OperationCanceledException)
+                when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            try
+            {
                 await ProcessExpiredReservationsAsync(
                     stoppingToken);
             }
