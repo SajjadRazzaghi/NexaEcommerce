@@ -8,6 +8,7 @@ using NexaECommerce.Server.Platform.Features;
 using NexaECommerce.Server.Platform.Filters;
 using NexaECommerce.Server.Platform.MultiTenancy;
 
+
 namespace NexaECommerce.Server.Features.Products;
 
 public sealed class ProductEndpoints : IFeatureEndpoints
@@ -457,6 +458,8 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     private static async Task<IResult> Create(
         [FromBody] CreateProductDto request,
         IProductService productService,
+        ProductInventorySynchronizer inventorySynchronizer,
+        ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -465,6 +468,11 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 await productService.CreateAsync(
                     request,
                     ct);
+
+            await inventorySynchronizer.SyncMissingStockAsync(
+                currentTenant.Id,
+                product,
+                ct);
 
             return Results.Created(
                 $"/api/products/{product.Id}",
@@ -479,12 +487,13 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 });
         }
     }
-
     private static async Task<IResult> Update(
-        Guid id,
-        [FromBody] UpdateProductDto request,
-        IProductService productService,
-        CancellationToken ct)
+     Guid id,
+     [FromBody] UpdateProductDto request,
+     IProductService productService,
+     ProductInventorySynchronizer inventorySynchronizer,
+     ICurrentTenant currentTenant,
+     CancellationToken ct)
     {
         try
         {
@@ -492,6 +501,19 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 id,
                 request,
                 ct);
+
+            var product =
+                await productService.GetByIdAsync(
+                    id,
+                    ct);
+
+            if (product is not null)
+            {
+                await inventorySynchronizer.SyncMissingStockAsync(
+                    currentTenant.Id,
+                    product,
+                    ct);
+            }
 
             return Results.NoContent();
         }

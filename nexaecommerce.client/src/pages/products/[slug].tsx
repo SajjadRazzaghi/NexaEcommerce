@@ -22,7 +22,8 @@ import {
 } from '@mui/icons-material';
 
 import {
-    useParams, Link
+    Link,
+    useParams,
 } from 'react-router-dom';
 
 import {
@@ -52,7 +53,6 @@ function money(
     );
 }
 
-
 type AttributeOption = {
     id: string;
     value: string;
@@ -60,25 +60,21 @@ type AttributeOption = {
     colorHex?: string | null;
 };
 
-
 type AttributeGroup = {
     code: string;
     name: string;
     options: AttributeOption[];
 };
 
-
 function normalize(
     value: string | null | undefined,
 ) {
     return (
-        value ??
-        ''
+        value ?? ''
     )
         .trim()
         .toLowerCase();
 }
-
 
 function getVariantAttributeGroups(
     variants: ProductVariant[],
@@ -139,24 +135,20 @@ function getVariantAttributeGroups(
                         optionId,
                 );
 
-            if (
-                !alreadyExists
-            ) {
-                group.options.push(
-                    {
-                        id:
-                            optionId,
+            if (!alreadyExists) {
+                group.options.push({
+                    id:
+                        optionId,
 
-                        value:
-                            attribute.value,
+                    value:
+                        attribute.value,
 
-                        displayValue:
-                            attribute.displayValue,
+                    displayValue:
+                        attribute.displayValue,
 
-                        colorHex:
-                            attribute.colorHex,
-                    },
-                );
+                    colorHex:
+                        attribute.colorHex,
+                });
             }
         }
     }
@@ -165,7 +157,6 @@ function getVariantAttributeGroups(
         map.values(),
     );
 }
-
 
 function getVariantAttributeMap(
     variant: ProductVariant,
@@ -194,7 +185,6 @@ function getVariantAttributeMap(
     return result;
 }
 
-
 function matchesSelections(
     variant: ProductVariant,
     selections: Record<
@@ -220,7 +210,6 @@ function matchesSelections(
             ] === valueId,
     );
 }
-
 
 function getVariantDisplayAttributes(
     variant: ProductVariant,
@@ -257,7 +246,6 @@ function getVariantDisplayAttributes(
     );
 }
 
-
 function getVariantLabel(
     variant: ProductVariant,
 ) {
@@ -278,7 +266,6 @@ function getVariantLabel(
     return variant.sku;
 }
 
-
 function getErrorMessage(
     error: unknown,
 ) {
@@ -290,7 +277,6 @@ function getErrorMessage(
 
     return 'Unable to add the selected variant to the cart.';
 }
-
 
 export default function ProductDetailPage() {
     const {
@@ -344,7 +330,6 @@ export default function ProductDetailPage() {
     ] =
         useState(1);
 
-
     const activeVariants =
         useMemo(
             () =>
@@ -360,7 +345,6 @@ export default function ProductDetailPage() {
             ],
         );
 
-
     const attributeGroups =
         useMemo(
             () =>
@@ -372,11 +356,9 @@ export default function ProductDetailPage() {
             ],
         );
 
-
     const hasGenericAttributes =
         attributeGroups.length >
         0;
-
 
     /*
      * For a simple product without generic
@@ -473,7 +455,6 @@ export default function ProductDetailPage() {
         ],
     );
 
-
     /*
      * Reset selection whenever product
      * changes.
@@ -501,7 +482,6 @@ export default function ProductDetailPage() {
         ],
     );
 
-
     const selectedVariant =
         useMemo(
             () =>
@@ -517,7 +497,6 @@ export default function ProductDetailPage() {
             ],
         );
 
-
     const maxStock =
         selectedVariant
             ?.stockQuantity ??
@@ -528,19 +507,16 @@ export default function ProductDetailPage() {
                 0
         );
 
-
     const price =
         selectedVariant?.priceOverride ??
         product?.finalPrice ??
         product?.price ??
         0;
 
-
     const comparePrice =
         selectedVariant?.comparePrice ??
         product?.comparePrice ??
         null;
-
 
     const hasDiscount =
         Boolean(
@@ -549,17 +525,9 @@ export default function ProductDetailPage() {
             price,
         );
 
-
     /*
      * Determine whether a value can participate
      * in at least one currently possible variant.
-     *
-     * Example:
-     *
-     * Color = Red
-     *
-     * Size XL might be disabled if
-     * no Red + XL variant exists.
      */
     const isOptionAvailable = (
         groupCode: string,
@@ -583,7 +551,6 @@ export default function ProductDetailPage() {
         );
     };
 
-
     const handleAttributeChange = (
         groupCode: string,
         optionId: string,
@@ -595,10 +562,6 @@ export default function ProductDetailPage() {
                 optionId,
         };
 
-        /*
-         * Remove selections that became impossible
-         * after changing another attribute.
-         */
         let cleanedSelections =
         {
             ...nextSelections,
@@ -644,12 +607,6 @@ export default function ProductDetailPage() {
         );
     };
 
-
-    /*
-     * If generic selection is complete but
-     * combination does not exist, selectedVariant
-     * becomes null and Add to Cart remains disabled.
-     */
     const canAddToCart =
         Boolean(
             product &&
@@ -664,10 +621,6 @@ export default function ProductDetailPage() {
             selectedVariant.stockQuantity,
         );
 
-
-    const [addedToCart, setAddedToCart] =
-        useState(false);
-
     const handleAddToCart = () => {
         if (!selectedVariant) {
             return;
@@ -677,7 +630,10 @@ export default function ProductDetailPage() {
             return;
         }
 
-        if (selectedVariant.stockQuantity <= 0) {
+        if (
+            selectedVariant.stockQuantity <=
+            0
+        ) {
             return;
         }
 
@@ -692,18 +648,11 @@ export default function ProductDetailPage() {
             return;
         }
 
-        add.mutate(
-            {
-                productVariantId:
-                    selectedVariant.id,
-                quantity,
-            },
-            {
-                onSuccess: () => {
-                    setAddedToCart(true);
-                },
-            },
-        );
+        add.mutate({
+            productVariantId:
+                selectedVariant.id,
+            quantity,
+        });
     };
 
     /*
@@ -713,7 +662,8 @@ export default function ProductDetailPage() {
     useEffect(
         () => {
             if (
-                maxStock <= 0
+                maxStock <=
+                0
             ) {
                 setQuantity(
                     1,
@@ -737,7 +687,6 @@ export default function ProductDetailPage() {
             maxStock,
         ],
     );
-
 
     if (
         isLoading
@@ -763,7 +712,6 @@ export default function ProductDetailPage() {
         );
     }
 
-
     if (
         error
     ) {
@@ -785,7 +733,6 @@ export default function ProductDetailPage() {
         );
     }
 
-
     if (
         !product
     ) {
@@ -804,7 +751,6 @@ export default function ProductDetailPage() {
             </Container>
         );
     }
-
 
     const activeImages =
         product.images.length >
@@ -828,7 +774,6 @@ export default function ProductDetailPage() {
                         true,
                 },
             ];
-
 
     return (
         <Box
@@ -1034,9 +979,8 @@ export default function ProductDetailPage() {
                         </Stack>
                     </Box>
 
-
                     {/* ---------------------------------------------------------- */}
-                    {/* Product information                                           */}
+                    {/* Product information                                         */}
                     {/* ---------------------------------------------------------- */}
 
                     <Box>
@@ -1076,7 +1020,6 @@ export default function ProductDetailPage() {
                                 }
                             </Typography>
 
-
                             <Stack
                                 direction="row"
                                 spacing={1.5}
@@ -1113,7 +1056,6 @@ export default function ProductDetailPage() {
                                 </Typography>
                             </Stack>
 
-
                             <Stack
                                 direction="row"
                                 spacing={1}
@@ -1138,9 +1080,7 @@ export default function ProductDetailPage() {
                                 )}
                             </Stack>
 
-
                             <Divider />
-
 
                             {product.shortDescription && (
                                 <Typography
@@ -1156,9 +1096,8 @@ export default function ProductDetailPage() {
                                 </Typography>
                             )}
 
-
                             {/* -------------------------------------------------- */}
-                            {/* Price                                                 */}
+                            {/* Price                                               */}
                             {/* -------------------------------------------------- */}
 
                             <Box>
@@ -1212,9 +1151,8 @@ export default function ProductDetailPage() {
                                 )}
                             </Box>
 
-
                             {/* -------------------------------------------------- */}
-                            {/* Generic Attribute Selection                         */}
+                            {/* Generic Attribute Selection                       */}
                             {/* -------------------------------------------------- */}
 
                             {hasGenericAttributes && (
@@ -1351,11 +1289,6 @@ export default function ProductDetailPage() {
                                         )}
                                     </Stack>
 
-
-                                    {/* ------------------------------------------------ */}
-                                    {/* Combination status                               */}
-                                    {/* ------------------------------------------------ */}
-
                                     {Object.keys(
                                         selectedAttributes,
                                     ).length >
@@ -1392,9 +1325,8 @@ export default function ProductDetailPage() {
                                 </Box>
                             )}
 
-
                             {/* -------------------------------------------------- */}
-                            {/* Simple variant fallback                             */}
+                            {/* Simple variant fallback                           */}
                             {/* -------------------------------------------------- */}
 
                             {!hasGenericAttributes &&
@@ -1475,9 +1407,8 @@ export default function ProductDetailPage() {
                                     </Box>
                                 )}
 
-
                             {/* -------------------------------------------------- */}
-                            {/* Quantity                                             */}
+                            {/* Quantity                                           */}
                             {/* -------------------------------------------------- */}
 
                             <Box
@@ -1604,7 +1535,7 @@ export default function ProductDetailPage() {
                             </Box>
 
                             {/* -------------------------------------------------- */}
-                            {/* Add to cart                                          */}
+                            {/* Add to cart                                        */}
                             {/* -------------------------------------------------- */}
 
                             <Button
@@ -1653,30 +1584,34 @@ export default function ProductDetailPage() {
                                     : 'افزودن به سبد خرید'}
                             </Button>
 
-                            {addedToCart && (
-                                <Button
-                                    component={Link}
-                                    to="/cart"
-                                    fullWidth
-                                    size="large"
-                                    variant="outlined"
-                                    sx={{
-                                        minHeight: {
-                                            xs: 52,
-                                            sm: 56,
-                                        },
-                                        borderRadius: 3,
-                                        fontWeight: 800,
-                                        fontSize: {
-                                            xs: '0.95rem',
-                                            sm: '1rem',
-                                        },
-                                        whiteSpace: 'nowrap',
-                                    }}
-                                >
-                                    مشاهده سبد خرید
-                                </Button>
-                            )}
+                            {/* Cart must always be accessible */}
+
+                            <Button
+                                component={Link}
+                                to="/cart"
+                                fullWidth
+                                size="large"
+                                variant="outlined"
+                                startIcon={
+                                    <ShoppingCartOutlined />
+                                }
+                                sx={{
+                                    minHeight: {
+                                        xs: 52,
+                                        sm: 56,
+                                    },
+                                    borderRadius: 3,
+                                    fontWeight: 800,
+                                    fontSize: {
+                                        xs: '0.95rem',
+                                        sm: '1rem',
+                                    },
+                                    whiteSpace: 'nowrap',
+                                }}
+                            >
+                                مشاهده سبد خرید
+                            </Button>
+
                             {add.isError && (
                                 <Alert
                                     severity="error"
@@ -1686,7 +1621,6 @@ export default function ProductDetailPage() {
                                     )}
                                 </Alert>
                             )}
-
 
                             {/* -------------------------------------------------- */}
                             {/* Variant details                                    */}
@@ -1741,7 +1675,9 @@ export default function ProductDetailPage() {
                                                     variant="body2"
                                                     color="text.secondary"
                                                 >
-                                                    {label}
+                                                    {
+                                                        label
+                                                    }
                                                 </Typography>
                                             ),
                                         )}
@@ -1762,9 +1698,8 @@ export default function ProductDetailPage() {
                     </Box>
                 </Box>
 
-
                 {/* -------------------------------------------------------------- */}
-                {/* Description                                                      */}
+                {/* Description                                                     */}
                 {/* -------------------------------------------------------------- */}
 
                 {product.description && (

@@ -6,7 +6,6 @@ import type {
     SetCartItemQuantityRequest,
 } from '../types';
 
-
 export async function getCart(): Promise<CartResponse> {
     const { data } =
         await api.get<CartResponse>(
@@ -15,7 +14,6 @@ export async function getCart(): Promise<CartResponse> {
 
     return data;
 }
-
 
 export async function addCartItem(
     request: AddCartItemRequest,
@@ -29,7 +27,6 @@ export async function addCartItem(
     return data;
 }
 
-
 export async function setCartItemQuantity(
     request: SetCartItemQuantityRequest,
 ): Promise<CartResponse> {
@@ -42,18 +39,16 @@ export async function setCartItemQuantity(
     return data;
 }
 
-
 export async function removeCartItem(
     productVariantId: string,
 ): Promise<CartResponse> {
     const { data } =
         await api.delete<CartResponse>(
-            `/ cart / items / ${ productVariantId } `,
+            `/cart/items/${productVariantId}`,
         );
 
     return data;
 }
-
 
 export async function clearCart(): Promise<CartResponse> {
     const { data } =
@@ -63,4 +58,3 @@ export async function clearCart(): Promise<CartResponse> {
 
     return data;
 }
-

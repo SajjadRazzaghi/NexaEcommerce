@@ -14,6 +14,7 @@ using NexaEcommerce.SharedKernel.Abstractions;
 using NexaECommerce.Server.Features.Cart;
 using NexaECommerce.Server.Features.Inventory;
 using NexaECommerce.Server.Features.Orders;
+using NexaECommerce.Server.Features.Products;
 using NexaECommerce.Server.Platform.MultiTenancy;
 
 namespace NexaECommerce.Server.Extensions;
@@ -86,7 +87,7 @@ public static class ModuleRegistrationExtensions
         services.AddScoped<
             IProductVariantReader,
             CatalogProductVariantReader>();
-
+        services.AddScoped<ProductInventorySynchronizer>();
         // ========================================================
         // Tenant
         // ========================================================

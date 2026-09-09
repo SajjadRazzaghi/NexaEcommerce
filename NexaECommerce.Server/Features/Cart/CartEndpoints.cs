@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
+using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.ShoppingCart.Application.DTOs;
 using NexaEcommerce.Modules.ShoppingCart.Application.Services;
 using NexaEcommerce.SharedKernel.Abstractions;
@@ -72,6 +73,14 @@ public sealed class CartEndpoints : IFeatureEndpoints
             http.RequestServices
                 .GetRequiredService<ICurrentTenant>();
 
+        var productVariantReader =
+            http.RequestServices
+                .GetRequiredService<IProductVariantReader>();
+
+        var inventoryService =
+            http.RequestServices
+                .GetRequiredService<IInventoryService>();
+
         try
         {
             var userId =
@@ -82,6 +91,51 @@ public sealed class CartEndpoints : IFeatureEndpoints
                     http,
                     userId,
                     create: true);
+
+            // ----------------------------------------------------
+            // Backward compatibility / inventory repair
+            //
+            // Older products may have Catalog stock but no
+            // corresponding Inventory StockItem.
+            // Create the Inventory record only when it is missing.
+            // ----------------------------------------------------
+
+            var variant =
+                await productVariantReader
+                    .GetSellableVariantAsync(
+                        request.ProductVariantId,
+                        ct);
+
+            if (variant is null ||
+                !variant.IsActive ||
+                !variant.IsPublished)
+            {
+                return Results.NotFound(
+                    new
+                    {
+                        error = "Product variant is not available."
+                    });
+            }
+
+            var stock =
+                await inventoryService.GetStockAsync(
+                    tenant.Id,
+                    request.ProductVariantId,
+                    ct);
+
+            if (stock is null)
+            {
+                var catalogStock =
+                    Math.Max(
+                        0,
+                        variant.StockQuantity);
+
+                await inventoryService.SetStockAsync(
+                    tenant.Id,
+                    request.ProductVariantId,
+                    catalogStock,
+                    ct);
+            }
 
             var result =
                 await cartService.AddItemAsync(

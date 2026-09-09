@@ -1,27 +1,58 @@
 import { type ReactNode } from 'react';
-import { Navigate, Outlet, useLocation } from 'react-router';
+
+import {
+    Navigate,
+    Outlet,
+    useLocation,
+} from 'react-router';
+
 import { useTranslation } from 'react-i18next';
 
 import { useAuth } from '@/hooks/use-auth';
+
 import { FullScreenLoader } from '@/components/full-screen-loader';
+
 import { AppSidebar } from '@/components/app/app-sidebar';
+
 import { AppTopbar } from '@/components/app/app-topbar';
+
 import {
     SidebarInset,
     SidebarProvider,
 } from '@/components/ui/sidebar';
 
+import StoreHeader from '@/components/storefront/StoreHeader';
+
 export default function AppLayout() {
-    const { isAuthenticated, isLoading } = useAuth();
+    const {
+        isAuthenticated,
+        isLoading,
+    } = useAuth();
+
     const { t } = useTranslation();
+
     const location = useLocation();
 
     /*
-     * The storefront home is public.
-     * All other routes inside (app) remain authenticated.
+     * Public storefront routes.
+     *
+     * The shopping cart is intentionally NOT rendered
+     * inside the admin/application shell.
      */
-    if (location.pathname === '/') {
-        return <Outlet />;
+    const isPublicStorefront =
+        location.pathname === '/' ||
+        location.pathname === '/cart';
+
+    if (isPublicStorefront) {
+        return (
+            <div className="min-h-screen bg-background">
+                <StoreHeader />
+
+                <main className="min-h-[calc(100vh-73px)]">
+                    <Outlet />
+                </main>
+            </div>
+        );
     }
 
     if (isLoading) {
@@ -31,7 +62,9 @@ export default function AppLayout() {
     if (!isAuthenticated) {
         return (
             <Navigate
-                to={`/login?returnUrl=${encodeURIComponent(location.pathname)}`}
+                to={`/login?returnUrl=${encodeURIComponent(
+                    location.pathname,
+                )}`}
                 replace
             />
         );
@@ -45,13 +78,15 @@ export default function AppLayout() {
         <SidebarProvider>
             <a
                 href="#main-content"
-                className="bg-background focus:ring-ring sr-only focus:fixed focus:start-4 focus:top-4 focus:z-50 focus:not-sr-only focus:rounded-md focus:border focus:px-3 focus:py-2 focus:shadow-lg focus:ring-[3px]"
+                className="bg-background focus:ring-ring sr-only focus:fixed focus:start-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:px-3 focus:py-2 focus:shadow-lg focus:ring-[3px]"
             >
                 {t('common.skipToContent')}
             </a>
 
             {realtime}
+
             {tenantBranding}
+
             {onboardingTour}
 
             <AppSidebar />
