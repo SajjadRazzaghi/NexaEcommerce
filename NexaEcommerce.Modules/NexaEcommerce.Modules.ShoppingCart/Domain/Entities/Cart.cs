@@ -9,72 +9,6 @@ public sealed class Cart : AggregateRoot
     private Cart()
     {
     }
- 
-public void MergeFrom(
-    Cart source,
-    IReadOnlyDictionary<Guid, int> availableQuantities)
-    {
-        ArgumentNullException.ThrowIfNull(source);
-        ArgumentNullException.ThrowIfNull(
-            availableQuantities);
-
-        foreach (var sourceItem in source.Items)
-        {
-            availableQuantities.TryGetValue(
-                sourceItem.ProductVariantId,
-                out var available);
-
-            var targetItem =
-                _items.FirstOrDefault(
-                    x =>
-                        x.ProductVariantId ==
-                        sourceItem.ProductVariantId);
-
-            if (targetItem is null)
-            {
-                var quantity =
-                    Math.Min(
-                        sourceItem.Quantity,
-                        available);
-
-                if (quantity > 0)
-                {
-                    AddItem(
-                        sourceItem.ProductVariantId,
-                        quantity,
-                        sourceItem.UnitPrice,
-                        sourceItem.ProductName,
-                        sourceItem.ImageUrl);
-                }
-
-                continue;
-            }
-
-            var totalRequested =
-                targetItem.Quantity +
-                sourceItem.Quantity;
-
-            var finalQuantity =
-                Math.Min(
-                    totalRequested,
-                    available);
-
-            if (finalQuantity <= 0)
-            {
-                _items.Remove(targetItem);
-            }
-            else
-            {
-                targetItem.SetQuantity(
-                    finalQuantity,
-                    sourceItem.UnitPrice,
-                    sourceItem.ProductName,
-                    sourceItem.ImageUrl);
-            }
-        }
-
-        UpdatedAt = DateTime.UtcNow;
-    }
 
     private Cart(
         string tenantId,
@@ -82,9 +16,11 @@ public void MergeFrom(
         string? guestToken)
     {
         if (string.IsNullOrWhiteSpace(tenantId))
+        {
             throw new ArgumentException(
                 "Tenant id is required.",
                 nameof(tenantId));
+        }
 
         if (string.IsNullOrWhiteSpace(userId) &&
             string.IsNullOrWhiteSpace(guestToken))
@@ -93,14 +29,25 @@ public void MergeFrom(
                 "Either user id or guest token is required.");
         }
 
-        TenantId = tenantId.Trim();
-        UserId = string.IsNullOrWhiteSpace(userId)
-            ? null
-            : userId.Trim();
+        if (!string.IsNullOrWhiteSpace(userId) &&
+            !string.IsNullOrWhiteSpace(guestToken))
+        {
+            throw new ArgumentException(
+                "A cart cannot have both user id and guest token.");
+        }
 
-        GuestToken = string.IsNullOrWhiteSpace(guestToken)
-            ? null
-            : guestToken.Trim();
+        TenantId =
+            tenantId.Trim();
+
+        UserId =
+            string.IsNullOrWhiteSpace(userId)
+                ? null
+                : userId.Trim();
+
+        GuestToken =
+            string.IsNullOrWhiteSpace(guestToken)
+                ? null
+                : guestToken.Trim();
     }
 
     public string TenantId { get; private set; } = null!;
@@ -142,12 +89,14 @@ public void MergeFrom(
         ValidateProductVariantId(
             productVariantId);
 
-        ValidateQuantity(quantity);
+        ValidateQuantity(
+            quantity);
 
         var existing =
             _items.FirstOrDefault(
-                x => x.ProductVariantId ==
-                     productVariantId);
+                item =>
+                    item.ProductVariantId ==
+                    productVariantId);
 
         if (existing is not null)
         {
@@ -157,7 +106,8 @@ public void MergeFrom(
                 productName,
                 imageUrl);
 
-            UpdatedAt = DateTime.UtcNow;
+            UpdatedAt =
+                DateTime.UtcNow;
 
             return existing;
         }
@@ -171,9 +121,11 @@ public void MergeFrom(
                 productName,
                 imageUrl);
 
-        _items.Add(item);
+        _items.Add(
+            item);
 
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt =
+            DateTime.UtcNow;
 
         return item;
     }
@@ -190,20 +142,26 @@ public void MergeFrom(
 
         var existing =
             _items.FirstOrDefault(
-                x => x.ProductVariantId ==
-                     productVariantId);
+                item =>
+                    item.ProductVariantId ==
+                    productVariantId);
 
         if (quantity <= 0)
         {
             if (existing is not null)
-                _items.Remove(existing);
+            {
+                _items.Remove(
+                    existing);
+            }
 
-            UpdatedAt = DateTime.UtcNow;
+            UpdatedAt =
+                DateTime.UtcNow;
 
             return;
         }
 
-        ValidateQuantity(quantity);
+        ValidateQuantity(
+            quantity);
 
         if (existing is null)
         {
@@ -223,7 +181,8 @@ public void MergeFrom(
             productName,
             imageUrl);
 
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
     public void RemoveItem(
@@ -234,22 +193,103 @@ public void MergeFrom(
 
         var existing =
             _items.FirstOrDefault(
-                x => x.ProductVariantId ==
-                     productVariantId);
+                item =>
+                    item.ProductVariantId ==
+                    productVariantId);
 
         if (existing is null)
+        {
             return;
+        }
 
-        _items.Remove(existing);
+        _items.Remove(
+            existing);
 
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
     public void Clear()
     {
         _items.Clear();
 
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
+
+    public void MergeFrom(
+        Cart source,
+        IReadOnlyDictionary<Guid, int> availableQuantities)
+    {
+        ArgumentNullException.ThrowIfNull(
+            source);
+
+        ArgumentNullException.ThrowIfNull(
+            availableQuantities);
+
+        foreach (var sourceItem in source.Items)
+        {
+            availableQuantities.TryGetValue(
+                sourceItem.ProductVariantId,
+                out var availableQuantity);
+
+            if (availableQuantity <= 0)
+            {
+                continue;
+            }
+
+            var targetItem =
+                _items.FirstOrDefault(
+                    item =>
+                        item.ProductVariantId ==
+                        sourceItem.ProductVariantId);
+
+            if (targetItem is null)
+            {
+                var quantity =
+                    Math.Min(
+                        sourceItem.Quantity,
+                        availableQuantity);
+
+                if (quantity > 0)
+                {
+                    AddItem(
+                        sourceItem.ProductVariantId,
+                        quantity,
+                        sourceItem.UnitPrice,
+                        sourceItem.ProductName,
+                        sourceItem.ImageUrl);
+                }
+
+                continue;
+            }
+
+            var requestedTotal =
+                targetItem.Quantity +
+                sourceItem.Quantity;
+
+            var finalQuantity =
+                Math.Min(
+                    requestedTotal,
+                    availableQuantity);
+
+            if (finalQuantity <= 0)
+            {
+                _items.Remove(
+                    targetItem);
+
+                continue;
+            }
+
+            targetItem.SetQuantity(
+                finalQuantity,
+                sourceItem.UnitPrice,
+                sourceItem.ProductName,
+                sourceItem.ImageUrl);
+        }
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
     private static void ValidateProductVariantId(

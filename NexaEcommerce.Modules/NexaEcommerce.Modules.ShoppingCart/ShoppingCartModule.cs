@@ -1,9 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NexaEcommerce.Modules.ShoppingCart.Application.Services;
+using NexaEcommerce.Modules.ShoppingCart.Domain.Entities;
 using NexaEcommerce.Modules.ShoppingCart.Domain.Interfaces;
 using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
-using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Repositories;
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaEcommerce.SharedKernel.Infrastructure;
 
@@ -38,13 +39,17 @@ public static class ShoppingCartModule
                                 null));
             });
 
-        services.AddScoped<ICartRepository, CartRepository>();
-
-        services.AddScoped<ICartService, CartService>();
+        services.AddScoped<
+            ICartRepository,
+            CartRepository>();
 
         services.AddScoped<
-      ICartUnitOfWork,
-      CartUnitOfWork>();
+            ICartService,
+            CartService>();
+
+        services.AddScoped<
+            ICartUnitOfWork,
+            CartUnitOfWork>();
 
         return services;
     }

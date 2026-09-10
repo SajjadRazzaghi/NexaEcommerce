@@ -9,7 +9,6 @@ using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.ShoppingCart;
 using NexaEcommerce.Modules.ShoppingCart.Application.Services;
 using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
-using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Repositories;
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaECommerce.Server.Features.Cart;
 using NexaECommerce.Server.Features.Inventory;

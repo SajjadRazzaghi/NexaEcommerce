@@ -40,41 +40,73 @@ public sealed class CartService(
         CancellationToken cancellationToken = default)
     {
         if (request.Quantity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(request.Quantity));
-
-        var variant = await _productVariantReader.GetSellableVariantAsync(
-            request.ProductVariantId, cancellationToken);
-
-        if (variant is null || !variant.IsActive || !variant.IsPublished)
         {
-            throw new KeyNotFoundException("Product variant is not available.");
+            throw new ArgumentOutOfRangeException(
+                nameof(request.Quantity),
+                "Quantity must be greater than zero.");
         }
 
-        var availableQuantity = await _stockReader.GetAvailableQuantityAsync(
-            tenantId, request.ProductVariantId, cancellationToken);
+        if (request.ProductVariantId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Product variant id is required.",
+                nameof(request.ProductVariantId));
+        }
+
+        var variant =
+            await productVariantReader.GetSellableVariantAsync(
+                request.ProductVariantId,
+                cancellationToken);
+
+        if (variant is null ||
+            !variant.IsActive ||
+            !variant.IsPublished)
+        {
+            throw new KeyNotFoundException(
+                "Product variant is not available.");
+        }
+
+        var availableQuantity =
+            await stockReader.GetAvailableQuantityAsync(
+                tenantId,
+                request.ProductVariantId,
+                cancellationToken);
 
         if (availableQuantity is null)
         {
-            throw new KeyNotFoundException("Stock record is not available.");
+            throw new KeyNotFoundException(
+                "Stock record is not available.");
         }
 
-        // ✅ این متد اکنون یک Cart که کاملاً توسط EF Track می‌شود را برمی‌گرداند
-        var cart = await GetOrCreateAsync(tenantId, userId, guestToken, cancellationToken);
+        var cart =
+            await GetOrCreateAsync(
+                tenantId,
+                userId,
+                guestToken,
+                cancellationToken);
 
-        var currentQuantity = cart.Items
-            .Where(x => x.ProductVariantId == request.ProductVariantId)
-            .Select(x => x.Quantity)
-            .FirstOrDefault();
+        var currentQuantity =
+            cart.Items
+                .Where(
+                    item =>
+                        item.ProductVariantId ==
+                        request.ProductVariantId)
+                .Select(
+                    item =>
+                        item.Quantity)
+                .FirstOrDefault();
 
-        var requestedTotal = currentQuantity + request.Quantity;
+        var requestedTotal =
+            currentQuantity +
+            request.Quantity;
 
-        if (requestedTotal > availableQuantity.Value)
+        if (requestedTotal >
+            availableQuantity.Value)
         {
-            throw new InvalidOperationException("Requested quantity exceeds available stock.");
+            throw new InvalidOperationException(
+                "Requested quantity exceeds available stock.");
         }
 
-        // ✅ فراخوانی متد دامین. EF Core به دلیل Include و Track بودن، 
-        // به درستی تشخیص می‌دهد که این یک آیتم جدید (Added) یا آپدیت (Modified) است.
         cart.AddItem(
             variant.Id,
             request.Quantity,
@@ -82,69 +114,12 @@ public sealed class CartService(
             variant.ProductName,
             variant.ImageUrl);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await unitOfWork.SaveChangesAsync(
+            cancellationToken);
 
         return Map(cart);
     }
 
-    private async Task<Cart> GetOrCreateAsync(
-        string tenantId,
-        string? userId,
-        string? guestToken,
-        CancellationToken cancellationToken)
-    {
-        var existing = await FindAsync(tenantId, userId, guestToken, cancellationToken);
-
-        if (existing is not null)
-            return existing; // ✅ این Cart قبلاً توسط GetByUser/GetByGuest با Include لود و Track شده است
-
-        Cart cart;
-
-        if (!string.IsNullOrWhiteSpace(userId))
-        {
-            cart = Cart.ForUser(tenantId, userId);
-        }
-        else
-        {
-            if (string.IsNullOrWhiteSpace(guestToken))
-            {
-                throw new InvalidOperationException("Guest cart token is required.");
-            }
-            cart = Cart.ForGuest(tenantId, guestToken);
-        }
-
-        await _repository.AddAsync(cart, cancellationToken);
-        return cart;
-    }
-    private async Task<Cart> GetOrCreateAsync(
-        string tenantId,
-        string? userId,
-        string? guestToken,
-        CancellationToken cancellationToken)
-    {
-        var existing = await FindAsync(tenantId, userId, guestToken, cancellationToken);
-
-        if (existing is not null)
-            return existing; // ✅ این Cart قبلاً توسط GetByUser/GetByGuest با Include لود و Track شده است
-
-        Cart cart;
-
-        if (!string.IsNullOrWhiteSpace(userId))
-        {
-            cart = Cart.ForUser(tenantId, userId);
-        }
-        else
-        {
-            if (string.IsNullOrWhiteSpace(guestToken))
-            {
-                throw new InvalidOperationException("Guest cart token is required.");
-            }
-            cart = Cart.ForGuest(tenantId, guestToken);
-        }
-
-        await _repository.AddAsync(cart, cancellationToken);
-        return cart;
-    }
     public async Task<CartDto> SetQuantityAsync(
         string tenantId,
         string? userId,
@@ -152,6 +127,13 @@ public sealed class CartService(
         SetCartItemQuantityDto request,
         CancellationToken cancellationToken = default)
     {
+        if (request.ProductVariantId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Product variant id is required.",
+                nameof(request.ProductVariantId));
+        }
+
         var cart =
             await FindAsync(
                 tenantId,
@@ -160,55 +142,59 @@ public sealed class CartService(
                 cancellationToken);
 
         if (cart is null)
-            return CartDto.Empty(tenantId);
-
-        if (request.Quantity > 0)
         {
-            var variant =
-                await productVariantReader
-                    .GetSellableVariantAsync(
-                        request.ProductVariantId,
-                        cancellationToken);
-
-            if (variant is null ||
-                !variant.IsActive ||
-                !variant.IsPublished)
-            {
-                throw new KeyNotFoundException(
-                    "Product variant is not available.");
-            }
-
-            var availableQuantity =
-                await stockReader.GetAvailableQuantityAsync(
-                    tenantId,
-                    request.ProductVariantId,
-                    cancellationToken);
-
-            if (availableQuantity is null)
-            {
-                throw new KeyNotFoundException(
-                    "Stock record is not available.");
-            }
-
-            if (request.Quantity >
-                availableQuantity.Value)
-            {
-                throw new InvalidOperationException(
-                    "Requested quantity exceeds available stock.");
-            }
-
-            cart.SetQuantity(
-                request.ProductVariantId,
-                request.Quantity,
-                variant.Price,
-                variant.ProductName,
-                variant.ImageUrl);
+            return CartDto.Empty(tenantId);
         }
-        else
+
+        if (request.Quantity <= 0)
         {
             cart.RemoveItem(
                 request.ProductVariantId);
+
+            await unitOfWork.SaveChangesAsync(
+                cancellationToken);
+
+            return Map(cart);
         }
+
+        var variant =
+            await productVariantReader.GetSellableVariantAsync(
+                request.ProductVariantId,
+                cancellationToken);
+
+        if (variant is null ||
+            !variant.IsActive ||
+            !variant.IsPublished)
+        {
+            throw new KeyNotFoundException(
+                "Product variant is not available.");
+        }
+
+        var availableQuantity =
+            await stockReader.GetAvailableQuantityAsync(
+                tenantId,
+                request.ProductVariantId,
+                cancellationToken);
+
+        if (availableQuantity is null)
+        {
+            throw new KeyNotFoundException(
+                "Stock record is not available.");
+        }
+
+        if (request.Quantity >
+            availableQuantity.Value)
+        {
+            throw new InvalidOperationException(
+                "Requested quantity exceeds available stock.");
+        }
+
+        cart.SetQuantity(
+            request.ProductVariantId,
+            request.Quantity,
+            variant.Price,
+            variant.ProductName,
+            variant.ImageUrl);
 
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -223,6 +209,13 @@ public sealed class CartService(
         Guid productVariantId,
         CancellationToken cancellationToken = default)
     {
+        if (productVariantId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Product variant id is required.",
+                nameof(productVariantId));
+        }
+
         var cart =
             await FindAsync(
                 tenantId,
@@ -231,7 +224,9 @@ public sealed class CartService(
                 cancellationToken);
 
         if (cart is null)
+        {
             return CartDto.Empty(tenantId);
+        }
 
         cart.RemoveItem(
             productVariantId);
@@ -256,7 +251,9 @@ public sealed class CartService(
                 cancellationToken);
 
         if (cart is null)
+        {
             return CartDto.Empty(tenantId);
+        }
 
         cart.Clear();
 
@@ -265,38 +262,59 @@ public sealed class CartService(
 
         return Map(cart);
     }
-public async Task<CartDto> MergeGuestCartAsync(
-    string tenantId,
-    string userId,
-    string guestToken,
-    CancellationToken cancellationToken = default)
+
+    public async Task<CartDto> MergeGuestCartAsync(
+        string tenantId,
+        string userId,
+        string guestToken,
+        CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+
         if (string.IsNullOrWhiteSpace(userId))
+        {
             throw new ArgumentException(
                 "User id is required.",
                 nameof(userId));
+        }
 
         if (string.IsNullOrWhiteSpace(guestToken))
+        {
             throw new ArgumentException(
                 "Guest cart token is required.",
                 nameof(guestToken));
+        }
+
+        var normalizedTenantId =
+            tenantId.Trim();
+
+        var normalizedUserId =
+            userId.Trim();
+
+        var normalizedGuestToken =
+            guestToken.Trim();
 
         var guestCart =
             await repository.GetByGuestTokenAsync(
-                tenantId,
-                guestToken,
+                normalizedTenantId,
+                normalizedGuestToken,
                 cancellationToken);
 
         var userCart =
             await repository.GetByUserAsync(
-                tenantId,
-                userId,
+                normalizedTenantId,
+                normalizedUserId,
                 cancellationToken);
 
         if (guestCart is null)
         {
             return userCart is null
-                ? CartDto.Empty(tenantId)
+                ? CartDto.Empty(normalizedTenantId)
                 : Map(userCart);
         }
 
@@ -304,8 +322,8 @@ public async Task<CartDto> MergeGuestCartAsync(
         {
             userCart =
                 Cart.ForUser(
-                    tenantId,
-                    userId);
+                    normalizedTenantId,
+                    normalizedUserId);
 
             await repository.AddAsync(
                 userCart,
@@ -314,24 +332,28 @@ public async Task<CartDto> MergeGuestCartAsync(
 
         var variantIds =
             guestCart.Items
-                .Select(x => x.ProductVariantId)
+                .Select(
+                    item =>
+                        item.ProductVariantId)
                 .Concat(
                     userCart.Items
-                        .Select(x => x.ProductVariantId))
+                        .Select(
+                            item =>
+                                item.ProductVariantId))
                 .Distinct()
                 .ToArray();
 
         var availableQuantities =
-            await stockReader.GetAvailableQuantitiesAsync(
-                tenantId,
-                variantIds,
-                cancellationToken);
+            variantIds.Length == 0
+                ? new Dictionary<Guid, int>()
+                : await stockReader.GetAvailableQuantitiesAsync(
+                    normalizedTenantId,
+                    variantIds,
+                    cancellationToken);
 
         userCart.MergeFrom(
             guestCart,
             availableQuantities);
-
-        repository.Update(userCart);
 
         repository.Remove(
             guestCart);
@@ -342,27 +364,35 @@ public async Task<CartDto> MergeGuestCartAsync(
         return Map(userCart);
     }
 
-
-
     private async Task<Cart?> FindAsync(
         string tenantId,
         string? userId,
         string? guestToken,
         CancellationToken cancellationToken)
     {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+
+        var normalizedTenantId =
+            tenantId.Trim();
+
         if (!string.IsNullOrWhiteSpace(userId))
         {
             return await repository.GetByUserAsync(
-                tenantId,
-                userId,
+                normalizedTenantId,
+                userId.Trim(),
                 cancellationToken);
         }
 
         if (!string.IsNullOrWhiteSpace(guestToken))
         {
             return await repository.GetByGuestTokenAsync(
-                tenantId,
-                guestToken,
+                normalizedTenantId,
+                guestToken.Trim(),
                 cancellationToken);
         }
 
@@ -383,37 +413,40 @@ public async Task<CartDto> MergeGuestCartAsync(
                 cancellationToken);
 
         if (existing is not null)
+        {
             return existing;
-
-        Cart cart;
+        }
 
         if (!string.IsNullOrWhiteSpace(userId))
         {
-            cart =
+            var cart =
                 Cart.ForUser(
                     tenantId,
                     userId);
-        }
-        else
-        {
-            if (string.IsNullOrWhiteSpace(
-                    guestToken))
-            {
-                throw new InvalidOperationException(
-                    "Guest cart token is required.");
-            }
 
-            cart =
+            await repository.AddAsync(
+                cart,
+                cancellationToken);
+
+            return cart;
+        }
+
+        if (!string.IsNullOrWhiteSpace(guestToken))
+        {
+            var cart =
                 Cart.ForGuest(
                     tenantId,
                     guestToken);
+
+            await repository.AddAsync(
+                cart,
+                cancellationToken);
+
+            return cart;
         }
 
-        await repository.AddAsync(
-            cart,
-            cancellationToken);
-
-        return cart;
+        throw new InvalidOperationException(
+            "Either user id or guest cart token is required.");
     }
 
     private static CartDto Map(
@@ -437,8 +470,10 @@ public async Task<CartDto> MergeGuestCartAsync(
             cart.TenantId,
             items,
             items.Sum(
-                x => x.Quantity),
+                item =>
+                    item.Quantity),
             items.Sum(
-                x => x.LineTotal));
+                item =>
+                    item.LineTotal));
     }
 }
