@@ -3,6 +3,7 @@ using NexaEcommerce.Modules.ShoppingCart.Domain.Entities;
 using NexaEcommerce.Modules.ShoppingCart.Domain.Interfaces;
 using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
 using NexaEcommerce.SharedKernel.Abstractions;
+using NexaEcommerce.SharedKernel.Infrastructure;
 
 namespace NexaEcommerce.Modules.ShoppingCart.Application.Services;
 
@@ -39,61 +40,41 @@ public sealed class CartService(
         CancellationToken cancellationToken = default)
     {
         if (request.Quantity <= 0)
-            throw new ArgumentOutOfRangeException(
-                nameof(request.Quantity));
+            throw new ArgumentOutOfRangeException(nameof(request.Quantity));
 
-        var variant =
-            await productVariantReader
-                .GetSellableVariantAsync(
-                    request.ProductVariantId,
-                    cancellationToken);
+        var variant = await _productVariantReader.GetSellableVariantAsync(
+            request.ProductVariantId, cancellationToken);
 
-        if (variant is null ||
-            !variant.IsActive ||
-            !variant.IsPublished)
+        if (variant is null || !variant.IsActive || !variant.IsPublished)
         {
-            throw new KeyNotFoundException(
-                "Product variant is not available.");
+            throw new KeyNotFoundException("Product variant is not available.");
         }
 
-        var availableQuantity =
-            await stockReader.GetAvailableQuantityAsync(
-                tenantId,
-                request.ProductVariantId,
-                cancellationToken);
+        var availableQuantity = await _stockReader.GetAvailableQuantityAsync(
+            tenantId, request.ProductVariantId, cancellationToken);
 
         if (availableQuantity is null)
         {
-            throw new KeyNotFoundException(
-                "Stock record is not available.");
+            throw new KeyNotFoundException("Stock record is not available.");
         }
 
-        var cart =
-            await GetOrCreateAsync(
-                tenantId,
-                userId,
-                guestToken,
-                cancellationToken);
+        // ✅ این متد اکنون یک Cart که کاملاً توسط EF Track می‌شود را برمی‌گرداند
+        var cart = await GetOrCreateAsync(tenantId, userId, guestToken, cancellationToken);
 
-        var currentQuantity =
-            cart.Items
-                .Where(x =>
-                    x.ProductVariantId ==
-                    request.ProductVariantId)
-                .Select(x => x.Quantity)
-                .FirstOrDefault();
+        var currentQuantity = cart.Items
+            .Where(x => x.ProductVariantId == request.ProductVariantId)
+            .Select(x => x.Quantity)
+            .FirstOrDefault();
 
-        var requestedTotal =
-            currentQuantity +
-            request.Quantity;
+        var requestedTotal = currentQuantity + request.Quantity;
 
-        if (requestedTotal >
-            availableQuantity.Value)
+        if (requestedTotal > availableQuantity.Value)
         {
-            throw new InvalidOperationException(
-                "Requested quantity exceeds available stock.");
+            throw new InvalidOperationException("Requested quantity exceeds available stock.");
         }
 
+        // ✅ فراخوانی متد دامین. EF Core به دلیل Include و Track بودن، 
+        // به درستی تشخیص می‌دهد که این یک آیتم جدید (Added) یا آپدیت (Modified) است.
         cart.AddItem(
             variant.Id,
             request.Quantity,
@@ -101,12 +82,69 @@ public sealed class CartService(
             variant.ProductName,
             variant.ImageUrl);
 
-        await unitOfWork.SaveChangesAsync(
-            cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Map(cart);
     }
 
+    private async Task<Cart> GetOrCreateAsync(
+        string tenantId,
+        string? userId,
+        string? guestToken,
+        CancellationToken cancellationToken)
+    {
+        var existing = await FindAsync(tenantId, userId, guestToken, cancellationToken);
+
+        if (existing is not null)
+            return existing; // ✅ این Cart قبلاً توسط GetByUser/GetByGuest با Include لود و Track شده است
+
+        Cart cart;
+
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            cart = Cart.ForUser(tenantId, userId);
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(guestToken))
+            {
+                throw new InvalidOperationException("Guest cart token is required.");
+            }
+            cart = Cart.ForGuest(tenantId, guestToken);
+        }
+
+        await _repository.AddAsync(cart, cancellationToken);
+        return cart;
+    }
+    private async Task<Cart> GetOrCreateAsync(
+        string tenantId,
+        string? userId,
+        string? guestToken,
+        CancellationToken cancellationToken)
+    {
+        var existing = await FindAsync(tenantId, userId, guestToken, cancellationToken);
+
+        if (existing is not null)
+            return existing; // ✅ این Cart قبلاً توسط GetByUser/GetByGuest با Include لود و Track شده است
+
+        Cart cart;
+
+        if (!string.IsNullOrWhiteSpace(userId))
+        {
+            cart = Cart.ForUser(tenantId, userId);
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(guestToken))
+            {
+                throw new InvalidOperationException("Guest cart token is required.");
+            }
+            cart = Cart.ForGuest(tenantId, guestToken);
+        }
+
+        await _repository.AddAsync(cart, cancellationToken);
+        return cart;
+    }
     public async Task<CartDto> SetQuantityAsync(
         string tenantId,
         string? userId,

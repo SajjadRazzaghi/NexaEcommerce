@@ -1,60 +1,58 @@
 using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.ShoppingCart.Domain.Entities;
 using NexaEcommerce.Modules.ShoppingCart.Domain.Interfaces;
-using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
 
-namespace NexaEcommerce.Modules.ShoppingCart.Infrastructure.Repositories;
+namespace NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
 
-public sealed class CartRepository(
-    ShoppingCartDbContext context)
-    : ICartRepository
+public sealed class CartRepository : ICartRepository
 {
+    private readonly ShoppingCartDbContext _dbContext;
+
+    public CartRepository(ShoppingCartDbContext dbContext)
+    {
+        _dbContext = dbContext;
+    }
+
     public async Task<Cart?> GetByUserAsync(
         string tenantId,
         string userId,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
-        return await context.Carts
-            .Include(x => x.Items)
+        // ✅ حیاتی: بدون AsNoTracking و با Include برای ردیابی صحیح تغییرات
+        return await _dbContext.Carts
+            .Include(c => c.Items)
             .FirstOrDefaultAsync(
-                x =>
-                    x.TenantId == tenantId &&
-                    x.UserId == userId,
+                c => c.TenantId == tenantId && c.UserId == userId,
                 cancellationToken);
     }
 
-    public void Remove(Cart cart)
-    {
-        context.Carts.Remove(cart);
-    }
     public async Task<Cart?> GetByGuestTokenAsync(
         string tenantId,
         string guestToken,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
-        return await context.Carts
-            .Include(x => x.Items)
+        // ✅ حیاتی: بدون AsNoTracking و با Include
+        return await _dbContext.Carts
+            .Include(c => c.Items)
             .FirstOrDefaultAsync(
-                x =>
-                    x.TenantId == tenantId &&
-                    x.UserId == null &&
-                    x.GuestToken == guestToken,
+                c => c.TenantId == tenantId && c.GuestToken == guestToken,
                 cancellationToken);
     }
 
     public async Task AddAsync(
         Cart cart,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken)
     {
-        await context.Carts.AddAsync(
-            cart,
-            cancellationToken);
+        await _dbContext.Carts.AddAsync(cart, cancellationToken);
     }
 
-    public void Update(
-        Cart cart)
+    public void Update(Cart cart)
     {
-        context.Carts.Update(
-            cart);
+        _dbContext.Carts.Update(cart);
+    }
+
+    public void Remove(Cart cart)
+    {
+        _dbContext.Carts.Remove(cart);
     }
 }

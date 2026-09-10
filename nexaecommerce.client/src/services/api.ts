@@ -1,10 +1,10 @@
-// NexaEcommerce.Client/src/services/api.ts
+// nexaecommerce.client/src/services/api.ts
 import axios, {
     type AxiosError,
     type AxiosResponse,
     type InternalAxiosRequestConfig,
 } from 'axios';
-// ✅ استفاده از URL نسبی (از طریق Proxy Vite)
+
 const API_BASE_URL = '/api';
 
 const api = axios.create({
@@ -13,6 +13,7 @@ const api = axios.create({
         'Content-Type': 'application/json',
     },
     timeout: 30000,
+    withCredentials: true, // ✅ فعال‌سازی برای پشتیبانی از Cookie سبد خرید مهمان
 });
 
 api.interceptors.request.use(
@@ -30,7 +31,10 @@ api.interceptors.response.use(
     (response: AxiosResponse): AxiosResponse => response,
     (error: AxiosError): Promise<AxiosError> => {
         if (error.response?.status === 401) {
-            window.location.href = '/login';
+            // جلوگیری از ریدایرکت بی‌پایان اگر خودش در صفحه لاگین است
+            if (!window.location.pathname.includes('/login')) {
+                window.location.href = '/login';
+            }
         }
         return Promise.reject(error);
     }
