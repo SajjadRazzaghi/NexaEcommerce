@@ -11,7 +11,7 @@ export async function getMyOrders(
     pageSize = 20,
     status?: string,
 ): Promise<OrderListDto> {
-    const { data } =
+    const {data} =
         await api.get<OrderListDto>(
             '/orders',
             {
@@ -19,8 +19,8 @@ export async function getMyOrders(
                     page,
                     pageSize,
                     status,
-                },
-            },
+               },
+           },
         );
 
     return data;
@@ -34,11 +34,11 @@ export async function getOrder(
         throw new Error(
             'Order id is required.',
         );
-    }
+   }
 
-    const { data } =
+    const {data} =
         await api.get<OrderDto>(
-            `/ orders / ${ id.trim() } `,
+           `/orders/${id.trim()}`,
         );
 
     return data;
@@ -50,7 +50,7 @@ export async function createCheckout(
         items: Array<{
             productVariantId: string;
             quantity: number;
-        }>;
+       }>;
         shippingFullName: string;
         shippingPhone: string;
         shippingAddress: string;
@@ -58,7 +58,7 @@ export async function createCheckout(
         shippingPostalCode?: string | null;
         shippingMethodId: string;
         couponCode?: string | null;
-    },
+   },
     idempotencyKey: string,
 ): Promise<OrderDto> {
     const normalizedKey =
@@ -68,9 +68,9 @@ export async function createCheckout(
         throw new Error(
             'Idempotency key is required.',
         );
-    }
+   }
 
-    const { data } =
+    const {data} =
         await api.post<OrderDto>(
             '/orders/checkout',
             request,
@@ -78,8 +78,8 @@ export async function createCheckout(
                 headers: {
                     'Idempotency-Key':
                         normalizedKey,
-                },
-            },
+               },
+           },
         );
 
     return data;

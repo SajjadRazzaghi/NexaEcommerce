@@ -36,12 +36,16 @@ export default function AppLayout() {
     /*
      * Public storefront routes.
      *
-     * The shopping cart is intentionally NOT rendered
-     * inside the admin/application shell.
+     * These routes must never be forced through
+     * the authenticated admin/application shell.
      */
     const isPublicStorefront =
         location.pathname === '/' ||
-        location.pathname === '/cart';
+        location.pathname === '/cart' ||
+        location.pathname === '/products' ||
+        location.pathname.startsWith('/products/') ||
+        location.pathname === '/checkout' ||
+        location.pathname.startsWith('/orders/payment/');
 
     if (isPublicStorefront) {
         return (

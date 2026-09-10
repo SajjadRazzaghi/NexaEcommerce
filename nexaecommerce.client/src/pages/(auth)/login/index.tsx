@@ -6,7 +6,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { z } from 'zod';
 import { Loader2, FlaskConical } from 'lucide-react';
-
+import {
+    mergeGuestCart,
+} from '@/modules/cart/api/cartApi';
 import { authApi } from '@/lib/api/auth';
 import { applyApiErrorToForm, type FormBannerState } from '@/lib/api/form-errors';
 import { isApiError } from '@/lib/problem';
@@ -52,17 +54,48 @@ export default function LoginPage() {
     oauthError ? { message: t(`auth.oauthError.${oauthError}`, { defaultValue: t('auth.oauthError.generic') }) } : null,
   );
 
-  const login = useMutation({
-    mutationFn: authApi.login,
-    onSuccess: (result) => {
-      if (result.user) {
-        setCurrentUser(result.user);
-        navigate(returnUrl, { replace: true });
-      }
-    },
-    onError: (error) => setBanner(applyApiErrorToForm(error, form.setError, ['email', 'password'])),
-  });
+    const login = useMutation({
+        mutationFn: authApi.login,
 
+        onSuccess: async (result) => {
+            if (!result.user) {
+                return;
+            }
+
+            setCurrentUser(result.user);
+
+            try {
+                await mergeGuestCart();
+            } catch {
+                /*
+                 * Login itself succeeded.
+                 *
+                 * Guest cart merge is best-effort here so a
+                 * temporary cart merge problem does not prevent
+                 * the customer from entering the requested page.
+                 */
+            }
+
+            navigate(
+                returnUrl,
+                {
+                    replace: true,
+                },
+            );
+        },
+
+        onError: (error) =>
+            setBanner(
+                applyApiErrorToForm(
+                    error,
+                    form.setError,
+                    [
+                        'email',
+                        'password',
+                    ],
+                ),
+            ),
+    });
   const resend = useMutation({ mutationFn: authApi.resendConfirmation });
   const needsConfirmation = isApiError(login.error) && login.error.code === 'EMAIL_NOT_CONFIRMED';
 
