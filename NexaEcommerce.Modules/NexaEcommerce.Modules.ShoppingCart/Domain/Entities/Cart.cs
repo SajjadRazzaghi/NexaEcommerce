@@ -48,6 +48,14 @@ public sealed class Cart : AggregateRoot
             string.IsNullOrWhiteSpace(guestToken)
                 ? null
                 : guestToken.Trim();
+
+        /*
+         * The current SQL Server schema requires UpdatedAt to be non-null.
+         * A newly created cart has not been updated yet, so its creation
+         * timestamp is the correct initial UpdatedAt value.
+         */
+        UpdatedAt =
+            CreatedAt;
     }
 
     public string TenantId { get; private set; } = null!;

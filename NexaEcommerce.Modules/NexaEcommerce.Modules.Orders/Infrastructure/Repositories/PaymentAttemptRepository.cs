@@ -41,6 +41,31 @@ public sealed class PaymentAttemptRepository(
                 cancellationToken);
     }
 
+    public async Task<PaymentAttempt?>
+        GetByOrderIdAsync(
+            string tenantId,
+            Guid orderId,
+            CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId) ||
+            orderId == Guid.Empty)
+        {
+            return null;
+        }
+
+        return await context.PaymentAttempts
+            .Where(
+                x =>
+                    x.TenantId == tenantId &&
+                    x.OrderId == orderId &&
+                    x.Status ==
+                    PaymentAttemptStatus.Pending)
+            .OrderByDescending(
+                x => x.CreatedAt)
+            .FirstOrDefaultAsync(
+                cancellationToken);
+    }
+
     public async Task AddAsync(
         PaymentAttempt paymentAttempt,
         CancellationToken cancellationToken = default)

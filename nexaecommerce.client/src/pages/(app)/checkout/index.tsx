@@ -1,18 +1,13 @@
 // nexaecommerce.client/src/pages/(app)/checkout/index.tsx
 import {
     type FormEvent,
-    useMemo,
     useRef,
     useState,
     useEffect,
 } from 'react';
 
 import {
-    ArrowLeft,
-    ArrowRight,
-    CreditCard,
     MapPin,
-    Package,
     Truck,
 } from 'lucide-react';
 
@@ -73,7 +68,7 @@ export default function CheckoutPage() {
     const navigate = useNavigate();
     const isFa = i18n.language?.toLowerCase().startsWith('fa');
 
-    // ✅ بررسی احراز هویت برای جلوگیری از خطای 401 در Backend
+    // بررسی احراز هویت برای جلوگیری از خطای 401 در Backend
     useEffect(() => {
         const token = localStorage.getItem('accessToken');
         if (!token) {
@@ -145,13 +140,33 @@ export default function CheckoutPage() {
         checkout.mutate(
             {
                 request,
-                idempotencyKey: checkoutKeyRef.current,
+                idempotencyKey:
+                    checkoutKeyRef.current,
             },
             {
-                onSuccess: order => {
-                    navigate(`/orders/payment/${order.id}`, { replace: true });
-                },
-            }
+                onSuccess:
+                    order => {
+                        navigate(
+                            `/orders/payment/${order.id}`,
+                            {
+                                replace: true,
+                            },
+                        );
+                    },
+
+                onError:
+                    checkoutError => {
+                        setValidationError(
+                            checkoutError instanceof Error
+                                ? checkoutError.message
+                                : getText(
+                                    'checkout.error',
+                                    'Unable to create the order. Please check your information and try again.',
+                                ),
+                        );
+                    },
+            },
+        
         );
     };
 

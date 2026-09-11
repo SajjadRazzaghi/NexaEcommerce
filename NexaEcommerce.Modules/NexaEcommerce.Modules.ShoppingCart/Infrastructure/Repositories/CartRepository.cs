@@ -18,7 +18,7 @@ public sealed class CartRepository : ICartRepository
         string userId,
         CancellationToken cancellationToken)
     {
-        // ✅ حیاتی: بدون AsNoTracking و با Include برای ردیابی صحیح تغییرات
+        // ✅ حیاتی: حذف AsNoTracking و اضافه کردن Include برای ردیابی صحیح آیتم‌ها
         return await _dbContext.Carts
             .Include(c => c.Items)
             .FirstOrDefaultAsync(
@@ -31,7 +31,7 @@ public sealed class CartRepository : ICartRepository
         string guestToken,
         CancellationToken cancellationToken)
     {
-        // ✅ حیاتی: بدون AsNoTracking و با Include
+        // ✅ حیاتی: حذف AsNoTracking و اضافه کردن Include
         return await _dbContext.Carts
             .Include(c => c.Items)
             .FirstOrDefaultAsync(
@@ -39,9 +39,7 @@ public sealed class CartRepository : ICartRepository
                 cancellationToken);
     }
 
-    public async Task AddAsync(
-        Cart cart,
-        CancellationToken cancellationToken)
+    public async Task AddAsync(Cart cart, CancellationToken cancellationToken)
     {
         await _dbContext.Carts.AddAsync(cart, cancellationToken);
     }

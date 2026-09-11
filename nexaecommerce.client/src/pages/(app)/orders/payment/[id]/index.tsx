@@ -11,6 +11,7 @@ import {
     Link,
     useNavigate,
     useParams,
+    useSearchParams,
 } from 'react-router-dom';
 
 import {
@@ -47,7 +48,7 @@ function formatMoney(
                 maximumFractionDigits: 0,
             },
         ).format(amount) +
-        ` ${currency}`
+        ` ${ currency } `
     );
 }
 
@@ -62,7 +63,7 @@ function getPaymentGateway(): string {
         return configured.trim();
     }
 
-    return 'TestGateway';
+    return 'ZarinPal';
 }
 
 export default function PaymentPage() {
@@ -71,6 +72,10 @@ export default function PaymentPage() {
 
     const navigate =
         useNavigate();
+
+    const [
+        searchParams,
+    ] = useSearchParams();
 
     const {
         t,
@@ -94,6 +99,12 @@ export default function PaymentPage() {
                     fallback,
             },
         );
+
+    const paymentResult =
+        searchParams.get('payment');
+
+    const paymentReason =
+        searchParams.get('reason');
 
     const paymentKeyRef =
         useRef<string | null>(null);
@@ -158,13 +169,37 @@ export default function PaymentPage() {
 
         setError(null);
 
-        if (!paymentKeyRef.current) {
-            paymentKeyRef.current =
-                crypto.randomUUID();
-        }
+        /*
+         * Every new payment start gets a new idempotency key.
+         * We intentionally do not reuse a previous key after
+         * returning from a failed/cancelled payment.
+         */
+        const paymentKey =
+            crypto.randomUUID();
+
+        paymentKeyRef.current =
+            paymentKey;
+
+        /*
+         * ZarinPal must call the backend callback endpoint.
+         * The backend then verifies and completes the payment,
+         * and finally redirects the customer back to the frontend.
+         */
+        const apiBaseUrl =
+            (
+                import.meta.env.VITE_API_URL ||
+                'https://localhost:5001'
+            ).replace(
+                /\/+$/,
+                '',
+            );
 
         const callbackUrl =
-            `${window.location.origin}/orders/payment/${order.id}`;
+            `${ apiBaseUrl } /api/orders / payment / zarinpal / callback ? orderId = ${
+    encodeURIComponent(
+        order.id,
+    )
+} `;
 
         startPayment.mutate(
             {
@@ -177,11 +212,29 @@ export default function PaymentPage() {
                 callbackUrl,
 
                 idempotencyKey:
-                    paymentKeyRef.current,
+                    paymentKey,
             },
             {
                 onSuccess:
                     result => {
+                        /*
+                         * Real gateways such as ZarinPal return a paymentUrl.
+                         * Redirect the customer immediately to the gateway.
+                         */
+                        if (
+                            result.paymentUrl
+                        ) {
+                            window.location.assign(
+                                result.paymentUrl,
+                            );
+
+                            return;
+                        }
+
+                        /*
+                         * Keep TestGateway/manual mode working for development.
+                         * In that case there may be no external paymentUrl.
+                         */
                         if (
                             !result.gatewayReference
                         ) {
@@ -217,10 +270,10 @@ export default function PaymentPage() {
                     },
 
                 onError:
-                    error => {
+                    mutationError => {
                         setError(
-                            error instanceof Error
-                                ? error.message
+                            mutationError instanceof Error
+                                ? mutationError.message
                                 : getText(
                                     'payment.startError',
                                     'Unable to start the payment. Please try again.',
@@ -266,7 +319,7 @@ export default function PaymentPage() {
                                 onSuccess:
                                     () => {
                                         navigate(
-                                            `/orders/${order!.id}`,
+                                            `/ orders / ${ order!.id } `,
                                             {
                                                 replace: true,
                                             },
@@ -274,10 +327,10 @@ export default function PaymentPage() {
                                     },
 
                                 onError:
-                                    error => {
+                                    mutationError => {
                                         setError(
-                                            error instanceof Error
-                                                ? error.message
+                                            mutationError instanceof Error
+                                                ? mutationError.message
                                                 : getText(
                                                     'payment.completeError',
                                                     'Payment verification succeeded, but the order could not be completed.',
@@ -289,10 +342,10 @@ export default function PaymentPage() {
                     },
 
                 onError:
-                    error => {
+                    mutationError => {
                         setError(
-                            error instanceof Error
-                                ? error.message
+                            mutationError instanceof Error
+                                ? mutationError.message
                                 : getText(
                                     'payment.verifyError',
                                     'Payment verification failed.',
@@ -302,6 +355,21 @@ export default function PaymentPage() {
             },
         );
     };
+
+    /*
+     * The backend callback redirects the customer here with:
+     *
+     * ?payment=success
+     * or
+     * ?payment=failed&reason=...
+     *
+     * Show the result before the normal page content.
+     */
+    const callbackSuccess =
+        paymentResult === 'success';
+
+    const callbackFailed =
+        paymentResult === 'failed';
 
     if (
         orderQuery.isLoading
@@ -407,7 +475,7 @@ export default function PaymentPage() {
                     </p>
 
                     <Link
-                        to={`/orders/${order.id}`}
+                        to={`/ orders / ${ order.id } `}
                         className="mt-6 inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium"
                     >
                         <ArrowLeft className="size-4" />
@@ -453,7 +521,7 @@ export default function PaymentPage() {
                     </p>
 
                     <Link
-                        to={`/orders/${order.id}`}
+                        to={`/ orders / ${ order.id } `}
                         className="mt-6 inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
                     >
                         {getText(
@@ -498,6 +566,66 @@ export default function PaymentPage() {
                     </div>
                 </div>
             </header>
+
+            {callbackSuccess && (
+                <div
+                    role="status"
+                    className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-4 text-sm"
+                >
+                    <div className="flex items-start gap-3">
+                        <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-green-600" />
+
+                        <div>
+                            <div className="font-semibold">
+                                {getText(
+                                    'payment.success',
+                                    'Payment completed successfully.',
+                                )}
+                            </div>
+
+                            <div className="mt-1 text-muted-foreground">
+                                {getText(
+                                    'payment.successDescription',
+                                    'Your payment was verified and your order has been completed.',
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {callbackFailed && (
+                <div
+                    role="alert"
+                    className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm"
+                >
+                    <div className="flex items-start gap-3">
+                        <CreditCard className="mt-0.5 size-5 shrink-0" />
+
+                        <div>
+                            <div className="font-semibold">
+                                {getText(
+                                    'payment.failed',
+                                    'Payment was not completed.',
+                                )}
+                            </div>
+
+                            <div className="mt-1 text-muted-foreground">
+                                {paymentReason ===
+                                'cancelled'
+                                    ? getText(
+                                        'payment.cancelled',
+                                        'The payment was cancelled or rejected.',
+                                    )
+                                    : getText(
+                                        'payment.failedDescription',
+                                        'We could not complete the payment. You can try again.',
+                                    )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {error && (
                 <div
@@ -601,7 +729,7 @@ export default function PaymentPage() {
 
                                     <div className="mt-4 text-sm text-muted-foreground">
                                         {getText(
-                                            'payment.testGatewayHint',
+                                            'payment.gatewayHint',
                                             'Confirming will verify the transaction and mark the order as paid.',
                                         )}
                                     </div>
@@ -707,7 +835,7 @@ export default function PaymentPage() {
                     </div>
 
                     <Link
-                        to={`/orders/${order.id}`}
+                        to={`/ orders / ${ order.id } `}
                         className="mt-6 block text-center text-sm font-medium underline-offset-4 hover:underline"
                     >
                         {getText(

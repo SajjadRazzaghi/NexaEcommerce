@@ -16,6 +16,11 @@ public interface IPaymentAttemptRepository
         Guid id,
         CancellationToken cancellationToken = default);
 
+    Task<PaymentAttempt?> GetByOrderIdAsync(
+        string tenantId,
+        Guid orderId,
+        CancellationToken cancellationToken = default);
+
     Task AddAsync(
         PaymentAttempt paymentAttempt,
         CancellationToken cancellationToken = default);

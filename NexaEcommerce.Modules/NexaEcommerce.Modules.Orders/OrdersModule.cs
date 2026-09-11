@@ -115,9 +115,22 @@ public static class OrdersModule
             IPaymentService,
             PaymentService>();
 
-        services.AddScoped<
-            IPaymentGateway,
-            TestPaymentGateway>();
+        /*
+         * ZarinPal is the real payment gateway used by the storefront.
+         * TestGateway is kept available for local development.
+         */
+        services.AddHttpClient<
+            ZarinPalPaymentGateway>();
+
+        services.AddScoped<IPaymentGateway>(
+            serviceProvider =>
+                serviceProvider.GetRequiredService<
+                    ZarinPalPaymentGateway>());
+
+        services.AddScoped<IPaymentGateway>(
+            serviceProvider =>
+                serviceProvider.GetRequiredService<
+                    TestPaymentGateway>());
 
         // ========================================================
         // Shipping Methods
