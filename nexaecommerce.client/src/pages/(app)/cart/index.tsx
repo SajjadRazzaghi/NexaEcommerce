@@ -496,24 +496,22 @@ export default function CartPage() {
                     )}
 
 
-                    <Link
+                      <Link
                         to={
                             canCheckout
                                 ? '/checkout'
                                 : '/products'
                         }
-                        className={`mt - 6 flex w - full items - center justify - center rounded - xl px - 5 py - 3 font - semibold ${
-    canCheckout
-        ? 'border bg-primary text-primary-foreground'
-        : 'border text-muted-foreground'
-} `}
+                        className={`mt-6 flex w-full items-center justify-center rounded-xl px-5 py-3 font-semibold ${canCheckout
+                                ? 'border bg-primary text-primary-foreground'
+                                : 'border text-muted-foreground'
+                            }`}
                     >
                         {canCheckout
                             ? 'Proceed to checkout'
                             : 'Continue shopping'}
                     </Link>
-
-
+                    
                     <Link
                         to="/products"
                         className="mt-3 flex w-full items-center justify-center rounded-xl border px-5 py-3 font-medium"
