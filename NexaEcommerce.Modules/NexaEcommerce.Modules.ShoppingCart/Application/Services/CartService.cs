@@ -8,29 +8,28 @@ using NexaEcommerce.SharedKernel.Infrastructure;
 namespace NexaEcommerce.Modules.ShoppingCart.Application.Services;
 
 public sealed class CartService(
-    ICartRepository repository,
-    IProductVariantReader productVariantReader,
-    IStockReader stockReader,
-    ICartUnitOfWork unitOfWork)
-    : ICartService
+ICartRepository repository,
+IProductVariantReader productVariantReader,
+IStockReader stockReader,
+ICartUnitOfWork unitOfWork)
+: ICartService
 {
     public async Task<CartDto> GetAsync(
-        string tenantId,
-        string? userId,
-        string? guestToken,
-        CancellationToken cancellationToken = default)
+    string tenantId,
+    string? userId,
+    string? guestToken,
+    CancellationToken cancellationToken = default)
     {
         var cart =
-            await FindAsync(
-                tenantId,
-                userId,
-                guestToken,
-                cancellationToken);
+        await FindAsync(
+        tenantId,
+        userId,
+        guestToken,
+        cancellationToken);
 
-        return cart is null
-            ? CartDto.Empty(
-                tenantId)
-            : Map(cart);
+    return cart is null
+        ? CartDto.Empty(tenantId)
+        : Map(cart);
     }
 
     public async Task<CartDto> AddItemAsync(
@@ -112,33 +111,15 @@ public sealed class CartService(
         }
 
         /*
-         * Existing cart item:
+         * EXISTING ITEM
          *
-         * Do not let EF generate a normal UPDATE through
-         * SaveChanges for this path.
-         *
-         * The SQL UPDATE is executed directly. This avoids
-         * the stale tracked-row problem that was producing:
-         *
-         * DbUpdateConcurrencyException
-         *
-         * with 0 rows affected.
+         * Never modify the tracked CartItem before the direct SQL update.
+         * ExecuteUpdateAsync updates SQL Server directly and bypasses EF tracking.
          */
         if (existingItem is not null)
         {
             var updatedAt =
                 DateTime.UtcNow;
-
-            /*
-             * First update the in-memory aggregate so the
-             * returned DTO immediately contains the new state.
-             */
-            cart.SetQuantity(
-                request.ProductVariantId,
-                requestedTotal,
-                variant.Price,
-                variant.ProductName,
-                variant.ImageUrl);
 
             var affectedRows =
                 await repository
@@ -153,48 +134,133 @@ public sealed class CartService(
                         cancellationToken);
 
             /*
-             * Row no longer exists in SQL Server.
-             *
-             * The old tracked CartItem is stale. Detach it,
-             * remove it from the aggregate and create a fresh
-             * CartItem with a new Id.
+             * The tracked graph is now potentially stale because the SQL
+             * update bypassed EF ChangeTracker.
              */
-            if (affectedRows == 0)
-            {
-                cart.RemoveItem(
-                    request.ProductVariantId);
+            repository.ClearTracking();
 
-                repository.Detach(
-                    existingItem);
-
-                cart.AddItem(
-                    request.ProductVariantId,
-                    request.Quantity,
-                    variant.Price,
-                    variant.ProductName,
-                    variant.ImageUrl);
-
-                await unitOfWork.SaveChangesAsync(
+            /*
+             * Always read the current cart again from SQL Server.
+             */
+            var freshCart =
+                await FindAsync(
+                    tenantId,
+                    userId,
+                    guestToken,
                     cancellationToken);
-            }
-            else
+
+            /*
+             * The normal successful case.
+             */
+            if (
+                affectedRows == 1 &&
+                freshCart is not null)
             {
-                /*
-                 * The database has already been updated by
-                 * ExecuteUpdateAsync, so do not send the same
-                 * modified entities through SaveChanges again.
-                 */
-                repository.AcceptUpdatedEntities(
-                    cart,
-                    existingItem);
+                return Map(freshCart);
             }
 
-            return Map(cart);
+            /*
+             * The direct UPDATE affected zero rows.
+             *
+             * This normally means the CartItem disappeared between the
+             * SELECT and UPDATE. We must NOT call SaveChanges on the old
+             * tracked entity.
+             *
+             * Instead read the current database state and decide again.
+             */
+            if (freshCart is null)
+            {
+                freshCart =
+                    await GetOrCreateAsync(
+                        tenantId,
+                        userId,
+                        guestToken,
+                        cancellationToken);
+            }
+
+            var freshExistingItem =
+                freshCart.Items.FirstOrDefault(
+                    item =>
+                        item.ProductVariantId ==
+                        request.ProductVariantId);
+
+            /*
+             * Another request may have recreated the item between our
+             * first SELECT and the retry. In that case update that fresh
+             * row directly.
+             */
+            if (freshExistingItem is not null)
+            {
+                var freshRequestedTotal =
+                    freshExistingItem.Quantity +
+                    request.Quantity;
+
+                if (
+                    freshRequestedTotal >
+                    availableQuantity.Value)
+                {
+                    throw new InvalidOperationException(
+                        "Requested quantity exceeds available stock.");
+                }
+
+                var retryUpdatedAt =
+                    DateTime.UtcNow;
+
+                var retryAffectedRows =
+                    await repository
+                        .UpdateExistingItemDirectAsync(
+                            freshCart.Id,
+                            freshExistingItem.Id,
+                            freshRequestedTotal,
+                            variant.Price,
+                            variant.ProductName,
+                            variant.ImageUrl,
+                            retryUpdatedAt,
+                            cancellationToken);
+
+                repository.ClearTracking();
+
+                if (retryAffectedRows == 1)
+                {
+                    var retryCart =
+                        await FindAsync(
+                            tenantId,
+                            userId,
+                            guestToken,
+                            cancellationToken);
+
+                    if (retryCart is not null)
+                    {
+                        return Map(retryCart);
+                    }
+                }
+
+                throw new InvalidOperationException(
+                    "The cart item changed while it was being added. Please try again.");
+            }
+
+            /*
+             * The old row really does not exist anymore.
+             * Add a completely new item and only then call SaveChanges.
+             * There is no stale CartItem left in ChangeTracker.
+             */
+            freshCart.AddItem(
+                variant.Id,
+                request.Quantity,
+                variant.Price,
+                variant.ProductName,
+                variant.ImageUrl);
+
+            await unitOfWork.SaveChangesAsync(
+                cancellationToken);
+
+            return Map(freshCart);
         }
 
         /*
-         * New cart item.
-         * Normal EF INSERT path is correct here.
+         * NEW ITEM
+         *
+         * This is a normal INSERT path.
          */
         cart.AddItem(
             variant.Id,
@@ -579,4 +645,5 @@ public sealed class CartService(
                 item =>
                     item.LineTotal));
     }
+
 }

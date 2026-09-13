@@ -87,41 +87,28 @@ public sealed class Cart : AggregateRoot
             guestToken);
     }
 
-    public CartItem AddItem(
+
+    public void AddItem(
         Guid productVariantId,
         int quantity,
         decimal unitPrice,
         string productName,
         string? imageUrl)
     {
-        ValidateProductVariantId(
-            productVariantId);
+        if (quantity <= 0)
+            throw new ArgumentOutOfRangeException(nameof(quantity));
 
-        ValidateQuantity(
-            quantity);
+        var existingItem = _items.FirstOrDefault(x => x.ProductVariantId == productVariantId);
 
-        var existing =
-            _items.FirstOrDefault(
-                item =>
-                    item.ProductVariantId ==
-                    productVariantId);
-
-        if (existing is not null)
+        if (existingItem is not null)
         {
-            existing.IncreaseQuantity(
-                quantity,
-                unitPrice,
-                productName,
-                imageUrl);
-
-            UpdatedAt =
-                DateTime.UtcNow;
-
-            return existing;
+            // اگر آیتم وجود داشت، مقدار آن را افزایش بده (EF Core این را به درستی Modified می‌کند)
+            existingItem.IncreaseQuantity(quantity, unitPrice, productName, imageUrl);
         }
-
-        var item =
-            new CartItem(
+        else
+        {
+            // اگر آیتم جدید بود، آن را به کلکسیون اضافه کن (EF Core این را به درستی Added می‌کند)
+            var newItem = new CartItem(
                 Id,
                 productVariantId,
                 quantity,
@@ -129,14 +116,10 @@ public sealed class Cart : AggregateRoot
                 productName,
                 imageUrl);
 
-        _items.Add(
-            item);
-
-        UpdatedAt =
-            DateTime.UtcNow;
-
-        return item;
+            _items.Add(newItem);
+        }
     }
+
 
     public void SetQuantity(
         Guid productVariantId,
