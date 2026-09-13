@@ -1,4 +1,3 @@
-
 using NexaEcommerce.Modules.ShoppingCart.Domain.Entities;
 
 namespace NexaEcommerce.Modules.ShoppingCart.Domain.Interfaces;
@@ -24,4 +23,22 @@ public interface ICartRepository
 
     void Remove(
         Cart cart);
+
+    Task<int> UpdateExistingItemDirectAsync(
+        Guid cartId,
+        Guid cartItemId,
+        int quantity,
+        decimal unitPrice,
+        string productName,
+        string? imageUrl,
+        DateTime cartUpdatedAt,
+        CancellationToken cancellationToken = default);
+
+    void Detach(
+        object entity);
+
+    void AcceptUpdatedEntities(
+        Cart cart,
+        CartItem item);
 }
+

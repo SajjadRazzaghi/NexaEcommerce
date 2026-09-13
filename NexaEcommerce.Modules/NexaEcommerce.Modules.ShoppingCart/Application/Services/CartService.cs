@@ -28,7 +28,8 @@ public sealed class CartService(
                 cancellationToken);
 
         return cart is null
-            ? CartDto.Empty(tenantId)
+            ? CartDto.Empty(
+                tenantId)
             : Map(cart);
     }
 
@@ -54,11 +55,13 @@ public sealed class CartService(
         }
 
         var variant =
-            await productVariantReader.GetSellableVariantAsync(
-                request.ProductVariantId,
-                cancellationToken);
+            await productVariantReader
+                .GetSellableVariantAsync(
+                    request.ProductVariantId,
+                    cancellationToken);
 
-        if (variant is null ||
+        if (
+            variant is null ||
             !variant.IsActive ||
             !variant.IsPublished)
         {
@@ -67,10 +70,11 @@ public sealed class CartService(
         }
 
         var availableQuantity =
-            await stockReader.GetAvailableQuantityAsync(
-                tenantId,
-                request.ProductVariantId,
-                cancellationToken);
+            await stockReader
+                .GetAvailableQuantityAsync(
+                    tenantId,
+                    request.ProductVariantId,
+                    cancellationToken);
 
         if (availableQuantity is null)
         {
@@ -85,28 +89,113 @@ public sealed class CartService(
                 guestToken,
                 cancellationToken);
 
+        var existingItem =
+            cart.Items.FirstOrDefault(
+                item =>
+                    item.ProductVariantId ==
+                    request.ProductVariantId);
+
         var currentQuantity =
-            cart.Items
-                .Where(
-                    item =>
-                        item.ProductVariantId ==
-                        request.ProductVariantId)
-                .Select(
-                    item =>
-                        item.Quantity)
-                .FirstOrDefault();
+            existingItem?.Quantity ??
+            0;
 
         var requestedTotal =
             currentQuantity +
             request.Quantity;
 
-        if (requestedTotal >
+        if (
+            requestedTotal >
             availableQuantity.Value)
         {
             throw new InvalidOperationException(
                 "Requested quantity exceeds available stock.");
         }
 
+        /*
+         * Existing cart item:
+         *
+         * Do not let EF generate a normal UPDATE through
+         * SaveChanges for this path.
+         *
+         * The SQL UPDATE is executed directly. This avoids
+         * the stale tracked-row problem that was producing:
+         *
+         * DbUpdateConcurrencyException
+         *
+         * with 0 rows affected.
+         */
+        if (existingItem is not null)
+        {
+            var updatedAt =
+                DateTime.UtcNow;
+
+            /*
+             * First update the in-memory aggregate so the
+             * returned DTO immediately contains the new state.
+             */
+            cart.SetQuantity(
+                request.ProductVariantId,
+                requestedTotal,
+                variant.Price,
+                variant.ProductName,
+                variant.ImageUrl);
+
+            var affectedRows =
+                await repository
+                    .UpdateExistingItemDirectAsync(
+                        cart.Id,
+                        existingItem.Id,
+                        requestedTotal,
+                        variant.Price,
+                        variant.ProductName,
+                        variant.ImageUrl,
+                        updatedAt,
+                        cancellationToken);
+
+            /*
+             * Row no longer exists in SQL Server.
+             *
+             * The old tracked CartItem is stale. Detach it,
+             * remove it from the aggregate and create a fresh
+             * CartItem with a new Id.
+             */
+            if (affectedRows == 0)
+            {
+                cart.RemoveItem(
+                    request.ProductVariantId);
+
+                repository.Detach(
+                    existingItem);
+
+                cart.AddItem(
+                    request.ProductVariantId,
+                    request.Quantity,
+                    variant.Price,
+                    variant.ProductName,
+                    variant.ImageUrl);
+
+                await unitOfWork.SaveChangesAsync(
+                    cancellationToken);
+            }
+            else
+            {
+                /*
+                 * The database has already been updated by
+                 * ExecuteUpdateAsync, so do not send the same
+                 * modified entities through SaveChanges again.
+                 */
+                repository.AcceptUpdatedEntities(
+                    cart,
+                    existingItem);
+            }
+
+            return Map(cart);
+        }
+
+        /*
+         * New cart item.
+         * Normal EF INSERT path is correct here.
+         */
         cart.AddItem(
             variant.Id,
             request.Quantity,
@@ -143,7 +232,8 @@ public sealed class CartService(
 
         if (cart is null)
         {
-            return CartDto.Empty(tenantId);
+            return CartDto.Empty(
+                tenantId);
         }
 
         if (request.Quantity <= 0)
@@ -158,11 +248,13 @@ public sealed class CartService(
         }
 
         var variant =
-            await productVariantReader.GetSellableVariantAsync(
-                request.ProductVariantId,
-                cancellationToken);
+            await productVariantReader
+                .GetSellableVariantAsync(
+                    request.ProductVariantId,
+                    cancellationToken);
 
-        if (variant is null ||
+        if (
+            variant is null ||
             !variant.IsActive ||
             !variant.IsPublished)
         {
@@ -171,10 +263,11 @@ public sealed class CartService(
         }
 
         var availableQuantity =
-            await stockReader.GetAvailableQuantityAsync(
-                tenantId,
-                request.ProductVariantId,
-                cancellationToken);
+            await stockReader
+                .GetAvailableQuantityAsync(
+                    tenantId,
+                    request.ProductVariantId,
+                    cancellationToken);
 
         if (availableQuantity is null)
         {
@@ -182,7 +275,8 @@ public sealed class CartService(
                 "Stock record is not available.");
         }
 
-        if (request.Quantity >
+        if (
+            request.Quantity >
             availableQuantity.Value)
         {
             throw new InvalidOperationException(
@@ -225,7 +319,8 @@ public sealed class CartService(
 
         if (cart is null)
         {
-            return CartDto.Empty(tenantId);
+            return CartDto.Empty(
+                tenantId);
         }
 
         cart.RemoveItem(
@@ -252,7 +347,8 @@ public sealed class CartService(
 
         if (cart is null)
         {
-            return CartDto.Empty(tenantId);
+            return CartDto.Empty(
+                tenantId);
         }
 
         cart.Clear();
@@ -314,7 +410,8 @@ public sealed class CartService(
         if (guestCart is null)
         {
             return userCart is null
-                ? CartDto.Empty(normalizedTenantId)
+                ? CartDto.Empty(
+                    normalizedTenantId)
                 : Map(userCart);
         }
 
@@ -346,10 +443,11 @@ public sealed class CartService(
         var availableQuantities =
             variantIds.Length == 0
                 ? new Dictionary<Guid, int>()
-                : await stockReader.GetAvailableQuantitiesAsync(
-                    normalizedTenantId,
-                    variantIds,
-                    cancellationToken);
+                : await stockReader
+                    .GetAvailableQuantitiesAsync(
+                        normalizedTenantId,
+                        variantIds,
+                        cancellationToken);
 
         userCart.MergeFrom(
             guestCart,
@@ -370,7 +468,8 @@ public sealed class CartService(
         string? guestToken,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
+        if (string.IsNullOrWhiteSpace(
+            tenantId))
         {
             throw new ArgumentException(
                 "Tenant id is required.",
@@ -380,7 +479,8 @@ public sealed class CartService(
         var normalizedTenantId =
             tenantId.Trim();
 
-        if (!string.IsNullOrWhiteSpace(userId))
+        if (!string.IsNullOrWhiteSpace(
+            userId))
         {
             return await repository.GetByUserAsync(
                 normalizedTenantId,
@@ -388,7 +488,8 @@ public sealed class CartService(
                 cancellationToken);
         }
 
-        if (!string.IsNullOrWhiteSpace(guestToken))
+        if (!string.IsNullOrWhiteSpace(
+            guestToken))
         {
             return await repository.GetByGuestTokenAsync(
                 normalizedTenantId,
@@ -417,7 +518,8 @@ public sealed class CartService(
             return existing;
         }
 
-        if (!string.IsNullOrWhiteSpace(userId))
+        if (!string.IsNullOrWhiteSpace(
+            userId))
         {
             var cart =
                 Cart.ForUser(
@@ -431,7 +533,8 @@ public sealed class CartService(
             return cart;
         }
 
-        if (!string.IsNullOrWhiteSpace(guestToken))
+        if (!string.IsNullOrWhiteSpace(
+            guestToken))
         {
             var cart =
                 Cart.ForGuest(
