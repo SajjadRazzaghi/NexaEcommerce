@@ -27,8 +27,13 @@ public sealed class CartItem : BaseEntity
         ProductName = productName.Trim();
         ImageUrl = imageUrl;
 
-        // نکته: Id توسط BaseEntity یا EF Core مدیریت می‌شود. اینجا تعریف مجدد نکنید.
+        // ✅ حیاتی: اگر BaseEntity شما مقدار Id را به صورت خودکار تولید نمی‌کند،
+        // خط زیر را از کامنت خارج کنید تا شناسه یکتا تولید شود:
+         Id = Guid.NewGuid(); 
     }
+
+    // ❌ هشدار: اگر خط زیر را در کد خود دارید، فوراً آن را حذف کنید!
+    // public Guid Id { get; private set; } = Guid.NewGuid();
 
     public Guid CartId { get; private set; }
     public Guid ProductVariantId { get; private set; }

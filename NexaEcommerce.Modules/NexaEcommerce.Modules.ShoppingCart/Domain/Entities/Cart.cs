@@ -102,6 +102,8 @@ public sealed class Cart : AggregateRoot
 
         if (existingItem is not null)
         {
+            
+            Console.WriteLine(quantity);
             // اگر آیتم وجود داشت، مقدار آن را افزایش بده (EF Core این را به درستی Modified می‌کند)
             existingItem.IncreaseQuantity(quantity, unitPrice, productName, imageUrl);
         }

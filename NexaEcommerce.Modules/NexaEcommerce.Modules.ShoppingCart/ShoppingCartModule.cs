@@ -7,7 +7,7 @@ using NexaEcommerce.Modules.ShoppingCart.Domain.Interfaces;
 using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaEcommerce.SharedKernel.Infrastructure;
-
+using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Repositories;
 namespace NexaEcommerce.Modules.ShoppingCart;
 
 public static class ShoppingCartModule
