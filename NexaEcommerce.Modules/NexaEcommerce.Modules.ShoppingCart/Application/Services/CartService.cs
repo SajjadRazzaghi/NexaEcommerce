@@ -8,28 +8,30 @@ using NexaEcommerce.SharedKernel.Infrastructure;
 namespace NexaEcommerce.Modules.ShoppingCart.Application.Services;
 
 public sealed class CartService(
-ICartRepository repository,
-IProductVariantReader productVariantReader,
-IStockReader stockReader,
-ICartUnitOfWork unitOfWork)
-: ICartService
+    ICartRepository repository,
+    IProductVariantReader productVariantReader,
+    IStockReader stockReader,
+    ICartUnitOfWork unitOfWork)
+    : ICartService
 {
     public async Task<CartDto> GetAsync(
-    string tenantId,
-    string? userId,
-    string? guestToken,
-    CancellationToken cancellationToken = default)
+        string tenantId,
+        string? userId,
+        string? guestToken,
+        CancellationToken cancellationToken = default)
     {
-        var cart =
-        await FindAsync(
-        tenantId,
-        userId,
-        guestToken,
-        cancellationToken);
+        repository.ClearTracking();
 
-    return cart is null
-        ? CartDto.Empty(tenantId)
-        : Map(cart);
+        var cart =
+            await FindAsync(
+                tenantId,
+                userId,
+                guestToken,
+                cancellationToken);
+
+        return cart is null
+            ? CartDto.Empty(tenantId)
+            : Map(cart);
     }
 
     public async Task<CartDto> AddItemAsync(
@@ -81,6 +83,12 @@ ICartUnitOfWork unitOfWork)
                 "Stock record is not available.");
         }
 
+        /*
+         * بسیار مهم:
+         * قبل از پیدا کردن Cart هر Entity قدیمی را از Tracker پاک می‌کنیم.
+         */
+        repository.ClearTracking();
+
         var cart =
             await GetOrCreateAsync(
                 tenantId,
@@ -88,165 +96,33 @@ ICartUnitOfWork unitOfWork)
                 guestToken,
                 cancellationToken);
 
-        var existingItem =
-            cart.Items.FirstOrDefault(
-                item =>
-                    item.ProductVariantId ==
-                    request.ProductVariantId);
-
-        var currentQuantity =
-            existingItem?.Quantity ??
-            0;
-
-        var requestedTotal =
-            currentQuantity +
-            request.Quantity;
-
-        if (
-            requestedTotal >
-            availableQuantity.Value)
-        {
-            throw new InvalidOperationException(
-                "Requested quantity exceeds available stock.");
-        }
-
         /*
-         * EXISTING ITEM
-         *
-         * Never modify the tracked CartItem before the direct SQL update.
-         * ExecuteUpdateAsync updates SQL Server directly and bypasses EF tracking.
+         * آیتم را مستقیماً از جدول CartItems پیدا می‌کنیم.
+         * چون Tracker قبل از این Query پاک شده، EF نمی‌تواند یک
+         * CartItem قدیمی و حذف‌شده را به‌عنوان نتیجه Query برگرداند.
          */
+        var existingItem =
+            await repository.GetItemAsync(
+                cart.Id,
+                request.ProductVariantId,
+                cancellationToken);
+
         if (existingItem is not null)
         {
-            var updatedAt =
-                DateTime.UtcNow;
+            var requestedTotal =
+                existingItem.Quantity +
+                request.Quantity;
 
-            var affectedRows =
-                await repository
-                    .UpdateExistingItemDirectAsync(
-                        cart.Id,
-                        existingItem.Id,
-                        requestedTotal,
-                        variant.Price,
-                        variant.ProductName,
-                        variant.ImageUrl,
-                        updatedAt,
-                        cancellationToken);
-
-            /*
-             * The tracked graph is now potentially stale because the SQL
-             * update bypassed EF ChangeTracker.
-             */
-            repository.ClearTracking();
-
-            /*
-             * Always read the current cart again from SQL Server.
-             */
-            var freshCart =
-                await FindAsync(
-                    tenantId,
-                    userId,
-                    guestToken,
-                    cancellationToken);
-
-            /*
-             * The normal successful case.
-             */
             if (
-                affectedRows == 1 &&
-                freshCart is not null)
+                requestedTotal >
+                availableQuantity.Value)
             {
-                return Map(freshCart);
-            }
-
-            /*
-             * The direct UPDATE affected zero rows.
-             *
-             * This normally means the CartItem disappeared between the
-             * SELECT and UPDATE. We must NOT call SaveChanges on the old
-             * tracked entity.
-             *
-             * Instead read the current database state and decide again.
-             */
-            if (freshCart is null)
-            {
-                freshCart =
-                    await GetOrCreateAsync(
-                        tenantId,
-                        userId,
-                        guestToken,
-                        cancellationToken);
-            }
-
-            var freshExistingItem =
-                freshCart.Items.FirstOrDefault(
-                    item =>
-                        item.ProductVariantId ==
-                        request.ProductVariantId);
-
-            /*
-             * Another request may have recreated the item between our
-             * first SELECT and the retry. In that case update that fresh
-             * row directly.
-             */
-            if (freshExistingItem is not null)
-            {
-                var freshRequestedTotal =
-                    freshExistingItem.Quantity +
-                    request.Quantity;
-
-                if (
-                    freshRequestedTotal >
-                    availableQuantity.Value)
-                {
-                    throw new InvalidOperationException(
-                        "Requested quantity exceeds available stock.");
-                }
-
-                var retryUpdatedAt =
-                    DateTime.UtcNow;
-
-                var retryAffectedRows =
-                    await repository
-                        .UpdateExistingItemDirectAsync(
-                            freshCart.Id,
-                            freshExistingItem.Id,
-                            freshRequestedTotal,
-                            variant.Price,
-                            variant.ProductName,
-                            variant.ImageUrl,
-                            retryUpdatedAt,
-                            cancellationToken);
-
-                repository.ClearTracking();
-
-                if (retryAffectedRows == 1)
-                {
-                    var retryCart =
-                        await FindAsync(
-                            tenantId,
-                            userId,
-                            guestToken,
-                            cancellationToken);
-
-                    if (retryCart is not null)
-                    {
-                        return Map(retryCart);
-                    }
-                }
-
                 throw new InvalidOperationException(
-                    "The cart item changed while it was being added. Please try again.");
+                    "Requested quantity exceeds available stock.");
             }
 
-            /*
-             * The old row really does not exist anymore.
-             * Add a completely new item and only then call SaveChanges.
-             * There is no stale CartItem left in ChangeTracker.
-             */
-            freshCart.AddItem(
-                variant.Id,
-                request.Quantity,
+            existingItem.SetQuantity(
+                requestedTotal,
                 variant.Price,
                 variant.ProductName,
                 variant.ImageUrl);
@@ -254,14 +130,106 @@ ICartUnitOfWork unitOfWork)
             await unitOfWork.SaveChangesAsync(
                 cancellationToken);
 
-            return Map(freshCart);
+            repository.ClearTracking();
+
+            var freshCart =
+                await FindAsync(
+                    tenantId,
+                    userId,
+                    guestToken,
+                    cancellationToken);
+
+            return freshCart is null
+                ? CartDto.Empty(tenantId)
+                : Map(freshCart);
         }
 
         /*
-         * NEW ITEM
-         *
-         * This is a normal INSERT path.
+         * هیچ CartItem واقعی برای این Variant وجود ندارد.
+         * بنابراین یک Entity جدید می‌سازیم.
          */
+        if (
+            request.Quantity >
+            availableQuantity.Value)
+        {
+            throw new InvalidOperationException(
+                "Requested quantity exceeds available stock.");
+        }
+
+        /*
+         * قبل از AddItem دوباره مطمئن می‌شویم Tracker تمیز است.
+         */
+        repository.ClearTracking();
+
+        /*
+         * Cart را دوباره از دیتابیس می‌خوانیم تا navigation collection
+         * مربوط به یک CartItem خیالی قبلی در حافظه باقی نمانده باشد.
+         */
+        cart =
+            await FindAsync(
+                tenantId,
+                userId,
+                guestToken,
+                cancellationToken);
+
+        if (cart is null)
+        {
+            cart =
+                await GetOrCreateAsync(
+                    tenantId,
+                    userId,
+                    guestToken,
+                    cancellationToken);
+        }
+
+        /*
+         * یک بار دیگر مستقیم CartItems را چک می‌کنیم.
+         * این بررسی برای جلوگیری از ایجاد آیتم Duplicate در شرایط
+         * race ساده ضروری است.
+         */
+        var raceExistingItem =
+            await repository.GetItemAsync(
+                cart.Id,
+                request.ProductVariantId,
+                cancellationToken);
+
+        if (raceExistingItem is not null)
+        {
+            var raceTotal =
+                raceExistingItem.Quantity +
+                request.Quantity;
+
+            if (
+                raceTotal >
+                availableQuantity.Value)
+            {
+                throw new InvalidOperationException(
+                    "Requested quantity exceeds available stock.");
+            }
+
+            raceExistingItem.SetQuantity(
+                raceTotal,
+                variant.Price,
+                variant.ProductName,
+                variant.ImageUrl);
+
+            await unitOfWork.SaveChangesAsync(
+                cancellationToken);
+
+            repository.ClearTracking();
+
+            var raceFreshCart =
+                await FindAsync(
+                    tenantId,
+                    userId,
+                    guestToken,
+                    cancellationToken);
+
+            return raceFreshCart is null
+                ? CartDto.Empty(tenantId)
+                : Map(raceFreshCart);
+        }
+
         cart.AddItem(
             variant.Id,
             request.Quantity,
@@ -288,6 +256,8 @@ ICartUnitOfWork unitOfWork)
                 "Product variant id is required.",
                 nameof(request.ProductVariantId));
         }
+
+        repository.ClearTracking();
 
         var cart =
             await FindAsync(
@@ -376,6 +346,8 @@ ICartUnitOfWork unitOfWork)
                 nameof(productVariantId));
         }
 
+        repository.ClearTracking();
+
         var cart =
             await FindAsync(
                 tenantId,
@@ -404,6 +376,8 @@ ICartUnitOfWork unitOfWork)
         string? guestToken,
         CancellationToken cancellationToken = default)
     {
+        repository.ClearTracking();
+
         var cart =
             await FindAsync(
                 tenantId,
@@ -461,6 +435,8 @@ ICartUnitOfWork unitOfWork)
         var normalizedGuestToken =
             guestToken.Trim();
 
+        repository.ClearTracking();
+
         var guestCart =
             await repository.GetByGuestTokenAsync(
                 normalizedTenantId,
@@ -495,11 +471,13 @@ ICartUnitOfWork unitOfWork)
 
         var variantIds =
             guestCart.Items
+                .Where(item => !item.IsDeleted)
                 .Select(
                     item =>
                         item.ProductVariantId)
                 .Concat(
                     userCart.Items
+                        .Where(item => !item.IsDeleted)
                         .Select(
                             item =>
                                 item.ProductVariantId))
@@ -590,7 +568,7 @@ ICartUnitOfWork unitOfWork)
             var cart =
                 Cart.ForUser(
                     tenantId,
-                    userId);
+                    userId.Trim());
 
             await repository.AddAsync(
                 cart,
@@ -605,7 +583,7 @@ ICartUnitOfWork unitOfWork)
             var cart =
                 Cart.ForGuest(
                     tenantId,
-                    guestToken);
+                    guestToken.Trim());
 
             await repository.AddAsync(
                 cart,
@@ -623,6 +601,7 @@ ICartUnitOfWork unitOfWork)
     {
         var items =
             cart.Items
+                .Where(item => !item.IsDeleted)
                 .Select(
                     item =>
                         new CartItemDto(
@@ -645,5 +624,4 @@ ICartUnitOfWork unitOfWork)
                 item =>
                     item.LineTotal));
     }
-
 }

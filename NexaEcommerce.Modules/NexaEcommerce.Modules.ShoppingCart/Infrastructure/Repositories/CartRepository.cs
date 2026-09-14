@@ -9,7 +9,8 @@ public sealed class CartRepository : ICartRepository
 {
     private readonly ShoppingCartDbContext _dbContext;
 
-    public CartRepository(ShoppingCartDbContext dbContext)
+    public CartRepository(
+        ShoppingCartDbContext dbContext)
     {
         _dbContext = dbContext;
     }
@@ -19,11 +20,13 @@ public sealed class CartRepository : ICartRepository
         string userId,
         CancellationToken cancellationToken = default)
     {
-        // ✅ حیاتی: بدون AsNoTracking و با Include برای ردیابی صحیح تغییرات
         return await _dbContext.Carts
             .Include(c => c.Items)
+            .Where(c => !c.IsDeleted)
             .FirstOrDefaultAsync(
-                c => c.TenantId == tenantId && c.UserId == userId,
+                c =>
+                    c.TenantId == tenantId &&
+                    c.UserId == userId,
                 cancellationToken);
     }
 
@@ -32,30 +35,51 @@ public sealed class CartRepository : ICartRepository
         string guestToken,
         CancellationToken cancellationToken = default)
     {
-        // ✅ حیاتی: بدون AsNoTracking و با Include
         return await _dbContext.Carts
             .Include(c => c.Items)
+            .Where(c => !c.IsDeleted)
             .FirstOrDefaultAsync(
-                c => c.TenantId == tenantId && c.GuestToken == guestToken,
+                c =>
+                    c.TenantId == tenantId &&
+                    c.GuestToken == guestToken,
                 cancellationToken);
     }
 
-    public async Task AddAsync(Cart cart, CancellationToken cancellationToken = default)
+    public async Task<CartItem?> GetItemAsync(
+        Guid cartId,
+        Guid productVariantId,
+        CancellationToken cancellationToken = default)
     {
-        await _dbContext.Carts.AddAsync(cart, cancellationToken);
+        return await _dbContext.CartItems
+            .Where(item =>
+                item.CartId == cartId &&
+                item.ProductVariantId == productVariantId &&
+                !item.IsDeleted)
+            .FirstOrDefaultAsync(
+                cancellationToken);
     }
 
-    public void Update(Cart cart)
+    public async Task AddAsync(
+        Cart cart,
+        CancellationToken cancellationToken = default)
+    {
+        await _dbContext.Carts.AddAsync(
+            cart,
+            cancellationToken);
+    }
+
+    public void Update(
+        Cart cart)
     {
         _dbContext.Carts.Update(cart);
     }
 
-    public void Remove(Cart cart)
+    public void Remove(
+        Cart cart)
     {
         _dbContext.Carts.Remove(cart);
     }
 
-    // ✅ اصلاح شده: نوع بازگشتی دقیقاً Task<int> و پارامترها دقیقاً منطبق با اینترفیس
     public async Task<int> UpdateExistingItemDirectAsync(
         Guid cartId,
         Guid cartItemId,
@@ -66,18 +90,31 @@ public sealed class CartRepository : ICartRepository
         DateTime cartUpdatedAt,
         CancellationToken cancellationToken = default)
     {
-        return await _dbContext.Set<CartItem>()
-            .Where(x => x.Id == cartItemId)
-            .ExecuteUpdateAsync(setters => setters
-                .SetProperty(x => x.Quantity, quantity)
-                .SetProperty(x => x.UnitPrice, unitPrice)
-                .SetProperty(x => x.ProductName, productName)
-                .SetProperty(x => x.ImageUrl, imageUrl)
-                .SetProperty(x => x.UpdatedAt, cartUpdatedAt), // UpdatedAt از BaseEntity به ارث می‌رسد
-            cancellationToken);
+        return await _dbContext.CartItems
+            .Where(item =>
+                item.Id == cartItemId &&
+                item.CartId == cartId &&
+                !item.IsDeleted)
+            .ExecuteUpdateAsync(
+                setters => setters
+                    .SetProperty(
+                        item => item.Quantity,
+                        quantity)
+                    .SetProperty(
+                        item => item.UnitPrice,
+                        unitPrice)
+                    .SetProperty(
+                        item => item.ProductName,
+                        productName)
+                    .SetProperty(
+                        item => item.ImageUrl,
+                        imageUrl)
+                    .SetProperty(
+                        item => item.UpdatedAt,
+                        cartUpdatedAt),
+                cancellationToken);
     }
 
-    // ✅ پیاده‌سازی متد ClearTracking مطابق اینترفیس
     public void ClearTracking()
     {
         _dbContext.ChangeTracker.Clear();
