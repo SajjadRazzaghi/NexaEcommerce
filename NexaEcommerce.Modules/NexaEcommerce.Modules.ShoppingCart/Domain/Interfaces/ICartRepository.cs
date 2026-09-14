@@ -14,6 +14,16 @@ public interface ICartRepository
         string guestToken,
         CancellationToken cancellationToken = default);
 
+    Task<Cart?> GetByUserWithoutItemsAsync(
+        string tenantId,
+        string userId,
+        CancellationToken cancellationToken = default);
+
+    Task<Cart?> GetByGuestTokenWithoutItemsAsync(
+        string tenantId,
+        string guestToken,
+        CancellationToken cancellationToken = default);
+
     Task<CartItem?> GetItemAsync(
         Guid cartId,
         Guid productVariantId,
@@ -21,6 +31,15 @@ public interface ICartRepository
 
     Task AddAsync(
         Cart cart,
+        CancellationToken cancellationToken = default);
+
+    Task<CartItem> AddItemAsync(
+        Guid cartId,
+        Guid productVariantId,
+        int quantity,
+        decimal unitPrice,
+        string productName,
+        string? imageUrl,
         CancellationToken cancellationToken = default);
 
     void Update(
@@ -41,3 +60,4 @@ public interface ICartRepository
 
     void ClearTracking();
 }
+

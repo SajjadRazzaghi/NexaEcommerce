@@ -49,11 +49,6 @@ public sealed class Cart : AggregateRoot
                 ? null
                 : guestToken.Trim();
 
-        /*
-         * The current SQL Server schema requires UpdatedAt to be non-null.
-         * A newly created cart has not been updated yet, so its creation
-         * timestamp is the correct initial UpdatedAt value.
-         */
         UpdatedAt =
             CreatedAt;
     }
@@ -87,30 +82,29 @@ public sealed class Cart : AggregateRoot
             guestToken);
     }
 
-
-    public void AddItem(
+    /*
+     * این متد فقط برای ایجاد یک CartItem جدید استفاده می‌شود.
+     * عمداً هیچ lookup روی _items انجام نمی‌دهد.
+     *
+     * دلیل:
+     * منبع تشخیص existing item باید دیتابیس باشد، نه یک navigation
+     * collection احتمالی قدیمی داخل ChangeTracker.
+     */
+    public void AddNewItem(
         Guid productVariantId,
         int quantity,
         decimal unitPrice,
         string productName,
         string? imageUrl)
     {
-        if (quantity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(quantity));
+        ValidateProductVariantId(
+            productVariantId);
 
-        var existingItem = _items.FirstOrDefault(x => x.ProductVariantId == productVariantId);
+        ValidateQuantity(
+            quantity);
 
-        if (existingItem is not null)
-        {
-            
-            Console.WriteLine(quantity);
-            // اگر آیتم وجود داشت، مقدار آن را افزایش بده (EF Core این را به درستی Modified می‌کند)
-            existingItem.IncreaseQuantity(quantity, unitPrice, productName, imageUrl);
-        }
-        else
-        {
-            // اگر آیتم جدید بود، آن را به کلکسیون اضافه کن (EF Core این را به درستی Added می‌کند)
-            var newItem = new CartItem(
+        var newItem =
+            new CartItem(
                 Id,
                 productVariantId,
                 quantity,
@@ -118,10 +112,57 @@ public sealed class Cart : AggregateRoot
                 productName,
                 imageUrl);
 
-            _items.Add(newItem);
-        }
+        _items.Add(newItem);
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
+    /*
+     * این متد برای compatibility با سایر قسمت‌های Domain حفظ شده است.
+     * برای مسیر AddItemAsync بهتر است از AddNewItem استفاده شود.
+     */
+    public void AddItem(
+        Guid productVariantId,
+        int quantity,
+        decimal unitPrice,
+        string productName,
+        string? imageUrl)
+    {
+        ValidateProductVariantId(
+            productVariantId);
+
+        ValidateQuantity(
+            quantity);
+
+        var existingItem =
+            _items.FirstOrDefault(
+                item =>
+                    item.ProductVariantId ==
+                    productVariantId &&
+                    !item.IsDeleted);
+
+        if (existingItem is not null)
+        {
+            existingItem.IncreaseQuantity(
+                quantity,
+                unitPrice,
+                productName,
+                imageUrl);
+
+            UpdatedAt =
+                DateTime.UtcNow;
+
+            return;
+        }
+
+        AddNewItem(
+            productVariantId,
+            quantity,
+            unitPrice,
+            productName,
+            imageUrl);
+    }
 
     public void SetQuantity(
         Guid productVariantId,
@@ -137,7 +178,8 @@ public sealed class Cart : AggregateRoot
             _items.FirstOrDefault(
                 item =>
                     item.ProductVariantId ==
-                    productVariantId);
+                    productVariantId &&
+                    !item.IsDeleted);
 
         if (quantity <= 0)
         {
@@ -158,7 +200,7 @@ public sealed class Cart : AggregateRoot
 
         if (existing is null)
         {
-            AddItem(
+            AddNewItem(
                 productVariantId,
                 quantity,
                 unitPrice,
@@ -188,7 +230,8 @@ public sealed class Cart : AggregateRoot
             _items.FirstOrDefault(
                 item =>
                     item.ProductVariantId ==
-                    productVariantId);
+                    productVariantId &&
+                    !item.IsDeleted);
 
         if (existing is null)
         {
@@ -222,6 +265,11 @@ public sealed class Cart : AggregateRoot
 
         foreach (var sourceItem in source.Items)
         {
+            if (sourceItem.IsDeleted)
+            {
+                continue;
+            }
+
             availableQuantities.TryGetValue(
                 sourceItem.ProductVariantId,
                 out var availableQuantity);
@@ -235,7 +283,8 @@ public sealed class Cart : AggregateRoot
                 _items.FirstOrDefault(
                     item =>
                         item.ProductVariantId ==
-                        sourceItem.ProductVariantId);
+                        sourceItem.ProductVariantId &&
+                        !item.IsDeleted);
 
             if (targetItem is null)
             {
@@ -246,7 +295,7 @@ public sealed class Cart : AggregateRoot
 
                 if (quantity > 0)
                 {
-                    AddItem(
+                    AddNewItem(
                         sourceItem.ProductVariantId,
                         quantity,
                         sourceItem.UnitPrice,

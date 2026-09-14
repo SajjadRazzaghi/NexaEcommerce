@@ -21,6 +21,7 @@ public sealed class CartRepository : ICartRepository
         CancellationToken cancellationToken = default)
     {
         return await _dbContext.Carts
+            .AsTracking()
             .Include(c => c.Items)
             .Where(c => !c.IsDeleted)
             .FirstOrDefaultAsync(
@@ -36,7 +37,38 @@ public sealed class CartRepository : ICartRepository
         CancellationToken cancellationToken = default)
     {
         return await _dbContext.Carts
+            .AsTracking()
             .Include(c => c.Items)
+            .Where(c => !c.IsDeleted)
+            .FirstOrDefaultAsync(
+                c =>
+                    c.TenantId == tenantId &&
+                    c.GuestToken == guestToken,
+                cancellationToken);
+    }
+
+    public async Task<Cart?> GetByUserWithoutItemsAsync(
+        string tenantId,
+        string userId,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Carts
+            .AsTracking()
+            .Where(c => !c.IsDeleted)
+            .FirstOrDefaultAsync(
+                c =>
+                    c.TenantId == tenantId &&
+                    c.UserId == userId,
+                cancellationToken);
+    }
+
+    public async Task<Cart?> GetByGuestTokenWithoutItemsAsync(
+        string tenantId,
+        string guestToken,
+        CancellationToken cancellationToken = default)
+    {
+        return await _dbContext.Carts
+            .AsTracking()
             .Where(c => !c.IsDeleted)
             .FirstOrDefaultAsync(
                 c =>
@@ -51,10 +83,12 @@ public sealed class CartRepository : ICartRepository
         CancellationToken cancellationToken = default)
     {
         return await _dbContext.CartItems
-            .Where(item =>
-                item.CartId == cartId &&
-                item.ProductVariantId == productVariantId &&
-                !item.IsDeleted)
+            .AsTracking()
+            .Where(
+                item =>
+                    item.CartId == cartId &&
+                    item.ProductVariantId == productVariantId &&
+                    !item.IsDeleted)
             .FirstOrDefaultAsync(
                 cancellationToken);
     }
@@ -68,16 +102,43 @@ public sealed class CartRepository : ICartRepository
             cancellationToken);
     }
 
+    public async Task<CartItem> AddItemAsync(
+        Guid cartId,
+        Guid productVariantId,
+        int quantity,
+        decimal unitPrice,
+        string productName,
+        string? imageUrl,
+        CancellationToken cancellationToken = default)
+    {
+        var item =
+            new CartItem(
+                cartId,
+                productVariantId,
+                quantity,
+                unitPrice,
+                productName,
+                imageUrl);
+
+        await _dbContext.CartItems.AddAsync(
+            item,
+            cancellationToken);
+
+        return item;
+    }
+
     public void Update(
         Cart cart)
     {
-        _dbContext.Carts.Update(cart);
+        _dbContext.Carts.Update(
+            cart);
     }
 
     public void Remove(
         Cart cart)
     {
-        _dbContext.Carts.Remove(cart);
+        _dbContext.Carts.Remove(
+            cart);
     }
 
     public async Task<int> UpdateExistingItemDirectAsync(
@@ -91,27 +152,29 @@ public sealed class CartRepository : ICartRepository
         CancellationToken cancellationToken = default)
     {
         return await _dbContext.CartItems
-            .Where(item =>
-                item.Id == cartItemId &&
-                item.CartId == cartId &&
-                !item.IsDeleted)
+            .Where(
+                item =>
+                    item.Id == cartItemId &&
+                    item.CartId == cartId &&
+                    !item.IsDeleted)
             .ExecuteUpdateAsync(
-                setters => setters
-                    .SetProperty(
-                        item => item.Quantity,
-                        quantity)
-                    .SetProperty(
-                        item => item.UnitPrice,
-                        unitPrice)
-                    .SetProperty(
-                        item => item.ProductName,
-                        productName)
-                    .SetProperty(
-                        item => item.ImageUrl,
-                        imageUrl)
-                    .SetProperty(
-                        item => item.UpdatedAt,
-                        cartUpdatedAt),
+                setters =>
+                    setters
+                        .SetProperty(
+                            item => item.Quantity,
+                            quantity)
+                        .SetProperty(
+                            item => item.UnitPrice,
+                            unitPrice)
+                        .SetProperty(
+                            item => item.ProductName,
+                            productName)
+                        .SetProperty(
+                            item => item.ImageUrl,
+                            imageUrl)
+                        .SetProperty(
+                            item => item.UpdatedAt,
+                            cartUpdatedAt),
                 cancellationToken);
     }
 

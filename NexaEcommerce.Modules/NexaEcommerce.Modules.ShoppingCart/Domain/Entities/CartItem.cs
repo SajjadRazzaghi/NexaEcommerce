@@ -27,9 +27,7 @@ public sealed class CartItem : BaseEntity
         ProductName = productName.Trim();
         ImageUrl = imageUrl;
 
-        // ✅ حیاتی: اگر BaseEntity شما مقدار Id را به صورت خودکار تولید نمی‌کند،
-        // خط زیر را از کامنت خارج کنید تا شناسه یکتا تولید شود:
-         Id = Guid.NewGuid(); 
+        
     }
 
     // ❌ هشدار: اگر خط زیر را در کد خود دارید، فوراً آن را حذف کنید!

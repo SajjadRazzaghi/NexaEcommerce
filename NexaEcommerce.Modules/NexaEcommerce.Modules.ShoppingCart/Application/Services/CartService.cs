@@ -1,7 +1,6 @@
 using NexaEcommerce.Modules.ShoppingCart.Application.DTOs;
 using NexaEcommerce.Modules.ShoppingCart.Domain.Entities;
 using NexaEcommerce.Modules.ShoppingCart.Domain.Interfaces;
-using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaEcommerce.SharedKernel.Infrastructure;
 
@@ -83,23 +82,30 @@ public sealed class CartService(
                 "Stock record is not available.");
         }
 
+        if (request.Quantity > availableQuantity.Value)
+        {
+            throw new InvalidOperationException(
+                "Requested quantity exceeds available stock.");
+        }
+
         /*
-         * بسیار مهم:
-         * قبل از پیدا کردن Cart هر Entity قدیمی را از Tracker پاک می‌کنیم.
+         * این مسیر فقط Cart را بدون Items می‌خواند.
+         *
+         * دلیل:
+         * برای INSERT جدید اصلاً نمی‌خواهیم Navigation Graph مربوط
+         * به CartItem وارد ChangeTracker شود.
          */
         repository.ClearTracking();
 
         var cart =
-            await GetOrCreateAsync(
+            await GetOrCreateWithoutItemsAsync(
                 tenantId,
                 userId,
                 guestToken,
                 cancellationToken);
 
         /*
-         * آیتم را مستقیماً از جدول CartItems پیدا می‌کنیم.
-         * چون Tracker قبل از این Query پاک شده، EF نمی‌تواند یک
-         * CartItem قدیمی و حذف‌شده را به‌عنوان نتیجه Query برگرداند.
+         * Existing Item را مستقیماً از جدول CartItems پیدا می‌کنیم.
          */
         var existingItem =
             await repository.GetItemAsync(
@@ -113,9 +119,7 @@ public sealed class CartService(
                 existingItem.Quantity +
                 request.Quantity;
 
-            if (
-                requestedTotal >
-                availableQuantity.Value)
+            if (requestedTotal > availableQuantity.Value)
             {
                 throw new InvalidOperationException(
                     "Requested quantity exceeds available stock.");
@@ -127,88 +131,59 @@ public sealed class CartService(
                 variant.ProductName,
                 variant.ImageUrl);
 
-            await unitOfWork.SaveChangesAsync(
-                cancellationToken);
-
+            /*
+             * Cart را نیز تغییر می‌دهیم تا UpdatedAt به‌روزرسانی شود.
+             */
             repository.ClearTracking();
 
-            var freshCart =
-                await FindAsync(
+            var trackedCart =
+                await GetOrCreateWithoutItemsAsync(
                     tenantId,
                     userId,
                     guestToken,
                     cancellationToken);
 
-            return freshCart is null
-                ? CartDto.Empty(tenantId)
-                : Map(freshCart);
-        }
+            if (trackedCart is null)
+            {
+                throw new InvalidOperationException(
+                    "Cart could not be loaded.");
+            }
 
-        /*
-         * هیچ CartItem واقعی برای این Variant وجود ندارد.
-         * بنابراین یک Entity جدید می‌سازیم.
-         */
-        if (
-            request.Quantity >
-            availableQuantity.Value)
-        {
-            throw new InvalidOperationException(
-                "Requested quantity exceeds available stock.");
-        }
-
-        /*
-         * قبل از AddItem دوباره مطمئن می‌شویم Tracker تمیز است.
-         */
-        repository.ClearTracking();
-
-        /*
-         * Cart را دوباره از دیتابیس می‌خوانیم تا navigation collection
-         * مربوط به یک CartItem خیالی قبلی در حافظه باقی نمانده باشد.
-         */
-        cart =
-            await FindAsync(
-                tenantId,
-                userId,
-                guestToken,
-                cancellationToken);
-
-        if (cart is null)
-        {
-            cart =
-                await GetOrCreateAsync(
-                    tenantId,
-                    userId,
-                    guestToken,
+            /*
+             * چون بعد از ClearTracking، existingItem دیگر tracked نیست،
+             * آن را به‌صورت صریح دوباره به Context معرفی می‌کنیم.
+             */
+            var freshExistingItem =
+                await repository.GetItemAsync(
+                    trackedCart.Id,
+                    request.ProductVariantId,
                     cancellationToken);
-        }
 
-        /*
-         * یک بار دیگر مستقیم CartItems را چک می‌کنیم.
-         * این بررسی برای جلوگیری از ایجاد آیتم Duplicate در شرایط
-         * race ساده ضروری است.
-         */
-        var raceExistingItem =
-            await repository.GetItemAsync(
-                cart.Id,
-                request.ProductVariantId,
-                cancellationToken);
+            if (freshExistingItem is null)
+            {
+                throw new InvalidOperationException(
+                    "Cart item disappeared while it was being updated.");
+            }
 
-        if (raceExistingItem is not null)
-        {
-            var raceTotal =
-                raceExistingItem.Quantity +
+            var finalQuantity =
+                freshExistingItem.Quantity +
                 request.Quantity;
 
-            if (
-                raceTotal >
-                availableQuantity.Value)
+            if (finalQuantity > availableQuantity.Value)
             {
                 throw new InvalidOperationException(
                     "Requested quantity exceeds available stock.");
             }
 
-            raceExistingItem.SetQuantity(
-                raceTotal,
+            freshExistingItem.SetQuantity(
+                finalQuantity,
+                variant.Price,
+                variant.ProductName,
+                variant.ImageUrl);
+
+            trackedCart.SetQuantity(
+                request.ProductVariantId,
+                finalQuantity,
                 variant.Price,
                 variant.ProductName,
                 variant.ImageUrl);
@@ -218,29 +193,111 @@ public sealed class CartService(
 
             repository.ClearTracking();
 
-            var raceFreshCart =
+            var updatedCart =
                 await FindAsync(
                     tenantId,
                     userId,
                     guestToken,
                     cancellationToken);
 
-            return raceFreshCart is null
+            return updatedCart is null
                 ? CartDto.Empty(tenantId)
-                : Map(raceFreshCart);
+                : Map(updatedCart);
         }
 
-        cart.AddItem(
+        /*
+         * INSERT جدید:
+         *
+         * دیگر Cart.AddItem() را صدا نمی‌زنیم.
+         * مستقیماً DbSet<CartItem>.AddAsync() انجام می‌شود.
+         */
+        repository.ClearTracking();
+
+        cart =
+            await GetOrCreateWithoutItemsAsync(
+                tenantId,
+                userId,
+                guestToken,
+                cancellationToken);
+
+        if (cart is null)
+        {
+            throw new InvalidOperationException(
+                "Cart could not be loaded.");
+        }
+
+        /*
+         * یک بررسی نهایی برای race condition.
+         */
+        var raceExistingItem =
+            await repository.GetItemAsync(
+                cart.Id,
+                request.ProductVariantId,
+                cancellationToken);
+
+        if (raceExistingItem is not null)
+        {
+            var raceQuantity =
+                raceExistingItem.Quantity +
+                request.Quantity;
+
+            if (raceQuantity > availableQuantity.Value)
+            {
+                throw new InvalidOperationException(
+                    "Requested quantity exceeds available stock.");
+            }
+
+            raceExistingItem.SetQuantity(
+                raceQuantity,
+                variant.Price,
+                variant.ProductName,
+                variant.ImageUrl);
+
+            await unitOfWork.SaveChangesAsync(
+                cancellationToken);
+
+            repository.ClearTracking();
+
+            var raceCart =
+                await FindAsync(
+                    tenantId,
+                    userId,
+                    guestToken,
+                    cancellationToken);
+
+            return raceCart is null
+                ? CartDto.Empty(tenantId)
+                : Map(raceCart);
+        }
+
+        /*
+         * این متد فقط یک CartItem جدید می‌سازد و مستقیماً آن را
+         * در DbSet به State=Added می‌برد.
+         */
+        await repository.AddItemAsync(
+            cart.Id,
             variant.Id,
             request.Quantity,
             variant.Price,
             variant.ProductName,
-            variant.ImageUrl);
+            variant.ImageUrl,
+            cancellationToken);
 
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
 
-        return Map(cart);
+        repository.ClearTracking();
+
+        var freshCartAfterInsert =
+            await FindAsync(
+                tenantId,
+                userId,
+                guestToken,
+                cancellationToken);
+
+        return freshCartAfterInsert is null
+            ? CartDto.Empty(tenantId)
+            : Map(freshCartAfterInsert);
     }
 
     public async Task<CartDto> SetQuantityAsync(
@@ -544,14 +601,52 @@ public sealed class CartService(
         return null;
     }
 
-    private async Task<Cart> GetOrCreateAsync(
+    private async Task<Cart?> FindWithoutItemsAsync(
+        string tenantId,
+        string? userId,
+        string? guestToken,
+        CancellationToken cancellationToken)
+    {
+        if (string.IsNullOrWhiteSpace(
+            tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+
+        var normalizedTenantId =
+            tenantId.Trim();
+
+        if (!string.IsNullOrWhiteSpace(
+            userId))
+        {
+            return await repository.GetByUserWithoutItemsAsync(
+                normalizedTenantId,
+                userId.Trim(),
+                cancellationToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(
+            guestToken))
+        {
+            return await repository.GetByGuestTokenWithoutItemsAsync(
+                normalizedTenantId,
+                guestToken.Trim(),
+                cancellationToken);
+        }
+
+        return null;
+    }
+
+    private async Task<Cart?> GetOrCreateWithoutItemsAsync(
         string tenantId,
         string? userId,
         string? guestToken,
         CancellationToken cancellationToken)
     {
         var existing =
-            await FindAsync(
+            await FindWithoutItemsAsync(
                 tenantId,
                 userId,
                 guestToken,
@@ -592,8 +687,7 @@ public sealed class CartService(
             return cart;
         }
 
-        throw new InvalidOperationException(
-            "Either user id or guest cart token is required.");
+        return null;
     }
 
     private static CartDto Map(
