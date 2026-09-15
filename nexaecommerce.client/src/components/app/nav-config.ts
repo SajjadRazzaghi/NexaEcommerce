@@ -6,7 +6,8 @@ import {
   Shield,
   Users,
   ShoppingBag,
-  Tags,
+    Tags,
+    Palette,
   FolderTree,
   Factory,
   LayoutDashboard,
@@ -50,13 +51,21 @@ export const NAV: NavSection[] = [
     ],
   },
   {
-    labelKey: 'nav.administration',
-    items: [
-      { titleKey: 'nav.users', to: '/admin/users', icon: Users, permission: PERM.usersRead },
-      { titleKey: 'nav.roles', to: '/admin/roles', icon: Shield, permission: PERM.rolesRead },
-      { titleKey: 'nav.permissions', to: '/admin/permissions', icon: KeyRound, permission: PERM.rolesRead },
-      { titleKey: 'nav.settings', to: '/admin/settings', icon: Settings, permission: PERM.settingsRead },
-      { titleKey: 'nav.health', to: '/admin/health', icon: Activity, permission: HEALTH_PERM.read },
-    ],
+   
+        labelKey: 'nav.administration',
+        items: [
+            { titleKey: 'nav.users', to: '/admin/users', icon: Users, permission: PERM.usersRead },
+            { titleKey: 'nav.roles', to: '/admin/roles', icon: Shield, permission: PERM.rolesRead },
+            { titleKey: 'nav.permissions', to: '/admin/permissions', icon: KeyRound, permission: PERM.rolesRead },
+            {
+                titleKey: 'nav.appearance',
+                to: '/admin/appearance',
+                icon: Palette,
+                permission: 'appearance.manage',
+            },
+            { titleKey: 'nav.settings', to: '/admin/settings', icon: Settings, permission: PERM.settingsRead },
+            { titleKey: 'nav.health', to: '/admin/health', icon: Activity, permission: HEALTH_PERM.read },
+        ],
+    
   },
 ];

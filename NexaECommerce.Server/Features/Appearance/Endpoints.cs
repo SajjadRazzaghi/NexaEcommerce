@@ -9,73 +9,362 @@ using NexaECommerce.Server.Platform.Settings;
 
 namespace NexaECommerce.Server.Features.Appearance;
 
-/// <summary>The instance appearance the SPA applies (curated theme + optional accent + optional custom palette).</summary>
-public sealed record AppearanceDto(string? Theme, string? BrandColor, string? CustomTheme);
+public sealed record AppearanceDto(
+    string? StoreName,
+    string? LogoUrl,
+    string? Theme,
+    string? BrandColor,
+    string? CustomTheme);
 
-public sealed record UpdateAppearanceRequest(string? Theme, string? BrandColor, string? CustomTheme);
+public sealed record UpdateAppearanceRequest(
+    string? StoreName,
+    string? LogoUrl,
+    string? Theme,
+    string? BrandColor,
+    string? CustomTheme);
 
 /// <summary>
-/// Instance appearance — the brand accent colour. <b>Read is anonymous</b> so the whole app, including the
-/// pre-auth screens (login, etc.), picks up the brand; only an admin holding <c>appearance.manage</c> can
-/// change it. Persisted App-scoped via <see cref="ISettingService"/>; the SPA re-tints <c>--primary</c> from it.
+/// Public tenant branding and appearance endpoint.
+/// The storefront can read it before authentication.
+/// Only users with appearance.manage can change it.
 /// </summary>
 public sealed class AppearanceEndpoints : IFeatureEndpoints
 {
     public void Map(IEndpointRouteBuilder app)
     {
-        var group = app.MapGroup("/api/appearance").WithTags("Appearance");
-        group.MapGet("/", Get).AllowAnonymous();
+        var group =
+            app.MapGroup("/api/appearance")
+                .WithTags("Appearance");
+
+        group.MapGet(
+                "/",
+                Get)
+            .AllowAnonymous();
+
+        group.MapPut(
+                "/",
+                Update)
+            .RequireAuthorization()
+            .RequirePermission(
+                AppearancePermissions.Manage);
     }
 
     private static async Task<IResult> Get(
-        ISettingService settings, ITenantContext tenant, AppDbContext db, CancellationToken ct)
+        ISettingService settings,
+        ITenantContext tenant,
+        AppDbContext db,
+        CancellationToken ct)
     {
-        var theme = await settings.GetAsync<string>(AppearanceSettings.Theme, ct);
-        var color = await settings.GetAsync<string>(AppearanceSettings.BrandColor, ct);
-        var custom = await settings.GetAsync<string>(AppearanceSettings.CustomTheme, ct);
+        var theme =
+            await settings.GetAsync<string>(
+                AppearanceSettings.Theme,
+                ct);
 
-        // Fall back the accent to the active tenant's brand colour when no explicit accent is set, so per-tenant
-        // branding flows through this single applier (with correct precedence and no inline override fighting
-        // the themed tokens). Single-tenant resolves the "default" tenant, which has no colour → no change.
+        var color =
+            await settings.GetAsync<string>(
+                AppearanceSettings.BrandColor,
+                ct);
+
+        var custom =
+            await settings.GetAsync<string>(
+                AppearanceSettings.CustomTheme,
+                ct);
+
+        var tenantInfo =
+            await db.Set<Tenant>()
+                .AsNoTracking()
+                .Where(t =>
+                    t.Id == tenant.TenantId &&
+                    t.Status == TenantStatus.Active)
+                .Select(
+                    t => new
+                    {
+                        t.Name,
+                        t.LogoUrl,
+                        t.PrimaryColor
+                    })
+                .FirstOrDefaultAsync(ct);
+
+        if (tenantInfo is null)
+        {
+            return Results.Ok(
+                new AppearanceDto(
+                    null,
+                    null,
+                    Normalize(theme),
+                    Normalize(color),
+                    Normalize(custom)));
+        }
+
         if (string.IsNullOrWhiteSpace(color))
-            color = await db.Set<Tenant>().Where(t => t.Id == tenant.TenantId)
-                .Select(t => t.PrimaryColor).FirstOrDefaultAsync(ct);
+        {
+            color =
+                tenantInfo.PrimaryColor;
+        }
 
-        return Results.Ok(new AppearanceDto(Normalize(theme), Normalize(color), Normalize(custom)));
+        return Results.Ok(
+            new AppearanceDto(
+                Normalize(tenantInfo.Name),
+                Normalize(tenantInfo.LogoUrl),
+                Normalize(theme),
+                Normalize(color),
+                Normalize(custom)));
     }
 
     private static async Task<IResult> Update(
-        UpdateAppearanceRequest req, ISettingService settings, ITenantContext tenant, CancellationToken ct)
+        UpdateAppearanceRequest req,
+        ISettingService settings,
+        ITenantContext tenant,
+        AppDbContext db,
+        CancellationToken ct)
     {
-        var theme = (req.Theme ?? string.Empty).Trim();
-        var color = (req.BrandColor ?? string.Empty).Trim();
-        var custom = ValidateCustomTheme(req.CustomTheme);
-        // A theme key is a short slug; the colour is injected into a CSS custom property on the client.
-        // Browsers ignore an invalid custom-property value (no breakout), but reject characters that have no
-        // place in a theme key or a colour token anyway.
-        if (theme.Length > 32 || !IsSafe(theme) || color.Length > 64 || !IsSafe(color))
-            throw new BadRequestException("Invalid appearance value.");
+        var storeName =
+            (req.StoreName ?? string.Empty)
+                .Trim();
 
-        // Save against the active tenant so each tenant keeps its own look (single-tenant → the "default" tenant).
-        await settings.SetAsync(AppearanceSettings.Theme, theme, SettingScope.Tenant, tenant.TenantId, ct);
-        await settings.SetAsync(AppearanceSettings.BrandColor, color, SettingScope.Tenant, tenant.TenantId, ct);
-        await settings.SetAsync(AppearanceSettings.CustomTheme, custom, SettingScope.Tenant, tenant.TenantId, ct);
-        return Results.Ok(new AppearanceDto(Normalize(theme), Normalize(color), Normalize(custom)));
+        var logoUrl =
+            (req.LogoUrl ?? string.Empty)
+                .Trim();
+
+        var theme =
+            (req.Theme ?? string.Empty)
+                .Trim();
+
+        var color =
+            (req.BrandColor ?? string.Empty)
+                .Trim();
+
+        var custom =
+            ValidateCustomTheme(
+                req.CustomTheme);
+
+        // --------------------------------------------------------
+        // Store name
+        // --------------------------------------------------------
+
+        if (storeName.Length > 128)
+        {
+            throw new BadRequestException(
+                "Store name cannot exceed 128 characters.");
+        }
+
+        if (storeName.Length > 0 &&
+            !IsSafeText(storeName))
+        {
+            throw new BadRequestException(
+                "Store name contains invalid characters.");
+        }
+
+        // --------------------------------------------------------
+        // Logo
+        // --------------------------------------------------------
+
+        if (logoUrl.Length > 2048)
+        {
+            throw new BadRequestException(
+                "Logo URL cannot exceed 2048 characters.");
+        }
+
+        if (logoUrl.Length > 0 &&
+            !IsSafeUrl(logoUrl))
+        {
+            throw new BadRequestException(
+                "Logo URL must be an HTTP, HTTPS or root-relative URL.");
+        }
+
+        // --------------------------------------------------------
+        // Appearance
+        // --------------------------------------------------------
+
+        if (theme.Length > 32 ||
+            !IsSafeValue(theme))
+        {
+            throw new BadRequestException(
+                "Invalid appearance theme.");
+        }
+
+        if (color.Length > 64 ||
+            !IsSafeValue(color))
+        {
+            throw new BadRequestException(
+                "Invalid appearance brand color.");
+        }
+
+        // --------------------------------------------------------
+        // Tenant branding
+        // --------------------------------------------------------
+
+        var tenantEntity =
+            await db.Set<Tenant>()
+                .Where(t =>
+                    t.Id == tenant.TenantId)
+                .FirstOrDefaultAsync(ct);
+
+        if (tenantEntity is null)
+        {
+            throw new KeyNotFoundException(
+                "Active tenant was not found.");
+        }
+
+        if (tenantEntity.Status !=
+            TenantStatus.Active)
+        {
+            throw new InvalidOperationException(
+                "The active tenant is not available.");
+        }
+
+        /*
+         * Empty values are allowed so the tenant can intentionally
+         * fall back to the product defaults.
+         */
+        tenantEntity.Name =
+            string.IsNullOrWhiteSpace(storeName)
+                ? tenantEntity.Name
+                : storeName;
+
+        tenantEntity.LogoUrl =
+            string.IsNullOrWhiteSpace(logoUrl)
+                ? null
+                : logoUrl;
+
+        await settings.SetAsync(
+            AppearanceSettings.Theme,
+            theme,
+            SettingScope.Tenant,
+            tenant.TenantId,
+            ct);
+
+        await settings.SetAsync(
+            AppearanceSettings.BrandColor,
+            color,
+            SettingScope.Tenant,
+            tenant.TenantId,
+            ct);
+
+        await settings.SetAsync(
+            AppearanceSettings.CustomTheme,
+            custom,
+            SettingScope.Tenant,
+            tenant.TenantId,
+            ct);
+
+        /*
+         * Keep the tenant's persisted brand colour synchronized too.
+         * GET still gives explicit Appearance.BrandColor precedence.
+         */
+        tenantEntity.PrimaryColor =
+            string.IsNullOrWhiteSpace(color)
+                ? null
+                : color;
+
+        await db.SaveChangesAsync(ct);
+
+        return Results.Ok(
+            new AppearanceDto(
+                Normalize(tenantEntity.Name),
+                Normalize(tenantEntity.LogoUrl),
+                Normalize(theme),
+                Normalize(color),
+                Normalize(custom)));
     }
 
-    private static bool IsSafe(string value) => value.IndexOfAny([';', '{', '}', '<', '>', '"', '\'', '\n', '\r']) < 0;
-
-    /// <summary>The custom palette is a JSON blob the client builds; cap it and confirm it parses (each colour
-    /// inside is re-validated client-side before being applied to a CSS custom property).</summary>
-    private static string ValidateCustomTheme(string? value)
+    private static bool IsSafeText(
+        string value)
     {
-        var v = (value ?? string.Empty).Trim();
-        if (v.Length == 0) return string.Empty;
-        if (v.Length > 4000) throw new BadRequestException("Custom theme is too large.");
-        try { using var _ = JsonDocument.Parse(v); }
-        catch { throw new BadRequestException("Custom theme must be valid JSON."); }
+        return value.IndexOfAny(
+            [
+                '<',
+                '>',
+                '{',
+                '}',
+                ';',
+                '\"',
+                '\'',
+                '\r',
+                '\n'
+            ]) < 0;
+    }
+
+    private static bool IsSafeValue(
+        string value)
+    {
+        return value.IndexOfAny(
+            [
+                ';',
+                '{',
+                '}',
+                '<',
+                '>',
+                '\"',
+                '\'',
+                '\r',
+                '\n'
+            ]) < 0;
+    }
+
+    private static bool IsSafeUrl(
+        string value)
+    {
+        if (value.StartsWith(
+                "/",
+                StringComparison.Ordinal))
+        {
+            return !value.StartsWith(
+                "//",
+                StringComparison.Ordinal);
+        }
+
+        if (!Uri.TryCreate(
+                value,
+                UriKind.Absolute,
+                out var uri))
+        {
+            return false;
+        }
+
+        return uri.Scheme ==
+                   Uri.UriSchemeHttp ||
+               uri.Scheme ==
+                   Uri.UriSchemeHttps;
+    }
+
+    private static string ValidateCustomTheme(
+        string? value)
+    {
+        var v =
+            (value ?? string.Empty)
+                .Trim();
+
+        if (v.Length == 0)
+        {
+            return string.Empty;
+        }
+
+        if (v.Length > 4000)
+        {
+            throw new BadRequestException(
+                "Custom theme is too large.");
+        }
+
+        try
+        {
+            using var _ =
+                JsonDocument.Parse(v);
+        }
+        catch
+        {
+            throw new BadRequestException(
+                "Custom theme must be valid JSON.");
+        }
+
         return v;
     }
 
-    private static string? Normalize(string? value) => string.IsNullOrWhiteSpace(value) ? null : value;
+    private static string? Normalize(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value;
+    }
 }

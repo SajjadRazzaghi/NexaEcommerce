@@ -116,8 +116,11 @@ public static class OrdersModule
             PaymentService>();
 
         /*
-         * ZarinPal is the real payment gateway used by the storefront.
-         * TestGateway is kept available for local development.
+         * ZarinPal تنها درگاه فعال فروشگاه است.
+         *
+         * TestGateway همچنان در کدبیس وجود دارد، اما عمداً
+         * در Dependency Injection ثبت نشده است تا هیچ درخواست
+         * واقعی فروشگاه به آن هدایت نشود.
          */
         services.AddHttpClient<
             ZarinPalPaymentGateway>();
@@ -126,11 +129,6 @@ public static class OrdersModule
             serviceProvider =>
                 serviceProvider.GetRequiredService<
                     ZarinPalPaymentGateway>());
-
-        services.AddScoped<IPaymentGateway>(
-            serviceProvider =>
-                serviceProvider.GetRequiredService<
-                    TestPaymentGateway>());
 
         // ========================================================
         // Shipping Methods

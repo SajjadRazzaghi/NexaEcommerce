@@ -23,6 +23,8 @@ import {
 
 import StoreHeader from '@/components/storefront/StoreHeader';
 
+import { StoreBrandMeta } from '@/components/app/store-brand-meta';
+
 export default function AppLayout() {
     const {
         isAuthenticated,
@@ -50,6 +52,8 @@ export default function AppLayout() {
     if (isPublicStorefront) {
         return (
             <div className="min-h-screen bg-background">
+                <StoreBrandMeta />
+
                 <StoreHeader />
 
                 <main className="min-h-[calc(100vh-73px)]">
@@ -66,9 +70,11 @@ export default function AppLayout() {
     if (!isAuthenticated) {
         return (
             <Navigate
-                to={`/login?returnUrl=${encodeURIComponent(
-                    location.pathname,
-                )}`}
+                to={`/ login ? returnUrl = ${
+    encodeURIComponent(
+        location.pathname,
+    )
+} `}
                 replace
             />
         );
@@ -80,6 +86,8 @@ export default function AppLayout() {
 
     return (
         <SidebarProvider>
+            <StoreBrandMeta />
+
             <a
                 href="#main-content"
                 className="bg-background focus:ring-ring sr-only focus:fixed focus:start-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:px-3 focus:py-2 focus:shadow-lg focus:ring-[3px]"

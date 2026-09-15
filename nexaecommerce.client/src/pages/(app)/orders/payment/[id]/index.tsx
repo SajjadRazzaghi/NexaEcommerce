@@ -46,28 +46,18 @@ function formatMoney(
             undefined,
             {
                 maximumFractionDigits: 0,
-            },
+           },
         ).format(amount) +
-        ` ${ currency } `
+       ` ${currency}`
     );
 }
 
 function getPaymentGateway(): string {
-    const configured =
-        import.meta.env.VITE_PAYMENT_GATEWAY;
-
-    if (
-        typeof configured === 'string' &&
-        configured.trim()
-    ) {
-        return configured.trim();
-    }
-
     return 'ZarinPal';
 }
 
 export default function PaymentPage() {
-    const { id } =
+    const {id} =
         useParams();
 
     const navigate =
@@ -80,7 +70,7 @@ export default function PaymentPage() {
     const {
         t,
         i18n,
-    } =
+   } =
         useTranslation();
 
     const isFa =
@@ -97,7 +87,7 @@ export default function PaymentPage() {
             {
                 defaultValue:
                     fallback,
-            },
+           },
         );
 
     const paymentResult =
@@ -117,7 +107,7 @@ export default function PaymentPage() {
             amount: number;
             currency: string;
             status: string;
-        } | null>(null);
+       } | null>(null);
 
     const [error, setError] =
         useState<string | null>(null);
@@ -132,7 +122,7 @@ export default function PaymentPage() {
                 getOrder(id!),
             enabled:
                 Boolean(id),
-        });
+       });
 
     const startPayment =
         useStartPayment();
@@ -165,11 +155,11 @@ export default function PaymentPage() {
     const handleStartPayment = () => {
         if (!order) {
             return;
-        }
+       }
 
         setError(null);
 
-        /*
+       /*
          * Every new payment start gets a new idempotency key.
          * We intentionally do not reuse a previous key after
          * returning from a failed/cancelled payment.
@@ -180,7 +170,7 @@ export default function PaymentPage() {
         paymentKeyRef.current =
             paymentKey;
 
-        /*
+       /*
          * ZarinPal must call the backend callback endpoint.
          * The backend then verifies and completes the payment,
          * and finally redirects the customer back to the frontend.
@@ -190,16 +180,12 @@ export default function PaymentPage() {
                 import.meta.env.VITE_API_URL ||
                 'https://localhost:5001'
             ).replace(
-                /\/+$/,
+               /\/+$/,
                 '',
             );
 
         const callbackUrl =
-            `${ apiBaseUrl } /api/orders / payment / zarinpal / callback ? orderId = ${
-    encodeURIComponent(
-        order.id,
-    )
-} `;
+           `${apiBaseUrl}/api/orders/payment/zarinpal/callback?orderId=${encodeURIComponent(order.id)}`;
 
         startPayment.mutate(
             {
@@ -213,11 +199,11 @@ export default function PaymentPage() {
 
                 idempotencyKey:
                     paymentKey,
-            },
+           },
             {
                 onSuccess:
                     result => {
-                        /*
+                       /*
                          * Real gateways such as ZarinPal return a paymentUrl.
                          * Redirect the customer immediately to the gateway.
                          */
@@ -229,9 +215,9 @@ export default function PaymentPage() {
                             );
 
                             return;
-                        }
+                       }
 
-                        /*
+                       /*
                          * Keep TestGateway/manual mode working for development.
                          * In that case there may be no external paymentUrl.
                          */
@@ -246,7 +232,7 @@ export default function PaymentPage() {
                             );
 
                             return;
-                        }
+                       }
 
                         setPayment({
                             paymentAttemptId:
@@ -266,8 +252,8 @@ export default function PaymentPage() {
 
                             status:
                                 result.status,
-                        });
-                    },
+                       });
+                   },
 
                 onError:
                     mutationError => {
@@ -279,15 +265,15 @@ export default function PaymentPage() {
                                     'Unable to start the payment. Please try again.',
                                 ),
                         );
-                    },
-            },
+                   },
+           },
         );
-    };
+   };
 
     const handleConfirmPayment = () => {
         if (!payment) {
             return;
-        }
+       }
 
         setError(null);
 
@@ -298,7 +284,7 @@ export default function PaymentPage() {
 
                 gatewayReference:
                     payment.gatewayReference,
-            },
+           },
             {
                 onSuccess:
                     verified => {
@@ -314,17 +300,17 @@ export default function PaymentPage() {
                                 gatewayReference:
                                     verified.gatewayReference ??
                                     payment.gatewayReference,
-                            },
+                           },
                             {
                                 onSuccess:
                                     () => {
                                         navigate(
-                                            `/ orders / ${ order!.id } `,
+                                           `/orders/${order!.id}`,
                                             {
                                                 replace: true,
-                                            },
+                                           },
                                         );
-                                    },
+                                   },
 
                                 onError:
                                     mutationError => {
@@ -336,10 +322,10 @@ export default function PaymentPage() {
                                                     'Payment verification succeeded, but the order could not be completed.',
                                                 ),
                                         );
-                                    },
-                            },
+                                   },
+                           },
                         );
-                    },
+                   },
 
                 onError:
                     mutationError => {
@@ -351,12 +337,12 @@ export default function PaymentPage() {
                                     'Payment verification failed.',
                                 ),
                         );
-                    },
-            },
+                   },
+           },
         );
-    };
+   };
 
-    /*
+   /*
      * The backend callback redirects the customer here with:
      *
      * ?payment=success
@@ -380,21 +366,21 @@ export default function PaymentPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-                }
+               }
                 className="mx-auto max-w-4xl space-y-6 p-4 md:p-6"
             >
                 <div className="animate-pulse space-y-4">
-                    <div className="h-8 w-52 rounded-lg bg-muted" />
-                    <div className="h-5 w-80 rounded-lg bg-muted" />
+                    <div className="h-8 w-52 rounded-lg bg-muted"/>
+                    <div className="h-5 w-80 rounded-lg bg-muted"/>
 
                     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
-                        <div className="h-80 rounded-2xl bg-muted" />
-                        <div className="h-64 rounded-2xl bg-muted" />
+                        <div className="h-80 rounded-2xl bg-muted"/>
+                        <div className="h-64 rounded-2xl bg-muted"/>
                     </div>
                 </div>
             </div>
         );
-    }
+   }
 
     if (
         orderQuery.isError ||
@@ -406,11 +392,11 @@ export default function PaymentPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-                }
+               }
                 className="mx-auto max-w-3xl p-6"
             >
                 <div className="rounded-2xl border p-10 text-center">
-                    <CreditCard className="mx-auto size-12 text-muted-foreground" />
+                    <CreditCard className="mx-auto size-12 text-muted-foreground"/>
 
                     <h1 className="mt-4 text-2xl font-semibold">
                         {getText(
@@ -430,7 +416,7 @@ export default function PaymentPage() {
                         to="/orders"
                         className="mt-6 inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium"
                     >
-                        <ArrowLeft className="size-4" />
+                        <ArrowLeft className="size-4"/>
 
                         {getText(
                             'payment.backToOrders',
@@ -440,7 +426,7 @@ export default function PaymentPage() {
                 </div>
             </div>
         );
-    }
+   }
 
     if (
         order.status !==
@@ -454,11 +440,11 @@ export default function PaymentPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-                }
+               }
                 className="mx-auto max-w-3xl p-6"
             >
                 <div className="rounded-2xl border p-10 text-center">
-                    <CheckCircle2 className="mx-auto size-12 text-muted-foreground" />
+                    <CheckCircle2 className="mx-auto size-12 text-muted-foreground"/>
 
                     <h1 className="mt-4 text-2xl font-semibold">
                         {getText(
@@ -475,10 +461,10 @@ export default function PaymentPage() {
                     </p>
 
                     <Link
-                        to={`/ orders / ${ order.id } `}
+                        to={`/orders/${order.id}`}
                         className="mt-6 inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium"
                     >
-                        <ArrowLeft className="size-4" />
+                        <ArrowLeft className="size-4"/>
 
                         {getText(
                             'payment.backToOrder',
@@ -488,7 +474,7 @@ export default function PaymentPage() {
                 </div>
             </div>
         );
-    }
+   }
 
     if (
         order.status ===
@@ -500,11 +486,11 @@ export default function PaymentPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-                }
+               }
                 className="mx-auto max-w-3xl p-6"
             >
                 <div className="rounded-2xl border p-10 text-center">
-                    <CheckCircle2 className="mx-auto size-14 text-green-600" />
+                    <CheckCircle2 className="mx-auto size-14 text-green-600"/>
 
                     <h1 className="mt-4 text-2xl font-semibold">
                         {getText(
@@ -521,7 +507,7 @@ export default function PaymentPage() {
                     </p>
 
                     <Link
-                        to={`/ orders / ${ order.id } `}
+                        to={`/orders/${order.id}`}
                         className="mt-6 inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
                     >
                         {getText(
@@ -532,7 +518,7 @@ export default function PaymentPage() {
                 </div>
             </div>
         );
-    }
+   }
 
     return (
         <div
@@ -540,13 +526,13 @@ export default function PaymentPage() {
                 isFa
                     ? 'rtl'
                     : 'ltr'
-            }
+           }
             className="mx-auto max-w-4xl space-y-6 p-4 md:p-6"
         >
             <header>
                 <div className="flex items-center gap-3">
                     <div className="rounded-xl border p-2">
-                        <CreditCard className="size-5" />
+                        <CreditCard className="size-5"/>
                     </div>
 
                     <div>
@@ -573,7 +559,7 @@ export default function PaymentPage() {
                     className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-4 text-sm"
                 >
                     <div className="flex items-start gap-3">
-                        <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-green-600" />
+                        <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-green-600"/>
 
                         <div>
                             <div className="font-semibold">
@@ -600,7 +586,7 @@ export default function PaymentPage() {
                     className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm"
                 >
                     <div className="flex items-start gap-3">
-                        <CreditCard className="mt-0.5 size-5 shrink-0" />
+                        <CreditCard className="mt-0.5 size-5 shrink-0"/>
 
                         <div>
                             <div className="font-semibold">
@@ -639,7 +625,7 @@ export default function PaymentPage() {
             <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
                 <section className="rounded-2xl border p-6">
                     <div className="flex items-center gap-3">
-                        <ShieldCheck className="size-6" />
+                        <ShieldCheck className="size-6"/>
 
                         <div>
                             <h2 className="font-semibold">
@@ -661,7 +647,7 @@ export default function PaymentPage() {
                     <div className="mt-8 space-y-4">
                         <div className="rounded-xl border p-4">
                             <div className="flex items-center gap-3">
-                                <LockKeyhole className="size-5 shrink-0" />
+                                <LockKeyhole className="size-5 shrink-0"/>
 
                                 <div>
                                     <div className="font-medium">
@@ -685,15 +671,15 @@ export default function PaymentPage() {
                                 disabled={
                                     !canStartPayment ||
                                     busy
-                                }
+                               }
                                 onClick={
                                     handleStartPayment
-                                }
+                               }
                                 className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                             >
                                 {startPayment.isPending ? (
                                     <>
-                                        <Loader2 className="size-4 animate-spin" />
+                                        <Loader2 className="size-4 animate-spin"/>
 
                                         {getText(
                                             'payment.starting',
@@ -702,7 +688,7 @@ export default function PaymentPage() {
                                     </>
                                 ) : (
                                     <>
-                                        <CreditCard className="size-4" />
+                                        <CreditCard className="size-4"/>
 
                                         {getText(
                                             'payment.start',
@@ -724,7 +710,7 @@ export default function PaymentPage() {
                                     <div className="mt-2 break-all font-mono text-sm">
                                         {
                                             payment.gatewayReference
-                                        }
+                                       }
                                     </div>
 
                                     <div className="mt-4 text-sm text-muted-foreground">
@@ -739,15 +725,15 @@ export default function PaymentPage() {
                                     type="button"
                                     disabled={
                                         busy
-                                    }
+                                   }
                                     onClick={
                                         handleConfirmPayment
-                                    }
+                                   }
                                     className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                                 >
                                     {busy ? (
                                         <>
-                                            <Loader2 className="size-4 animate-spin" />
+                                            <Loader2 className="size-4 animate-spin"/>
 
                                             {getText(
                                                 'payment.processing',
@@ -756,7 +742,7 @@ export default function PaymentPage() {
                                         </>
                                     ) : (
                                         <>
-                                            <CheckCircle2 className="size-4" />
+                                            <CheckCircle2 className="size-4"/>
 
                                             {getText(
                                                 'payment.confirm',
@@ -772,7 +758,7 @@ export default function PaymentPage() {
 
                 <aside className="h-fit rounded-2xl border p-6 lg:sticky lg:top-6">
                     <div className="flex items-center gap-3">
-                        <CheckCircle2 className="size-5" />
+                        <CheckCircle2 className="size-5"/>
 
                         <h2 className="font-semibold">
                             {getText(
@@ -794,7 +780,7 @@ export default function PaymentPage() {
                             <span className="font-medium">
                                 {
                                     order.orderNumber
-                                }
+                               }
                             </span>
                         </div>
 
@@ -809,7 +795,7 @@ export default function PaymentPage() {
                             <span className="font-medium">
                                 {
                                     order.status
-                                }
+                               }
                             </span>
                         </div>
 
@@ -835,7 +821,7 @@ export default function PaymentPage() {
                     </div>
 
                     <Link
-                        to={`/ orders / ${ order.id } `}
+                        to={`/orders/${order.id}`}
                         className="mt-6 block text-center text-sm font-medium underline-offset-4 hover:underline"
                     >
                         {getText(

@@ -8,14 +8,35 @@ import {
     useNavigate,
 } from 'react-router-dom';
 
+import { useQuery } from '@tanstack/react-query';
+
 import {
     Search,
     ShoppingBag,
 } from 'lucide-react';
 
+import { appearanceApi } from '@/lib/api/appearance';
+
+const DEFAULT_STORE_NAME = 'NexaECommerce';
+
 export default function StoreHeader() {
     const navigate = useNavigate();
     const [query, setQuery] = useState('');
+
+    const { data: appearance } = useQuery({
+        queryKey: ['appearance'],
+        queryFn: appearanceApi.get,
+        staleTime: 5 * 60_000,
+        retry: 1,
+    });
+
+    const storeName =
+        appearance?.storeName?.trim() ||
+        DEFAULT_STORE_NAME;
+
+    const logoUrl =
+        appearance?.logoUrl?.trim() ||
+        null;
 
     const submitSearch = (
         event: FormEvent<HTMLFormElement>,
@@ -30,7 +51,7 @@ export default function StoreHeader() {
         }
 
         navigate(
-            `/products?search=${encodeURIComponent(value)}`,
+            `/ products ? search = ${ encodeURIComponent(value) } `,
         );
     };
 
@@ -40,14 +61,23 @@ export default function StoreHeader() {
                 <Link
                     to="/"
                     className="flex shrink-0 items-center gap-2"
+                    aria-label={storeName}
                 >
-                    <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                        <ShoppingBag className="size-5" />
-                    </div>
+                    {logoUrl ? (
+                        <img
+                            src={logoUrl}
+                            alt=""
+                            className="size-10 shrink-0 rounded-xl object-contain"
+                        />
+                    ) : (
+                        <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                            <ShoppingBag className="size-5" />
+                        </div>
+                    )}
 
                     <div className="hidden sm:block">
-                        <div className="text-lg font-black tracking-tight">
-                            NexaECommerce
+                        <div className="max-w-52 truncate text-lg font-black tracking-tight">
+                            {storeName}
                         </div>
 
                         <div className="text-[11px] text-muted-foreground">
