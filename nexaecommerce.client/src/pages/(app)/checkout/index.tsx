@@ -1,5 +1,3 @@
-//nexaecommerce.client/src/pages/(app)/checkout/index.tsx
-
 import {
     type FormEvent,
     useEffect,
@@ -8,7 +6,10 @@ import {
 } from 'react';
 
 import {
+    AlertCircle,
+    Check,
     MapPin,
+    RefreshCw,
     Truck,
 } from 'lucide-react';
 
@@ -44,16 +45,33 @@ import type {
 function formatMoney(
     amount: number,
     currency: string,
+    isFa: boolean,
 ) {
     return (
         new Intl.NumberFormat(
-            undefined,
+            isFa
+                ? 'fa-IR'
+                : undefined,
             {
                 maximumFractionDigits: 0,
-           },
+            },
         ).format(amount) +
-       ` ${currency}`
+        ` ${ currency } `
     );
+}
+
+function getErrorMessage(
+    error: unknown,
+    fallback: string,
+): string {
+    if (
+        error instanceof Error &&
+        error.message.trim()
+    ) {
+        return error.message;
+    }
+
+    return fallback;
 }
 
 function SkeletonLine({
@@ -63,8 +81,8 @@ function SkeletonLine({
 }) {
     return (
         <div
-            className={`animate - pulse rounded - lg bg - muted ${className}`}
-       />
+            className={`animate - pulse rounded - lg bg - muted ${ className } `}
+        />
     );
 }
 
@@ -72,7 +90,7 @@ export default function CheckoutPage() {
     const {
         t,
         i18n,
-   } = useTranslation();
+    } = useTranslation();
 
     const navigate =
         useNavigate();
@@ -82,18 +100,11 @@ export default function CheckoutPage() {
             ?.toLowerCase()
             .startsWith('fa');
 
-   /*
-     * IMPORTANT:
-     * NexaECommerce authentication is
-     * cookie/session based.
-     *
-     * Do NOT check localStorage.accessToken.
-     */
     const {
         isAuthenticated,
         isLoading:
             authLoading,
-   } = useAuth();
+    } = useAuth();
 
     useEffect(() => {
         if (
@@ -101,15 +112,15 @@ export default function CheckoutPage() {
             isAuthenticated
         ) {
             return;
-       }
+        }
 
         navigate(
             '/login?returnUrl=%2Fcheckout',
             {
                 replace: true,
-           },
+            },
         );
-   }, [
+    }, [
         authLoading,
         isAuthenticated,
         navigate,
@@ -172,7 +183,45 @@ export default function CheckoutPage() {
     ) =>
         t(
             key,
-            fallback,
+            {
+                defaultValue:
+                    fallback,
+            },
+        );
+
+    useEffect(() => {
+        if (
+            shippingMethodId ||
+            !shippingMethodsQuery.data?.length
+        ) {
+            return;
+        }
+
+        const firstActive =
+            shippingMethodsQuery.data.find(
+                method =>
+                    method.isActive,
+            );
+
+        if (
+            firstActive
+        ) {
+            setShippingMethodId(
+                firstActive.id,
+            );
+        }
+    }, [
+        shippingMethodId,
+        shippingMethodsQuery.data,
+    ]);
+
+    const activeShippingMethods =
+        (
+            shippingMethodsQuery.data ??
+            []
+        ).filter(
+            method =>
+                method.isActive,
         );
 
     const handleSubmit = (
@@ -188,9 +237,22 @@ export default function CheckoutPage() {
             cartQuery.data;
 
         if (
-            !cart ||
+            cartQuery.isError ||
+            !cart
+        ) {
+            setValidationError(
+                getText(
+                    'checkout.cartError',
+                    'Your cart could not be loaded. Please try again.',
+                ),
+            );
+
+            return;
+        }
+
+        if (
             cart.items.length ===
-                0
+            0
         ) {
             setValidationError(
                 getText(
@@ -200,13 +262,8 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
 
-       /*
-         * Secondary guard.
-         * The page itself also redirects
-         * unauthenticated users.
-         */
         if (
             !isAuthenticated
         ) {
@@ -214,11 +271,11 @@ export default function CheckoutPage() {
                 '/login?returnUrl=%2Fcheckout',
                 {
                     replace: true,
-               },
+                },
             );
 
             return;
-       }
+        }
 
         if (
             !fullName.trim()
@@ -231,7 +288,21 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
+
+        if (
+            fullName.trim().length <
+            2
+        ) {
+            setValidationError(
+                getText(
+                    'checkout.validation.fullNameShort',
+                    'Please enter a valid full name.',
+                ),
+            );
+
+            return;
+        }
 
         if (
             !phone.trim()
@@ -244,7 +315,21 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
+
+        if (
+            phone.trim().length <
+            7
+        ) {
+            setValidationError(
+                getText(
+                    'checkout.validation.phoneInvalid',
+                    'Please enter a valid phone number.',
+                ),
+            );
+
+            return;
+        }
 
         if (
             !address.trim()
@@ -257,7 +342,21 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
+
+        if (
+            address.trim().length <
+            5
+        ) {
+            setValidationError(
+                getText(
+                    'checkout.validation.addressShort',
+                    'Please enter a complete shipping address.',
+                ),
+            );
+
+            return;
+        }
 
         if (
             !city.trim()
@@ -270,7 +369,7 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
 
         if (
             !shippingMethodId
@@ -283,14 +382,38 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
+
+        const selectedMethod =
+            activeShippingMethods.find(
+                method =>
+                    method.id ===
+                    shippingMethodId,
+            );
+
+        if (
+            !selectedMethod
+        ) {
+            setValidationError(
+                getText(
+                    'checkout.validation.shippingInvalid',
+                    'The selected shipping method is no longer available. Please choose another one.',
+                ),
+            );
+
+            setShippingMethodId(
+                '',
+            );
+
+            return;
+        }
 
         if (
             !checkoutKeyRef.current
         ) {
             checkoutKeyRef.current =
                 crypto.randomUUID();
-       }
+        }
 
         const request:
             CheckoutRequest = {
@@ -299,10 +422,9 @@ export default function CheckoutPage() {
                     item => ({
                         productVariantId:
                             item.productVariantId,
-
                         quantity:
                             item.quantity,
-                   }),
+                    }),
                 ),
 
             shippingFullName:
@@ -321,75 +443,103 @@ export default function CheckoutPage() {
                 postalCode.trim() ||
                 null,
 
-            shippingMethodId,
-       };
+            shippingMethodId:
+                selectedMethod.id,
+        };
 
         checkout.mutate(
             {
                 request,
                 idempotencyKey:
                     checkoutKeyRef.current,
-           },
+            },
             {
                 onSuccess:
                     order => {
                         navigate(
-                           `/orders/payment/${order.id}`,
+                            `/ orders / payment / ${ order.id } `,
                             {
                                 replace: true,
-                           },
+                            },
                         );
-                   },
+                    },
 
                 onError:
                     checkoutError => {
                         setValidationError(
-                            checkoutError instanceof
-                                Error
-                                ? checkoutError.message
-                                : getText(
+                            getErrorMessage(
+                                checkoutError,
+                                getText(
                                     'checkout.error',
                                     'Unable to create the order. Please check your information and try again.',
                                 ),
+                            ),
                         );
-                   },
-           },
+                    },
+            },
         );
-   };
+    };
 
     const cart =
         cartQuery.data;
 
-   /*
-     * While authentication state
-     * and cart are being resolved.
-     */
     if (
         authLoading ||
-        !isAuthenticated ||
-        !cart
+        !isAuthenticated
     ) {
         return (
-            <div className="mx-auto max-w-7xl space-y-4 p-4 md:p-6">
-                <SkeletonLine className="h-5 w-32"/>
+            <div
+                className="mx-auto max-w-7xl space-y-4 p-4 md:p-6"
+                dir={
+                    isFa
+                        ? 'rtl'
+                        : 'ltr'
+                }
+            >
+                <SkeletonLine className="h-5 w-32" />
 
-                <SkeletonLine className="h-10 w-48"/>
+                <SkeletonLine className="h-10 w-48" />
 
                 <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-                    <SkeletonLine className="h-[560px] w-full"/>
+                    <SkeletonLine className="h-[560px] w-full" />
 
-                    <SkeletonLine className="h-[360px] w-full"/>
+                    <SkeletonLine className="h-[360px] w-full" />
                 </div>
             </div>
         );
-   }
+    }
 
-   /*
-     * Empty cart state.
-     */
     if (
-        cart.items.length ===
-        0
+        cartQuery.isLoading ||
+        shippingMethodsQuery.isLoading
+    ) {
+        return (
+            <div
+                className="mx-auto max-w-7xl space-y-4 p-4 md:p-6"
+                dir={
+                    isFa
+                        ? 'rtl'
+                        : 'ltr'
+                }
+            >
+                <SkeletonLine className="h-5 w-32" />
+
+                <SkeletonLine className="h-10 w-48" />
+
+                <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+                    <div className="space-y-6">
+                        <SkeletonLine className="h-72 w-full" />
+                        <SkeletonLine className="h-52 w-full" />
+                    </div>
+
+                    <SkeletonLine className="h-[360px] w-full" />
+                </div>
+            </div>
+        );
+    }
+
+    if (
+        cartQuery.isError
     ) {
         return (
             <div
@@ -397,7 +547,79 @@ export default function CheckoutPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-               }
+                }
+                className="mx-auto max-w-3xl p-6"
+            >
+                <div className="rounded-2xl border border-destructive/30 p-10 text-center">
+                    <AlertCircle className="mx-auto size-12 text-destructive" />
+
+                    <h1 className="mt-4 text-2xl font-semibold">
+                        {getText(
+                            'checkout.cartError',
+                            'Unable to load your cart.',
+                        )}
+                    </h1>
+
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        {getErrorMessage(
+                            cartQuery.error,
+                            getText(
+                                'checkout.cartErrorDescription',
+                                'Please try again before continuing to checkout.',
+                            ),
+                        )}
+                    </p>
+
+                    <button
+                        type="button"
+                        onClick={() =>
+                            cartQuery.refetch()
+                        }
+                        disabled={
+                            cartQuery.isFetching
+                        }
+                        className="mt-6 inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium"
+                    >
+                        <RefreshCw
+                            className={
+                                cartQuery.isFetching
+                                    ? 'size-4 animate-spin'
+                                    : 'size-4'
+                            }
+                        />
+
+                        {getText(
+                            'common.retry',
+                            'Retry',
+                        )}
+                    </button>
+
+                    <Link
+                        to="/cart"
+                        className="mt-3 inline-flex rounded-xl px-5 py-3 text-sm font-medium"
+                    >
+                        {getText(
+                            'checkout.backToCart',
+                            'Back to cart',
+                        )}
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    if (
+        !cart ||
+        cart.items.length ===
+            0
+    ) {
+        return (
+            <div
+                dir={
+                    isFa
+                        ? 'rtl'
+                        : 'ltr'
+                }
                 className="mx-auto max-w-3xl p-6"
             >
                 <div className="rounded-2xl border p-10 text-center">
@@ -420,29 +642,90 @@ export default function CheckoutPage() {
                 </div>
             </div>
         );
-   }
+    }
+
+    if (
+        shippingMethodsQuery.isError
+    ) {
+        return (
+            <div
+                dir={
+                    isFa
+                        ? 'rtl'
+                        : 'ltr'
+                }
+                className="mx-auto max-w-3xl p-6"
+            >
+                <div className="rounded-2xl border border-destructive/30 p-10 text-center">
+                    <AlertCircle className="mx-auto size-12 text-destructive" />
+
+                    <h1 className="mt-4 text-2xl font-semibold">
+                        {getText(
+                            'checkout.shippingError',
+                            'Shipping methods could not be loaded.',
+                        )}
+                    </h1>
+
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        {getErrorMessage(
+                            shippingMethodsQuery.error,
+                            getText(
+                                'checkout.shippingErrorDescription',
+                                'Please try again before placing your order.',
+                            ),
+                        )}
+                    </p>
+
+                    <button
+                        type="button"
+                        onClick={() =>
+                            shippingMethodsQuery.refetch()
+                        }
+                        disabled={
+                            shippingMethodsQuery.isFetching
+                        }
+                        className="mt-6 inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium"
+                    >
+                        <RefreshCw
+                            className={
+                                shippingMethodsQuery.isFetching
+                                    ? 'size-4 animate-spin'
+                                    : 'size-4'
+                            }
+                        />
+
+                        {getText(
+                            'common.retry',
+                            'Retry',
+                        )}
+                    </button>
+                </div>
+            </div>
+        );
+    }
 
     const subtotal =
-        cart.items.reduce(
-            (
-                sum,
-                item,
-            ) =>
-                sum +
-                item.lineTotal,
-            0,
-        );
+        cart.subtotal;
 
-    const shippingAmount =
-        shippingMethodsQuery.data?.find(
+    const selectedShippingMethod =
+        activeShippingMethods.find(
             method =>
                 method.id ===
                 shippingMethodId,
-        )?.price ?? 0;
+        );
+
+    const shippingAmount =
+        selectedShippingMethod?.price ??
+        0;
 
     const estimatedTotal =
         subtotal +
         shippingAmount;
+
+    const submitDisabled =
+        checkout.isPending ||
+        !activeShippingMethods.length ||
+        !shippingMethodId;
 
     return (
         <div
@@ -450,7 +733,7 @@ export default function CheckoutPage() {
                 isFa
                     ? 'rtl'
                     : 'ltr'
-           }
+            }
             className="mx-auto max-w-7xl space-y-6 p-4 md:p-6"
         >
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -464,9 +747,7 @@ export default function CheckoutPage() {
                     )}
                 </Link>
 
-                <span>
-                   /
-                </span>
+                <span>/</span>
 
                 <span className="font-medium text-foreground">
                     {getText(
@@ -476,31 +757,39 @@ export default function CheckoutPage() {
                 </span>
             </div>
 
-            <h1 className="text-3xl font-bold">
-                {getText(
-                    'checkout.title',
-                    'Checkout',
-                )}
-            </h1>
+            <div>
+                <h1 className="text-3xl font-bold">
+                    {getText(
+                        'checkout.title',
+                        'Checkout',
+                    )}
+                </h1>
+
+                <p className="mt-1 text-sm text-muted-foreground">
+                    {getText(
+                        'checkout.subtitle',
+                        'Review your delivery information and choose a shipping method.',
+                    )}
+                </p>
+            </div>
 
             {validationError && (
-                <div className="rounded-xl border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
-                    {
-                        validationError
-                   }
+                <div
+                    role="alert"
+                    className="rounded-xl border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive"
+                >
+                    {validationError}
                 </div>
             )}
 
             <form
-                onSubmit={
-                    handleSubmit
-               }
+                onSubmit={handleSubmit}
                 className="grid gap-6 lg:grid-cols-[1fr_380px]"
             >
                 <section className="space-y-6">
-                    <div className="rounded-2xl border p-5 md:p-6">
+                    <div className="rounded-2xl border bg-card p-5 md:p-6">
                         <div className="flex items-center gap-3">
-                            <MapPin className="size-5"/>
+                            <MapPin className="size-5" />
 
                             <div>
                                 <h2 className="font-semibold">
@@ -529,19 +818,19 @@ export default function CheckoutPage() {
                                 </span>
 
                                 <input
-                                    value={
-                                        fullName
-                                   }
-                                    onChange={e =>
+                                    value={fullName}
+                                    onChange={event =>
                                         setFullName(
-                                            e
-                                                .target
-                                                .value,
-                                        )}
+                                            event.target.value,
+                                        )
+                                    }
                                     autoComplete="name"
                                     required
-                                    className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring"
-                               />
+                                    disabled={
+                                        checkout.isPending
+                                    }
+                                    className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                                />
                             </label>
 
                             <label className="grid gap-2">
@@ -553,20 +842,20 @@ export default function CheckoutPage() {
                                 </span>
 
                                 <input
-                                    value={
-                                        phone
-                                   }
-                                    onChange={e =>
+                                    value={phone}
+                                    onChange={event =>
                                         setPhone(
-                                            e
-                                                .target
-                                                .value,
-                                        )}
+                                            event.target.value,
+                                        )
+                                    }
                                     autoComplete="tel"
                                     inputMode="tel"
                                     required
-                                    className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring"
-                               />
+                                    disabled={
+                                        checkout.isPending
+                                    }
+                                    className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                                />
                             </label>
 
                             <label className="grid gap-2 md:col-span-2">
@@ -578,20 +867,20 @@ export default function CheckoutPage() {
                                 </span>
 
                                 <textarea
-                                    value={
-                                        address
-                                   }
-                                    onChange={e =>
+                                    value={address}
+                                    onChange={event =>
                                         setAddress(
-                                            e
-                                                .target
-                                                .value,
-                                        )}
+                                            event.target.value,
+                                        )
+                                    }
                                     autoComplete="street-address"
                                     required
                                     rows={4}
-                                    className="resize-y rounded-xl border bg-background px-3 py-3 outline-none focus:ring-2 focus:ring-ring"
-                               />
+                                    disabled={
+                                        checkout.isPending
+                                    }
+                                    className="resize-y rounded-xl border bg-background px-3 py-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                                />
                             </label>
 
                             <label className="grid gap-2">
@@ -603,19 +892,19 @@ export default function CheckoutPage() {
                                 </span>
 
                                 <input
-                                    value={
-                                        city
-                                   }
-                                    onChange={e =>
+                                    value={city}
+                                    onChange={event =>
                                         setCity(
-                                            e
-                                                .target
-                                                .value,
-                                        )}
+                                            event.target.value,
+                                        )
+                                    }
                                     autoComplete="address-level2"
                                     required
-                                    className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring"
-                               />
+                                    disabled={
+                                        checkout.isPending
+                                    }
+                                    className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                                />
                             </label>
 
                             <label className="grid gap-2">
@@ -627,26 +916,26 @@ export default function CheckoutPage() {
                                 </span>
 
                                 <input
-                                    value={
-                                        postalCode
-                                   }
-                                    onChange={e =>
+                                    value={postalCode}
+                                    onChange={event =>
                                         setPostalCode(
-                                            e
-                                                .target
-                                                .value,
-                                        )}
+                                            event.target.value,
+                                        )
+                                    }
                                     autoComplete="postal-code"
                                     inputMode="numeric"
-                                    className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring"
-                               />
+                                    disabled={
+                                        checkout.isPending
+                                    }
+                                    className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
+                                />
                             </label>
                         </div>
                     </div>
 
-                    <div className="rounded-2xl border p-5 md:p-6">
+                    <div className="rounded-2xl border bg-card p-5 md:p-6">
                         <div className="flex items-center gap-3">
-                            <Truck className="size-5"/>
+                            <Truck className="size-5" />
 
                             <div>
                                 <h2 className="font-semibold">
@@ -665,36 +954,16 @@ export default function CheckoutPage() {
                             </div>
                         </div>
 
-                        {shippingMethodsQuery.isLoading ? (
-                            <div className="mt-6 space-y-3">
-                                <SkeletonLine className="h-20 w-full"/>
-                                <SkeletonLine className="h-20 w-full"/>
+                        {!activeShippingMethods.length ? (
+                            <div className="mt-6 rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
+                                {getText(
+                                    'checkout.noShippingMethods',
+                                    'No shipping methods are currently available.',
+                                )}
                             </div>
-                        ) : shippingMethodsQuery.isError ? (
-                            <div className="mt-6 rounded-xl border p-4">
-                                <p className="font-medium">
-                                    {getText(
-                                        'checkout.shippingError',
-                                        'Shipping methods could not be loaded.',
-                                    )}
-                                </p>
-
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        shippingMethodsQuery.refetch()
-                                   }
-                                    className="mt-3 rounded-lg border px-4 py-2 text-sm font-medium"
-                                >
-                                    {getText(
-                                        'common.retry',
-                                        'Retry',
-                                    )}
-                                </button>
-                            </div>
-                        ) : shippingMethodsQuery.data?.length ? (
+                        ) : (
                             <div className="mt-6 space-y-3">
-                                {shippingMethodsQuery.data.map(
+                                {activeShippingMethods.map(
                                     method => {
                                         const selected =
                                             method.id ===
@@ -704,73 +973,82 @@ export default function CheckoutPage() {
                                             <label
                                                 key={
                                                     method.id
-                                               }
+                                                }
                                                 className={`block cursor - pointer rounded - xl border p - 4 transition ${
     selected
-        ? 'border-primary ring-2 ring-primary/20'
+        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
         : 'hover:border-foreground/30'
-}`}
+} ${
+    checkout.isPending
+        ? 'cursor-not-allowed opacity-60'
+        : ''
+} `}
                                             >
                                                 <input
                                                     type="radio"
                                                     name="shippingMethod"
                                                     value={
                                                         method.id
-                                                   }
+                                                    }
                                                     checked={
                                                         selected
-                                                   }
-                                                    onChange={e =>
+                                                    }
+                                                    onChange={event =>
                                                         setShippingMethodId(
-                                                            e
+                                                            event
                                                                 .target
                                                                 .value,
                                                         )
-                                                   }
+                                                    }
+                                                    disabled={
+                                                        checkout.isPending
+                                                    }
                                                     className="sr-only"
-                                               />
+                                                />
 
                                                 <div className="flex items-center justify-between gap-4">
-                                                    <div>
-                                                        <div className="font-medium">
-                                                            {
-                                                                method.name
-                                                           }
+                                                    <div className="min-w-0">
+                                                        <div className="flex items-center gap-2">
+                                                            {selected && (
+                                                                <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                                                                    <Check className="size-4" />
+                                                                </span>
+                                                            )}
+
+                                                            <span className="font-medium">
+                                                                {
+                                                                    method.name
+                                                                }
+                                                            </span>
                                                         </div>
 
                                                         <div className="mt-1 text-sm text-muted-foreground">
                                                             {
                                                                 method.carrier
-                                                           }
+                                                            }
                                                         </div>
                                                     </div>
 
-                                                    <div className="text-right">
+                                                    <div className="shrink-0 text-end">
                                                         <div className="font-semibold">
                                                             {formatMoney(
                                                                 method.price,
                                                                 cart.currency,
+                                                                isFa,
                                                             )}
                                                         </div>
                                                     </div>
                                                 </div>
                                             </label>
                                         );
-                                   },
-                                )}
-                            </div>
-                        ) : (
-                            <div className="mt-6 rounded-xl border p-4 text-sm text-muted-foreground">
-                                {getText(
-                                    'checkout.noShippingMethods',
-                                    'No shipping methods are currently available.',
+                                    },
                                 )}
                             </div>
                         )}
                     </div>
                 </section>
 
-                <aside className="h-fit rounded-2xl border p-5 md:p-6 lg:sticky lg:top-6">
+                <aside className="h-fit rounded-2xl border bg-card p-5 md:p-6 lg:sticky lg:top-6">
                     <h2 className="text-lg font-semibold">
                         {getText(
                             'checkout.summary',
@@ -779,6 +1057,27 @@ export default function CheckoutPage() {
                     </h2>
 
                     <div className="mt-5 space-y-3">
+                        <div className="flex justify-between gap-4 text-sm">
+                            <span className="text-muted-foreground">
+                                {getText(
+                                    'checkout.itemCount',
+                                    'Items',
+                                )}
+                            </span>
+
+                            <span className="font-medium">
+                                {cart.items.reduce(
+                                    (
+                                        total,
+                                        item,
+                                    ) =>
+                                        total +
+                                        item.quantity,
+                                    0,
+                                )}
+                            </span>
+                        </div>
+
                         <div className="flex justify-between gap-4 text-sm">
                             <span className="text-muted-foreground">
                                 {getText(
@@ -791,6 +1090,7 @@ export default function CheckoutPage() {
                                 {formatMoney(
                                     subtotal,
                                     cart.currency,
+                                    isFa,
                                 )}
                             </span>
                         </div>
@@ -804,10 +1104,16 @@ export default function CheckoutPage() {
                             </span>
 
                             <span className="font-medium">
-                                {formatMoney(
-                                    shippingAmount,
-                                    cart.currency,
-                                )}
+                                {selectedShippingMethod
+                                    ? formatMoney(
+                                          shippingAmount,
+                                          cart.currency,
+                                          isFa,
+                                      )
+                                    : getText(
+                                          'checkout.selectShipping',
+                                          'Select a method',
+                                      )}
                             </span>
                         </div>
 
@@ -824,6 +1130,7 @@ export default function CheckoutPage() {
                                     {formatMoney(
                                         estimatedTotal,
                                         cart.currency,
+                                        isFa,
                                     )}
                                 </span>
                             </div>
@@ -833,31 +1140,28 @@ export default function CheckoutPage() {
                     <button
                         type="submit"
                         disabled={
-                            checkout.isPending ||
-                            shippingMethodsQuery.isLoading ||
-                            shippingMethodsQuery.isError ||
-                            !shippingMethodsQuery.data?.length
-                       }
+                            submitDisabled
+                        }
                         className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {checkout.isPending
                             ? getText(
-                                'checkout.processing',
-                                'Processing...',
-                            )
+                                  'checkout.processing',
+                                  'Processing...',
+                              )
                             : getText(
-                                'checkout.placeOrder',
-                                'Place order',
-                            )}
+                                  'checkout.placeOrder',
+                                  'Place order',
+                              )}
                     </button>
 
                     <Link
-                        to="/products"
-                        className="mt-3 flex w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-medium hover:bg-muted"
+                        to="/cart"
+                        className="mt-3 flex w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted"
                     >
                         {getText(
-                            'common.continueShopping',
-                            'Continue shopping',
+                            'checkout.backToCart',
+                            'Back to cart',
                         )}
                     </Link>
                 </aside>

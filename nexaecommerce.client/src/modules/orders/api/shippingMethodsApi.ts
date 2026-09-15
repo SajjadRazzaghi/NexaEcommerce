@@ -1,6 +1,5 @@
 import api from '@/services/api';
 
-
 export interface ShippingMethod {
     id: string;
     code: string;
@@ -11,7 +10,6 @@ export interface ShippingMethod {
     isActive: boolean;
 }
 
-
 export interface ShippingQuote {
     shippingMethodId: string;
     code: string;
@@ -19,7 +17,6 @@ export interface ShippingQuote {
     carrier: string;
     price: number;
 }
-
 
 export interface CreateShippingMethodRequest {
     code: string;
@@ -29,14 +26,12 @@ export interface CreateShippingMethodRequest {
     sortOrder?: number;
 }
 
-
 export interface UpdateShippingMethodRequest {
     name: string;
     carrier: string;
     price: number;
     sortOrder: number;
 }
-
 
 export async function getShippingMethods(): Promise<
     ShippingMethod[]
@@ -49,7 +44,6 @@ export async function getShippingMethods(): Promise<
     return data;
 }
 
-
 export async function getAdminShippingMethods(): Promise<
     ShippingMethod[]
 > {
@@ -60,7 +54,6 @@ export async function getAdminShippingMethods(): Promise<
 
     return data;
 }
-
 
 export async function createShippingMethod(
     request: CreateShippingMethodRequest,
@@ -73,7 +66,6 @@ export async function createShippingMethod(
 
     return data;
 }
-
 
 export async function updateShippingMethod(
     id: string,
@@ -88,7 +80,6 @@ export async function updateShippingMethod(
     return data;
 }
 
-
 export async function setShippingMethodActive(
     id: string,
     active: boolean,
@@ -101,7 +92,6 @@ export async function setShippingMethodActive(
     );
 }
 
-
 export async function deleteShippingMethod(
     id: string,
 ): Promise<void> {
@@ -109,7 +99,6 @@ export async function deleteShippingMethod(
         `/shipping-methods/${id}`,
     );
 }
-
 
 export async function getShippingQuote(
     id: string,
@@ -121,4 +110,3 @@ export async function getShippingQuote(
 
     return data;
 }
-
