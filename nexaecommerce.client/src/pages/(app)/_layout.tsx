@@ -1,5 +1,4 @@
 import { type ReactNode } from 'react';
-
 import {
     Navigate,
     Outlet,
@@ -39,7 +38,7 @@ export default function AppLayout() {
      * Public storefront routes.
      *
      * These routes must never be forced through
-     * the authenticated admin/application shell.
+     * the authenticated application shell.
      */
     const isPublicStorefront =
         location.pathname === '/' ||
@@ -68,13 +67,12 @@ export default function AppLayout() {
     }
 
     if (!isAuthenticated) {
+        const returnUrl =
+            `${ location.pathname }${ location.search }${ location.hash } `;
+
         return (
             <Navigate
-                to={`/ login ? returnUrl = ${
-    encodeURIComponent(
-        location.pathname,
-    )
-} `}
+                to={`/ login ? returnUrl = ${ encodeURIComponent(returnUrl) } `}
                 replace
             />
         );

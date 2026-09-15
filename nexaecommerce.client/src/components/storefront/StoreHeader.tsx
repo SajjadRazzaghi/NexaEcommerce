@@ -1,3 +1,4 @@
+
 import {
     type FormEvent,
     useState,
@@ -13,15 +14,23 @@ import { useQuery } from '@tanstack/react-query';
 import {
     Search,
     ShoppingBag,
+    UserRound,
 } from 'lucide-react';
 
 import { appearanceApi } from '@/lib/api/appearance';
+import { useAuth } from '@/hooks/use-auth';
 
 const DEFAULT_STORE_NAME = 'NexaECommerce';
 
 export default function StoreHeader() {
     const navigate = useNavigate();
     const [query, setQuery] = useState('');
+
+    const {
+        user,
+        isAuthenticated,
+        isLoading: authLoading,
+    } = useAuth();
 
     const { data: appearance } = useQuery({
         queryKey: ['appearance'],
@@ -37,6 +46,14 @@ export default function StoreHeader() {
     const logoUrl =
         appearance?.logoUrl?.trim() ||
         null;
+
+    const userName =
+        user?.displayName?.trim() ||
+        user?.email?.trim() ||
+        'My account';
+
+    const userInitial =
+        userName.charAt(0).toUpperCase() || 'U';
 
     const submitSearch = (
         event: FormEvent<HTMLFormElement>,
@@ -105,7 +122,7 @@ export default function StoreHeader() {
 
                         <button
                             type="submit"
-                            className="hidden rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground sm:block"
+                            className="hidden rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 sm:block"
                         >
                             Search
                         </button>
@@ -128,12 +145,50 @@ export default function StoreHeader() {
                     <ShoppingBag className="size-5" />
                 </Link>
 
-                <Link
-                    to="/login"
-                    className="hidden rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 md:block"
-                >
-                    Sign in
-                </Link>
+                {isAuthenticated ? (
+                    <Link
+                        to="/profile"
+                        className="flex min-w-0 shrink-0 items-center gap-2 rounded-xl border px-2 py-2 transition-colors hover:bg-muted md:px-3"
+                        aria-label={`Open profile for ${ userName }`}
+                        title="My profile"
+                    >
+                        {user?.avatarUrl?.trim() ? (
+                            <img
+                                src={user.avatarUrl}
+                                alt=""
+                                className="size-9 shrink-0 rounded-full object-cover"
+                            />
+                        ) : (
+                            <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                                {userInitial}
+                            </div>
+                        )}
+
+                        <div className="hidden min-w-0 max-w-40 md:block">
+                            <div className="truncate text-sm font-bold">
+                                {userName}
+                            </div>
+
+                            <div className="text-[11px] text-muted-foreground">
+                                My profile
+                            </div>
+                        </div>
+
+                        <UserRound className="hidden size-4 shrink-0 text-muted-foreground lg:block" />
+                    </Link>
+                ) : authLoading ? (
+                    <div
+                        className="hidden h-11 w-24 animate-pulse rounded-xl border bg-muted md:block"
+                        aria-hidden="true"
+                    />
+                ) : (
+                    <Link
+                        to="/login"
+                        className="hidden rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 md:block"
+                    >
+                        Sign in
+                    </Link>
+                )}
             </div>
         </header>
     );

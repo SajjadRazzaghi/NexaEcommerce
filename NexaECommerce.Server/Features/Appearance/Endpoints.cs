@@ -1,3 +1,4 @@
+using System.Net.Mail;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NexaECommerce.Server.Data;
@@ -12,25 +13,35 @@ namespace NexaECommerce.Server.Features.Appearance;
 public sealed record AppearanceDto(
     string? StoreName,
     string? LogoUrl,
+    string? FaviconUrl,
     string? Theme,
     string? BrandColor,
-    string? CustomTheme);
+    string? CustomTheme,
+    string? ContactPhone,
+    string? ContactEmail,
+    string? ContactAddress,
+    string? WebsiteUrl,
+    string? SeoTitle,
+    string? SeoDescription);
 
 public sealed record UpdateAppearanceRequest(
     string? StoreName,
     string? LogoUrl,
+    string? FaviconUrl,
     string? Theme,
     string? BrandColor,
-    string? CustomTheme);
+    string? CustomTheme,
+    string? ContactPhone,
+    string? ContactEmail,
+    string? ContactAddress,
+    string? WebsiteUrl,
+    string? SeoTitle,
+    string? SeoDescription);
 
-/// <summary>
-/// Public tenant branding and appearance endpoint.
-/// The storefront can read it before authentication.
-/// Only users with appearance.manage can change it.
-/// </summary>
 public sealed class AppearanceEndpoints : IFeatureEndpoints
 {
-    public void Map(IEndpointRouteBuilder app)
+    public void Map(
+        IEndpointRouteBuilder app)
     {
         var group =
             app.MapGroup("/api/appearance")
@@ -70,19 +81,53 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
                 AppearanceSettings.CustomTheme,
                 ct);
 
+        var contactPhone =
+            await settings.GetAsync<string>(
+                AppearanceSettings.ContactPhone,
+                ct);
+
+        var contactEmail =
+            await settings.GetAsync<string>(
+                AppearanceSettings.ContactEmail,
+                ct);
+
+        var contactAddress =
+            await settings.GetAsync<string>(
+                AppearanceSettings.ContactAddress,
+                ct);
+
+        var websiteUrl =
+            await settings.GetAsync<string>(
+                AppearanceSettings.WebsiteUrl,
+                ct);
+
+        var seoTitle =
+            await settings.GetAsync<string>(
+                AppearanceSettings.SeoTitle,
+                ct);
+
+        var seoDescription =
+            await settings.GetAsync<string>(
+                AppearanceSettings.SeoDescription,
+                ct);
+
+        var faviconUrl =
+            await settings.GetAsync<string>(
+                AppearanceSettings.FaviconUrl,
+                ct);
+
         var tenantInfo =
             await db.Set<Tenant>()
                 .AsNoTracking()
                 .Where(t =>
                     t.Id == tenant.TenantId &&
                     t.Status == TenantStatus.Active)
-                .Select(
-                    t => new
-                    {
-                        t.Name,
-                        t.LogoUrl,
-                        t.PrimaryColor
-                    })
+                .Select(t => new
+                {
+                    t.Name,
+                    t.LogoUrl,
+                    t.PrimaryColor
+                })
                 .FirstOrDefaultAsync(ct);
 
         if (tenantInfo is null)
@@ -91,9 +136,16 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
                 new AppearanceDto(
                     null,
                     null,
+                    Normalize(faviconUrl),
                     Normalize(theme),
                     Normalize(color),
-                    Normalize(custom)));
+                    Normalize(custom),
+                    Normalize(contactPhone),
+                    Normalize(contactEmail),
+                    Normalize(contactAddress),
+                    Normalize(websiteUrl),
+                    Normalize(seoTitle),
+                    Normalize(seoDescription)));
         }
 
         if (string.IsNullOrWhiteSpace(color))
@@ -106,9 +158,16 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
             new AppearanceDto(
                 Normalize(tenantInfo.Name),
                 Normalize(tenantInfo.LogoUrl),
+                Normalize(faviconUrl),
                 Normalize(theme),
                 Normalize(color),
-                Normalize(custom)));
+                Normalize(custom),
+                Normalize(contactPhone),
+                Normalize(contactEmail),
+                Normalize(contactAddress),
+                Normalize(websiteUrl),
+                Normalize(seoTitle),
+                Normalize(seoDescription)));
     }
 
     private static async Task<IResult> Update(
@@ -119,20 +178,37 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
         CancellationToken ct)
     {
         var storeName =
-            (req.StoreName ?? string.Empty)
-                .Trim();
+            NormalizeInput(req.StoreName);
 
         var logoUrl =
-            (req.LogoUrl ?? string.Empty)
-                .Trim();
+            NormalizeInput(req.LogoUrl);
+
+        var faviconUrl =
+            NormalizeInput(req.FaviconUrl);
 
         var theme =
-            (req.Theme ?? string.Empty)
-                .Trim();
+            NormalizeInput(req.Theme);
 
         var color =
-            (req.BrandColor ?? string.Empty)
-                .Trim();
+            NormalizeInput(req.BrandColor);
+
+        var contactPhone =
+            NormalizeInput(req.ContactPhone);
+
+        var contactEmail =
+            NormalizeInput(req.ContactEmail);
+
+        var contactAddress =
+            NormalizeInput(req.ContactAddress);
+
+        var websiteUrl =
+            NormalizeInput(req.WebsiteUrl);
+
+        var seoTitle =
+            NormalizeInput(req.SeoTitle);
+
+        var seoDescription =
+            NormalizeInput(req.SeoDescription);
 
         var custom =
             ValidateCustomTheme(
@@ -159,21 +235,20 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
         // Logo
         // --------------------------------------------------------
 
-        if (logoUrl.Length > 2048)
-        {
-            throw new BadRequestException(
-                "Logo URL cannot exceed 2048 characters.");
-        }
-
-        if (logoUrl.Length > 0 &&
-            !IsSafeUrl(logoUrl))
-        {
-            throw new BadRequestException(
-                "Logo URL must be an HTTP, HTTPS or root-relative URL.");
-        }
+        ValidateImageUrl(
+            logoUrl,
+            "Logo URL");
 
         // --------------------------------------------------------
-        // Appearance
+        // Favicon
+        // --------------------------------------------------------
+
+        ValidateImageUrl(
+            faviconUrl,
+            "Favicon URL");
+
+        // --------------------------------------------------------
+        // Theme
         // --------------------------------------------------------
 
         if (theme.Length > 32 ||
@@ -183,6 +258,10 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
                 "Invalid appearance theme.");
         }
 
+        // --------------------------------------------------------
+        // Brand color
+        // --------------------------------------------------------
+
         if (color.Length > 64 ||
             !IsSafeValue(color))
         {
@@ -191,7 +270,96 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
         }
 
         // --------------------------------------------------------
-        // Tenant branding
+        // Contact phone
+        // --------------------------------------------------------
+
+        if (contactPhone.Length > 64 ||
+            !IsSafeText(contactPhone))
+        {
+            throw new BadRequestException(
+                "Invalid contact phone.");
+        }
+
+        // --------------------------------------------------------
+        // Contact email
+        // --------------------------------------------------------
+
+        if (contactEmail.Length > 256)
+        {
+            throw new BadRequestException(
+                "Contact email cannot exceed 256 characters.");
+        }
+
+        if (contactEmail.Length > 0)
+        {
+            try
+            {
+                var mail =
+                    new MailAddress(contactEmail);
+
+                if (!string.Equals(
+                        mail.Address,
+                        contactEmail,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new FormatException();
+                }
+            }
+            catch
+            {
+                throw new BadRequestException(
+                    "Invalid contact email.");
+            }
+        }
+
+        // --------------------------------------------------------
+        // Contact address
+        // --------------------------------------------------------
+
+        if (contactAddress.Length > 1000 ||
+            !IsSafeText(contactAddress))
+        {
+            throw new BadRequestException(
+                "Invalid contact address.");
+        }
+
+        // --------------------------------------------------------
+        // Website
+        // --------------------------------------------------------
+
+        if (websiteUrl.Length > 2048)
+        {
+            throw new BadRequestException(
+                "Website URL cannot exceed 2048 characters.");
+        }
+
+        if (websiteUrl.Length > 0 &&
+            !IsHttpUrl(websiteUrl))
+        {
+            throw new BadRequestException(
+                "Website URL must use HTTP or HTTPS.");
+        }
+
+        // --------------------------------------------------------
+        // SEO
+        // --------------------------------------------------------
+
+        if (seoTitle.Length > 160 ||
+            !IsSafeText(seoTitle))
+        {
+            throw new BadRequestException(
+                "SEO title cannot exceed 160 characters.");
+        }
+
+        if (seoDescription.Length > 320 ||
+            !IsSafeText(seoDescription))
+        {
+            throw new BadRequestException(
+                "SEO description cannot exceed 320 characters.");
+        }
+
+        // --------------------------------------------------------
+        // Tenant
         // --------------------------------------------------------
 
         var tenantEntity =
@@ -213,19 +381,25 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
                 "The active tenant is not available.");
         }
 
-        /*
-         * Empty values are allowed so the tenant can intentionally
-         * fall back to the product defaults.
-         */
-        tenantEntity.Name =
-            string.IsNullOrWhiteSpace(storeName)
-                ? tenantEntity.Name
-                : storeName;
+        if (storeName.Length > 0)
+        {
+            tenantEntity.Name =
+                storeName;
+        }
 
         tenantEntity.LogoUrl =
-            string.IsNullOrWhiteSpace(logoUrl)
+            logoUrl.Length == 0
                 ? null
                 : logoUrl;
+
+        tenantEntity.PrimaryColor =
+            color.Length == 0
+                ? null
+                : color;
+
+        // --------------------------------------------------------
+        // Settings
+        // --------------------------------------------------------
 
         await settings.SetAsync(
             AppearanceSettings.Theme,
@@ -248,14 +422,54 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
             tenant.TenantId,
             ct);
 
-        /*
-         * Keep the tenant's persisted brand colour synchronized too.
-         * GET still gives explicit Appearance.BrandColor precedence.
-         */
-        tenantEntity.PrimaryColor =
-            string.IsNullOrWhiteSpace(color)
-                ? null
-                : color;
+        await settings.SetAsync(
+            AppearanceSettings.ContactPhone,
+            contactPhone,
+            SettingScope.Tenant,
+            tenant.TenantId,
+            ct);
+
+        await settings.SetAsync(
+            AppearanceSettings.ContactEmail,
+            contactEmail,
+            SettingScope.Tenant,
+            tenant.TenantId,
+            ct);
+
+        await settings.SetAsync(
+            AppearanceSettings.ContactAddress,
+            contactAddress,
+            SettingScope.Tenant,
+            tenant.TenantId,
+            ct);
+
+        await settings.SetAsync(
+            AppearanceSettings.WebsiteUrl,
+            websiteUrl,
+            SettingScope.Tenant,
+            tenant.TenantId,
+            ct);
+
+        await settings.SetAsync(
+            AppearanceSettings.SeoTitle,
+            seoTitle,
+            SettingScope.Tenant,
+            tenant.TenantId,
+            ct);
+
+        await settings.SetAsync(
+            AppearanceSettings.SeoDescription,
+            seoDescription,
+            SettingScope.Tenant,
+            tenant.TenantId,
+            ct);
+
+        await settings.SetAsync(
+            AppearanceSettings.FaviconUrl,
+            faviconUrl,
+            SettingScope.Tenant,
+            tenant.TenantId,
+            ct);
 
         await db.SaveChangesAsync(ct);
 
@@ -263,46 +477,49 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
             new AppearanceDto(
                 Normalize(tenantEntity.Name),
                 Normalize(tenantEntity.LogoUrl),
+                Normalize(faviconUrl),
                 Normalize(theme),
                 Normalize(color),
-                Normalize(custom)));
+                Normalize(custom),
+                Normalize(contactPhone),
+                Normalize(contactEmail),
+                Normalize(contactAddress),
+                Normalize(websiteUrl),
+                Normalize(seoTitle),
+                Normalize(seoDescription)));
     }
 
-    private static bool IsSafeText(
-        string value)
+    private static string NormalizeInput(
+        string? value)
     {
-        return value.IndexOfAny(
-            [
-                '<',
-                '>',
-                '{',
-                '}',
-                ';',
-                '\"',
-                '\'',
-                '\r',
-                '\n'
-            ]) < 0;
+        return
+            (value ?? string.Empty)
+                .Trim();
     }
 
-    private static bool IsSafeValue(
-        string value)
+    private static void ValidateImageUrl(
+        string value,
+        string fieldName)
     {
-        return value.IndexOfAny(
-            [
-                ';',
-                '{',
-                '}',
-                '<',
-                '>',
-                '\"',
-                '\'',
-                '\r',
-                '\n'
-            ]) < 0;
+        if (value.Length > 2048)
+        {
+            throw new BadRequestException(
+                $"{fieldName} cannot exceed 2048 characters.");
+        }
+
+        if (value.Length == 0)
+        {
+            return;
+        }
+
+        if (!IsSafeImageUrl(value))
+        {
+            throw new BadRequestException(
+                $"{fieldName} must be an HTTP, HTTPS or root-relative URL.");
+        }
     }
 
-    private static bool IsSafeUrl(
+    private static bool IsSafeImageUrl(
         string value)
     {
         if (value.StartsWith(
@@ -328,19 +545,70 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
                    Uri.UriSchemeHttps;
     }
 
+    private static bool IsHttpUrl(
+        string value)
+    {
+        if (!Uri.TryCreate(
+                value,
+                UriKind.Absolute,
+                out var uri))
+        {
+            return false;
+        }
+
+        return uri.Scheme ==
+                   Uri.UriSchemeHttp ||
+               uri.Scheme ==
+                   Uri.UriSchemeHttps;
+    }
+
+    private static bool IsSafeText(
+        string value)
+    {
+        return value.IndexOfAny(
+            [
+                '<',
+                '>',
+                '{',
+                '}',
+                ';',
+                '"',
+                '\'',
+                '\r',
+                '\n'
+            ]) < 0;
+    }
+
+    private static bool IsSafeValue(
+        string value)
+    {
+        return value.IndexOfAny(
+            [
+                ';',
+                '{',
+                '}',
+                '<',
+                '>',
+                '"',
+                '\'',
+                '\r',
+                '\n'
+            ]) < 0;
+    }
+
     private static string ValidateCustomTheme(
         string? value)
     {
-        var v =
+        var normalized =
             (value ?? string.Empty)
                 .Trim();
 
-        if (v.Length == 0)
+        if (normalized.Length == 0)
         {
             return string.Empty;
         }
 
-        if (v.Length > 4000)
+        if (normalized.Length > 4000)
         {
             throw new BadRequestException(
                 "Custom theme is too large.");
@@ -349,15 +617,22 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
         try
         {
             using var _ =
-                JsonDocument.Parse(v);
+                JsonDocument.Parse(normalized);
+
+            if (_.RootElement.ValueKind !=
+                JsonValueKind.Object)
+            {
+                throw new BadRequestException(
+                    "Custom theme must be a JSON object.");
+            }
         }
-        catch
+        catch (JsonException)
         {
             throw new BadRequestException(
                 "Custom theme must be valid JSON.");
         }
 
-        return v;
+        return normalized;
     }
 
     private static string? Normalize(
@@ -365,6 +640,6 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
     {
         return string.IsNullOrWhiteSpace(value)
             ? null
-            : value;
+            : value.Trim();
     }
 }
