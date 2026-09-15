@@ -189,32 +189,6 @@ export default function CheckoutPage() {
             },
         );
 
-    useEffect(() => {
-        if (
-            shippingMethodId ||
-            !shippingMethodsQuery.data?.length
-        ) {
-            return;
-        }
-
-        const firstActive =
-            shippingMethodsQuery.data.find(
-                method =>
-                    method.isActive,
-            );
-
-        if (
-            firstActive
-        ) {
-            setShippingMethodId(
-                firstActive.id,
-            );
-        }
-    }, [
-        shippingMethodId,
-        shippingMethodsQuery.data,
-    ]);
-
     const activeShippingMethods =
         (
             shippingMethodsQuery.data ??
@@ -222,6 +196,24 @@ export default function CheckoutPage() {
         ).filter(
             method =>
                 method.isActive,
+        );
+
+    /*
+     * Do not set state from an effect just to select
+     * the first shipping method. The first active method
+     * acts as the effective selection until the user
+     * explicitly chooses another method.
+     */
+    const effectiveShippingMethodId =
+        shippingMethodId ||
+        activeShippingMethods[0]?.id ||
+        '';
+
+    const selectedShippingMethod =
+        activeShippingMethods.find(
+            method =>
+                method.id ===
+                effectiveShippingMethodId,
         );
 
     const handleSubmit = (
@@ -372,7 +364,7 @@ export default function CheckoutPage() {
         }
 
         if (
-            !shippingMethodId
+            !effectiveShippingMethodId
         ) {
             setValidationError(
                 getText(
@@ -384,15 +376,8 @@ export default function CheckoutPage() {
             return;
         }
 
-        const selectedMethod =
-            activeShippingMethods.find(
-                method =>
-                    method.id ===
-                    shippingMethodId,
-            );
-
         if (
-            !selectedMethod
+            !selectedShippingMethod
         ) {
             setValidationError(
                 getText(
@@ -401,9 +386,13 @@ export default function CheckoutPage() {
                 ),
             );
 
-            setShippingMethodId(
-                '',
-            );
+            if (
+                shippingMethodId
+            ) {
+                setShippingMethodId(
+                    '',
+                );
+            }
 
             return;
         }
@@ -444,7 +433,7 @@ export default function CheckoutPage() {
                 null,
 
             shippingMethodId:
-                selectedMethod.id,
+                selectedShippingMethod.id,
         };
 
         checkout.mutate(
@@ -529,6 +518,7 @@ export default function CheckoutPage() {
                 <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
                     <div className="space-y-6">
                         <SkeletonLine className="h-72 w-full" />
+
                         <SkeletonLine className="h-52 w-full" />
                     </div>
 
@@ -707,13 +697,6 @@ export default function CheckoutPage() {
     const subtotal =
         cart.subtotal;
 
-    const selectedShippingMethod =
-        activeShippingMethods.find(
-            method =>
-                method.id ===
-                shippingMethodId,
-        );
-
     const shippingAmount =
         selectedShippingMethod?.price ??
         0;
@@ -725,7 +708,7 @@ export default function CheckoutPage() {
     const submitDisabled =
         checkout.isPending ||
         !activeShippingMethods.length ||
-        !shippingMethodId;
+        !effectiveShippingMethodId;
 
     return (
         <div
@@ -967,7 +950,7 @@ export default function CheckoutPage() {
                                     method => {
                                         const selected =
                                             method.id ===
-                                            shippingMethodId;
+                                            effectiveShippingMethodId;
 
                                         return (
                                             <label

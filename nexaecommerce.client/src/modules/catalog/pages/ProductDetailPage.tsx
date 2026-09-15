@@ -1,17 +1,20 @@
-import { useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import {
+    useMemo,
+    useState,
+} from 'react';
 
 import {
     Alert,
     Box,
     Button,
     Card,
+    Chip,
     Container,
     Divider,
     IconButton,
+    Rating,
     Skeleton,
     Stack,
-    TextField,
     Typography,
 } from '@mui/material';
 
@@ -23,79 +26,184 @@ import {
     ShoppingCartOutlined,
 } from '@mui/icons-material';
 
-import { useProduct } from '../hooks/useProducts';
-import { useCartMutations } from '@/modules/cart/hooks/useCartMutations';
+import {
+    Link,
+    useParams,
+} from 'react-router-dom';
 
-type SelectedAttributes = Record<string, string>;
+import {
+    useTranslation,
+} from 'react-i18next';
+
+import {
+    useProductBySlug,
+} from '../hooks/useProducts';
+
+import {
+    useCartMutations,
+} from '@/modules/cart/hooks/useCartMutations';
+
+import type {
+     ProductVariant,
+} from '../api/products';
+
+type SelectedAttributes = Record<
+    string,
+    string
+>;
 
 function getAttributeValue(
-    variant: {
-        attributes?: {
-            attributeCode: string;
-            attributeValueId: string;
-        }[];
-    },
+    variant: ProductVariant,
     code: string,
 ) {
     return (
         variant.attributes?.find(
-            (attribute) =>
-                attribute.attributeCode.toLowerCase() ===
-                code.toLowerCase(),
+            attribute =>
+                attribute.attributeCode
+                    .trim()
+                    .toLowerCase() ===
+                code
+                    .trim()
+                    .toLowerCase(),
         )?.attributeValueId ?? null
     );
 }
 
+function getVariantLabel(
+    variant: ProductVariant,
+) {
+    const genericAttributes =
+        variant.attributes ?? [];
+
+    if (
+        genericAttributes.length > 0
+    ) {
+        return genericAttributes
+            .map(
+                attribute =>
+                    attribute.displayValue ||
+                    attribute.value,
+            )
+            .filter(Boolean)
+            .join(' / ');
+    }
+
+    const legacyParts = [
+        variant.color?.trim(),
+        variant.size?.trim(),
+    ].filter(Boolean);
+
+    if (
+        legacyParts.length > 0
+    ) {
+        return legacyParts.join(' / ');
+    }
+
+    return variant.sku;
+}
+
+
+
 export default function ProductDetailPage() {
-    const { id } = useParams<{ id: string }>();
+    const {
+        id: slug,
+    } = useParams<{
+        id: string;
+    }>();
+
+    const {
+        t,
+        i18n,
+    } = useTranslation();
+
+    const isFa =
+        i18n.language
+            ?.toLowerCase()
+            .startsWith('fa');
+
+    const getText = (
+        key: string,
+        fallback: string,
+    ) =>
+        t(
+            key,
+            {
+                defaultValue:
+                    fallback,
+            },
+        );
 
     const {
         data: product,
         isLoading,
         error,
-    } = useProduct(id);
+    } =
+        useProductBySlug(slug);
 
-    const { add } = useCartMutations();
+    const {
+        add,
+    } = useCartMutations();
 
-    const [imageIndex, setImageIndex] =
-        useState(0);
+    const [
+        imageIndex,
+        setImageIndex,
+    ] = useState(0);
 
     const [
         selectedAttributes,
         setSelectedAttributes,
     ] =
-        useState<SelectedAttributes>({});
+        useState<SelectedAttributes>(
+            {},
+        );
 
-    const [variantId, setVariantId] =
-        useState<string | null>(null);
+    const [
+        selectedLegacyVariantId,
+        setSelectedLegacyVariantId,
+    ] =
+        useState<string | null>(
+            null,
+        );
 
-    const [quantity, setQuantity] =
-        useState(1);
+    const [
+        quantity,
+        setQuantity,
+    ] = useState(1);
 
-    const [added, setAdded] =
-        useState(false);
+    const [
+        added,
+        setAdded,
+    ] = useState(false);
 
     const availableVariants =
         useMemo(
             () =>
-                product?.variants?.filter(
-                    (variant) =>
+                (
+                    product?.variants ??
+                    []
+                ).filter(
+                    variant =>
                         variant.isActive &&
-                        variant.stockQuantity > 0,
-                ) ?? [],
+                        variant.stockQuantity >
+                            0,
+                ),
             [product],
         );
 
     const genericVariantMode =
         availableVariants.some(
-            (variant) =>
-                (variant.attributes?.length ?? 0) >
-                0,
+            variant =>
+                (
+                    variant.attributes
+                        ?.length ?? 0
+                ) > 0,
         );
 
     const attributeGroups =
         useMemo(() => {
-            if (!genericVariantMode) {
+            if (
+                !genericVariantMode
+            ) {
                 return [];
             }
 
@@ -107,47 +215,72 @@ export default function ProductDetailPage() {
                     values: {
                         id: string;
                         label: string;
-                        colorHex?: string | null;
+                        colorHex?:
+                            | string
+                            | null;
                     }[];
                 }
             >();
 
-            for (const variant of availableVariants) {
-                for (const attribute of
-                    variant.attributes ?? []) {
+            for (
+                const variant of
+                availableVariants
+            ) {
+                for (
+                    const attribute of
+                    variant.attributes ??
+                    []
+                ) {
                     const key =
                         attribute.attributeCode
+                            .trim()
                             .toLowerCase();
 
-                    if (!groups.has(key)) {
-                        groups.set(key, {
-                            code:
-                                attribute.attributeCode,
-                            name:
-                                attribute.attributeName,
-                            values: [],
-                        });
+                    if (
+                        !groups.has(key)
+                    ) {
+                        groups.set(
+                            key,
+                            {
+                                code:
+                                    attribute.attributeCode,
+                                name:
+                                    attribute.attributeName,
+                                values: [],
+                            },
+                        );
                     }
 
                     const group =
-                        groups.get(key)!;
+                        groups.get(
+                            key,
+                        );
 
                     if (
-                        !group.values.some(
-                            (value) =>
+                        !group
+                    ) {
+                        continue;
+                    }
+
+                    const exists =
+                        group.values.some(
+                            value =>
                                 value.id ===
                                 attribute.attributeValueId,
-                        )
-                    ) {
-                        group.values.push({
-                            id:
-                                attribute.attributeValueId,
-                            label:
-                                attribute.displayValue ||
-                                attribute.value,
-                            colorHex:
-                                attribute.colorHex,
-                        });
+                        );
+
+                    if (!exists) {
+                        group.values.push(
+                            {
+                                id:
+                                    attribute.attributeValueId,
+                                label:
+                                    attribute.displayValue ||
+                                    attribute.value,
+                                colorHex:
+                                    attribute.colorHex,
+                            },
+                        );
                     }
                 }
             }
@@ -165,92 +298,132 @@ export default function ProductDetailPage() {
             selectedAttributes,
         );
 
-    const activeVariant =
-        useMemo(() => {
-            if (
-                variantId &&
-                availableVariants.some(
-                    (variant) =>
-                        variant.id ===
-                        variantId,
-                )
-            ) {
-                return availableVariants.find(
-                    (variant) =>
-                        variant.id ===
-                        variantId,
+    const findMatchingVariant =
+        (
+            selection: SelectedAttributes,
+        ) => {
+            const entries =
+                Object.entries(
+                    selection,
                 );
-            }
 
             if (
-                genericVariantMode &&
-                selectedEntries.length > 0
+                entries.length === 0
             ) {
-                const exact =
-                    availableVariants.find(
-                        (variant) =>
-                            selectedEntries.every(
-                                ([code, valueId]) =>
-                                    getAttributeValue(
-                                        variant,
-                                        code,
-                                    ) === valueId,
-                            ),
-                    );
-
-                if (exact) {
-                    return exact;
-                }
-
-                const partial =
-                    availableVariants.find(
-                        (variant) =>
-                            selectedEntries.every(
-                                ([code, valueId]) =>
-                                    getAttributeValue(
-                                        variant,
-                                        code,
-                                    ) === valueId,
-                            ),
-                    );
-
-                if (partial) {
-                    return partial;
-                }
+                return null;
             }
 
             return (
-                availableVariants[0] ??
-                product?.variants?.find(
-                    (variant) =>
-                        variant.isActive,
-                ) ??
-                null
+                availableVariants.find(
+                    variant =>
+                        entries.every(
+                            ([code, valueId]) =>
+                                getAttributeValue(
+                                    variant,
+                                    code,
+                                ) === valueId,
+                        ),
+                ) ?? null
             );
-        }, [
-            availableVariants,
-            genericVariantMode,
-            product,
-            selectedEntries,
-            variantId,
-        ]);
+        };
 
-    const legacyVariants =
+    const matchingVariant =
         useMemo(
             () =>
-                availableVariants.filter(
-                    (variant) =>
-                        !variant.attributes ||
-                        variant.attributes.length === 0,
+                genericVariantMode
+                    ? findMatchingVariant(
+                          selectedAttributes,
+                      )
+                    : null,
+            [
+                availableVariants,
+                genericVariantMode,
+                selectedAttributes,
+            ],
+        );
+
+    const activeLegacyVariant =
+        useMemo(
+            () => {
+                if (
+                    !selectedLegacyVariantId
+                ) {
+                    return (
+                        availableVariants[0] ??
+                        product?.variants?.find(
+                            variant =>
+                                variant.isActive,
+                        ) ??
+                        null
+                    );
+                }
+
+                return (
+                    availableVariants.find(
+                        variant =>
+                            variant.id ===
+                            selectedLegacyVariantId,
+                    ) ?? null
+                );
+            },
+            [
+                availableVariants,
+                product,
+                selectedLegacyVariantId,
+            ],
+        );
+
+    const activeVariant =
+        genericVariantMode
+            ? matchingVariant ??
+              availableVariants[0] ??
+              null
+            : activeLegacyVariant;
+
+    const hasCompleteGenericSelection =
+        genericVariantMode &&
+        attributeGroups.length > 0 &&
+        attributeGroups.every(
+            group =>
+                Boolean(
+                    selectedAttributes[
+                        group.code
+                            .trim()
+                            .toLowerCase()
+                    ],
                 ),
-            [availableVariants],
+        );
+
+    const canAddToCart =
+        Boolean(
+            activeVariant?.id,
+        ) &&
+        Boolean(
+            activeVariant &&
+                activeVariant.stockQuantity >
+                    0,
+        ) &&
+        (
+            !genericVariantMode ||
+            hasCompleteGenericSelection
         );
 
     const images =
         product?.images ?? [];
 
+    const safeImageIndex =
+        Math.min(
+            imageIndex,
+            Math.max(
+                images.length - 1,
+                0,
+            ),
+        );
+
     const imageUrl =
-        images[imageIndex]?.imageUrl ??
+        images[
+            safeImageIndex
+        ]?.imageUrl ??
         images[0]?.imageUrl ??
         '/placeholder.jpg';
 
@@ -265,126 +438,222 @@ export default function ProductDetailPage() {
         product?.price ??
         0;
 
+    const comparePrice =
+        activeVariant?.comparePrice ??
+        product?.comparePrice ??
+        null;
+
+    const currency =
+        product?.currency ?? '';
+
     const formatPrice = (
         value: number,
     ) =>
         new Intl.NumberFormat(
-            'en-US',
+            isFa
+                ? 'fa-IR'
+                : 'en-US',
+            {
+                maximumFractionDigits: 0,
+            },
         ).format(value);
 
-    const handleAttributeSelect = (
-        code: string,
-        valueId: string,
-    ) => {
-        setSelectedAttributes(
-            (current) => ({
-                ...current,
-                [code]: valueId,
-            }),
-        );
+    const localizedRating =
+        product?.averageRating ?? 0;
 
-        setVariantId(null);
-        setQuantity(1);
-        setAdded(false);
-    };
+    const handleAttributeSelect =
+        (
+            code: string,
+            valueId: string,
+        ) => {
+            setSelectedAttributes(
+                current => ({
+                    ...current,
+                    [code
+                        .trim()
+                        .toLowerCase()]:
+                        valueId,
+                }),
+            );
 
-    const isAttributeValueAvailable = (
-        code: string,
-        valueId: string,
-    ) => {
-        return availableVariants.some(
-            (variant) => {
-                const currentValue =
-                    getAttributeValue(
-                        variant,
-                        code,
-                    );
+            setQuantity(1);
+            setAdded(false);
+        };
 
-                if (
-                    currentValue !==
-                    valueId
-                ) {
-                    return false;
-                }
+    const isAttributeValueAvailable =
+        (
+            code: string,
+            valueId: string,
+        ) =>
+            availableVariants.some(
+                variant => {
+                    if (
+                        getAttributeValue(
+                            variant,
+                            code,
+                        ) !== valueId
+                    ) {
+                        return false;
+                    }
 
-                return selectedEntries
-                    .filter(
-                        ([selectedCode]) =>
-                            selectedCode.toLowerCase() !==
-                            code.toLowerCase(),
-                    )
-                    .every(
-                        (
-                            [
+                    return selectedEntries
+                        .filter(
+                            ([selectedCode]) =>
+                                selectedCode
+                                    .trim()
+                                    .toLowerCase() !==
+                                code
+                                    .trim()
+                                    .toLowerCase(),
+                        )
+                        .every(
+                            ([
                                 selectedCode,
                                 selectedValueId,
-                            ],
-                        ) =>
-                            getAttributeValue(
-                                variant,
-                                selectedCode,
-                            ) ===
-                            selectedValueId,
-                    );
-            },
-        );
-    };
-
-    const decrease = () => {
-        setQuantity(
-            (value) =>
-                Math.max(
-                    1,
-                    value - 1,
-                ),
-        );
-    };
-
-    const increase = () => {
-        setQuantity(
-            (value) =>
-                Math.min(
-                    maxQuantity || 1,
-                    value + 1,
-                ),
-        );
-    };
-
-    const addToCart = () => {
-        if (
-            !activeVariant?.id ||
-            maxQuantity <= 0
-        ) {
-            return;
-        }
-
-        add.mutate(
-            {
-                productVariantId:
-                    activeVariant.id,
-                quantity,
-            },
-            {
-                onSuccess: () => {
-                    setAdded(true);
+                            ]) =>
+                                getAttributeValue(
+                                    variant,
+                                    selectedCode,
+                                ) ===
+                                selectedValueId,
+                        );
                 },
-            },
-        );
-    };
+            );
+
+    const decrease =
+        () => {
+            setQuantity(
+                value =>
+                    Math.max(
+                        1,
+                        value - 1,
+                    ),
+            );
+
+            setAdded(false);
+        };
+
+    const increase =
+        () => {
+            setQuantity(
+                value =>
+                    Math.min(
+                        Math.max(
+                            maxQuantity,
+                            1,
+                        ),
+                        value + 1,
+                    ),
+            );
+
+            setAdded(false);
+        };
+
+    const addToCart =
+        () => {
+            if (
+                !activeVariant?.id ||
+                maxQuantity <= 0 ||
+                !canAddToCart
+            ) {
+                return;
+            }
+
+            add.mutate(
+                {
+                    productVariantId:
+                        activeVariant.id,
+                    quantity,
+                },
+                {
+                    onSuccess:
+                        () => {
+                            setAdded(
+                                true,
+                            );
+                        },
+                },
+            );
+        };
 
     if (isLoading) {
         return (
             <Container
                 maxWidth="xl"
-                sx={{ py: 5 }}
+                sx={{
+                    py: 5,
+                    direction:
+                        isFa
+                            ? 'rtl'
+                            : 'ltr',
+                }}
             >
-                <Skeleton
-                    variant="rectangular"
-                    height={500}
-                    sx={{
-                        borderRadius: 3,
-                    }}
-                />
+                <Stack
+                    spacing={3}
+                >
+                    <Skeleton
+                        variant="rounded"
+                        height={40}
+                        width={180}
+                    />
+
+                    <Card
+                        sx={{
+                            p: 4,
+                            borderRadius: 4,
+                        }}
+                    >
+                        <Stack
+                            direction={{
+                                xs: 'column',
+                                lg: 'row',
+                            }}
+                            spacing={5}
+                        >
+                            <Skeleton
+                                variant="rounded"
+                                sx={{
+                                    width:
+                                        '100%',
+                                    height: {
+                                        xs: 350,
+                                        md: 520,
+                                    },
+                                }}
+                            />
+
+                            <Stack
+                                spacing={2}
+                                sx={{
+                                    flex: 1,
+                                }}
+                            >
+                                <Skeleton
+                                    height={30}
+                                    width="40%"
+                                />
+
+                                <Skeleton
+                                    height={60}
+                                    width="80%"
+                                />
+
+                                <Skeleton
+                                    height={30}
+                                    width="30%"
+                                />
+
+                                <Skeleton
+                                    height={100}
+                                />
+
+                                <Skeleton
+                                    height={50}
+                                />
+                            </Stack>
+                        </Stack>
+                    </Card>
+                </Stack>
             </Container>
         );
     }
@@ -393,7 +662,13 @@ export default function ProductDetailPage() {
         return (
             <Container
                 maxWidth="lg"
-                sx={{ py: 6 }}
+                sx={{
+                    py: 6,
+                    direction:
+                        isFa
+                            ? 'rtl'
+                            : 'ltr',
+                }}
             >
                 <Alert
                     severity="error"
@@ -405,11 +680,17 @@ export default function ProductDetailPage() {
                                 window.location.reload()
                             }
                         >
-                            Retry
+                            {getText(
+                                'common.retry',
+                                'Retry',
+                            )}
                         </Button>
                     }
                 >
-                    Failed to load product.
+                    {getText(
+                        'catalog.productLoadError',
+                        'Failed to load product.',
+                    )}
                 </Alert>
             </Container>
         );
@@ -419,7 +700,13 @@ export default function ProductDetailPage() {
         return (
             <Container
                 maxWidth="lg"
-                sx={{ py: 6 }}
+                sx={{
+                    py: 6,
+                    direction:
+                        isFa
+                            ? 'rtl'
+                            : 'ltr',
+                }}
             >
                 <Typography
                     variant="h5"
@@ -428,16 +715,24 @@ export default function ProductDetailPage() {
                         mb: 2,
                     }}
                 >
-                    Product not found
+                    {getText(
+                        'catalog.productNotFound',
+                        'Product not found.',
+                    )}
                 </Typography>
 
                 <Button
                     component={Link}
                     to="/products"
-                    startIcon={<ArrowBack />}
+                    startIcon={
+                        <ArrowBack />
+                    }
                     variant="outlined"
                 >
-                    Back to products
+                    {getText(
+                        'catalog.backToProducts',
+                        'Back to products',
+                    )}
                 </Button>
             </Container>
         );
@@ -446,10 +741,16 @@ export default function ProductDetailPage() {
     return (
         <Box
             sx={{
+                minHeight:
+                    '100vh',
                 py: {
                     xs: 3,
                     md: 5,
                 },
+                direction:
+                    isFa
+                        ? 'rtl'
+                        : 'ltr',
             }}
         >
             <Container maxWidth="xl">
@@ -465,7 +766,10 @@ export default function ProductDetailPage() {
                                 'flex-start',
                         }}
                     >
-                        Back to products
+                        {getText(
+                            'catalog.backToProducts',
+                            'Back to products',
+                        )}
                     </Button>
 
                     <Card
@@ -494,10 +798,13 @@ export default function ProductDetailPage() {
                             >
                                 <Box
                                     component="img"
-                                    src={imageUrl}
+                                    src={
+                                        imageUrl
+                                    }
                                     alt={
                                         product.name
                                     }
+                                    loading="eager"
                                     sx={{
                                         width:
                                             '100%',
@@ -511,18 +818,16 @@ export default function ProductDetailPage() {
                                         bgcolor:
                                             'background.default',
                                     }}
-                                    onError={(
-                                        event,
-                                    ) => {
-                                        const element =
-                                            event.currentTarget as HTMLImageElement;
+                                    onError={event => {
+                                        const image =
+                                            event.currentTarget;
 
                                         if (
-                                            !element.src.endsWith(
+                                            !image.src.endsWith(
                                                 '/placeholder.jpg',
                                             )
                                         ) {
-                                            element.src =
+                                            image.src =
                                                 '/placeholder.jpg';
                                         }
                                     }}
@@ -530,63 +835,68 @@ export default function ProductDetailPage() {
 
                                 {images.length >
                                     1 && (
-                                        <Stack
-                                            direction="row"
-                                            spacing={1}
-                                            sx={{
-                                                mt: 2,
-                                                overflowX:
-                                                    'auto',
-                                            }}
-                                        >
-                                            {images.map(
-                                                (
-                                                    image,
-                                                    index,
-                                                ) => (
-                                                    <IconButton
-                                                        key={
-                                                            image.id
+                                    <Stack
+                                        direction="row"
+                                        spacing={1}
+                                        sx={{
+                                            mt: 2,
+                                            overflowX:
+                                                'auto',
+                                            pb: 1,
+                                        }}
+                                    >
+                                        {images.map(
+                                            (
+                                                image,
+                                                index,
+                                            ) => (
+                                                <IconButton
+                                                    key={
+                                                        image.id
+                                                    }
+                                                    onClick={() =>
+                                                        setImageIndex(
+                                                            index,
+                                                        )
+                                                    }
+                                                    sx={{
+                                                        p: 0.5,
+                                                        border:
+                                                            '2px solid',
+                                                        borderColor:
+                                                            safeImageIndex ===
+                                                            index
+                                                                ? 'primary.main'
+                                                                : 'transparent',
+                                                        borderRadius:
+                                                            2,
+                                                        flexShrink: 0,
+                                                    }}
+                                                >
+                                                    <Box
+                                                        component="img"
+                                                        src={
+                                                            image.imageUrl
                                                         }
-                                                        onClick={() =>
-                                                            setImageIndex(
-                                                                index,
-                                                            )
+                                                        alt={
+                                                            image.altText ||
+                                                            product.name
                                                         }
+                                                        loading="lazy"
                                                         sx={{
-                                                            p: 0.5,
-                                                            border:
-                                                                '2px solid',
-                                                            borderColor:
-                                                                imageIndex ===
-                                                                    index
-                                                                    ? 'primary.main'
-                                                                    : 'transparent',
-                                                            borderRadius: 2,
+                                                            width: 70,
+                                                            height: 70,
+                                                            objectFit:
+                                                                'cover',
+                                                            borderRadius:
+                                                                1.5,
                                                         }}
-                                                    >
-                                                        <Box
-                                                            component="img"
-                                                            src={
-                                                                image.imageUrl
-                                                            }
-                                                            alt={
-                                                                image.altText ??
-                                                                product.name
-                                                            }
-                                                            sx={{
-                                                                width: 70,
-                                                                height: 70,
-                                                                objectFit:
-                                                                    'cover',
-                                                                borderRadius: 1.5,
-                                                            }}
-                                                        />
-                                                    </IconButton>
-                                                ),
-                                            )}
-                                        </Stack>
-                                    )}
+                                                    />
+                                                </IconButton>
+                                            ),
+                                        )}
+                                    </Stack>
+                                )}
                             </Box>
 
                             <Box
@@ -597,15 +907,13 @@ export default function ProductDetailPage() {
                                     },
                                 }}
                             >
-                                <Stack
-                                    spacing={2.5}
-                                >
+                                <Stack spacing={2.5}>
                                     {product.brandName && (
                                         <Typography
                                             variant="body2"
                                             color="text.secondary"
                                             sx={{
-                                                fontWeight: 600,
+                                                fontWeight: 700,
                                             }}
                                         >
                                             {
@@ -620,6 +928,10 @@ export default function ProductDetailPage() {
                                         sx={{
                                             fontWeight: 900,
                                             lineHeight: 1.2,
+                                            fontSize: {
+                                                xs: '2rem',
+                                                md: '3rem',
+                                            },
                                         }}
                                     >
                                         {
@@ -627,21 +939,96 @@ export default function ProductDetailPage() {
                                         }
                                     </Typography>
 
+                                    <Stack
+                                        direction="row"
+                                        spacing={2}
+                                        useFlexGap
+                                        sx={{
+                                            flexWrap: 'wrap',
+                                            alignItems: 'center',
+                                        }}
+                                    >
+                                        <Stack
+                                            direction="row"
+                                            spacing={1}
+                                            sx={{
+                                               
+                                                alignItems: 'center',
+                                            }}
+                                        >
+                                            <Rating
+                                                value={
+                                                    localizedRating
+                                                }
+                                                precision={
+                                                    0.1
+                                                }
+                                                readOnly
+                                                size="small"
+                                            />
+
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                            >
+                                                {formatPrice(
+                                                    product.averageRating,
+                                                )}{' '}
+                                                (
+                                                {
+                                                    product.reviewCount
+                                                }
+                                                )
+                                            </Typography>
+                                        </Stack>
+
+                                        {product.isInStock ? (
+                                            <Chip
+                                                icon={
+                                                    <CheckCircleOutlined />
+                                                }
+                                                label={getText(
+                                                    'catalog.inStock',
+                                                    'In stock',
+                                                )}
+                                                color="success"
+                                                size="small"
+                                                variant="outlined"
+                                            />
+                                        ) : (
+                                            <Chip
+                                                label={getText(
+                                                    'catalog.outOfStock',
+                                                    'Out of stock',
+                                                )}
+                                                color="default"
+                                                size="small"
+                                            />
+                                        )}
+                                    </Stack>
+
                                     <Typography
                                         variant="body2"
                                         color="text.secondary"
                                     >
-                                        SKU:{' '}
-                                        {activeVariant?.sku ||
-                                            product.sku}
+                                        {getText(
+                                            'catalog.sku',
+                                            'SKU',
+                                        )}
+                                        :{' '}
+                                        {
+                                            activeVariant?.sku ||
+                                            product.sku
+                                        }
                                     </Typography>
 
                                     <Divider />
 
                                     <Box>
-                                        {product.comparePrice &&
-                                            product.comparePrice >
-                                            price && (
+                                        {comparePrice !==
+                                            null &&
+                                            comparePrice >
+                                                price && (
                                                 <Typography
                                                     variant="body2"
                                                     color="text.secondary"
@@ -651,10 +1038,10 @@ export default function ProductDetailPage() {
                                                     }}
                                                 >
                                                     {formatPrice(
-                                                        product.comparePrice,
+                                                        comparePrice,
                                                     )}{' '}
                                                     {
-                                                        product.currency
+                                                        currency
                                                     }
                                                 </Typography>
                                             )}
@@ -671,42 +1058,52 @@ export default function ProductDetailPage() {
                                                 price,
                                             )}{' '}
                                             {
-                                                product.currency
+                                                currency
                                             }
                                         </Typography>
+
+                                        {product.discountPercentage >
+                                            0 && (
+                                            <Typography
+                                                variant="body2"
+                                                color="success.main"
+                                                sx={{
+                                                    mt: 0.5,
+                                                    fontWeight: 700,
+                                                }}
+                                            >
+                                                -
+                                                {
+                                                    product.discountPercentage
+                                                }
+                                                %
+                                            </Typography>
+                                        )}
                                     </Box>
 
                                     {genericVariantMode &&
                                         attributeGroups.length >
-                                        0 && (
+                                            0 && (
                                             <Stack
-                                                spacing={
-                                                    2.5
-                                                }
+                                                spacing={2.5}
                                             >
                                                 {attributeGroups.map(
-                                                    (
-                                                        group,
-                                                    ) => {
+                                                    group => {
+                                                        const code =
+                                                            group.code
+                                                                .trim()
+                                                                .toLowerCase();
+
                                                         const selectedValueId =
                                                             selectedAttributes[
-                                                            group
-                                                                .code
-                                                                .toLowerCase()
+                                                                code
                                                             ] ??
-                                                            getAttributeValue(
-                                                                activeVariant ??
-                                                                {
-                                                                    attributes:
-                                                                        [],
-                                                                },
-                                                                group.code,
-                                                            );
+                                                            '';
 
                                                         return (
                                                             <Box
                                                                 key={
-                                                                    group.code
+                                                                    code
                                                                 }
                                                             >
                                                                 <Typography
@@ -723,19 +1120,14 @@ export default function ProductDetailPage() {
 
                                                                 <Stack
                                                                     direction="row"
-                                                                    spacing={
-                                                                        1
-                                                                    }
+                                                                    spacing={1}
                                                                     useFlexGap
                                                                     sx={{
-                                                                        flexWrap:
-                                                                            'wrap',
+                                                                        flexWrap: 'wrap',
                                                                     }}
                                                                 >
                                                                     {group.values.map(
-                                                                        (
-                                                                            value,
-                                                                        ) => {
+                                                                        value => {
                                                                             const selected =
                                                                                 selectedValueId ===
                                                                                 value.id;
@@ -768,9 +1160,12 @@ export default function ProductDetailPage() {
                                                                                     sx={{
                                                                                         minWidth:
                                                                                             80,
+                                                                                        minHeight:
+                                                                                            42,
+                                                                                        borderRadius:
+                                                                                            2,
                                                                                         textTransform:
                                                                                             'none',
-                                                                                        borderRadius: 2,
                                                                                         opacity:
                                                                                             available
                                                                                                 ? 1
@@ -783,14 +1178,15 @@ export default function ProductDetailPage() {
                                                                                             sx={{
                                                                                                 width: 16,
                                                                                                 height: 16,
-                                                                                                mr: 1,
                                                                                                 borderRadius:
                                                                                                     '50%',
                                                                                                 backgroundColor:
                                                                                                     value.colorHex,
-                                                                                                border: '1px solid',
+                                                                                                border:
+                                                                                                    '1px solid',
                                                                                                 borderColor:
                                                                                                     'divider',
+                                                                                                mr: 1,
                                                                                             }}
                                                                                         />
                                                                                     )}
@@ -811,8 +1207,8 @@ export default function ProductDetailPage() {
                                         )}
 
                                     {!genericVariantMode &&
-                                        legacyVariants.length >
-                                        0 && (
+                                        availableVariants.length >
+                                            1 && (
                                             <Box>
                                                 <Typography
                                                     variant="h6"
@@ -821,111 +1217,110 @@ export default function ProductDetailPage() {
                                                         mb: 1,
                                                     }}
                                                 >
-                                                    Choose variant
+                                                    {getText(
+                                                        'catalog.variant',
+                                                        'Variant',
+                                                    )}
                                                 </Typography>
 
                                                 <Stack
                                                     direction="row"
-                                                    spacing={
-                                                        1
-                                                    }
+                                                    spacing={1}
                                                     useFlexGap
-                                                    sx={{
-                                                        flexWrap:
-                                                            'wrap',
-                                                    }}
+                                                sx={{
+                                                    flexWrap: 'wrap',
+                                                }}
                                                 >
-                                                    {legacyVariants.map(
-                                                        (
-                                                            variant,
-                                                        ) => (
-                                                            <Button
-                                                                key={
-                                                                    variant.id
-                                                                }
-                                                                variant={
-                                                                    activeVariant?.id ===
+                                                    {availableVariants.map(
+                                                        variant => {
+                                                            const selected =
+                                                                variant.id ===
+                                                                activeLegacyVariant?.id;
+
+                                                            return (
+                                                                <Button
+                                                                    key={
                                                                         variant.id
-                                                                        ? 'contained'
-                                                                        : 'outlined'
-                                                                }
-                                                                onClick={() => {
-                                                                    setVariantId(
-                                                                        variant.id,
-                                                                    );
-                                                                    setQuantity(
-                                                                        1,
-                                                                    );
-                                                                    setAdded(
-                                                                        false,
-                                                                    );
-                                                                }}
-                                                                sx={{
-                                                                    textTransform:
-                                                                        'none',
-                                                                    borderRadius: 2,
-                                                                }}
-                                                            >
-                                                                {[
-                                                                    variant.color,
-                                                                    variant.size,
-                                                                    variant.sku,
-                                                                ]
-                                                                    .filter(
-                                                                        Boolean,
-                                                                    )
-                                                                    .join(
-                                                                        ' • ',
+                                                                    }
+                                                                    variant={
+                                                                        selected
+                                                                            ? 'contained'
+                                                                            : 'outlined'
+                                                                    }
+                                                                    onClick={() => {
+                                                                        setSelectedLegacyVariantId(
+                                                                            variant.id,
+                                                                        );
+                                                                        setQuantity(
+                                                                            1,
+                                                                        );
+                                                                        setAdded(
+                                                                            false,
+                                                                        );
+                                                                    }}
+                                                                    sx={{
+                                                                        textTransform:
+                                                                            'none',
+                                                                        borderRadius:
+                                                                            2,
+                                                                    }}
+                                                                >
+                                                                    {getVariantLabel(
+                                                                        variant,
                                                                     )}
-                                                            </Button>
-                                                        ),
+                                                                </Button>
+                                                            );
+                                                        },
                                                     )}
                                                 </Stack>
                                             </Box>
                                         )}
 
-                                    {activeVariant &&
-                                        activeVariant.stockQuantity >
-                                        0 && (
+                                    {genericVariantMode &&
+                                        !hasCompleteGenericSelection && (
                                             <Alert
-                                                severity="success"
-                                                icon={
-                                                    <CheckCircleOutlined />
-                                                }
+                                                severity="info"
+                                                variant="outlined"
                                             >
-                                                In stock:{' '}
-                                                {
-                                                    activeVariant.stockQuantity
-                                                }
+                                                {getText(
+                                                    'catalog.selectAllVariants',
+                                                    'Please select all available options before adding the product to your cart.',
+                                                )}
                                             </Alert>
                                         )}
 
-                                    {(!activeVariant ||
-                                        activeVariant.stockQuantity <=
-                                        0) && (
-                                            <Alert severity="warning">
-                                                This product is currently
-                                                out of stock.
+                                    {genericVariantMode &&
+                                        hasCompleteGenericSelection &&
+                                        !matchingVariant && (
+                                            <Alert
+                                                severity="warning"
+                                                variant="outlined"
+                                            >
+                                                {getText(
+                                                    'catalog.variantUnavailable',
+                                                    'The selected combination is not available.',
+                                                )}
                                             </Alert>
                                         )}
 
-                                    <Box>
-                                        <Typography
-                                            variant="h6"
-                                            sx={{
-                                                fontWeight: 800,
-                                                mb: 1,
-                                            }}
-                                        >
-                                            Quantity
-                                        </Typography>
-
+                                    <Stack
+                                        direction={{
+                                            xs: 'column',
+                                            sm: 'row',
+                                        }}
+                                        spacing={2}
+                                        sx={{
+                                            alignItems: {
+                                                xs: 'stretch',
+                                                sm: 'center',
+                                            },
+                                        }}
+                                    >
                                         <Stack
                                             direction="row"
                                             spacing={1}
                                             sx={{
-                                                alignItems:
-                                                    'center',
+                                                alignItems: 'center',
                                             }}
                                         >
                                             <IconButton
@@ -936,63 +1331,26 @@ export default function ProductDetailPage() {
                                                     quantity <=
                                                     1
                                                 }
+                                                aria-label={getText(
+                                                    'catalog.decreaseQuantity',
+                                                    'Decrease quantity',
+                                                )}
                                             >
                                                 <Remove />
                                             </IconButton>
 
-                                            <TextField
-                                                value={
+                                            <Typography
+                                                sx={{
+                                                    minWidth: 32,
+                                                    textAlign:
+                                                        'center',
+                                                    fontWeight: 800,
+                                                }}
+                                            >
+                                                {
                                                     quantity
                                                 }
-                                                onChange={(
-                                                    event,
-                                                ) => {
-                                                    const value =
-                                                        Number(
-                                                            event
-                                                                .target
-                                                                .value,
-                                                        );
-
-                                                    if (
-                                                        !Number.isFinite(
-                                                            value,
-                                                        )
-                                                    ) {
-                                                        return;
-                                                    }
-
-                                                    setQuantity(
-                                                        Math.min(
-                                                            Math.max(
-                                                                1,
-                                                                Math.floor(
-                                                                    value,
-                                                                ),
-                                                            ),
-                                                            maxQuantity ||
-                                                            1,
-                                                        ),
-                                                    );
-                                                }}
-                                                sx={{
-                                                    width: 90,
-                                                    '& input':
-                                                    {
-                                                        textAlign:
-                                                            'center',
-                                                    },
-                                                }}
-                                                slotProps={{
-                                                    htmlInput:
-                                                    {
-                                                        min: 1,
-                                                        max:
-                                                            maxQuantity ||
-                                                            1,
-                                                    },
-                                                }}
-                                            />
+                                            </Typography>
 
                                             <IconButton
                                                 onClick={
@@ -1000,123 +1358,193 @@ export default function ProductDetailPage() {
                                                 }
                                                 disabled={
                                                     maxQuantity <=
-                                                    0 ||
+                                                        0 ||
                                                     quantity >=
-                                                    maxQuantity
+                                                        maxQuantity
                                                 }
+                                                aria-label={getText(
+                                                    'catalog.increaseQuantity',
+                                                    'Increase quantity',
+                                                )}
                                             >
                                                 <Add />
                                             </IconButton>
                                         </Stack>
-                                    </Box>
 
-                                    <Button
-                                        variant="contained"
-                                        size="large"
-                                        fullWidth
-                                        startIcon={
-                                            added ? (
-                                                <CheckCircleOutlined />
-                                            ) : (
-                                                <ShoppingCartOutlined />
-                                            )
-                                        }
-                                        disabled={
-                                            !activeVariant?.id ||
-                                            maxQuantity <=
-                                            0 ||
-                                            add.isPending
-                                        }
-                                        onClick={
-                                            addToCart
-                                        }
-                                        sx={{
-                                            py: 1.5,
-                                            borderRadius: 2.5,
-                                            fontWeight: 800,
-                                        }}
-                                    >
-                                        {add.isPending
-                                            ? 'Adding...'
-                                            : added
-                                                ? 'Added to cart'
-                                                : 'Add to cart'}
-                                    </Button>
-
-                                    {added && (
                                         <Button
-                                            component={
-                                                Link
-                                            }
-                                            to="/cart"
-                                            variant="outlined"
                                             fullWidth
+                                            size="large"
+                                            variant="contained"
+                                            startIcon={
+                                                added ? (
+                                                    <CheckCircleOutlined />
+                                                ) : (
+                                                    <ShoppingCartOutlined />
+                                                )
+                                            }
+                                            onClick={
+                                                addToCart
+                                            }
+                                            disabled={
+                                                !canAddToCart ||
+                                                add.isPending
+                                            }
                                             sx={{
+                                                minHeight: 52,
                                                 borderRadius: 2.5,
-                                                fontWeight: 700,
+                                                fontWeight: 800,
                                             }}
                                         >
-                                            View cart
+                                            {add.isPending
+                                                ? getText(
+                                                      'catalog.addingToCart',
+                                                      'Adding...',
+                                                  )
+                                                : added
+                                                  ? getText(
+                                                        'catalog.addedToCart',
+                                                        'Added to cart',
+                                                    )
+                                                  : getText(
+                                                        'catalog.addToCart',
+                                                        'Add to cart',
+                                                    )}
                                         </Button>
-                                    )}
+                                    </Stack>
 
-                                    {add.isError && (
-                                        <Alert
-                                            severity="error"
+                                    {maxQuantity > 0 && (
+                                        <Typography
+                                            variant="caption"
+                                            color="text.secondary"
                                         >
-                                            Could not add the product
-                                            to the cart.
-                                        </Alert>
+                                            {getText(
+                                                'catalog.availableQuantity',
+                                                'Available quantity',
+                                            )}
+                                            :{' '}
+                                            {formatPrice(
+                                                maxQuantity,
+                                            )}
+                                        </Typography>
                                     )}
 
                                     {product.shortDescription && (
-                                        <Box>
-                                            <Typography
-                                                variant="h6"
-                                                sx={{
-                                                    fontWeight: 800,
-                                                    mb: 1,
-                                                }}
-                                            >
-                                                Description
-                                            </Typography>
+                                        <>
+                                            <Divider />
 
                                             <Typography
                                                 color="text.secondary"
                                                 sx={{
                                                     lineHeight: 1.9,
-                                                    whiteSpace:
-                                                        'pre-line',
                                                 }}
                                             >
                                                 {
                                                     product.shortDescription
                                                 }
                                             </Typography>
-                                        </Box>
+                                        </>
                                     )}
 
-                                    {product.description && (
-                                        <Box>
-                                            <Divider
-                                                sx={{
-                                                    my: 2,
-                                                }}
-                                            />
+                                    {(product.description ||
+                                        product.categories.length >
+                                            0 ||
+                                        product.manufacturerName) && (
+                                        <>
+                                            <Divider />
 
-                                            <Typography
-                                                color="text.secondary"
-                                                sx={{
-                                                    lineHeight: 1.9,
-                                                    whiteSpace:
-                                                        'pre-line',
-                                                }}
+                                            <Stack
+                                                spacing={2}
                                             >
-                                                {
-                                                    product.description
-                                                }
-                                            </Typography>
-                                        </Box>
+                                                {product.description && (
+                                                    <Box>
+                                                        <Typography
+                                                            variant="h6"
+                                                            sx={{
+                                                                fontWeight: 800,
+                                                                mb: 1,
+                                                            }}
+                                                        >
+                                                            {getText(
+                                                                'catalog.description',
+                                                                'Description',
+                                                            )}
+                                                        </Typography>
+
+                                                        <Typography
+                                                            color="text.secondary"
+                                                            sx={{
+                                                                whiteSpace:
+                                                                    'pre-line',
+                                                                lineHeight: 1.9,
+                                                            }}
+                                                        >
+                                                            {
+                                                                product.description
+                                                            }
+                                                        </Typography>
+                                                    </Box>
+                                                )}
+
+                                                {product.categories.length >
+                                                    0 && (
+                                                    <Box>
+                                                        <Typography
+                                                            variant="body2"
+                                                            color="text.secondary"
+                                                            sx={{
+                                                                mb: 1,
+                                                                fontWeight: 700,
+                                                            }}
+                                                        >
+                                                            {getText(
+                                                                'catalog.categories',
+                                                                'Categories',
+                                                            )}
+                                                        </Typography>
+
+                                                        <Stack
+                                                            direction="row"
+                                                            spacing={1}
+                                                            useFlexGap
+                                                            sx={{
+                                                                flexWrap: 'wrap',
+                                                            }}
+                                                        >
+                                                            {product.categories.map(
+                                                                category => (
+                                                                    <Chip
+                                                                        key={
+                                                                            category
+                                                                        }
+                                                                        label={
+                                                                            category
+                                                                        }
+                                                                        size="small"
+                                                                        variant="outlined"
+                                                                    />
+                                                                ),
+                                                            )}
+                                                        </Stack>
+                                                    </Box>
+                                                )}
+
+                                                {product.manufacturerName && (
+                                                    <Typography
+                                                        variant="body2"
+                                                        color="text.secondary"
+                                                    >
+                                                        {getText(
+                                                            'catalog.manufacturer',
+                                                            'Manufacturer',
+                                                        )}
+                                                        :{' '}
+                                                        {
+                                                            product.manufacturerName
+                                                        }
+                                                    </Typography>
+                                                )}
+                                            </Stack>
+                                        </>
                                     )}
                                 </Stack>
                             </Box>
