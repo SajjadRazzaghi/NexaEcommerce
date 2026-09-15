@@ -1,6 +1,6 @@
-
 import {
     type FormEvent,
+    useMemo,
     useState,
 } from 'react';
 
@@ -9,7 +9,9 @@ import {
     useNavigate,
 } from 'react-router-dom';
 
-import { useQuery } from '@tanstack/react-query';
+import {
+    useQuery,
+} from '@tanstack/react-query';
 
 import {
     Search,
@@ -18,26 +20,52 @@ import {
 } from 'lucide-react';
 
 import { appearanceApi } from '@/lib/api/appearance';
-import { useAuth } from '@/hooks/use-auth';
 
-const DEFAULT_STORE_NAME = 'NexaECommerce';
+import {
+    useAuth,
+} from '@/hooks/use-auth';
+
+import {
+    useCart,
+} from '@/modules/cart/hooks/useCart';
+
+const DEFAULT_STORE_NAME =
+    'NexaECommerce';
 
 export default function StoreHeader() {
-    const navigate = useNavigate();
-    const [query, setQuery] = useState('');
+    const navigate =
+        useNavigate();
+
+    const [
+        query,
+        setQuery,
+    ] = useState('');
 
     const {
         user,
         isAuthenticated,
-        isLoading: authLoading,
+        isLoading:
+            authLoading,
     } = useAuth();
 
-    const { data: appearance } = useQuery({
-        queryKey: ['appearance'],
-        queryFn: appearanceApi.get,
-        staleTime: 5 * 60_000,
+    const {
+        data: appearance,
+    } = useQuery({
+        queryKey: [
+            'appearance',
+        ],
+        queryFn:
+            appearanceApi.get,
+        staleTime:
+            5 * 60_000,
         retry: 1,
     });
+
+    const {
+        data: cart,
+        isLoading:
+            cartLoading,
+    } = useCart();
 
     const storeName =
         appearance?.storeName?.trim() ||
@@ -53,17 +81,44 @@ export default function StoreHeader() {
         'My account';
 
     const userInitial =
-        userName.charAt(0).toUpperCase() || 'U';
+        userName
+            .charAt(0)
+            .toUpperCase() ||
+        'U';
+
+    const cartItemCount =
+        useMemo(
+            () =>
+                cart?.items.reduce(
+                    (
+                        total,
+                        item,
+                    ) =>
+                        total +
+                        item.quantity,
+                    0,
+                ) ?? 0,
+            [
+                cart,
+            ],
+        );
+
+    const hasCartItems =
+        cartItemCount > 0;
 
     const submitSearch = (
         event: FormEvent<HTMLFormElement>,
     ) => {
         event.preventDefault();
 
-        const value = query.trim();
+        const value =
+            query.trim();
 
         if (!value) {
-            navigate('/products');
+            navigate(
+                '/products',
+            );
+
             return;
         }
 
@@ -78,11 +133,15 @@ export default function StoreHeader() {
                 <Link
                     to="/"
                     className="flex shrink-0 items-center gap-2"
-                    aria-label={storeName}
+                    aria-label={
+                        storeName
+                    }
                 >
                     {logoUrl ? (
                         <img
-                            src={logoUrl}
+                            src={
+                                logoUrl
+                            }
                             alt=""
                             className="size-10 shrink-0 rounded-xl object-contain"
                         />
@@ -94,7 +153,9 @@ export default function StoreHeader() {
 
                     <div className="hidden sm:block">
                         <div className="max-w-52 truncate text-lg font-black tracking-tight">
-                            {storeName}
+                            {
+                                storeName
+                            }
                         </div>
 
                         <div className="text-[11px] text-muted-foreground">
@@ -104,16 +165,26 @@ export default function StoreHeader() {
                 </Link>
 
                 <form
-                    onSubmit={submitSearch}
+                    onSubmit={
+                        submitSearch
+                    }
                     className="mx-auto flex min-w-0 flex-1"
                 >
                     <div className="flex w-full items-center rounded-2xl border bg-muted/40 px-3 transition-colors focus-within:border-primary">
                         <Search className="size-5 shrink-0 text-muted-foreground" />
 
                         <input
-                            value={query}
-                            onChange={(event) =>
-                                setQuery(event.target.value)
+                            value={
+                                query
+                            }
+                            onChange={(
+                                event,
+                            ) =>
+                                setQuery(
+                                    event
+                                        .target
+                                        .value,
+                                )
                             }
                             placeholder="Search products..."
                             className="h-11 w-full bg-transparent px-3 text-sm outline-none"
@@ -138,11 +209,48 @@ export default function StoreHeader() {
 
                 <Link
                     to="/cart"
-                    className="flex size-11 shrink-0 items-center justify-center rounded-xl border transition-colors hover:bg-muted"
-                    aria-label="Shopping cart"
-                    title="Shopping cart"
+                    className={`relative flex size - 11 shrink - 0 items - center justify - center rounded - xl border transition - colors hover: bg - muted ${
+    hasCartItems
+        ? 'border-primary/50 bg-primary/5'
+        : 'text-muted-foreground'
+} `}
+                    aria-label={
+                        hasCartItems
+                            ? `Shopping cart with ${ cartItemCount } items`
+                            : 'Shopping cart is empty'
+                    }
+                    title={
+                        hasCartItems
+                            ? `Shopping cart(${ cartItemCount })`
+                            : 'Shopping cart is empty'
+                    }
                 >
-                    <ShoppingBag className="size-5" />
+                    <ShoppingBag
+                        className={`size - 5 ${
+    hasCartItems
+        ? 'text-primary'
+        : ''
+} `}
+                    />
+
+                    {hasCartItems && (
+                        <span
+                            className="absolute -end-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold leading-none text-primary-foreground ring-2 ring-background"
+                            aria-hidden="true"
+                        >
+                            {cartItemCount >
+                            99
+                                ? '99+'
+                                : cartItemCount}
+                        </span>
+                    )}
+
+                    {cartLoading && (
+                        <span
+                            className="absolute bottom-1 start-1 size-1.5 animate-pulse rounded-full bg-muted-foreground"
+                            aria-hidden="true"
+                        />
+                    )}
                 </Link>
 
                 {isAuthenticated ? (
@@ -154,19 +262,25 @@ export default function StoreHeader() {
                     >
                         {user?.avatarUrl?.trim() ? (
                             <img
-                                src={user.avatarUrl}
+                                src={
+                                    user.avatarUrl
+                                }
                                 alt=""
                                 className="size-9 shrink-0 rounded-full object-cover"
                             />
                         ) : (
                             <div className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
-                                {userInitial}
+                                {
+                                    userInitial
+                                }
                             </div>
                         )}
 
                         <div className="hidden min-w-0 max-w-40 md:block">
                             <div className="truncate text-sm font-bold">
-                                {userName}
+                                {
+                                    userName
+                                }
                             </div>
 
                             <div className="text-[11px] text-muted-foreground">
