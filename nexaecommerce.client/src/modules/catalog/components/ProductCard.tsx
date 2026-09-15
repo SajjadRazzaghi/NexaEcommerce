@@ -1,8 +1,14 @@
-import { useState } from 'react';
+import {
+    useState,
+} from 'react';
 
 import {
     Link,
 } from 'react-router-dom';
+
+import {
+    useTranslation,
+} from 'react-i18next';
 
 import {
     Box,
@@ -11,9 +17,7 @@ import {
     CardContent,
     Chip,
     IconButton,
-    Rating,
     Stack,
-    Tooltip,
     Typography,
 } from '@mui/material';
 
@@ -41,9 +45,28 @@ interface ProductCardProps {
     product: ProductListItem;
 }
 
+function getProductUrl(
+    slug: string,
+): string {
+    return `/ products / ${
+    encodeURIComponent(
+        slug.trim(),
+    )
+} `;
+}
+
 export default function ProductCard({
     product,
 }: ProductCardProps) {
+    const {
+        i18n,
+    } = useTranslation();
+
+    const isFa =
+        i18n.language
+            .toLowerCase()
+            .startsWith('fa');
+
     const [
         favorite,
         setFavorite,
@@ -57,7 +80,9 @@ export default function ProductCard({
     const [
         errorMessage,
         setErrorMessage,
-    ] = useState<string | null>(null);
+    ] = useState<string | null>(
+        null,
+    );
 
     const [
         variantDialogOpen,
@@ -67,7 +92,9 @@ export default function ProductCard({
     const [
         variantProduct,
         setVariantProduct,
-    ] = useState<Product | null>(null);
+    ] = useState<Product | null>(
+        null,
+    );
 
     const [
         variantLoading,
@@ -79,13 +106,14 @@ export default function ProductCard({
     } = useCartMutations();
 
     const price =
-        product.finalPrice ??
-        product.price;
+        typeof product.finalPrice ===
+            'number'
+            ? product.finalPrice
+            : product.price;
 
     const hasDiscount =
         product.comparePrice != null &&
-        product.comparePrice >
-        price;
+        product.comparePrice > price;
 
     const discountPercentage =
         product.discountPercentage > 0
@@ -99,7 +127,7 @@ export default function ProductCard({
                         (
                             product.comparePrice -
                             price
-                        )/
+                        ) /
                         product.comparePrice
                     ) *
                     100,
@@ -107,130 +135,199 @@ export default function ProductCard({
                 : 0;
 
     const image =
-        product.mainImage ||
+        product.mainImage?.trim() ||
         '/placeholder.jpg';
 
     const formatPrice = (
         value: number,
     ) =>
         new Intl.NumberFormat(
-            'fa-IR',
+            isFa
+                ? 'fa-IR'
+                : undefined,
+            {
+                maximumFractionDigits: 0,
+            },
         ).format(value);
 
-    const closeVariantDialog = () => {
-        setVariantDialogOpen(false);
-        setVariantProduct(null);
-        setVariantLoading(false);
-    };
+    const closeVariantDialog =
+        () => {
+            setVariantDialogOpen(
+                false,
+            );
 
-    const handleAddToCart = async () => {
-        if (
-            !product.isInStock ||
-            add.isPending ||
-            variantLoading
-        ) {
-            return;
-        }
+            setVariantProduct(
+                null,
+            );
 
-        setErrorMessage(null);
-        setVariantLoading(true);
+            setVariantLoading(
+                false,
+            );
+        };
 
-        try {
-           /*
-             * ProductListItem does not contain
-             * variant information.
-             *
-             * Load the complete product first.
-             *
-             * IMPORTANT:
-             * productsApi.getBySlug() returns Product
-             * directly, not an AxiosResponse.
-             */
-            const fullProduct =
-                await productsApi.getBySlug(
-                    product.slug,
-                );
-
-            const sellableVariants =
-                fullProduct.variants.filter(
-                    variant =>
-                        variant.isActive &&
-                        variant.stockQuantity > 0,
-                );
-
+    const handleAddToCart =
+        async () => {
             if (
-                sellableVariants.length === 0
+                !product.isInStock ||
+                add.isPending ||
+                variantLoading
             ) {
-                setErrorMessage(
-                    'این محصول در حال حاضر موجود نیست.',
-                );
                 return;
             }
 
-           /*
-             * If the product has exactly one
-             * sellable variant, add it directly.
-             */
+            setErrorMessage(
+                null,
+            );
+
+            setVariantLoading(
+                true,
+            );
+
+            try {
+                /*
+                 * ProductListItem intentionally does not
+                 * contain the complete variant collection.
+                 * Load the canonical product by slug.
+                 */
+                const fullProduct =
+                    await productsApi.getBySlug(
+                        product.slug,
+                    );
+
+                const sellableVariants =
+                    fullProduct.variants.filter(
+                        variant =>
+                            variant.isActive &&
+                            variant.stockQuantity > 0,
+                    );
+
+                if (
+                    sellableVariants.length === 0
+                ) {
+                    setErrorMessage(
+                        isFa
+                            ? 'این محصول در حال حاضر موجود نیست.'
+                            : 'This product is currently out of stock.',
+                    );
+
+                    return;
+                }
+
+                if (
+                    sellableVariants.length === 1
+                ) {
+                    await add.mutateAsync({
+                        productVariantId:
+                            sellableVariants[0]
+                                .id,
+                        quantity: 1,
+                    });
+
+                    setAdded(
+                        true,
+                    );
+
+                    return;
+                }
+
+                /*
+                 * Multiple sellable variants:
+                 * customer must select the exact variant.
+                 */
+                setVariantProduct(
+                    fullProduct,
+                );
+
+                setVariantDialogOpen(
+                    true,
+                );
+            } catch {
+                setErrorMessage(
+                    isFa
+                        ? 'افزودن محصول به سبد خرید انجام نشد.'
+                        : 'The product could not be added to the cart.',
+                );
+            } finally {
+                setVariantLoading(
+                    false,
+                );
+            }
+        };
+
+    const handleVariantConfirm =
+        async (
+            variant: ProductVariant,
+        ) => {
             if (
-                sellableVariants.length === 1
+                !variant.isActive ||
+                variant.stockQuantity <= 0 ||
+                add.isPending
             ) {
+                return;
+            }
+
+            setErrorMessage(
+                null,
+            );
+
+            try {
                 await add.mutateAsync({
                     productVariantId:
-                        sellableVariants[0].id,
+                        variant.id,
                     quantity: 1,
                 });
 
-                setAdded(true);
-                return;
+                setAdded(
+                    true,
+                );
+
+                closeVariantDialog();
+            } catch {
+                setErrorMessage(
+                    isFa
+                        ? 'افزودن محصول به سبد خرید انجام نشد.'
+                        : 'The product could not be added to the cart.',
+                );
             }
+        };
 
-           /*
-             * Multiple variants:
-             * let the customer choose the
-             * exact color/size/attributes.
-             */
-            setVariantProduct(
-                fullProduct,
+    const productUrl =
+        getProductUrl(
+            product.slug,
+        );
+
+    const stockLabel =
+        product.isInStock
+            ? (
+                isFa
+                    ? 'موجود'
+                    : 'In stock'
+            )
+            : (
+                isFa
+                    ? 'ناموجود'
+                    : 'Out of stock'
             );
 
-            setVariantDialogOpen(true);
-        } catch {
-            setErrorMessage(
-                'افزودن محصول به سبد خرید انجام نشد.',
-            );
-        } finally {
-            setVariantLoading(false);
-        }
-    };
+    const addedLabel =
+        isFa
+            ? 'مشاهده سبد'
+            : 'View cart';
 
-    const handleVariantConfirm = async (
-        variant: ProductVariant,
-    ) => {
-        if (
-            !variant.isActive ||
-            variant.stockQuantity <= 0 ||
-            add.isPending
-        ) {
-            return;
-        }
+    const addLabel =
+        isFa
+            ? 'افزودن به سبد'
+            : 'Add to cart';
 
-        setErrorMessage(null);
+    const addingLabel =
+        isFa
+            ? 'در حال افزودن...'
+            : 'Adding...';
 
-        try {
-            await add.mutateAsync({
-                productVariantId:
-                    variant.id,
-                quantity: 1,
-            });
-
-            setAdded(true);
-            closeVariantDialog();
-        } catch {
-            setErrorMessage(
-                'افزودن محصول به سبد خرید انجام نشد.',
-            );
-        }
-    };
+    const viewLabel =
+        isFa
+            ? 'مشاهده'
+            : 'View';
 
     return (
         <>
@@ -243,7 +340,8 @@ export default function ProductCard({
                     overflow: 'hidden',
                     borderRadius: 3,
                     border: '1px solid',
-                    borderColor: 'divider',
+                    borderColor:
+                        'divider',
                     backgroundColor:
                         'background.paper',
                     transition:
@@ -257,7 +355,11 @@ export default function ProductCard({
             >
                 {discountPercentage > 0 && (
                     <Chip
-                        label={`${ discountPercentage }% OFF`}
+                        label={
+                            isFa
+                                ? `${ discountPercentage }٪ تخفیف`
+                                : `${ discountPercentage }% OFF`
+                        }
                         color="error"
                         size="small"
                         sx={{
@@ -268,52 +370,55 @@ export default function ProductCard({
                             zIndex: 3,
                             fontWeight: 700,
                         }}
-                   />
+                    />
                 )}
 
-                <Tooltip
-                    title={
+                <IconButton
+                    aria-label={
                         favorite
-                            ? 'Remove from favorites'
-                            : 'Add to favorites'
-                    }
-                >
-                    <IconButton
-                        onClick={() =>
-                            setFavorite(
-                                value =>
-                                    !value,
+                            ? (
+                                isFa
+                                    ? 'حذف از علاقه‌مندی‌ها'
+                                    : 'Remove from favorites'
                             )
-                        }
-                        sx={{
-                            position:
-                                'absolute',
-                            top: 8,
-                            left: 8,
-                            zIndex: 3,
+                            : (
+                                isFa
+                                    ? 'افزودن به علاقه‌مندی‌ها'
+                                    : 'Add to favorites'
+                            )
+                    }
+                    onClick={() =>
+                        setFavorite(
+                            value =>
+                                !value,
+                        )
+                    }
+                    sx={{
+                        position:
+                            'absolute',
+                        top: 8,
+                        left: 8,
+                        zIndex: 3,
+                        backgroundColor:
+                            'rgba(255,255,255,.92)',
+                        '&:hover': {
                             backgroundColor:
-                                'rgba(255,255,255,.92)',
-                            '&:hover': {
-                                backgroundColor:
-                                    '#fff',
-                            },
-                        }}
-                    >
-                        {favorite ? (
-                            <Favorite color="error"/>
-                        ) : (
-                            <FavoriteBorder/>
-                        )}
-                    </IconButton>
-                </Tooltip>
+                                '#fff',
+                        },
+                    }}
+                >
+                    {favorite ? (
+                        <Favorite
+                            color="error"
+                        />
+                    ) : (
+                        <FavoriteBorder />
+                    )}
+                </IconButton>
 
                 <Box
                     component={Link}
-                    to={`/products/${
-    encodeURIComponent(
-        product.slug,
-    )
-} `}
+                    to={productUrl}
                     sx={{
                         display:
                             'block',
@@ -328,7 +433,10 @@ export default function ProductCard({
                     <Box
                         component="img"
                         src={image}
-                        alt={product.name}
+                        alt={
+                            product.name
+                        }
+                        loading="lazy"
                         sx={{
                             display:
                                 'block',
@@ -344,16 +452,26 @@ export default function ProductCard({
                             transition:
                                 'transform .4s ease',
                             '.MuiCard-root:hover &':
-                            {
-                                transform:
-                                    'scale(1.05)',
-                            },
+                                {
+                                    transform:
+                                        'scale(1.05)',
+                                },
                         }}
                         onError={event => {
+                            if (
+                                event
+                                    .currentTarget
+                                    .src.endsWith(
+                                        '/placeholder.jpg',
+                                    )
+                            ) {
+                                return;
+                            }
+
                             event.currentTarget.src =
                                 '/placeholder.jpg';
                         }}
-                   />
+                    />
                 </Box>
 
                 <CardContent
@@ -366,9 +484,13 @@ export default function ProductCard({
                         p: 2,
                         gap: 1,
                         textAlign:
-                            'right',
+                            isFa
+                                ? 'right'
+                                : 'left',
                         direction:
-                            'rtl',
+                            isFa
+                                ? 'rtl'
+                                : 'ltr',
                     }}
                 >
                     {product.brandName && (
@@ -388,11 +510,7 @@ export default function ProductCard({
 
                     <Typography
                         component={Link}
-                        to={`/products/${
-    encodeURIComponent(
-        product.slug,
-    )
-} `}
+                        to={productUrl}
                         variant="subtitle1"
                         sx={{
                             color:
@@ -424,40 +542,16 @@ export default function ProductCard({
                         }
                     </Typography>
 
-                    <Stack
-                        direction="row"
-                        spacing={1}
-                        sx={{
-                            direction:
-                                'ltr',
-                            alignItems:
-                                'center',
-                        }}
-                    >
-                        <Rating
-                            value={0}
-                            precision={0.5}
-                            size="small"
-                            readOnly
-                       />
-
-                        <Typography
-                            variant="caption"
-                            color="text.secondary"
-                        >
-                            No reviews
-                        </Typography>
-                    </Stack>
-
                     <Box
                         sx={{
-                            flexGrow: 1,
+                            flexGrow:
+                                1,
                         }}
-                   />
+                    />
 
                     {hasDiscount &&
                         product.comparePrice !=
-                        null && (
+                            null && (
                             <Typography
                                 variant="body2"
                                 color="text.secondary"
@@ -466,9 +560,11 @@ export default function ProductCard({
                                         'line-through',
                                 }}
                             >
-                                {formatPrice(
-                                    product.comparePrice,
-                                )}{' '}
+                                {
+                                    formatPrice(
+                                        product.comparePrice,
+                                    )
+                                }{' '}
                                 {
                                     product.currency
                                 }
@@ -485,9 +581,11 @@ export default function ProductCard({
                                 '1.15rem',
                         }}
                     >
-                        {formatPrice(
-                            price,
-                        )}{' '}
+                        {
+                            formatPrice(
+                                price,
+                            )
+                        }{' '}
                         {
                             product.currency
                         }
@@ -504,9 +602,7 @@ export default function ProductCard({
                                 700,
                         }}
                     >
-                        {product.isInStock
-                            ? '● موجود در انبار'
-                            : '● ناموجود'}
+                        • {stockLabel}
                     </Typography>
 
                     {errorMessage && (
@@ -534,12 +630,12 @@ export default function ProductCard({
                         }}
                     >
                         <Button
-                            component={Link}
-                            to={`/products/${
-    encodeURIComponent(
-        product.slug,
-    )
-} `}
+                            component={
+                                Link
+                            }
+                            to={
+                                productUrl
+                            }
                             variant="outlined"
                             sx={{
                                 minWidth:
@@ -553,62 +649,77 @@ export default function ProductCard({
                                     46,
                             }}
                         >
-                            مشاهده
+                            {
+                                viewLabel
+                            }
                         </Button>
 
-                        <Button
-                            type="button"
-                            variant="contained"
-                            disabled={
-                                !product.isInStock ||
-                                add.isPending ||
+                        {added ? (
+                            <Button
+                                component={
+                                    Link
+                                }
+                                to="/cart"
+                                variant="contained"
+                                startIcon={
+                                    <CheckCircleOutlined />
+                                }
+                                sx={{
+                                    borderRadius:
+                                        2,
+                                    flex: 1.5,
+                                    fontWeight:
+                                        800,
+                                    minHeight:
+                                        46,
+                                    whiteSpace:
+                                        'nowrap',
+                                }}
+                            >
+                                {
+                                    addedLabel
+                                }
+                            </Button>
+                        ) : (
+                            <Button
+                                type="button"
+                                variant="contained"
+                                disabled={
+                                    !product.isInStock ||
+                                    add.isPending ||
+                                    variantLoading
+                                }
+                                startIcon={
+                                    add.isPending ||
+                                    variantLoading
+                                        ? (
+                                            <ShoppingCartOutlined />
+                                        )
+                                        : (
+                                            <ShoppingCartOutlined />
+                                        )
+                                }
+                                onClick={
+                                    handleAddToCart
+                                }
+                                sx={{
+                                    borderRadius:
+                                        2,
+                                    flex: 1.5,
+                                    fontWeight:
+                                        800,
+                                    minHeight:
+                                        46,
+                                    whiteSpace:
+                                        'nowrap',
+                                }}
+                            >
+                                {add.isPending ||
                                 variantLoading
-                            }
-                            startIcon={
-                                add.isPending ||
-                                variantLoading ? (
-                                    <ShoppingCartOutlined/>
-                                ) : added ? (
-                                    <CheckCircleOutlined/>
-                                ) : (
-                                    <ShoppingCartOutlined/>
-                                )
-                            }
-                            onClick={
-                                added
-                                    ? undefined
-                                    : handleAddToCart
-                            }
-                            component={
-                                added
-                                    ? Link
-                                    : 'button'
-                            }
-                            to={
-                                added
-                                    ? '/cart'
-                                    : undefined
-                            }
-                            sx={{
-                                borderRadius:
-                                    2,
-                                flex:
-                                    1.5,
-                                fontWeight:
-                                    800,
-                                minHeight:
-                                    46,
-                                whiteSpace:
-                                    'nowrap',
-                            }}
-                        >
-                            {add.isPending ||
-                                variantLoading
-                                ? 'در حال افزودن...'
-                                : added
-                                    ? 'مشاهده سبد'
-                                    : 'افزودن به سبد'}
-                        </Button>
+                                    ? addingLabel
+                                    : addLabel}
+                            </Button>
+                        )}
                     </Stack>
                 </CardContent>
             </Card>
@@ -630,7 +741,7 @@ export default function ProductCard({
                 onConfirm={
                     handleVariantConfirm
                 }
-           />
+            />
         </>
     );
 }
