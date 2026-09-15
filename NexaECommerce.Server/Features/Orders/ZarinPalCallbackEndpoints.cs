@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.WebUtilities;
+﻿﻿using Microsoft.AspNetCore.WebUtilities;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
@@ -8,9 +8,11 @@ using NexaECommerce.Server.Platform.MultiTenancy;
 
 namespace NexaECommerce.Server.Features.Orders;
 
-public sealed class ZarinPalCallbackEndpoints : IFeatureEndpoints
+public sealed class ZarinPalCallbackEndpoints
+    : IFeatureEndpoints
 {
-    public void Map(IEndpointRouteBuilder app)
+    public void Map(
+        IEndpointRouteBuilder app)
     {
         app.MapGet(
                 "/api/orders/payment/zarinpal/callback",
@@ -19,42 +21,57 @@ public sealed class ZarinPalCallbackEndpoints : IFeatureEndpoints
             .AllowAnonymous();
     }
 
-    private static async Task<IResult> HandleCallback(
-        HttpContext http,
-        ICurrentTenant tenant,
-        IPaymentAttemptRepository paymentAttemptRepository,
-        IOrderRepository orderRepository,
-        PaymentCompletionOrchestrator completion,
-        PaymentFailureOrchestrator failure,
-        IConfiguration configuration,
-        CancellationToken cancellationToken)
+    private static async Task<IResult>
+        HandleCallback(
+            HttpContext http,
+            ICurrentTenant tenant,
+            IPaymentAttemptRepository paymentAttemptRepository,
+            IOrderRepository orderRepository,
+            PaymentCompletionOrchestrator completion,
+            PaymentFailureOrchestrator failure,
+            IConfiguration configuration,
+            ILogger<ZarinPalCallbackEndpoints> logger,
+            CancellationToken cancellationToken)
     {
+        /*
+         * Payment callbacks contain sensitive business state.
+         * Do not allow intermediary/browser caches to keep them.
+         */
+        http.Response.Headers.CacheControl =
+            "no-store, no-cache, must-revalidate";
+
+        http.Response.Headers.Pragma =
+            "no-cache";
+
         var orderIdValue =
-            http.Request.Query["orderId"].FirstOrDefault();
+            http.Request.Query["orderId"]
+                .FirstOrDefault();
 
         var authority =
-            http.Request.Query["Authority"].FirstOrDefault();
+            http.Request.Query["Authority"]
+                .FirstOrDefault();
 
         var status =
-            http.Request.Query["Status"].FirstOrDefault();
+            http.Request.Query["Status"]
+                .FirstOrDefault();
 
-        if (!Guid.TryParse(orderIdValue, out var orderId) ||
+        if (!Guid.TryParse(
+                orderIdValue,
+                out var orderId) ||
             orderId == Guid.Empty)
         {
             return RedirectToPaymentResult(
                 configuration,
                 Guid.Empty,
                 false,
-                "شناسه سفارش نامعتبر است.");
+                "invalid_order");
         }
 
         /*
-         * ZarinPal بعد از بازگشت به Callback معمولاً Authority
-         * و Status را به صورت QueryString ارسال می‌کند.
+         * Nothing financial is trusted from the callback itself.
          *
-         * در اینجا هیچ مبلغ، UserId یا PaymentAttemptId را
-         * از QueryString اعتماد نمی‌کنیم؛ این اطلاعات از دیتابیس
-         * خوانده می‌شوند.
+         * User id, order amount, currency and payment attempt
+         * are resolved from our own database.
          */
         var order =
             await orderRepository.GetByIdAsync(
@@ -69,7 +86,7 @@ public sealed class ZarinPalCallbackEndpoints : IFeatureEndpoints
                 configuration,
                 orderId,
                 false,
-                "سفارش پیدا نشد.");
+                "order_not_found");
         }
 
         var paymentAttempt =
@@ -84,12 +101,14 @@ public sealed class ZarinPalCallbackEndpoints : IFeatureEndpoints
                 configuration,
                 orderId,
                 false,
-                "تلاش پرداخت برای سفارش پیدا نشد.");
+                "payment_attempt_not_found");
         }
 
         /*
-         * Callback ممکن است چند بار دریافت شود.
-         * اگر پرداخت قبلاً کامل شده، دوباره هیچ عملیات مالی انجام نمی‌دهیم.
+         * Callback can be delivered more than once.
+         *
+         * A completed attempt + Paid order is terminal and idempotent.
+         * No inventory/payment side effects are repeated.
          */
         if (paymentAttempt.Status ==
                 PaymentAttemptStatus.Succeeded &&
@@ -104,7 +123,7 @@ public sealed class ZarinPalCallbackEndpoints : IFeatureEndpoints
         }
 
         /*
-         * فقط Callback مربوط به ZarinPal باید این مسیر را تکمیل کند.
+         * This endpoint is exclusively for ZarinPal callbacks.
          */
         if (!string.Equals(
                 paymentAttempt.GatewayName,
@@ -115,12 +134,14 @@ public sealed class ZarinPalCallbackEndpoints : IFeatureEndpoints
                 configuration,
                 orderId,
                 false,
-                "درگاه پرداخت سفارش با ZarinPal مطابقت ندارد.");
+                "gateway_mismatch");
         }
 
         /*
-         * اگر کاربر در درگاه پرداخت را لغو کرده باشد،
-         * پرداخت را Failed می‌کنیم و Reservationها را آزاد می‌کنیم.
+         * Any non-OK result from ZarinPal is treated as a
+         * failed/cancelled payment attempt.
+         *
+         * The actual reservation release is performed server-side.
          */
         if (!string.Equals(
                 status,
@@ -134,44 +155,47 @@ public sealed class ZarinPalCallbackEndpoints : IFeatureEndpoints
                     order.UserId,
                     paymentAttempt.Id,
                     "ZARINPAL_CANCELLED",
-                    string.IsNullOrWhiteSpace(status)
-                        ? "پرداخت در زرین‌پال لغو شد."
-                        : $"پرداخت در زرین‌پال با وضعیت '{status}' بازگشت داده شد.",
+                    "Payment returned from ZarinPal without a successful status.",
                     cancellationToken);
             }
-            catch (InvalidOperationException)
+            catch (InvalidOperationException ex)
             {
                 /*
-                 * اگر PaymentAttempt قبلاً Failed/Completed شده باشد،
-                 * Callback مجدد نباید باعث خطای بی‌مورد برای کاربر شود.
+                 * Duplicate callbacks can reach this branch after
+                 * another request already failed/completed the attempt.
+                 *
+                 * This is expected and must not leak the internal
+                 * exception back to the customer.
                  */
+                logger.LogDebug(
+                    ex,
+                    "Ignoring non-terminal ZarinPal failure handling conflict for payment attempt {PaymentAttemptId}.",
+                    paymentAttempt.Id);
             }
 
             return RedirectToPaymentResult(
                 configuration,
                 orderId,
                 false,
-                "پرداخت لغو یا ناموفق بود.");
+                "cancelled");
         }
 
-        if (string.IsNullOrWhiteSpace(authority))
+        if (string.IsNullOrWhiteSpace(
+                authority))
         {
             return RedirectToPaymentResult(
                 configuration,
                 orderId,
                 false,
-                "Authority از زرین‌پال دریافت نشد.");
+                "missing_authority");
         }
 
         var normalizedAuthority =
             authority.Trim();
 
         /*
-         * اگر Authority از قبل در PaymentAttempt ذخیره شده،
-         * باید دقیقاً همان باشد.
-         *
-         * این بررسی جلوی استفاده از Authority مربوط به
-         * یک پرداخت دیگر برای این سفارش را می‌گیرد.
+         * If an Authority is already stored for this attempt,
+         * it must exactly match the callback value.
          */
         if (!string.IsNullOrWhiteSpace(
                 paymentAttempt.GatewayReference) &&
@@ -184,14 +208,17 @@ public sealed class ZarinPalCallbackEndpoints : IFeatureEndpoints
                 configuration,
                 orderId,
                 false,
-                "شناسه پرداخت زرین‌پال با پرداخت سفارش مطابقت ندارد.");
+                "authority_mismatch");
         }
 
         try
         {
             /*
-             * CompleteAsync خودش Verify واقعی درگاه را انجام می‌دهد.
-             * مبلغ نیز از PaymentAttempt دیتابیس خوانده می‌شود، نه از Callback.
+             * CompleteAsync performs the real gateway verification
+             * using the amount persisted in PaymentAttempt/Order.
+             *
+             * It also commits inventory and transitions the order
+             * to Paid only after successful verification.
              */
             await completion.CompleteAsync(
                 tenant.Id,
@@ -209,53 +236,94 @@ public sealed class ZarinPalCallbackEndpoints : IFeatureEndpoints
         }
         catch (KeyNotFoundException ex)
         {
+            logger.LogWarning(
+                ex,
+                "ZarinPal callback payment attempt was not found during completion. PaymentAttemptId={PaymentAttemptId}, OrderId={OrderId}.",
+                paymentAttempt.Id,
+                orderId);
+
             return RedirectToPaymentResult(
                 configuration,
                 orderId,
                 false,
-                ex.Message);
+                "payment_not_found");
         }
         catch (ArgumentException ex)
         {
+            logger.LogWarning(
+                ex,
+                "Invalid ZarinPal callback completion request. PaymentAttemptId={PaymentAttemptId}, OrderId={OrderId}.",
+                paymentAttempt.Id,
+                orderId);
+
             return RedirectToPaymentResult(
                 configuration,
                 orderId,
                 false,
-                ex.Message);
+                "invalid_payment");
         }
         catch (InvalidOperationException ex)
         {
+            /*
+             * Do not expose internal gateway/inventory/order messages
+             * to the customer through the redirect URL.
+             *
+             * Keep the detailed diagnostic information in server logs.
+             */
+            logger.LogError(
+                ex,
+                "ZarinPal payment completion failed. PaymentAttemptId={PaymentAttemptId}, OrderId={OrderId}.",
+                paymentAttempt.Id,
+                orderId);
+
             return RedirectToPaymentResult(
                 configuration,
                 orderId,
                 false,
-                ex.Message);
+                "verification_failed");
         }
     }
 
-    private static IResult RedirectToPaymentResult(
-        IConfiguration configuration,
-        Guid orderId,
-        bool success,
-        string? reason)
+    private static IResult
+        RedirectToPaymentResult(
+            IConfiguration configuration,
+            Guid orderId,
+            bool success,
+            string? reason)
     {
         var clientUrl =
             configuration["App:ClientUrl"];
 
-        if (string.IsNullOrWhiteSpace(clientUrl))
+        if (string.IsNullOrWhiteSpace(
+                clientUrl))
         {
-            clientUrl = "https://localhost:3000";
+            clientUrl =
+                "https://localhost:3000";
         }
 
-        clientUrl =
-            clientUrl.Trim().TrimEnd('/');
+        if (!Uri.TryCreate(
+                clientUrl.Trim(),
+                UriKind.Absolute,
+                out var clientUri) ||
+            (clientUri.Scheme != Uri.UriSchemeHttp &&
+             clientUri.Scheme != Uri.UriSchemeHttps))
+        {
+            clientUrl =
+                "https://localhost:3000";
+        }
+        else
+        {
+            clientUrl =
+                clientUri
+                    .GetLeftPart(
+                        UriPartial.Authority)
+                    .TrimEnd('/');
+        }
 
         if (orderId == Guid.Empty)
         {
-            var fallback =
-                $"{clientUrl}/checkout";
-
-            return Results.Redirect(fallback);
+            return Results.Redirect(
+                $"{clientUrl}/checkout");
         }
 
         var target =
@@ -271,9 +339,11 @@ public sealed class ZarinPalCallbackEndpoints : IFeatureEndpoints
             };
 
         if (!success &&
-            !string.IsNullOrWhiteSpace(reason))
+            !string.IsNullOrWhiteSpace(
+                reason))
         {
-            query["reason"] = reason;
+            query["reason"] =
+                reason;
         }
 
         target =

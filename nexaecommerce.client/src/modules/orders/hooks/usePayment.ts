@@ -43,25 +43,47 @@ export function useCompletePayment() {
     const queryClient =
         useQueryClient();
 
-    
-return useMutation({
-    mutationFn: completePayment,
+    return useMutation({
+        mutationFn:
+            completePayment,
 
-    onSuccess: async result => {
-        await Promise.all([
-            queryClient.invalidateQueries({
-                queryKey: [
-                    'order',
-                    result.orderId,
-                ],
-            }),
+        onSuccess:
+            async result => {
+                await Promise.all([
+                    /*
+                     * Order details must immediately show the
+                     * new Paid state.
+                     */
+                    queryClient.invalidateQueries({
+                        queryKey: [
+                            'order',
+                            result.orderId,
+                        ],
+                    }),
 
-            queryClient.invalidateQueries({
-                queryKey: ['orders'],
-            }),
-        ]);
-    },
-});
+                    /*
+                     * My Orders list must immediately reflect
+                     * the new payment/order state.
+                     */
+                    queryClient.invalidateQueries({
+                        queryKey: [
+                            'orders',
+                        ],
+                    }),
 
-
+                    /*
+                     * The storefront cart indicator depends on
+                     * this query. After successful payment the cart
+                     * must be refreshed so the header changes from
+                     * "filled" to "empty" whenever the backend has
+                     * consumed the cart.
+                     */
+                    queryClient.invalidateQueries({
+                        queryKey: [
+                            'cart',
+                        ],
+                    }),
+                ]);
+            },
+    });
 }

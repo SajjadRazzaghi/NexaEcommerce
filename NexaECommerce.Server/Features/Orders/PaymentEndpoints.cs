@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.SharedKernel.Abstractions;
@@ -9,14 +10,16 @@ using System.Security.Claims;
 namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class PaymentEndpoints
-: IFeatureEndpoints
+    : IFeatureEndpoints
 {
     private const string PaymentIdempotencyHeader =
-    "Idempotency-Key";
+        "Idempotency-Key";
 
+    private const string ZarinPalCallbackPath =
+        "/api/orders/payment/zarinpal/callback";
 
-public void Map(
-    IEndpointRouteBuilder app)
+    public void Map(
+        IEndpointRouteBuilder app)
     {
         var group =
             app.MapGroup("/api/orders")
@@ -55,13 +58,13 @@ public void Map(
     private static async Task<IResult>
         CreatePaymentAttempt(
             [FromBody]
-        CreatePaymentAttemptRequest request,
+            CreatePaymentAttemptRequest request,
 
             [FromServices]
-        IPaymentAttemptService paymentAttempts,
+            IPaymentAttemptService paymentAttempts,
 
             [FromServices]
-        ICurrentTenant tenant,
+            ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -141,13 +144,13 @@ public void Map(
     private static async Task<IResult>
         StartPayment(
             [FromBody]
-        StartPaymentRequest request,
+            StartPaymentRequest request,
 
             [FromServices]
-        IPaymentService payments,
+            IPaymentService payments,
 
             [FromServices]
-        ICurrentTenant tenant,
+            ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -231,6 +234,34 @@ public void Map(
                 });
         }
 
+        /*
+         * The callback URL is not trusted merely because it comes
+         * from an authenticated client.
+         *
+         * It must resolve to the server's own ZarinPal callback route
+         * and contain exactly this order id.
+         *
+         * After validation we pass the server-generated expected URL
+         * to the payment service instead of passing the client value.
+         */
+        if (!IsTrustedZarinPalCallbackUrl(
+                callbackUri,
+                http,
+                request.OrderId))
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error =
+                        "Callback URL is not valid for this payment."
+                });
+        }
+
+        var trustedCallbackUrl =
+            BuildZarinPalCallbackUrl(
+                http,
+                request.OrderId);
+
         try
         {
             var result =
@@ -240,7 +271,7 @@ public void Map(
                     request.OrderId,
                     idempotencyKey,
                     request.GatewayName.Trim(),
-                    callbackUri.ToString(),
+                    trustedCallbackUrl,
                     ct);
 
             return Results.Ok(result);
@@ -274,13 +305,13 @@ public void Map(
     private static async Task<IResult>
         VerifyPayment(
             [FromBody]
-        VerifyPaymentRequest request,
+            VerifyPaymentRequest request,
 
             [FromServices]
-        IPaymentService payments,
+            IPaymentService payments,
 
             [FromServices]
-        ICurrentTenant tenant,
+            ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -358,10 +389,10 @@ public void Map(
             Guid id,
 
             [FromServices]
-        IPaymentAttemptService paymentAttempts,
+            IPaymentAttemptService paymentAttempts,
 
             [FromServices]
-        ICurrentTenant tenant,
+            ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -395,13 +426,13 @@ public void Map(
     private static async Task<IResult>
         CompletePayment(
             [FromBody]
-        CompletePaymentRequest request,
+            CompletePaymentRequest request,
 
             [FromServices]
-        PaymentCompletionOrchestrator completion,
+            PaymentCompletionOrchestrator completion,
 
             [FromServices]
-        ICurrentTenant tenant,
+            ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -489,13 +520,13 @@ public void Map(
     private static async Task<IResult>
         FailPayment(
             [FromBody]
-        FailPaymentRequest request,
+            FailPaymentRequest request,
 
             [FromServices]
-        PaymentFailureOrchestrator failure,
+            PaymentFailureOrchestrator failure,
 
             [FromServices]
-        ICurrentTenant tenant,
+            ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -562,13 +593,13 @@ public void Map(
     private static async Task<IResult>
         RetryPayment(
             [FromBody]
-        RetryPaymentRequest request,
+            RetryPaymentRequest request,
 
             [FromServices]
-        PaymentRetryOrchestrator retry,
+            PaymentRetryOrchestrator retry,
 
             [FromServices]
-        ICurrentTenant tenant,
+            ICurrentTenant tenant,
 
             HttpContext http,
 
@@ -653,6 +684,90 @@ public void Map(
         }
     }
 
+    private static string BuildZarinPalCallbackUrl(
+        HttpContext http,
+        Guid orderId)
+    {
+        var baseUrl =
+            $"{http.Request.Scheme}://{http.Request.Host}";
+
+        return QueryHelpers.AddQueryString(
+            $"{baseUrl}{ZarinPalCallbackPath}",
+            "orderId",
+            orderId.ToString("D"));
+    }
+
+    private static bool IsTrustedZarinPalCallbackUrl(
+        Uri callbackUri,
+        HttpContext http,
+        Guid orderId)
+    {
+        if (!string.IsNullOrEmpty(
+                callbackUri.UserInfo))
+        {
+            return false;
+        }
+
+        var expectedUriText =
+            BuildZarinPalCallbackUrl(
+                http,
+                orderId);
+
+        if (!Uri.TryCreate(
+                expectedUriText,
+                UriKind.Absolute,
+                out var expectedUri))
+        {
+            return false;
+        }
+
+        if (!string.Equals(
+                callbackUri.Scheme,
+                expectedUri.Scheme,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (!string.Equals(
+                callbackUri.Host,
+                expectedUri.Host,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (callbackUri.Port !=
+            expectedUri.Port)
+        {
+            return false;
+        }
+
+        if (!string.Equals(
+                callbackUri.AbsolutePath,
+                expectedUri.AbsolutePath,
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!string.Equals(
+                callbackUri.Query,
+                expectedUri.Query,
+                StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrEmpty(
+                callbackUri.Fragment))
+        {
+            return false;
+        }
+
+        return true;
+    }
+
     private static string? GetUserId(
         HttpContext http)
     {
@@ -660,7 +775,8 @@ public void Map(
             http.User.FindFirstValue(
                 ClaimTypes.NameIdentifier);
 
-        return string.IsNullOrWhiteSpace(value)
+        return string.IsNullOrWhiteSpace(
+                value)
             ? null
             : value;
     }
@@ -684,28 +800,26 @@ public void Map(
             ? null
             : value;
     }
-
-
 }
 
 public sealed record StartPaymentRequest(
-Guid OrderId,
-string GatewayName,
-string CallbackUrl);
+    Guid OrderId,
+    string GatewayName,
+    string CallbackUrl);
 
 public sealed record VerifyPaymentRequest(
-Guid PaymentAttemptId,
-string GatewayReference);
+    Guid PaymentAttemptId,
+    string GatewayReference);
 
 public sealed record CompletePaymentRequest(
-Guid PaymentAttemptId,
-string GatewayName,
-string GatewayReference);
+    Guid PaymentAttemptId,
+    string GatewayName,
+    string GatewayReference);
 
 public sealed record FailPaymentRequest(
-Guid PaymentAttemptId,
-string? FailureCode,
-string? FailureMessage);
+    Guid PaymentAttemptId,
+    string? FailureCode,
+    string? FailureMessage);
 
 public sealed record RetryPaymentRequest(
-Guid OrderId);
+    Guid OrderId);
