@@ -31,7 +31,7 @@ function formatMoney(
                 maximumFractionDigits: 0,
             },
         ).format(amount) +
-        ` ${ currency } `
+        ` ${ currency }`
     );
 }
 

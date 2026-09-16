@@ -144,8 +144,8 @@ function getVersionedFaviconUrl(
             : '?';
 
     return (
-        `${ href }${ separator } ` +
-        `v = ${ encodeURIComponent(href) } `
+        `${ href }${ separator }` +
+        `v = ${ encodeURIComponent(href) }`
     );
 }
 

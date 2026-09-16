@@ -5,7 +5,7 @@ namespace NexaECommerce.Server.Features.Users;
 // The user-administration events a tenant can subscribe to over webhooks. Any *WebhookEvents class is
 // reflection-discovered into the WebhookEventCatalog (mirroring how *Permissions feed the permission
 // catalog), so a slice declares its events here and they appear in the subscription editor — no central
-// registry edit. The Sales domain (Phase 10) adds order.* / product.* the same way.
+// registry edit. The Sales domain (Phase 10) adds order.* /product.* the same way.
 public static class UserWebhookEvents
 {
     [Description("A user account was created by an administrator")]

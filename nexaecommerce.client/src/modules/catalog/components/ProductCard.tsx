@@ -48,11 +48,11 @@ interface ProductCardProps {
 function getProductUrl(
     slug: string,
 ): string {
-    return `/ products / ${
+    return `/products/${
     encodeURIComponent(
         slug.trim(),
     )
-} `;
+}`;
 }
 
 export default function ProductCard({

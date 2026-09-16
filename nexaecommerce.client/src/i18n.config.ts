@@ -10,19 +10,20 @@ import ar from './locales/ar.json';
 import zh from './locales/zh.json';
 import fa from './locales/fa.json';
 
-export type LanguageMeta = { code: string; name: string; dir: 'ltr' | 'rtl' };
+export type LanguageMeta = { code: string; name: string; dir:'ltr'|'rtl'};
 
 // Single source of truth for supported languages. To add one: drop `src/locales/<code>.json`,
 // import it into `resources` below, and add an entry here (set `dir: 'rtl'` for RTL scripts). The
 // `name` is the language's own autonym so the switcher reads natively regardless of current locale.
 export const LANGUAGES: LanguageMeta[] = [
-  { code: 'en', name: 'English', dir: 'ltr' },
+    { code: 'fa', name: 'فارسی', dir: 'rtl' },
+    { code: 'en', name: 'English', dir: 'ltr' },
   { code: 'es', name: 'Español', dir: 'ltr' },
   { code: 'fr', name: 'Français', dir: 'ltr' },
   { code: 'de', name: 'Deutsch', dir: 'ltr' },
   { code: 'ar', name: 'العربية', dir: 'rtl' },
   { code: 'zh', name: '中文', dir: 'ltr' },
-  { code: 'fa', name: 'فارسی', dir: 'rtl' },
+
 ];
 
 export const supportedLngs = LANGUAGES.map((l) => l.code);
@@ -44,7 +45,7 @@ i18n
       zh: { translation: zh },
       fa: { translation: fa },
     },
-    fallbackLng: 'en',
+    fallbackLng: 'fa',
     supportedLngs,
     nonExplicitSupportedLngs: true, // map regional tags (en-US → en) to a base language
     interpolation: { escapeValue: false }, // React already escapes

@@ -73,7 +73,7 @@ export async function updateShippingMethod(
 ): Promise<ShippingMethod> {
     const { data } =
         await api.put<ShippingMethod>(
-            `/ shipping - methods / ${ id } `,
+            `/ shipping - methods /${ id }`,
             request,
         );
 
@@ -85,7 +85,7 @@ export async function setShippingMethodActive(
     active: boolean,
 ): Promise<void> {
     await api.put(
-        `/ shipping - methods / ${ id }/active`,
+        `/ shipping - methods /${ id }/active`,
 {
     active,
         },

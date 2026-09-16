@@ -339,7 +339,7 @@ export default function OrderDetailsPage() {
     statusClass(
         order.status,
     )
-} `}
+}`}
                         >
                             {statusLabel(
                                 order.status,
@@ -618,7 +618,7 @@ export default function OrderDetailsPage() {
 
                         {showPayment && (
                             <Link
-                                to={`/ orders / payment / ${ order.id } `}
+                                to={`/ orders / payment /${ order.id }`}
                                 className="mt-4 flex w-full items-center justify-center rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
                             >
                                 {
@@ -720,7 +720,7 @@ function ShipmentTimeline({
     step.complete
         ? 'border-primary bg-primary text-primary-foreground'
         : 'border-border text-muted-foreground'
-} `}
+}`}
                                 >
                                     <Icon className="size-4" />
                                 </span>

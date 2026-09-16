@@ -54,9 +54,9 @@ function formatMoney(
                 : undefined,
             {
                 maximumFractionDigits: 0,
-            },
+           },
         ).format(amount) +
-        ` ${ currency } `
+       ` ${currency}`
     );
 }
 
@@ -69,7 +69,7 @@ function getErrorMessage(
         error.message.trim()
     ) {
         return error.message;
-    }
+   }
 
     return fallback;
 }
@@ -81,8 +81,8 @@ function SkeletonLine({
 }) {
     return (
         <div
-            className={`animate - pulse rounded - lg bg - muted ${ className } `}
-        />
+            className={`animate - pulse rounded - lg bg - muted ${className}`}
+       />
     );
 }
 
@@ -90,7 +90,7 @@ export default function CheckoutPage() {
     const {
         t,
         i18n,
-    } = useTranslation();
+   } = useTranslation();
 
     const navigate =
         useNavigate();
@@ -104,7 +104,7 @@ export default function CheckoutPage() {
         isAuthenticated,
         isLoading:
             authLoading,
-    } = useAuth();
+   } = useAuth();
 
     useEffect(() => {
         if (
@@ -112,15 +112,15 @@ export default function CheckoutPage() {
             isAuthenticated
         ) {
             return;
-        }
+       }
 
         navigate(
             '/login?returnUrl=%2Fcheckout',
             {
                 replace: true,
-            },
+           },
         );
-    }, [
+   }, [
         authLoading,
         isAuthenticated,
         navigate,
@@ -186,7 +186,7 @@ export default function CheckoutPage() {
             {
                 defaultValue:
                     fallback,
-            },
+           },
         );
 
     const activeShippingMethods =
@@ -198,7 +198,7 @@ export default function CheckoutPage() {
                 method.isActive,
         );
 
-    /*
+   /*
      * Do not set state from an effect just to select
      * the first shipping method. The first active method
      * acts as the effective selection until the user
@@ -240,7 +240,7 @@ export default function CheckoutPage() {
             );
 
             return;
-        }
+       }
 
         if (
             cart.items.length ===
@@ -254,7 +254,7 @@ export default function CheckoutPage() {
             );
 
             return;
-        }
+       }
 
         if (
             !isAuthenticated
@@ -263,11 +263,11 @@ export default function CheckoutPage() {
                 '/login?returnUrl=%2Fcheckout',
                 {
                     replace: true,
-                },
+               },
             );
 
             return;
-        }
+       }
 
         if (
             !fullName.trim()
@@ -280,7 +280,7 @@ export default function CheckoutPage() {
             );
 
             return;
-        }
+       }
 
         if (
             fullName.trim().length <
@@ -294,7 +294,7 @@ export default function CheckoutPage() {
             );
 
             return;
-        }
+       }
 
         if (
             !phone.trim()
@@ -307,7 +307,7 @@ export default function CheckoutPage() {
             );
 
             return;
-        }
+       }
 
         if (
             phone.trim().length <
@@ -321,7 +321,7 @@ export default function CheckoutPage() {
             );
 
             return;
-        }
+       }
 
         if (
             !address.trim()
@@ -334,7 +334,7 @@ export default function CheckoutPage() {
             );
 
             return;
-        }
+       }
 
         if (
             address.trim().length <
@@ -348,7 +348,7 @@ export default function CheckoutPage() {
             );
 
             return;
-        }
+       }
 
         if (
             !city.trim()
@@ -361,7 +361,7 @@ export default function CheckoutPage() {
             );
 
             return;
-        }
+       }
 
         if (
             !effectiveShippingMethodId
@@ -374,7 +374,7 @@ export default function CheckoutPage() {
             );
 
             return;
-        }
+       }
 
         if (
             !selectedShippingMethod
@@ -392,17 +392,17 @@ export default function CheckoutPage() {
                 setShippingMethodId(
                     '',
                 );
-            }
+           }
 
             return;
-        }
+       }
 
         if (
             !checkoutKeyRef.current
         ) {
             checkoutKeyRef.current =
                 crypto.randomUUID();
-        }
+       }
 
         const request:
             CheckoutRequest = {
@@ -413,7 +413,7 @@ export default function CheckoutPage() {
                             item.productVariantId,
                         quantity:
                             item.quantity,
-                    }),
+                   }),
                 ),
 
             shippingFullName:
@@ -434,24 +434,24 @@ export default function CheckoutPage() {
 
             shippingMethodId:
                 selectedShippingMethod.id,
-        };
+       };
 
         checkout.mutate(
             {
                 request,
                 idempotencyKey:
                     checkoutKeyRef.current,
-            },
+           },
             {
                 onSuccess:
                     order => {
                         navigate(
-                            `/ orders / payment / ${ order.id } `,
+                           `/orders/payment/${order.id}`,
                             {
                                 replace: true,
-                            },
+                           },
                         );
-                    },
+                   },
 
                 onError:
                     checkoutError => {
@@ -464,10 +464,10 @@ export default function CheckoutPage() {
                                 ),
                             ),
                         );
-                    },
-            },
+                   },
+           },
         );
-    };
+   };
 
     const cart =
         cartQuery.data;
@@ -483,20 +483,20 @@ export default function CheckoutPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-                }
+               }
             >
-                <SkeletonLine className="h-5 w-32" />
+                <SkeletonLine className="h-5 w-32"/>
 
-                <SkeletonLine className="h-10 w-48" />
+                <SkeletonLine className="h-10 w-48"/>
 
                 <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-                    <SkeletonLine className="h-[560px] w-full" />
+                    <SkeletonLine className="h-[560px] w-full"/>
 
-                    <SkeletonLine className="h-[360px] w-full" />
+                    <SkeletonLine className="h-[360px] w-full"/>
                 </div>
             </div>
         );
-    }
+   }
 
     if (
         cartQuery.isLoading ||
@@ -509,24 +509,24 @@ export default function CheckoutPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-                }
+               }
             >
-                <SkeletonLine className="h-5 w-32" />
+                <SkeletonLine className="h-5 w-32"/>
 
-                <SkeletonLine className="h-10 w-48" />
+                <SkeletonLine className="h-10 w-48"/>
 
                 <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
                     <div className="space-y-6">
-                        <SkeletonLine className="h-72 w-full" />
+                        <SkeletonLine className="h-72 w-full"/>
 
-                        <SkeletonLine className="h-52 w-full" />
+                        <SkeletonLine className="h-52 w-full"/>
                     </div>
 
-                    <SkeletonLine className="h-[360px] w-full" />
+                    <SkeletonLine className="h-[360px] w-full"/>
                 </div>
             </div>
         );
-    }
+   }
 
     if (
         cartQuery.isError
@@ -537,11 +537,11 @@ export default function CheckoutPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-                }
+               }
                 className="mx-auto max-w-3xl p-6"
             >
                 <div className="rounded-2xl border border-destructive/30 p-10 text-center">
-                    <AlertCircle className="mx-auto size-12 text-destructive" />
+                    <AlertCircle className="mx-auto size-12 text-destructive"/>
 
                     <h1 className="mt-4 text-2xl font-semibold">
                         {getText(
@@ -564,10 +564,10 @@ export default function CheckoutPage() {
                         type="button"
                         onClick={() =>
                             cartQuery.refetch()
-                        }
+                       }
                         disabled={
                             cartQuery.isFetching
-                        }
+                       }
                         className="mt-6 inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium"
                     >
                         <RefreshCw
@@ -575,8 +575,8 @@ export default function CheckoutPage() {
                                 cartQuery.isFetching
                                     ? 'size-4 animate-spin'
                                     : 'size-4'
-                            }
-                        />
+                           }
+                       />
 
                         {getText(
                             'common.retry',
@@ -596,7 +596,7 @@ export default function CheckoutPage() {
                 </div>
             </div>
         );
-    }
+   }
 
     if (
         !cart ||
@@ -609,7 +609,7 @@ export default function CheckoutPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-                }
+               }
                 className="mx-auto max-w-3xl p-6"
             >
                 <div className="rounded-2xl border p-10 text-center">
@@ -632,7 +632,7 @@ export default function CheckoutPage() {
                 </div>
             </div>
         );
-    }
+   }
 
     if (
         shippingMethodsQuery.isError
@@ -643,11 +643,11 @@ export default function CheckoutPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-                }
+               }
                 className="mx-auto max-w-3xl p-6"
             >
                 <div className="rounded-2xl border border-destructive/30 p-10 text-center">
-                    <AlertCircle className="mx-auto size-12 text-destructive" />
+                    <AlertCircle className="mx-auto size-12 text-destructive"/>
 
                     <h1 className="mt-4 text-2xl font-semibold">
                         {getText(
@@ -670,10 +670,10 @@ export default function CheckoutPage() {
                         type="button"
                         onClick={() =>
                             shippingMethodsQuery.refetch()
-                        }
+                       }
                         disabled={
                             shippingMethodsQuery.isFetching
-                        }
+                       }
                         className="mt-6 inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium"
                     >
                         <RefreshCw
@@ -681,8 +681,8 @@ export default function CheckoutPage() {
                                 shippingMethodsQuery.isFetching
                                     ? 'size-4 animate-spin'
                                     : 'size-4'
-                            }
-                        />
+                           }
+                       />
 
                         {getText(
                             'common.retry',
@@ -692,7 +692,7 @@ export default function CheckoutPage() {
                 </div>
             </div>
         );
-    }
+   }
 
     const subtotal =
         cart.subtotal;
@@ -716,7 +716,7 @@ export default function CheckoutPage() {
                 isFa
                     ? 'rtl'
                     : 'ltr'
-            }
+           }
             className="mx-auto max-w-7xl space-y-6 p-4 md:p-6"
         >
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -772,7 +772,7 @@ export default function CheckoutPage() {
                 <section className="space-y-6">
                     <div className="rounded-2xl border bg-card p-5 md:p-6">
                         <div className="flex items-center gap-3">
-                            <MapPin className="size-5" />
+                            <MapPin className="size-5"/>
 
                             <div>
                                 <h2 className="font-semibold">
@@ -806,14 +806,14 @@ export default function CheckoutPage() {
                                         setFullName(
                                             event.target.value,
                                         )
-                                    }
+                                   }
                                     autoComplete="name"
                                     required
                                     disabled={
                                         checkout.isPending
-                                    }
+                                   }
                                     className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                                />
+                               />
                             </label>
 
                             <label className="grid gap-2">
@@ -830,15 +830,15 @@ export default function CheckoutPage() {
                                         setPhone(
                                             event.target.value,
                                         )
-                                    }
+                                   }
                                     autoComplete="tel"
                                     inputMode="tel"
                                     required
                                     disabled={
                                         checkout.isPending
-                                    }
+                                   }
                                     className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                                />
+                               />
                             </label>
 
                             <label className="grid gap-2 md:col-span-2">
@@ -855,15 +855,15 @@ export default function CheckoutPage() {
                                         setAddress(
                                             event.target.value,
                                         )
-                                    }
+                                   }
                                     autoComplete="street-address"
                                     required
                                     rows={4}
                                     disabled={
                                         checkout.isPending
-                                    }
+                                   }
                                     className="resize-y rounded-xl border bg-background px-3 py-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                                />
+                               />
                             </label>
 
                             <label className="grid gap-2">
@@ -880,14 +880,14 @@ export default function CheckoutPage() {
                                         setCity(
                                             event.target.value,
                                         )
-                                    }
+                                   }
                                     autoComplete="address-level2"
                                     required
                                     disabled={
                                         checkout.isPending
-                                    }
+                                   }
                                     className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                                />
+                               />
                             </label>
 
                             <label className="grid gap-2">
@@ -904,21 +904,21 @@ export default function CheckoutPage() {
                                         setPostalCode(
                                             event.target.value,
                                         )
-                                    }
+                                   }
                                     autoComplete="postal-code"
                                     inputMode="numeric"
                                     disabled={
                                         checkout.isPending
-                                    }
+                                   }
                                     className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                                />
+                               />
                             </label>
                         </div>
                     </div>
 
                     <div className="rounded-2xl border bg-card p-5 md:p-6">
                         <div className="flex items-center gap-3">
-                            <Truck className="size-5" />
+                            <Truck className="size-5"/>
 
                             <div>
                                 <h2 className="font-semibold">
@@ -956,7 +956,7 @@ export default function CheckoutPage() {
                                             <label
                                                 key={
                                                     method.id
-                                                }
+                                               }
                                                 className={`block cursor - pointer rounded - xl border p - 4 transition ${
     selected
         ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
@@ -965,50 +965,50 @@ export default function CheckoutPage() {
     checkout.isPending
         ? 'cursor-not-allowed opacity-60'
         : ''
-} `}
+}`}
                                             >
                                                 <input
                                                     type="radio"
                                                     name="shippingMethod"
                                                     value={
                                                         method.id
-                                                    }
+                                                   }
                                                     checked={
                                                         selected
-                                                    }
+                                                   }
                                                     onChange={event =>
                                                         setShippingMethodId(
                                                             event
                                                                 .target
                                                                 .value,
                                                         )
-                                                    }
+                                                   }
                                                     disabled={
                                                         checkout.isPending
-                                                    }
+                                                   }
                                                     className="sr-only"
-                                                />
+                                               />
 
                                                 <div className="flex items-center justify-between gap-4">
                                                     <div className="min-w-0">
                                                         <div className="flex items-center gap-2">
                                                             {selected && (
                                                                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                                                                    <Check className="size-4" />
+                                                                    <Check className="size-4"/>
                                                                 </span>
                                                             )}
 
                                                             <span className="font-medium">
                                                                 {
                                                                     method.name
-                                                                }
+                                                               }
                                                             </span>
                                                         </div>
 
                                                         <div className="mt-1 text-sm text-muted-foreground">
                                                             {
                                                                 method.carrier
-                                                            }
+                                                           }
                                                         </div>
                                                     </div>
 
@@ -1024,7 +1024,7 @@ export default function CheckoutPage() {
                                                 </div>
                                             </label>
                                         );
-                                    },
+                                   },
                                 )}
                             </div>
                         )}
@@ -1124,7 +1124,7 @@ export default function CheckoutPage() {
                         type="submit"
                         disabled={
                             submitDisabled
-                        }
+                       }
                         className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {checkout.isPending

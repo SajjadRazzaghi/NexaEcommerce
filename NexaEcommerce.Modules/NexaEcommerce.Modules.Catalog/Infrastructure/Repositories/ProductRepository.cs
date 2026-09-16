@@ -104,7 +104,7 @@ public sealed class ProductRepository : IProductRepository
     }
 
     // ============================================================
-    // Product SKU Exists
+    //product SKU Exists
     // ============================================================
 
     public async Task<bool> ExistsBySkuAsync(

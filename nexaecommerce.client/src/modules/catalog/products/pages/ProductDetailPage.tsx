@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import {Link, useNavigate, useParams} from 'react-router-dom';
 import {
     ArrowLeft,
     Edit,
@@ -25,14 +25,14 @@ import {
     Typography,
 } from '@mui/material';
 
-import { useProduct } from '../hooks';
-import type { ProductVariant } from '../../api/products';
+import {useProduct} from '../hooks';
+import type {ProductVariant} from '../../api/products';
 
 function formatPrice(
     value: number,
     currency: string,
 ) {
-    return `${ new Intl.NumberFormat('en-US').format(value) } ${ currency } `;
+    return`${new Intl.NumberFormat('en-US').format(value)} ${currency}`;
 }
 
 function StatusChip({
@@ -48,7 +48,7 @@ function StatusChip({
             size="small"
             color={active ? 'success' : 'default'}
             variant={active ? 'filled' : 'outlined'}
-        />
+       />
     );
 }
 
@@ -69,7 +69,7 @@ function VariantSummary({
             <TableCell>
                 <Typography
                     variant="body2"
-                    sx={{ fontWeight: 700 }}
+                    sx={{fontWeight: 700}}
                 >
                     {variant.sku}
                 </Typography>
@@ -99,7 +99,7 @@ function VariantSummary({
                             variant.stockQuantity > 0
                                 ? 'success.main'
                                 : 'error.main',
-                    }}
+                   }}
                 >
                     {variant.stockQuantity}
                 </Typography>
@@ -111,16 +111,16 @@ function VariantSummary({
                         variant.isActive
                             ? 'Active'
                             : 'Inactive'
-                    }
+                   }
                     active={variant.isActive}
-                />
+               />
             </TableCell>
         </TableRow>
     );
 }
 
 export default function ProductDetailPage() {
-    const { id } = useParams<{ id: string }>();
+    const {id} = useParams<{id: string}>();
     const navigate = useNavigate();
 
     const {
@@ -129,7 +129,7 @@ export default function ProductDetailPage() {
         isError,
         error,
         refetch,
-    } = useProduct(id);
+   } = useProduct(id);
 
     if (isLoading) {
         return (
@@ -137,30 +137,30 @@ export default function ProductDetailPage() {
                 <Skeleton
                     variant="rectangular"
                     height={56}
-                    sx={{ borderRadius: 2 }}
-                />
+                    sx={{borderRadius: 2}}
+               />
 
                 <Grid container spacing={3}>
-                    <Grid size={{ xs: 12, md: 5 }}>
+                    <Grid size={{xs: 12, md: 5}}>
                         <Skeleton
                             variant="rectangular"
                             height={420}
-                            sx={{ borderRadius: 3 }}
-                        />
+                            sx={{borderRadius: 3}}
+                       />
                     </Grid>
 
-                    <Grid size={{ xs: 12, md: 7 }}>
+                    <Grid size={{xs: 12, md: 7}}>
                         <Stack spacing={2}>
-                            <Skeleton height={55} />
-                            <Skeleton height={35} />
-                            <Skeleton height={35} />
-                            <Skeleton height={120} />
+                            <Skeleton height={55}/>
+                            <Skeleton height={35}/>
+                            <Skeleton height={35}/>
+                            <Skeleton height={120}/>
                         </Stack>
                     </Grid>
                 </Grid>
             </Stack>
         );
-    }
+   }
 
     if (isError || !product) {
         return (
@@ -175,7 +175,7 @@ export default function ProductDetailPage() {
                         >
                             Retry
                         </Button>
-                    }
+                   }
                 >
                     {error instanceof Error
                         ? error.message
@@ -185,15 +185,15 @@ export default function ProductDetailPage() {
                 <Button
                     component={Link}
                     to="/admin/products"
-                    startIcon={<ArrowLeft />}
+                    startIcon={<ArrowLeft/>}
                     variant="outlined"
-                    sx={{ alignSelf: 'flex-start' }}
+                    sx={{alignSelf: 'flex-start'}}
                 >
                     Back to products
                 </Button>
             </Stack>
         );
-    }
+   }
 
     const mainImage =
         product.images?.find(
@@ -215,15 +215,15 @@ export default function ProductDetailPage() {
     return (
         <Stack spacing={3}>
             <Stack
-                direction={{ xs: 'column', sm: 'row' }}
+                direction={{xs: 'column', sm: 'row'}}
                 spacing={2}
                 sx={{
                     justifyContent: 'space-between',
                     alignItems: {
                         xs: 'stretch',
                         sm: 'center',
-                    },
-                }}
+                   },
+               }}
             >
                 <Box>
                     <Typography
@@ -231,7 +231,7 @@ export default function ProductDetailPage() {
                         sx={{
                             fontWeight: 900,
                             mb: 0.5,
-                        }}
+                       }}
                     >
                         {product.name}
                     </Typography>
@@ -249,24 +249,24 @@ export default function ProductDetailPage() {
                 >
                     <Button
                         variant="outlined"
-                        startIcon={<ArrowLeft />}
+                        startIcon={<ArrowLeft/>}
                         onClick={() =>
                             navigate(
                                 '/admin/products',
                             )
-                        }
+                       }
                     >
                         Back
                     </Button>
 
                     <Button
                         variant="contained"
-                        startIcon={<Edit />}
+                        startIcon={<Edit/>}
                         onClick={() =>
                             navigate(
-                                `/ admin / products / ${ product.id }/edit`,
+                               `/admin/products/${product.id}/edit`,
                             )
-                        }
+                       }
                     >
     Edit Product
                     </Button >
@@ -276,7 +276,7 @@ export default function ProductDetailPage() {
             <Card>
                 <CardContent>
                     <Grid container spacing={4}>
-                        <Grid size={{ xs: 12, md: 5 }}>
+                        <Grid size={{xs: 12, md: 5}}>
                             <Box
                                 component="img"
                                 src={mainImage}
@@ -286,13 +286,13 @@ export default function ProductDetailPage() {
                                     height: {
                                         xs: 300,
                                         md: 430,
-                                    },
+                                   },
                                     objectFit:
                                         'contain',
                                     borderRadius: 3,
                                     bgcolor:
                                         'background.default',
-                                }}
+                               }}
                                 onError={(event) => {
                                     const image =
                                         event.currentTarget;
@@ -304,9 +304,9 @@ export default function ProductDetailPage() {
                                     ) {
                                         image.src =
                                             '/placeholder.jpg';
-                                    }
-                                }}
-                            />
+                                   }
+                               }}
+                           />
 
                             {product.images &&
                                 product.images.length >
@@ -318,7 +318,7 @@ export default function ProductDetailPage() {
                                             mt: 2,
                                             overflowX:
                                                 'auto',
-                                        }}
+                                       }}
                                     >
                                         {product.images.map(
                                             (
@@ -327,15 +327,15 @@ export default function ProductDetailPage() {
                                                 <Box
                                                     key={
                                                         image.id
-                                                    }
+                                                   }
                                                     component="img"
                                                     src={
                                                         image.imageUrl
-                                                    }
+                                                   }
                                                     alt={
                                                         image.altText ??
                                                         product.name
-                                                    }
+                                                   }
                                                     sx={{
                                                         width: 72,
                                                         height: 72,
@@ -346,15 +346,15 @@ export default function ProductDetailPage() {
                                                             '1px solid',
                                                         borderColor:
                                                             'divider',
-                                                    }}
-                                                />
+                                                   }}
+                                               />
                                             ),
                                         )}
                                     </Stack>
                                 )}
                         </Grid>
 
-                        <Grid size={{ xs: 12, md: 7 }}>
+                        <Grid size={{xs: 12, md: 7}}>
                             <Stack spacing={2.5}>
                                 <Stack
                                     direction="row"
@@ -362,51 +362,51 @@ export default function ProductDetailPage() {
                                     useFlexGap
                                     sx={{
                                         flexWrap: 'wrap',
-                                    }}
+                                   }}
                                 >
                                     <StatusChip
                                         label={
                                             product.isActive
                                                 ? 'Active'
                                                 : 'Inactive'
-                                        }
+                                       }
                                         active={
                                             product.isActive
-                                        }
-                                    />
+                                       }
+                                   />
 
                                     <StatusChip
                                         label={
                                             product.isPublished
                                                 ? 'Published'
                                                 : 'Unpublished'
-                                        }
+                                       }
                                         active={
                                             product.isPublished
-                                        }
-                                    />
+                                       }
+                                   />
 
                                     <StatusChip
                                         label={
                                             product.isFeatured
                                                 ? 'Featured'
                                                 : 'Not Featured'
-                                        }
+                                       }
                                         active={
                                             product.isFeatured
-                                        }
-                                    />
+                                       }
+                                   />
 
                                     <StatusChip
                                         label={
                                             product.isInStock
                                                 ? 'In Stock'
                                                 : 'Out of Stock'
-                                        }
+                                       }
                                         active={
                                             product.isInStock
-                                        }
-                                    />
+                                       }
+                                   />
                                 </Stack>
 
                                 {product.brandName && (
@@ -417,7 +417,7 @@ export default function ProductDetailPage() {
                                         <strong>
                                             {
                                                 product.brandName
-                                            }
+                                           }
                                         </strong>
                                     </Typography>
                                 )}
@@ -427,7 +427,7 @@ export default function ProductDetailPage() {
                                     color="primary"
                                     sx={{
                                         fontWeight: 900,
-                                    }}
+                                   }}
                                 >
                                     {formatPrice(
                                         product.finalPrice ??
@@ -444,7 +444,7 @@ export default function ProductDetailPage() {
                                             sx={{
                                                 textDecoration:
                                                     'line-through',
-                                            }}
+                                           }}
                                         >
                                             {formatPrice(
                                                 product.comparePrice,
@@ -453,7 +453,7 @@ export default function ProductDetailPage() {
                                         </Typography>
                                     )}
 
-                                <Divider />
+                                <Divider/>
 
                                 <Grid
                                     container
@@ -463,7 +463,7 @@ export default function ProductDetailPage() {
                                         size={{
                                             xs: 12,
                                             sm: 6,
-                                        }}
+                                       }}
                                     >
                                         <Card
                                             variant="outlined"
@@ -480,7 +480,7 @@ export default function ProductDetailPage() {
                                                     variant="h6"
                                                     sx={{
                                                         fontWeight: 800,
-                                                    }}
+                                                   }}
                                                 >
                                                     {formatPrice(
                                                         product.price,
@@ -495,7 +495,7 @@ export default function ProductDetailPage() {
                                         size={{
                                             xs: 12,
                                             sm: 6,
-                                        }}
+                                       }}
                                     >
                                         <Card
                                             variant="outlined"
@@ -512,7 +512,7 @@ export default function ProductDetailPage() {
                                                     variant="h6"
                                                     sx={{
                                                         fontWeight: 800,
-                                                    }}
+                                                   }}
                                                 >
                                                     {totalStock}
                                                 </Typography>
@@ -528,7 +528,7 @@ export default function ProductDetailPage() {
                                             sx={{
                                                 fontWeight: 800,
                                                 mb: 1,
-                                            }}
+                                           }}
                                         >
                                             Short Description
                                         </Typography>
@@ -539,11 +539,11 @@ export default function ProductDetailPage() {
                                                 whiteSpace:
                                                     'pre-line',
                                                 lineHeight: 1.9,
-                                            }}
+                                           }}
                                         >
                                             {
                                                 product.shortDescription
-                                            }
+                                           }
                                         </Typography>
                                     </Box>
                                 )}
@@ -555,7 +555,7 @@ export default function ProductDetailPage() {
                                             sx={{
                                                 fontWeight: 800,
                                                 mb: 1,
-                                            }}
+                                           }}
                                         >
                                             Description
                                         </Typography>
@@ -566,11 +566,11 @@ export default function ProductDetailPage() {
                                                 whiteSpace:
                                                     'pre-line',
                                                 lineHeight: 1.9,
-                                            }}
+                                           }}
                                         >
                                             {
                                                 product.description
-                                            }
+                                           }
                                         </Typography>
                                     </Box>
                                 )}
@@ -583,7 +583,7 @@ export default function ProductDetailPage() {
                                             sx={{
                                                 fontWeight: 800,
                                                 mb: 1,
-                                            }}
+                                           }}
                                         >
                                             Categories
                                         </Typography>
@@ -594,7 +594,7 @@ export default function ProductDetailPage() {
                                             useFlexGap
                                             sx={{
                                                 flexWrap: 'wrap',
-                                            }}
+                                           }}
                                         >
                                             {product.categories.map(
                                                 (
@@ -603,12 +603,12 @@ export default function ProductDetailPage() {
                                                     <Chip
                                                         key={
                                                             category
-                                                        }
+                                                       }
                                                         label={
                                                             category
-                                                        }
+                                                       }
                                                         size="small"
-                                                    />
+                                                   />
                                                 ),
                                             )}
                                         </Stack>
@@ -622,10 +622,10 @@ export default function ProductDetailPage() {
 
             <Card>
                 <CardHeader
-                    avatar={<Package />}
+                    avatar={<Package/>}
                     title="Variants"
                     subheader={`${variants.length} variant(s)`}
-                />
+               />
 
                 <CardContent>
                     {variants.length === 0 ? (
@@ -637,13 +637,13 @@ export default function ProductDetailPage() {
                             sx={{
                                 overflowX:
                                     'auto',
-                            }}
+                           }}
                         >
                             <Table>
                                 <TableHead>
                                     <TableRow>
                                         <TableCell>
-                                            SKU / Attributes
+                                            SKU/Attributes
                                         </TableCell>
 
                                         <TableCell>
@@ -668,11 +668,11 @@ export default function ProductDetailPage() {
                                             <VariantSummary
                                                 key={
                                                     variant.id
-                                                }
+                                               }
                                                 variant={
                                                     variant
-                                                }
-                                            />
+                                               }
+                                           />
                                         ),
                                     )}
                                 </TableBody>

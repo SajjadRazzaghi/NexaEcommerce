@@ -68,11 +68,11 @@ export default function AppLayout() {
 
     if (!isAuthenticated) {
         const returnUrl =
-            `${ location.pathname }${ location.search }${ location.hash } `;
+            `${ location.pathname }${ location.search }${ location.hash }`;
 
         return (
             <Navigate
-                to={`/ login ? returnUrl = ${ encodeURIComponent(returnUrl) } `}
+                to={`/ login ? returnUrl = ${ encodeURIComponent(returnUrl) }`}
                 replace
             />
         );

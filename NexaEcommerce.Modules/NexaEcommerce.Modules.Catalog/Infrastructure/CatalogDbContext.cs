@@ -8,7 +8,7 @@ namespace NexaEcommerce.Modules.Catalog.Infrastructure;
 public sealed class CatalogDbContext : DbContext
 {
     // =========================================================
-    // Products
+    //products
     // =========================================================
 
     public DbSet<Product> Products => Set<Product>();
@@ -39,7 +39,7 @@ public sealed class CatalogDbContext : DbContext
         Set<Manufacturer>();
 
     // =========================================================
-    // Product Attributes
+    //product Attributes
     // =========================================================
 
     public DbSet<ProductAttribute> ProductAttributes =>
@@ -91,7 +91,7 @@ public sealed class CatalogDbContext : DbContext
         ConfigureManufacturer(modelBuilder);
 
         // =====================================================
-        // Product Relations
+        //product Relations
         // =====================================================
 
         ConfigureProductCategory(modelBuilder);
@@ -103,7 +103,7 @@ public sealed class CatalogDbContext : DbContext
         ConfigureProductReview(modelBuilder);
 
         // =====================================================
-        // Product Attribute System
+        //product Attribute System
         // =====================================================
 
         ConfigureProductAttribute(modelBuilder);
@@ -122,7 +122,7 @@ public sealed class CatalogDbContext : DbContext
     }
 
     // =========================================================
-    // Product
+    //product
     // =========================================================
 
     private static void ConfigureProduct(
@@ -385,7 +385,7 @@ public sealed class CatalogDbContext : DbContext
             });
 
             // -------------------------------------------------
-            // Product Relationship
+            //product Relationship
             // -------------------------------------------------
 
             entity.HasMany(x => x.Products)
@@ -503,7 +503,7 @@ public sealed class CatalogDbContext : DbContext
             });
 
             // -------------------------------------------------
-            // Product Relationship
+            //product Relationship
             // -------------------------------------------------
 
             entity.HasMany(x => x.Products)
@@ -521,7 +521,7 @@ public sealed class CatalogDbContext : DbContext
     }
 
     // =========================================================
-    // Product Category
+    //product Category
     // =========================================================
 
     private static void ConfigureProductCategory(
@@ -550,7 +550,7 @@ public sealed class CatalogDbContext : DbContext
     }
 
     // =========================================================
-    // Product Variant
+    //product Variant
     // =========================================================
 
     private static void ConfigureProductVariant(
@@ -592,7 +592,7 @@ public sealed class CatalogDbContext : DbContext
     }
 
     // =========================================================
-    // Product Attribute
+    //product Attribute
     // =========================================================
 
     private static void ConfigureProductAttribute(
@@ -693,7 +693,7 @@ private static void ConfigureVariantAttributeValue(
                     .IsUnique();
 
                 // -----------------------------------------------------
-                // ProductVariant -> VariantAttributeValue
+                //productVariant -> VariantAttributeValue
                 // -----------------------------------------------------
                 //
                 // A variant owns the relationship rows.
@@ -805,7 +805,7 @@ private static void ConfigureVariantAttributeValue(
     }
 
     // =========================================================
-    // Product Image
+    //product Image
     // =========================================================
 
     private static void ConfigureProductImage(
@@ -835,7 +835,7 @@ private static void ConfigureVariantAttributeValue(
     }
 
     // =========================================================
-    // Product Review
+    //product Review
     // =========================================================
 
     private static void ConfigureProductReview(

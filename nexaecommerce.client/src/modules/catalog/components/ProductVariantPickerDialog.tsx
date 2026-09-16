@@ -495,7 +495,7 @@ export default function ProductVariantPickerDialog({
 
                                             return (
                                                 <Button
-                                                    key={`${ attributeKey } -${ option.value } `}
+                                                    key={`${ attributeKey } -${ option.value }`}
                                                     type="button"
                                                     variant={
                                                         selected
@@ -586,13 +586,13 @@ export default function ProductVariantPickerDialog({
                                     icon={
                                         <CheckCircle />
                                     }
-                                    label={`SKU: ${ selectedVariant.sku } `}
+                                    label={`SKU: ${ selectedVariant.sku }`}
                                     color="success"
                                     variant="outlined"
                                 />
 
                                 <Chip
-                                    label={`موجودی: ${ selectedVariant.stockQuantity } `}
+                                    label={`موجودی: ${ selectedVariant.stockQuantity }`}
                                     color="success"
                                 />
                             </Stack>

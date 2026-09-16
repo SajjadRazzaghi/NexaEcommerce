@@ -29,12 +29,29 @@ import {
     useCart,
 } from '@/modules/cart/hooks/useCart';
 
+import {
+    LanguageToggle,
+} from '@/components/language-toggle';
+
+import {
+    useTranslation,
+} from 'react-i18next';
+
 const DEFAULT_STORE_NAME =
     'NexaECommerce';
 
 export default function StoreHeader() {
     const navigate =
         useNavigate();
+
+    const {
+        i18n,
+    } = useTranslation();
+
+    const isFa =
+        i18n.language
+            ?.toLowerCase()
+            .startsWith('fa');
 
     const [
         query,
@@ -78,7 +95,9 @@ export default function StoreHeader() {
     const userName =
         user?.displayName?.trim() ||
         user?.email?.trim() ||
-        'My account';
+        (isFa
+            ? 'حساب کاربری'
+            : 'My account');
 
     const userInitial =
         userName
@@ -127,9 +146,69 @@ export default function StoreHeader() {
         );
     };
 
+    const searchPlaceholder =
+        isFa
+            ? 'جستجوی محصولات...'
+            : 'Search products...';
+
+    const searchLabel =
+        isFa
+            ? 'جستجوی محصولات'
+            : 'Search products';
+
+    const searchButton =
+        isFa
+            ? 'جستجو'
+            : 'Search';
+
+    const productsLabel =
+        isFa
+            ? 'محصولات'
+            : 'Products';
+
+    const onlineStoreLabel =
+        isFa
+            ? 'فروشگاه آنلاین'
+            : 'Online Store';
+
+    const profileLabel =
+        isFa
+            ? 'پروفایل من'
+            : 'My profile';
+
+    const signInLabel =
+        isFa
+            ? 'ورود'
+            : 'Sign in';
+
+    const cartLabel =
+        hasCartItems
+            ? isFa
+                ? `سبد خرید با ${ cartItemCount } کالا`
+                : `Shopping cart with ${ cartItemCount } items`
+            : isFa
+              ? 'سبد خرید خالی است'
+              : 'Shopping cart is empty';
+
+    const cartTitle =
+        hasCartItems
+            ? isFa
+                ? `سبد خرید(${ cartItemCount })`
+                : `Shopping cart(${ cartItemCount })`
+            : isFa
+              ? 'سبد خرید خالی است'
+              : 'Shopping cart is empty';
+
     return (
         <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
-            <div className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6">
+            <div
+                className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6"
+                dir={
+                    isFa
+                        ? 'rtl'
+                        : 'ltr'
+                }
+            >
                 <Link
                     to="/"
                     className="flex shrink-0 items-center gap-2"
@@ -159,7 +238,9 @@ export default function StoreHeader() {
                         </div>
 
                         <div className="text-[11px] text-muted-foreground">
-                            Online Store
+                            {
+                                onlineStoreLabel
+                            }
                         </div>
                     </div>
                 </Link>
@@ -177,25 +258,29 @@ export default function StoreHeader() {
                             value={
                                 query
                             }
-                            onChange={(
-                                event,
-                            ) =>
+                            onChange={event =>
                                 setQuery(
                                     event
                                         .target
                                         .value,
                                 )
                             }
-                            placeholder="Search products..."
+                            placeholder={
+                                searchPlaceholder
+                            }
                             className="h-11 w-full bg-transparent px-3 text-sm outline-none"
-                            aria-label="Search products"
+                            aria-label={
+                                searchLabel
+                            }
                         />
 
                         <button
                             type="submit"
                             className="hidden rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 sm:block"
                         >
-                            Search
+                            {
+                                searchButton
+                            }
                         </button>
                     </div>
                 </form>
@@ -204,7 +289,9 @@ export default function StoreHeader() {
                     to="/products"
                     className="hidden rounded-xl border px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted lg:block"
                 >
-                    Products
+                    {
+                        productsLabel
+                    }
                 </Link>
 
                 <Link
@@ -215,14 +302,10 @@ export default function StoreHeader() {
         : 'text-muted-foreground'
 } `}
                     aria-label={
-                        hasCartItems
-                            ? `Shopping cart with ${ cartItemCount } items`
-                            : 'Shopping cart is empty'
+                        cartLabel
                     }
                     title={
-                        hasCartItems
-                            ? `Shopping cart(${ cartItemCount })`
-                            : 'Shopping cart is empty'
+                        cartTitle
                     }
                 >
                     <ShoppingBag
@@ -253,12 +336,20 @@ export default function StoreHeader() {
                     )}
                 </Link>
 
+                <LanguageToggle />
+
                 {isAuthenticated ? (
                     <Link
                         to="/profile"
                         className="flex min-w-0 shrink-0 items-center gap-2 rounded-xl border px-2 py-2 transition-colors hover:bg-muted md:px-3"
-                        aria-label={`Open profile for ${ userName }`}
-                        title="My profile"
+                        aria-label={
+                            isFa
+                                ? `باز کردن پروفایل ${ userName } `
+                                : `Open profile for ${ userName }`
+                        }
+                        title={
+                            profileLabel
+                        }
                     >
                         {user?.avatarUrl?.trim() ? (
                             <img
@@ -284,7 +375,9 @@ export default function StoreHeader() {
                             </div>
 
                             <div className="text-[11px] text-muted-foreground">
-                                My profile
+                                {
+                                    profileLabel
+                                }
                             </div>
                         </div>
 
@@ -300,7 +393,9 @@ export default function StoreHeader() {
                         to="/login"
                         className="hidden rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 md:block"
                     >
-                        Sign in
+                        {
+                            signInLabel
+                        }
                     </Link>
                 )}
             </div>

@@ -85,7 +85,7 @@ public static class DbInitializer
             headphones);
 
         // =====================================================
-        // PRODUCT 1
+        //prodUCT 1
         // Samsung Galaxy S24
         // =====================================================
 
@@ -187,7 +187,7 @@ public static class DbInitializer
         s24Blue512.AddAttributeValue(s24Storage512);
 
         // =====================================================
-        // PRODUCT 2
+        //prodUCT 2
         // iPhone 15 Pro Max
         // =====================================================
 
@@ -284,7 +284,7 @@ public static class DbInitializer
         iphoneBlue256.AddAttributeValue(iphone256);
 
         // =====================================================
-        // PRODUCT 3
+        //prodUCT 3
         // Xiaomi 14T Pro
         // =====================================================
 
@@ -370,7 +370,7 @@ public static class DbInitializer
         xiaomiGreen512.AddAttributeValue(xiaomi512);
 
         // =====================================================
-        // PRODUCT 4
+        //prodUCT 4
         // ASUS ROG Zephyrus
         // =====================================================
 
@@ -446,7 +446,7 @@ public static class DbInitializer
         laptop32.AddAttributeValue(ram32);
 
         // =====================================================
-        // PRODUCT 5
+        //prodUCT 5
         // Bose QC35
         // =====================================================
 
@@ -506,7 +506,7 @@ public static class DbInitializer
         boseWhiteVariant.AddAttributeValue(boseWhite);
 
         // =====================================================
-        // PRODUCT 6
+        //prodUCT 6
         // Samsung Galaxy A55
         // =====================================================
 
@@ -566,7 +566,7 @@ public static class DbInitializer
         a55VariantBlue.AddAttributeValue(a55Blue);
 
         // =====================================================
-        // PRODUCT 7
+        //prodUCT 7
         // ASUS VivoBook
         // =====================================================
 
@@ -621,7 +621,7 @@ public static class DbInitializer
         vivoVariant.AddAttributeValue(vivo16);
 
         // =====================================================
-        // PRODUCT 8
+        //prodUCT 8
         // Bose QuietComfort Earbuds
         // =====================================================
 
@@ -681,7 +681,7 @@ public static class DbInitializer
             earbudsWhite);
 
         // =====================================================
-        // PRODUCT CATEGORIES
+        //prodUCT CATEGORIES
         // =====================================================
 
         samsungS24.ProductCategories.Add(
