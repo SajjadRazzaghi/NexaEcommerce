@@ -1,6 +1,9 @@
 
 using Microsoft.EntityFrameworkCore;
+using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
+using NexaEcommerce.Modules.Orders.Domain.Interfaces;
+using NexaEcommerce.Modules.Orders.Infrastructure.Repositories;
 
 namespace NexaEcommerce.Modules.Orders.Infrastructure.Persistence;
 
@@ -10,7 +13,12 @@ public sealed class OrdersDbContext(
 {
     public DbSet<Order> Orders =>
         Set<Order>();
+ public DbSet<Package> Packages =>
+    Set<Package>();
 
+    public DbSet<Fulfillment>
+    Fulfillments =>
+    Set<Fulfillment>();
     public DbSet<OrderItem> OrderItems =>
         Set<OrderItem>();
 
@@ -46,8 +54,167 @@ public sealed class OrdersDbContext(
     {
         base.OnModelCreating(
             modelBuilder);
+modelBuilder.Entity<Package>(
+    entity =>
+    {
+        entity.ToTable(
+            "Packages");
 
-        modelBuilder.HasDefaultSchema(
+        entity.HasKey(
+            x => x.Id);
+
+        entity.Property(
+            x => x.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
+
+        entity.Property(
+            x => x.OrderId)
+            .IsRequired();
+
+        entity.Property(
+            x => x.FulfillmentId)
+            .IsRequired();
+
+        entity.Property(
+            x => x.PackageNumber)
+            .IsRequired();
+
+        entity.Property(
+            x => x.Status)
+            .IsRequired();
+
+        entity.Property(
+            x => x.TrackingNumber)
+            .HasMaxLength(200);
+
+        entity.Property(
+            x => x.WeightKg)
+            .HasPrecision(
+                10,
+                3);
+
+        entity.Property(
+            x => x.LengthCm)
+            .HasPrecision(
+                10,
+                2);
+
+        entity.Property(
+            x => x.WidthCm)
+            .HasPrecision(
+                10,
+                2);
+
+        entity.Property(
+            x => x.HeightCm)
+            .HasPrecision(
+                10,
+                2);
+
+        entity.Property(
+            x => x.CreatedAt)
+            .IsRequired();
+
+        entity.Property(
+            x => x.UpdatedAt)
+            .IsRequired();
+
+        entity.HasIndex(
+                x => new
+                {
+                    x.TenantId,
+                    x.OrderId,
+                    x.PackageNumber
+                })
+            .IsUnique();
+
+        entity.HasIndex(
+            x => new
+            {
+                x.TenantId,
+                x.TrackingNumber
+            });
+
+        entity.HasIndex(
+            x => new
+            {
+                x.TenantId,
+                x.FulfillmentId
+            });
+
+        entity.HasOne<Order>()
+            .WithMany()
+            .HasForeignKey(
+                x => x.OrderId)
+            .OnDelete(
+                DeleteBehavior.Cascade);
+
+        entity.HasOne<Fulfillment>()
+            .WithMany()
+            .HasForeignKey(
+                x => x.FulfillmentId)
+            .OnDelete(
+                DeleteBehavior.Cascade);
+    });
+
+modelBuilder.Entity<Fulfillment>(
+    entity =>
+    {
+        entity.ToTable(
+            "Fulfillments");
+
+        entity.HasKey(
+            x => x.Id);
+
+        entity.Property(
+            x => x.OrderId)
+            .IsRequired();
+
+        entity.Property(
+            x => x.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
+
+        entity.Property(
+            x => x.Status)
+            .IsRequired();
+
+        entity.Property(
+            x => x.WarehouseId);
+
+        entity.Property(
+            x => x.PickingLocationId);
+
+        entity.Property(
+            x => x.CreatedAt)
+            .IsRequired();
+
+        entity.HasOne<Order>()
+            .WithMany()
+            .HasForeignKey(
+                x => x.OrderId)
+            .OnDelete(
+                DeleteBehavior.Cascade);
+
+        entity.HasIndex(
+            x => new
+            {
+                x.TenantId,
+                x.OrderId
+            })
+            .IsUnique();
+
+        entity.HasIndex(
+            x => new
+            {
+                x.TenantId,
+                x.Status,
+                x.CreatedAt
+            });
+    });
+
+       modelBuilder.HasDefaultSchema(
             "Orders");
 
         modelBuilder.Entity<Order>(

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence;
 
@@ -11,9 +12,11 @@ using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence;
 namespace NexaEcommerce.Modules.Inventory.Infrastructure.Persistence.Migrations
 {
     [DbContext(typeof(InventoryDbContext))]
-    partial class InventoryDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260916094300_AddWarehouseInfrastructure")]
+    partial class AddWarehouseInfrastructure
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -388,146 +391,6 @@ namespace NexaEcommerce.Modules.Inventory.Infrastructure.Persistence.Migrations
                     b.ToTable("WarehouseStocks", "Inventory");
                 });
 
-            modelBuilder.Entity("NexaEcommerce.Modules.Inventory.Domain.Entities.WarehouseStockMovement", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("BalanceAfter")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("LocationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime>("OccurredAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("ProductVariantId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("QuantityDelta")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Reason")
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
-
-                    b.Property<string>("ReferenceId")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.Property<string>("ReferenceType")
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<string>("TenantId")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<int>("Type")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("WarehouseId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("LocationId");
-
-                    b.HasIndex("WarehouseId");
-
-                    b.HasIndex("TenantId", "ReferenceType", "ReferenceId");
-
-                    b.HasIndex("TenantId", "WarehouseId", "LocationId", "ProductVariantId", "OccurredAt");
-
-                    b.ToTable("WarehouseStockMovements", "Inventory");
-                });
-
-            modelBuilder.Entity("NexaEcommerce.Modules.Inventory.Domain.Entities.WarehouseTransfer", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("DeletedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("DestinationLocationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("DestinationWarehouseId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("bit");
-
-                    b.Property<Guid>("ProductVariantId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Reason")
-                        .HasMaxLength(512)
-                        .HasColumnType("nvarchar(512)");
-
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("SourceLocationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid>("SourceWarehouseId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<string>("TenantId")
-                        .IsRequired()
-                        .HasMaxLength(64)
-                        .HasColumnType("nvarchar(64)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("DestinationLocationId");
-
-                    b.HasIndex("DestinationWarehouseId");
-
-                    b.HasIndex("SourceLocationId");
-
-                    b.HasIndex("SourceWarehouseId");
-
-                    b.HasIndex("TenantId", "RequestedAt");
-
-                    b.HasIndex("TenantId", "ProductVariantId", "RequestedAt");
-
-                    b.ToTable("WarehouseTransfers", "Inventory");
-                });
-
             modelBuilder.Entity("NexaEcommerce.Modules.Inventory.Domain.Entities.InventoryMovement", b =>
                 {
                     b.HasOne("NexaEcommerce.Modules.Inventory.Domain.Entities.StockItem", null)
@@ -568,48 +431,6 @@ namespace NexaEcommerce.Modules.Inventory.Infrastructure.Persistence.Migrations
                     b.HasOne("NexaEcommerce.Modules.Inventory.Domain.Entities.Warehouse", null)
                         .WithMany()
                         .HasForeignKey("WarehouseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("NexaEcommerce.Modules.Inventory.Domain.Entities.WarehouseStockMovement", b =>
-                {
-                    b.HasOne("NexaEcommerce.Modules.Inventory.Domain.Entities.WarehouseLocation", null)
-                        .WithMany()
-                        .HasForeignKey("LocationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("NexaEcommerce.Modules.Inventory.Domain.Entities.Warehouse", null)
-                        .WithMany()
-                        .HasForeignKey("WarehouseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-                });
-
-            modelBuilder.Entity("NexaEcommerce.Modules.Inventory.Domain.Entities.WarehouseTransfer", b =>
-                {
-                    b.HasOne("NexaEcommerce.Modules.Inventory.Domain.Entities.WarehouseLocation", null)
-                        .WithMany()
-                        .HasForeignKey("DestinationLocationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("NexaEcommerce.Modules.Inventory.Domain.Entities.Warehouse", null)
-                        .WithMany()
-                        .HasForeignKey("DestinationWarehouseId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("NexaEcommerce.Modules.Inventory.Domain.Entities.WarehouseLocation", null)
-                        .WithMany()
-                        .HasForeignKey("SourceLocationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("NexaEcommerce.Modules.Inventory.Domain.Entities.Warehouse", null)
-                        .WithMany()
-                        .HasForeignKey("SourceWarehouseId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });

@@ -2,8 +2,6 @@
 using NexaEcommerce.Modules.Inventory.Application.DTOs;
 using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
-using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence;
-using NexaEcommerce.SharedKernel.Abstractions;
 
 namespace NexaEcommerce.Modules.Inventory.Application.Services;
 
@@ -13,12 +11,79 @@ public sealed class InventoryService(
     : IInventoryService
 {
     private const int MaxConcurrencyRetries = 5;
+public async Task<IReadOnlyList<InventoryMovementDto>> GetMovementsAsync(
+    string tenantId,
+    Guid productVariantId,
+    int skip,
+    int take,
+    CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+
+        if (productVariantId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Product variant id is required.",
+                nameof(productVariantId));
+        }
+
+        if (skip < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(skip));
+        }
+
+        if (take <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(take));
+        }
+
+        // جلوگیری از درخواست‌های غیرمنطقی و فشار ناخواسته به DB
+        take = Math.Min(
+            take,
+            200);
+
+        var movements =
+            await repository.GetMovementsAsync(
+                tenantId.Trim(),
+                productVariantId,
+                skip,
+                take,
+                cancellationToken);
+
+        return movements
+            .Select(
+                movement =>
+                    new InventoryMovementDto(
+                        movement.Id,
+                        movement.ProductVariantId,
+                        movement.Type.ToString(),
+                        movement.AvailableDelta,
+                        movement.ReservedDelta,
+                        movement.AvailableBalance,
+                        movement.ReservedBalance,
+                        movement.TotalBalance,
+                        movement.ReferenceType,
+                        movement.ReferenceId,
+                        movement.Reason,
+                        movement.OccurredAt))
+            .ToList();
+    }
 
     public async Task<StockDto?> GetStockAsync(
         string tenantId,
         Guid productVariantId,
         CancellationToken cancellationToken = default)
     {
+        ValidateTenant(
+            tenantId);
+
         var stock =
             await repository.GetStockAsync(
                 tenantId,
@@ -35,12 +100,8 @@ public sealed class InventoryService(
         string reservationKey,
         CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
-        {
-            throw new ArgumentException(
-                "Tenant id is required.",
-                nameof(tenantId));
-        }
+        ValidateTenant(
+            tenantId);
 
         if (string.IsNullOrWhiteSpace(reservationKey))
         {
@@ -69,60 +130,125 @@ public sealed class InventoryService(
         int quantity,
         CancellationToken cancellationToken = default)
     {
+        ValidateTenant(
+            tenantId);
+
         if (quantity < 0)
         {
             throw new ArgumentOutOfRangeException(
                 nameof(quantity));
         }
 
-        var stock =
-            await repository.GetStockAsync(
-                tenantId,
-                productVariantId,
-                cancellationToken);
-
-        if (stock is null)
+        for (var attempt = 1;
+             attempt <= MaxConcurrencyRetries;
+             attempt++)
         {
-            stock =
-                StockItem.Create(
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var stock =
+                await repository.GetStockAsync(
                     tenantId,
                     productVariantId,
-                    quantity);
+                    cancellationToken);
 
-            await repository.AddStockAsync(
-                stock,
-                cancellationToken);
+            if (stock is null)
+            {
+                stock =
+                    StockItem.Create(
+                        tenantId,
+                        productVariantId,
+                        quantity);
+
+                await repository.AddStockAsync(
+                    stock,
+                    cancellationToken);
+
+                await repository.AddMovementAsync(
+                    InventoryMovement.Create(
+                        tenantId,
+                        stock.Id,
+                        productVariantId,
+                        InventoryMovementType.OpeningBalance,
+                        quantity,
+                        0,
+                        stock.AvailableQuantity,
+                        stock.ReservedQuantity,
+                        null,
+                        null,
+                        "Initial stock balance."),
+                    cancellationToken);
+            }
+            else
+            {
+                if (stock.ReservedQuantity > quantity)
+                {
+                    throw new InvalidOperationException(
+                        "New stock quantity cannot be lower than reserved quantity.");
+                }
+
+                var currentTotal =
+                    stock.TotalQuantity;
+
+                var difference =
+                    quantity - currentTotal;
+
+                if (difference == 0)
+                {
+                    return Map(stock);
+                }
+
+                if (difference > 0)
+                {
+                    stock.Add(
+                        difference);
+                }
+                else
+                {
+                    stock.Remove(
+                        -difference);
+                }
+
+                await repository.AddMovementAsync(
+                    InventoryMovement.Create(
+                        tenantId,
+                        stock.Id,
+                        productVariantId,
+                        InventoryMovementType.Correction,
+                        difference,
+                        0,
+                        stock.AvailableQuantity,
+                        stock.ReservedQuantity,
+                        null,
+                        null,
+                        "Stock quantity corrected."),
+                    cancellationToken);
+            }
+
+            try
+            {
+                await unitOfWork.SaveChangesAsync(
+                    cancellationToken);
+
+                return Map(stock);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                repository.ClearTracking();
+
+                if (attempt == MaxConcurrencyRetries)
+                {
+                    throw new InvalidOperationException(
+                        "Stock could not be updated because it is being updated concurrently.");
+                }
+
+                await DelayBeforeRetryAsync(
+                    attempt,
+                    cancellationToken);
+            }
         }
-        else
-        {
-            if (stock.ReservedQuantity > quantity)
-            {
-                throw new InvalidOperationException(
-                    "New stock quantity cannot be lower than reserved quantity.");
-            }
 
-            var currentTotal =
-                stock.TotalQuantity;
-
-            var difference =
-                quantity - currentTotal;
-
-            if (difference > 0)
-            {
-                stock.Add(
-                    difference);
-            }
-            else if (difference < 0)
-            {
-                stock.Remove(
-                    -difference);
-            }
-        }
-
-        await unitOfWork.SaveChangesAsync(
-            cancellationToken);
-
-        return Map(stock);
+        throw new InvalidOperationException(
+            "Stock update could not be completed.");
     }
 
     public async Task<StockDto> AdjustStockAsync(
@@ -131,45 +257,130 @@ public sealed class InventoryService(
         int quantity,
         CancellationToken cancellationToken = default)
     {
-        var stock =
-            await repository.GetStockAsync(
-                tenantId,
-                productVariantId,
-                cancellationToken);
+        ValidateTenant(
+            tenantId);
 
-        if (stock is null)
+        if (quantity == 0)
         {
-            if (quantity < 0)
-            {
-                throw new InvalidOperationException(
-                    "Cannot reduce stock that does not exist.");
-            }
-
-            stock =
-                StockItem.Create(
+            var existing =
+                await repository.GetStockAsync(
                     tenantId,
                     productVariantId,
-                    quantity);
+                    cancellationToken);
 
-            await repository.AddStockAsync(
-                stock,
-                cancellationToken);
+            if (existing is null)
+            {
+                throw new InvalidOperationException(
+                    "Stock record was not found.");
+            }
+
+            return Map(existing);
         }
-        else if (quantity > 0)
+
+        for (var attempt = 1;
+             attempt <= MaxConcurrencyRetries;
+             attempt++)
         {
-            stock.Add(
-                quantity);
-        }
-        else if (quantity < 0)
-        {
-            stock.Remove(
-                -quantity);
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var stock =
+                await repository.GetStockAsync(
+                    tenantId,
+                    productVariantId,
+                    cancellationToken);
+
+            if (stock is null)
+            {
+                if (quantity < 0)
+                {
+                    throw new InvalidOperationException(
+                        "Cannot reduce stock that does not exist.");
+                }
+
+                stock =
+                    StockItem.Create(
+                        tenantId,
+                        productVariantId,
+                        quantity);
+
+                await repository.AddStockAsync(
+                    stock,
+                    cancellationToken);
+
+                await repository.AddMovementAsync(
+                    InventoryMovement.Create(
+                        tenantId,
+                        stock.Id,
+                        productVariantId,
+                        InventoryMovementType.AdjustmentIncrease,
+                        quantity,
+                        0,
+                        stock.AvailableQuantity,
+                        stock.ReservedQuantity,
+                        "Adjustment",
+                        null,
+                        "Stock adjustment."),
+                    cancellationToken);
+            }
+            else
+            {
+                if (quantity > 0)
+                {
+                    stock.Add(
+                        quantity);
+                }
+                else
+                {
+                    stock.Remove(
+                        -quantity);
+                }
+
+                var movementType =
+                    quantity > 0
+                        ? InventoryMovementType.AdjustmentIncrease
+                        : InventoryMovementType.AdjustmentDecrease;
+
+                await repository.AddMovementAsync(
+                    InventoryMovement.Create(
+                        tenantId,
+                        stock.Id,
+                        productVariantId,
+                        movementType,
+                        quantity,
+                        0,
+                        stock.AvailableQuantity,
+                        stock.ReservedQuantity,
+                        "Adjustment",
+                        null,
+                        "Stock adjustment."),
+                    cancellationToken);
+            }
+
+            try
+            {
+                await unitOfWork.SaveChangesAsync(
+                    cancellationToken);
+
+                return Map(stock);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                repository.ClearTracking();
+
+                if (attempt == MaxConcurrencyRetries)
+                {
+                    throw new InvalidOperationException(
+                        "Stock could not be adjusted because it is being updated concurrently.");
+                }
+
+                await DelayBeforeRetryAsync(
+                    attempt,
+                    cancellationToken);
+            }
         }
 
-        await unitOfWork.SaveChangesAsync(
-            cancellationToken);
-
-        return Map(stock);
+        throw new InvalidOperationException(
+            "Stock adjustment could not be completed.");
     }
 
     public async Task<StockReservationDto> ReserveAsync(
@@ -180,6 +391,9 @@ public sealed class InventoryService(
         TimeSpan expiration,
         CancellationToken cancellationToken = default)
     {
+        ValidateTenant(
+            tenantId);
+
         if (quantity <= 0)
         {
             throw new ArgumentOutOfRangeException(
@@ -215,10 +429,6 @@ public sealed class InventoryService(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            /*
-             * Always query again after a concurrency conflict.
-             * The previous DbContext state must never be reused.
-             */
             var existing =
                 await repository.GetReservationAsync(
                     tenantId,
@@ -249,10 +459,12 @@ public sealed class InventoryService(
                     "Stock record was not found.");
             }
 
-            /*
-             * Reserve() validates available stock and increments
-             * the application-managed Version concurrency token.
-             */
+            var previousAvailable =
+                stock.AvailableQuantity;
+
+            var previousReserved =
+                stock.ReservedQuantity;
+
             stock.Reserve(
                 quantity);
 
@@ -270,6 +482,21 @@ public sealed class InventoryService(
                 reservation,
                 cancellationToken);
 
+            await repository.AddMovementAsync(
+                InventoryMovement.Create(
+                    tenantId,
+                    stock.Id,
+                    productVariantId,
+                    InventoryMovementType.Reservation,
+                    -quantity,
+                    quantity,
+                    stock.AvailableQuantity,
+                    stock.ReservedQuantity,
+                    "Reservation",
+                    normalizedKey,
+                    $"Reservation moved {quantity} unit(s) from available to reserved. Previous available={previousAvailable}, previous reserved={previousReserved}."),
+                cancellationToken);
+
             try
             {
                 await unitOfWork.SaveChangesAsync(
@@ -279,13 +506,6 @@ public sealed class InventoryService(
             }
             catch (DbUpdateConcurrencyException)
             {
-                /*
-                 * EF Core cannot safely retry with the entities that
-                 * participated in the failed SaveChanges operation.
-                 *
-                 * Clear them completely, reload from the database,
-                 * and retry the business operation.
-                 */
                 repository.ClearTracking();
 
                 if (attempt == MaxConcurrencyRetries)
@@ -300,11 +520,6 @@ public sealed class InventoryService(
             }
             catch (DbUpdateException)
             {
-                /*
-                 * Another request may have created the same
-                 * idempotent reservation between our existence check
-                 * and INSERT.
-                 */
                 repository.ClearTracking();
 
                 var persisted =
@@ -340,6 +555,9 @@ public sealed class InventoryService(
         string reservationKey,
         CancellationToken cancellationToken = default)
     {
+        ValidateTenant(
+            tenantId);
+
         if (string.IsNullOrWhiteSpace(reservationKey))
         {
             throw new ArgumentException(
@@ -393,20 +611,40 @@ public sealed class InventoryService(
                     "Stock record was not found.");
             }
 
+            stock.Release(
+                reservation.Quantity);
+
+            var movementType =
+                reservation.IsExpired
+                    ? InventoryMovementType.ReservationRelease
+                    : InventoryMovementType.ReservationRelease;
+
             if (reservation.IsExpired)
             {
-                stock.Release(
-                    reservation.Quantity);
-
                 reservation.MarkExpired();
             }
             else
             {
-                stock.Release(
-                    reservation.Quantity);
-
                 reservation.MarkReleased();
             }
+
+            await repository.AddMovementAsync(
+                InventoryMovement.Create(
+                    tenantId,
+                    stock.Id,
+                    reservation.ProductVariantId,
+                    movementType,
+                    reservation.Quantity,
+                    -reservation.Quantity,
+                    stock.AvailableQuantity,
+                    stock.ReservedQuantity,
+                    "Reservation",
+                    normalizedKey,
+                    reservation.Status ==
+                        StockReservationStatus.Expired
+                        ? "Expired reservation released."
+                        : "Reservation released."),
+                cancellationToken);
 
             try
             {
@@ -440,6 +678,9 @@ public sealed class InventoryService(
         string reservationKey,
         CancellationToken cancellationToken = default)
     {
+        ValidateTenant(
+            tenantId);
+
         if (string.IsNullOrWhiteSpace(reservationKey))
         {
             throw new ArgumentException(
@@ -503,6 +744,21 @@ public sealed class InventoryService(
 
             reservation.MarkCommitted();
 
+            await repository.AddMovementAsync(
+                InventoryMovement.Create(
+                    tenantId,
+                    stock.Id,
+                    reservation.ProductVariantId,
+                    InventoryMovementType.ReservationCommit,
+                    0,
+                    -reservation.Quantity,
+                    stock.AvailableQuantity,
+                    stock.ReservedQuantity,
+                    "Reservation",
+                    normalizedKey,
+                    "Reserved stock committed to the order."),
+                cancellationToken);
+
             try
             {
                 await unitOfWork.SaveChangesAsync(
@@ -528,6 +784,17 @@ public sealed class InventoryService(
 
         throw new InvalidOperationException(
             "Reservation commit could not be completed.");
+    }
+
+    private static void ValidateTenant(
+        string tenantId)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
     }
 
     private static async Task DelayBeforeRetryAsync(
@@ -570,4 +837,3 @@ public sealed class InventoryService(
             reservation.ExpiresAt);
     }
 }
-

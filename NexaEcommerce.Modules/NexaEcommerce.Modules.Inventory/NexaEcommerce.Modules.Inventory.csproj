@@ -17,10 +17,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-	  <Folder Include="Domain\" />
-	</ItemGroup>
-
-	<ItemGroup>
 	  <ProjectReference Include="..\..\NexaEcommerce.SharedKernel\NexaEcommerce.SharedKernel.csproj" />
 	</ItemGroup>
 

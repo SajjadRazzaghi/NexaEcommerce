@@ -9,6 +9,13 @@ public interface IInventoryService
         Guid productVariantId,
         CancellationToken cancellationToken = default);
 
+    Task<IReadOnlyList<InventoryMovementDto>> GetMovementsAsync(
+        string tenantId,
+        Guid productVariantId,
+        int skip,
+        int take,
+        CancellationToken cancellationToken = default);
+
     Task<StockDto> SetStockAsync(
         string tenantId,
         Guid productVariantId,
@@ -44,4 +51,3 @@ public interface IInventoryService
         string reservationKey,
         CancellationToken cancellationToken = default);
 }
-

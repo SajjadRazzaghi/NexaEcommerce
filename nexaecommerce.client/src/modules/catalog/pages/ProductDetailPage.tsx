@@ -105,11 +105,13 @@ function getVariantLabel(
 
 
 export default function ProductDetailPage() {
-    const {
-        id: slug,
-    } = useParams<{
-        id: string;
-    }>();
+    
+const {
+    slug,
+} = useParams<{
+    slug: string;
+}>();
+
 
     const {
         t,

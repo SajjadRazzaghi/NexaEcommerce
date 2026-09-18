@@ -41,7 +41,7 @@ public sealed class CartTests
             "default",
             "user-1");
 
-        var item = cart.AddItem(
+        cart.AddItem(
             VariantId,
             2,
             100m,
@@ -49,6 +49,8 @@ public sealed class CartTests
             "/image.jpg");
 
         cart.Items.Count.ShouldBe(1);
+
+        var item = cart.Items.Single();
 
         item.ProductVariantId.ShouldBe(VariantId);
         item.Quantity.ShouldBe(2);

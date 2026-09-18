@@ -47,6 +47,13 @@ public static class OrdersModule
         // ========================================================
         // Orders
         // ========================================================
+        services.AddScoped<
+    IFulfillmentRepository,
+    FulfillmentRepository>();
+
+        services.AddScoped<
+            IFulfillmentService,
+            FulfillmentService>();
 
         services.AddScoped<
             IOrderRepository,
@@ -59,6 +66,15 @@ public static class OrdersModule
         services.AddScoped<
             IOrderUnitOfWork,
             OrderUnitOfWork>();
+   
+services.AddScoped<
+    IPackageRepository,
+    PackageRepository>();
+
+        services.AddScoped<
+            IPackageService,
+            PackageService>();
+
 
         // ========================================================
         // Pricing

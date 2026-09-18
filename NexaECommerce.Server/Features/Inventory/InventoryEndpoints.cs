@@ -27,6 +27,12 @@ public sealed class InventoryEndpoints : IFeatureEndpoints
             .RequirePermission(
                 InventoryPermissions.Read);
 
+        group.MapGet(
+                "/{productVariantId:guid}/movements",
+                GetMovements)
+            .RequirePermission(
+                InventoryPermissions.Read);
+
         group.MapPut(
                 "/stock",
                 SetStock)
@@ -82,6 +88,62 @@ public sealed class InventoryEndpoints : IFeatureEndpoints
                 })
             : Results.Ok(result);
     }
+
+private static async Task<IResult> GetMovements(
+    Guid productVariantId,
+    int skip,
+    int take,
+    IInventoryService service,
+    ICurrentTenant currentTenant,
+    CancellationToken ct)
+    {
+        try
+        {
+            if (skip < 0)
+            {
+                return Results.BadRequest(
+                    new
+                    {
+                        error = "Skip cannot be negative."
+                    });
+            }
+
+            if (take <= 0)
+            {
+                return Results.BadRequest(
+                    new
+                    {
+                        error = "Take must be greater than zero."
+                    });
+            }
+
+            var result =
+                await service.GetMovementsAsync(
+                    currentTenant.Id,
+                    productVariantId,
+                    skip,
+                    take,
+                    ct);
+
+            return Results.Ok(
+                new
+                {
+                    productVariantId,
+                    skip,
+                    take = Math.Min(take, 200),
+                    items = result
+                });
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+    }
+
 
     private static async Task<IResult> SetStock(
         [FromBody] SetStockRequest request,

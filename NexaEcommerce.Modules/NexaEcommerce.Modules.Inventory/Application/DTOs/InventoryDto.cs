@@ -12,7 +12,8 @@ public sealed record SetStockRequest(
 
 public sealed record AdjustStockRequest(
     Guid ProductVariantId,
-    int Quantity);
+    int Quantity,
+    string? Reason = null);
 
 public sealed record ReserveStockRequest(
     Guid ProductVariantId,
@@ -26,3 +27,17 @@ public sealed record StockReservationDto(
     int Quantity,
     string Status,
     DateTimeOffset ExpiresAt);
+
+public sealed record InventoryMovementDto(
+    Guid Id,
+    Guid ProductVariantId,
+    string Type,
+    int AvailableDelta,
+    int ReservedDelta,
+    int AvailableBalance,
+    int ReservedBalance,
+    int TotalBalance,
+    string? ReferenceType,
+    string? ReferenceId,
+    string? Reason,
+    DateTime OccurredAt);
