@@ -115,6 +115,27 @@ public sealed class WarehouseStock : BaseEntity
 
     public bool IsLowStock =>
         AvailableQuantity <= ReorderPoint;
+public void ConsumeReserved(int quantity)
+    {
+        ValidatePositive(quantity);
+
+        if (quantity > ReservedQuantity)
+        {
+            throw new InvalidOperationException(
+                "Cannot consume more than reserved warehouse stock.");
+        }
+
+        if (quantity > OnHandQuantity)
+        {
+            throw new InvalidOperationException(
+                "Cannot consume more than on-hand warehouse stock.");
+        }
+
+        OnHandQuantity -= quantity;
+        ReservedQuantity -= quantity;
+
+        Touch();
+    }
 
     public static WarehouseStock Create(
         string tenantId,

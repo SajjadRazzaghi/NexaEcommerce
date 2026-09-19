@@ -36,9 +36,11 @@ public static class InventoryModule
                                 TimeSpan.FromSeconds(10),
                                 null));
             });
- 
 
 
+        services.AddScoped<
+    IWarehouseStockReservationRepository,
+    WarehouseStockReservationRepository>();
         services.AddScoped<
             IWarehouseTransferService,
             WarehouseTransferService>();

@@ -5,6 +5,7 @@ import {
     Home,
     KeyRound,
     LayoutDashboard,
+    Package,
     Palette,
     Settings,
     Shield,
@@ -88,6 +89,18 @@ export const NAV: NavSection[] = [
                 titleKey: 'nav.products',
                 to: '/admin/products',
                 icon: ShoppingBag,
+            },
+            {
+                titleKey: 'nav.orders',
+                to: '/admin/orders',
+                icon: ShoppingBag,
+                permission: PERM.ordersManage,
+            },
+            {
+                titleKey: 'nav.shipping',
+                to: '/admin/fulfillment',
+                icon: Package,
+                permission: PERM.ordersManage,
             },
             {
                 titleKey: 'nav.categories',

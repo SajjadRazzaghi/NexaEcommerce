@@ -3,9 +3,10 @@ import {
     Package,
     Truck,
 } from 'lucide-react';
-
 import {
-    useMemo,
+    useTranslation,
+} from 'react-i18next';
+import {
     useState,
 } from 'react';
 
@@ -15,12 +16,7 @@ import {
 } from 'react-router-dom';
 
 import {
-    useTranslation,
-} from 'react-i18next';
-
-import {
     useAdminOrder,
-    useAdminOrderMutations,
 } from '@/modules/orders/hooks/useAdminOrders';
 
 import {
@@ -28,9 +24,10 @@ import {
     useShipmentMutations,
 } from '@/modules/orders/hooks/useShipment';
 
-import type {
-    OrderStatus,
-} from '@/modules/orders/types';
+import {
+    useFulfillment,
+    useFulfillmentMutations,
+} from '@/modules/orders/hooks/useFulfillment';
 
 export default function AdminOrderDetailsPage() {
     const { id } =
@@ -40,7 +37,9 @@ export default function AdminOrderDetailsPage() {
 const navigate =
     useNavigate();
 
-const { i18n } =
+const {
+    i18n,
+} =
     useTranslation();
 
 const isFa =
@@ -52,6 +51,8 @@ const {
     data: order,
     isLoading:
         orderLoading,
+    isError:
+        orderError,
 } =
     useAdminOrder(id);
 
@@ -63,9 +64,11 @@ const {
     useShipment(id);
 
 const {
-    updateStatus,
+    data: fulfillment,
+    isLoading:
+        fulfillmentLoading,
 } =
-    useAdminOrderMutations();
+    useFulfillment(id);
 
 const {
     create,
@@ -73,6 +76,28 @@ const {
     deliver,
 } =
     useShipmentMutations(
+        id ?? '',
+    );
+
+const {
+    start:
+        startFulfillmentMutation,
+    allocate:
+        allocateMutation,
+    reserve:
+        reserveMutation,
+    picking:
+        pickingMutation,
+    picked:
+        pickedMutation,
+    packing:
+        packingMutation,
+    packed:
+        packedMutation,
+    readyToShip:
+        readyToShipMutation,
+} =
+    useFulfillmentMutations(
         id ?? '',
     );
 
@@ -98,6 +123,14 @@ const [
 ] =
     useState('');
 
+const [
+    fulfillmentError,
+    setFulfillmentError,
+] =
+    useState<string | null>(
+        null,
+    );
+
 const text = isFa
     ? {
           loading:
@@ -108,8 +141,6 @@ const text = isFa
               'بازگشت',
           status:
               'وضعیت',
-          update:
-              'تغییر وضعیت',
           order:
               'سفارش',
           customer:
@@ -135,13 +166,37 @@ const text = isFa
           total:
               'مبلغ کل',
           creating:
-              'در حال ایجاد...',
-          updating:
-              'در حال بروزرسانی...',
+              'در حال انجام...',
           shippingNow:
               'در حال ارسال...',
           delivering:
               'در حال ثبت تحویل...',
+          fulfillment:
+              'فرآیند آماده‌سازی سفارش',
+          fulfillmentNotStarted:
+              'فرآیند آماده‌سازی هنوز شروع نشده است.',
+          startFulfillment:
+              'شروع پردازش سفارش',
+          allocate:
+              'تخصیص انبار',
+          reserve:
+              'رزرو موجودی',
+          startPicking:
+              'شروع جمع‌آوری',
+          picked:
+              'جمع‌آوری شد',
+          startPacking:
+              'شروع بسته‌بندی',
+          packed:
+              'بسته‌بندی شد',
+          ready:
+              'آماده ارسال',
+          warehouse:
+              'انبار',
+          pickingLocation:
+              'موقعیت برداشت',
+          fulfillmentError:
+              'عملیات آماده‌سازی سفارش انجام نشد.',
       }
     : {
           loading:
@@ -152,8 +207,6 @@ const text = isFa
               'Back',
           status:
               'Status',
-          update:
-              'Update status',
           order:
               'Order',
           customer:
@@ -179,52 +232,72 @@ const text = isFa
           total:
               'Total',
           creating:
-              'Creating...',
-          updating:
-              'Updating...',
+              'Processing...',
           shippingNow:
               'Shipping...',
           delivering:
               'Marking delivered...',
+          fulfillment:
+              'Order fulfillment',
+          fulfillmentNotStarted:
+              'Fulfillment has not started yet.',
+          startFulfillment:
+              'Start processing',
+          allocate:
+              'Allocate warehouse',
+          reserve:
+              'Reserve stock',
+          startPicking:
+              'Start picking',
+          picked:
+              'Mark picked',
+          startPacking:
+              'Start packing',
+          packed:
+              'Mark packed',
+          ready:
+              'Ready to ship',
+          warehouse:
+              'Warehouse',
+          pickingLocation:
+              'Picking location',
+          fulfillmentError:
+              'The fulfillment operation failed.',
       };
 
-const availableStatuses =
-    useMemo<OrderStatus[]>(() => {
-        if (!order) {
-            return [];
+const isFulfillmentBusy =
+    startFulfillmentMutation.isPending ||
+    allocateMutation.isPending ||
+    reserveMutation.isPending ||
+    pickingMutation.isPending ||
+    pickedMutation.isPending ||
+    packingMutation.isPending ||
+    packedMutation.isPending ||
+    readyToShipMutation.isPending;
+
+const runFulfillmentMutation =
+    async (
+        action: () => Promise<unknown>,
+    ) => {
+        setFulfillmentError(
+            null,
+        );
+
+        try {
+            await action();
+        } catch (error) {
+            setFulfillmentError(
+                error instanceof Error
+                    ? error.message
+                    : text.fulfillmentError,
+            );
         }
-
-        switch (order.status) {
-            case 'PendingPayment':
-                return [
-                    'Paid',
-                    'Cancelled',
-                ];
-
-            case 'Paid':
-                return [
-                    'Processing',
-                    'Cancelled',
-                ];
-
-            case 'Processing':
-                return [
-                    'Cancelled',
-                ];
-
-            case 'Shipped':
-            case 'Delivered':
-            case 'Cancelled':
-                return [];
-
-            default:
-                return [];
-        }
-    }, [order]);
+    };
 
 if (
     orderLoading ||
-    shipmentLoading
+    shipmentLoading ||
+    fulfillmentLoading
 ) {
     return (
         <div
@@ -237,14 +310,22 @@ if (
         >
             <div className="animate-pulse space-y-3">
                 <div className="h-8 w-56 rounded-lg bg-muted" />
+
                 <div className="h-4 w-72 rounded-lg bg-muted" />
+
                 <div className="h-32 rounded-xl bg-muted" />
+
+                <div className="h-72 rounded-xl bg-muted" />
             </div>
         </div>
     );
 }
 
-if (!order || !id) {
+if (
+    !order ||
+    !id ||
+    orderError
+) {
     return (
         <div
             className="p-6"
@@ -259,21 +340,20 @@ if (!order || !id) {
     );
 }
 
-const canCreateShipment =
-    order.status ===
-        'Processing' &&
-    !shipment;
-
 const canShip =
     shipment?.status ===
         'Pending' &&
     Boolean(
         shipment.trackingNumber,
-    );
+    ) &&
+    fulfillment?.status ===
+        'ReadyToShip';
 
 const canDeliver =
     shipment?.status ===
-    'Shipped';
+        'Shipped' &&
+    fulfillment?.status ===
+        'Shipped';
 
 return (
     <div
@@ -322,46 +402,272 @@ return (
                             {order.status}
                         </span>
                     </div>
+                </section>
 
-                    {availableStatuses.length > 0 && (
-                        <div className="mt-5 flex flex-wrap gap-2">
-                            {availableStatuses.map(
-                                status => (
-                                    <button
-                                        key={
-                                            status
-                                        }
-                                        type="button"
-                                        disabled={
-                                            updateStatus.isPending
-                                        }
-                                        onClick={() =>
-                                            updateStatus.mutate(
-                                                {
-                                                    id:
-                                                        order.id,
-                                                    status,
-                                                },
-                                            )
-                                        }
-                                        className="rounded-lg border px-3 py-2 text-xs disabled:opacity-50"
-                                    >
-                                        {updateStatus.isPending
-                                            ? text.updating
-                                            : status}
-                                    </button>
-                                ),
+                <section className="rounded-xl border p-6">
+                    <div className="flex items-center gap-2">
+                        <Package className="size-5" />
+
+                        <h2 className="font-semibold">
+                            {
+                                text.fulfillment
+                            }
+                        </h2>
+                    </div>
+
+                    {fulfillmentError && (
+                        <div
+                            role="alert"
+                            className="mt-4 rounded-lg border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive"
+                        >
+                            {
+                                fulfillmentError
+                            }
+                        </div>
+                    )}
+
+                    {!fulfillment && (
+                        <div className="mt-5 grid gap-4">
+                            <p className="text-sm text-muted-foreground">
+                                {
+                                    text.fulfillmentNotStarted
+                                }
+                            </p>
+
+                            {order.status ===
+                                'Paid' && (
+                                <button
+                                    type="button"
+                                    disabled={
+                                        isFulfillmentBusy
+                                    }
+                                    onClick={() =>
+                                        void runFulfillmentMutation(
+                                            () =>
+                                                startFulfillmentMutation.mutateAsync(),
+                                        )
+                                    }
+                                    className="inline-flex w-fit items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                                >
+                                    <Truck className="size-4" />
+
+                                    {
+                                        startFulfillmentMutation.isPending
+                                            ? text.creating
+                                            : text.startFulfillment
+                                    }
+                                </button>
                             )}
                         </div>
                     )}
 
-                    {order.status ===
-                        'Processing' && (
-                        <p className="mt-4 text-sm text-muted-foreground">
-                            {isFa
-                                ? 'از این مرحله به بعد، ارسال و تحویل فقط از طریق مدیریت مرسوله انجام می‌شود.'
-                                : 'From this stage onward, shipping and delivery are managed through the shipment lifecycle.'}
-                        </p>
+                    {fulfillment && (
+                        <div className="mt-5 grid gap-5">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <Info
+                                    label={
+                                        text.status
+                                    }
+                                    value={
+                                        fulfillment.status
+                                    }
+                                />
+
+                                <Info
+                                    label={
+                                        text.warehouse
+                                    }
+                                    value={
+                                        fulfillment.warehouseId ??
+                                        '—'
+                                    }
+                                />
+
+                                <Info
+                                    label={
+                                        text.pickingLocation
+                                    }
+                                    value={
+                                        fulfillment.pickingLocationId ??
+                                        '—'
+                                    }
+                                />
+                            </div>
+
+                            <div className="flex flex-wrap gap-2 border-t pt-4">
+                                {fulfillment.status ===
+                                    'Pending' &&
+                                    !fulfillment.warehouseId &&
+                                    order.status ===
+                                        'Processing' && (
+                                        <button
+                                            type="button"
+                                            disabled={
+                                                isFulfillmentBusy
+                                            }
+                                            onClick={() =>
+                                                void runFulfillmentMutation(
+                                                    () =>
+                                                        allocateMutation.mutateAsync(),
+                                                )
+                                            }
+                                            className="rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-50"
+                                        >
+                                            {
+                                                allocateMutation.isPending
+                                                    ? text.creating
+                                                    : text.allocate
+                                            }
+                                        </button>
+                                    )}
+
+                                {fulfillment.status ===
+                                    'Pending' &&
+                                    Boolean(
+                                        fulfillment.warehouseId,
+                                    ) && (
+                                        <button
+                                            type="button"
+                                            disabled={
+                                                isFulfillmentBusy
+                                            }
+                                            onClick={() =>
+                                                void runFulfillmentMutation(
+                                                    () =>
+                                                        reserveMutation.mutateAsync(),
+                                                )
+                                            }
+                                            className="rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-50"
+                                        >
+                                            {
+                                                reserveMutation.isPending
+                                                    ? text.creating
+                                                    : text.reserve
+                                            }
+                                        </button>
+                                    )}
+
+                                {fulfillment.status ===
+                                    'Pending' &&
+                                    Boolean(
+                                        fulfillment.warehouseId,
+                                    ) && (
+                                        <button
+                                            type="button"
+                                            disabled={
+                                                isFulfillmentBusy
+                                            }
+                                            onClick={() =>
+                                                void runFulfillmentMutation(
+                                                    () =>
+                                                        pickingMutation.mutateAsync(),
+                                                )
+                                            }
+                                            className="rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-50"
+                                        >
+                                            {
+                                                pickingMutation.isPending
+                                                    ? text.creating
+                                                    : text.startPicking
+                                            }
+                                        </button>
+                                    )}
+
+                                {fulfillment.status ===
+                                    'Picking' && (
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            isFulfillmentBusy
+                                        }
+                                        onClick={() =>
+                                            void runFulfillmentMutation(
+                                                () =>
+                                                    pickedMutation.mutateAsync(),
+                                            )
+                                        }
+                                        className="rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-50"
+                                    >
+                                        {
+                                            pickedMutation.isPending
+                                                ? text.creating
+                                                : text.picked
+                                        }
+                                    </button>
+                                )}
+
+                                {fulfillment.status ===
+                                    'Picked' && (
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            isFulfillmentBusy
+                                        }
+                                        onClick={() =>
+                                            void runFulfillmentMutation(
+                                                () =>
+                                                    packingMutation.mutateAsync(),
+                                            )
+                                        }
+                                        className="rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-50"
+                                    >
+                                        {
+                                            packingMutation.isPending
+                                                ? text.creating
+                                                : text.startPacking
+                                        }
+                                    </button>
+                                )}
+
+                                {fulfillment.status ===
+                                    'Packing' && (
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            isFulfillmentBusy
+                                        }
+                                        onClick={() =>
+                                            void runFulfillmentMutation(
+                                                () =>
+                                                    packedMutation.mutateAsync(),
+                                            )
+                                        }
+                                        className="rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-50"
+                                    >
+                                        {
+                                            packedMutation.isPending
+                                                ? text.creating
+                                                : text.packed
+                                        }
+                                    </button>
+                                )}
+
+                                {fulfillment.status ===
+                                    'Packed' && (
+                                    <button
+                                        type="button"
+                                        disabled={
+                                            isFulfillmentBusy
+                                        }
+                                        onClick={() =>
+                                            void runFulfillmentMutation(
+                                                () =>
+                                                    readyToShipMutation.mutateAsync(),
+                                            )
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                                    >
+                                        <Truck className="size-4" />
+
+                                        {
+                                            readyToShipMutation.isPending
+                                                ? text.creating
+                                                : text.ready
+                                        }
+                                    </button>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </section>
 
@@ -413,7 +719,9 @@ return (
 
                     <div className="mt-5 flex justify-between border-t pt-4 font-bold">
                         <span>
-                            {text.total}
+                            {
+                                text.total
+                            }
                         </span>
 
                         <span>
@@ -437,7 +745,8 @@ return (
                     </div>
 
                     {!shipment &&
-                        canCreateShipment && (
+                        order.status ===
+                            'Processing' && (
                             <div className="mt-5 grid gap-4">
                                 <input
                                     value={
@@ -510,9 +819,11 @@ return (
                                 >
                                     <Package className="size-4" />
 
-                                    {create.isPending
-                                        ? text.creating
-                                        : text.create}
+                                    {
+                                        create.isPending
+                                            ? text.creating
+                                            : text.create
+                                    }
                                 </button>
                             </div>
                         )}
@@ -580,9 +891,11 @@ return (
                                     >
                                         <Truck className="size-4" />
 
-                                        {ship.isPending
-                                            ? text.shippingNow
-                                            : text.ship}
+                                        {
+                                            ship.isPending
+                                                ? text.shippingNow
+                                                : text.ship
+                                        }
                                     </button>
                                 )}
 
@@ -599,9 +912,11 @@ return (
                                     >
                                         <Check className="size-4" />
 
-                                        {deliver.isPending
-                                            ? text.delivering
-                                            : text.deliver}
+                                        {
+                                            deliver.isPending
+                                                ? text.delivering
+                                                : text.deliver
+                                        }
                                     </button>
                                 )}
                             </div>
@@ -667,7 +982,7 @@ function Info({
         {label} </div>
 
         
-        <div className="mt-1 font-medium">
+        <div className="mt-1 break-all font-medium">
             {value}
         </div>
     </div>

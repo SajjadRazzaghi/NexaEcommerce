@@ -1,4 +1,8 @@
-﻿
+﻿// ================================================================
+// FILE:
+// NexaECommerce.Server/Extensions/ModuleRegistrationExtensions.cs
+// ================================================================
+
 using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Catalog;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
@@ -57,10 +61,15 @@ public static class ModuleRegistrationExtensions
         // ========================================================
         // Inventory
         // ========================================================
-
+        services.AddScoped<
+    WarehouseReservationOrchestrator>();
         services.AddInventoryModule(
             connectionString);
-
+       
+        services.AddScoped<WarehousePackingOrchestrator>();
+        services.AddScoped<WarehousePickingOrchestrator>();
+        services.AddScoped<WarehouseReadyToShipOrchestrator>();
+        services.AddScoped<WarehouseShipmentOrchestrator>();
         // ========================================================
         // Shopping Cart
         // ========================================================
@@ -86,7 +95,10 @@ public static class ModuleRegistrationExtensions
         services.AddScoped<
             IProductVariantReader,
             CatalogProductVariantReader>();
-        services.AddScoped<ProductInventorySynchronizer>();
+
+        services.AddScoped<
+            ProductInventorySynchronizer>();
+
         // ========================================================
         // Tenant
         // ========================================================
@@ -96,11 +108,11 @@ public static class ModuleRegistrationExtensions
             CurrentTenant>();
 
         // ========================================================
-        // Checkout / Payment orchestration
+        // Checkout / Payment / Fulfillment orchestration
         // ========================================================
 
         services.AddScoped<
-       CheckoutOrchestrator>();
+            CheckoutOrchestrator>();
 
         services.AddScoped<
             PaymentCompletionOrchestrator>();
@@ -110,13 +122,22 @@ public static class ModuleRegistrationExtensions
 
         services.AddScoped<
             PaymentEndpoints>();
+
         services.AddScoped<
-    PaymentFailureOrchestrator>();
+            PaymentFailureOrchestrator>();
 
         services.AddScoped<
             PaymentRetryOrchestrator>();
+
         services.AddScoped<
-    InventoryOrderReconciliationService>();
+            InventoryOrderReconciliationService>();
+
+        services.AddScoped<
+            OrderFulfillmentOrchestrator>();
+
+        services.AddScoped<
+            WarehouseAllocationOrchestrator>();
+
         return services;
     }
 
@@ -148,4 +169,3 @@ public static class ModuleRegistrationExtensions
         return app;
     }
 }
-

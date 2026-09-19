@@ -1,4 +1,4 @@
-﻿using NexaEcommerce.SharedKernel.Domain;
+﻿﻿using NexaEcommerce.SharedKernel.Domain;
 
 namespace NexaEcommerce.Modules.Inventory.Domain.Entities;
 
@@ -16,7 +16,8 @@ public enum WarehouseStockMovementType
     ReservationRelease = 10,
     Sale = 11,
     Return = 12,
-    Correction = 13
+    Correction = 13,
+    Picking = 14
 }
 
 public sealed class WarehouseStockMovement : BaseEntity
@@ -78,22 +79,38 @@ public sealed class WarehouseStockMovement : BaseEntity
                 nameof(balanceAfter));
         }
 
-        TenantId = tenantId.Trim();
+        TenantId =
+            tenantId.Trim();
 
-        WarehouseId = warehouseId;
-        LocationId = locationId;
-        ProductVariantId = productVariantId;
+        WarehouseId =
+            warehouseId;
 
-        Type = type;
+        LocationId =
+            locationId;
 
-        QuantityDelta = quantityDelta;
-        BalanceAfter = balanceAfter;
+        ProductVariantId =
+            productVariantId;
 
-        ReferenceType = NormalizeOptional(referenceType);
-        ReferenceId = NormalizeOptional(referenceId);
-        Reason = NormalizeOptional(reason);
+        Type =
+            type;
 
-        OccurredAt = DateTime.UtcNow;
+        QuantityDelta =
+            quantityDelta;
+
+        BalanceAfter =
+            balanceAfter;
+
+        ReferenceType =
+            NormalizeOptional(referenceType);
+
+        ReferenceId =
+            NormalizeOptional(referenceId);
+
+        Reason =
+            NormalizeOptional(reason);
+
+        OccurredAt =
+            DateTime.UtcNow;
     }
 
     public string TenantId { get; private set; } = null!;

@@ -4,14 +4,19 @@ using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
 namespace NexaEcommerce.Modules.Inventory.Application.Services;
 
 public sealed class InventoryReportService(
-    IInventoryRepository inventoryRepository,
-    IWarehouseStockRepository warehouseStockRepository)
-    : IInventoryReportService
+IInventoryRepository inventoryRepository,
+IWarehouseStockRepository warehouseStockRepository)
+: IInventoryReportService
 {
-    public async Task<InventorySummaryDto> GetSummaryAsync(
-        string tenantId,
-        CancellationToken cancellationToken = default)
+    private const int MaxPageSize = 200;
+
+
+public async Task<InventorySummaryDto> GetSummaryAsync(
+    string tenantId,
+    CancellationToken cancellationToken = default)
     {
+        ValidateTenantId(tenantId);
+
         var stockItems =
             await inventoryRepository.GetStocksAsync(
                 tenantId,
@@ -20,11 +25,8 @@ public sealed class InventoryReportService(
         var warehouseStocks =
             await warehouseStockRepository.GetAllAsync(
                 tenantId,
-                false,
+                true,
                 cancellationToken);
-
-        var stockItemCount =
-            stockItems.Count;
 
         var warehouseCount =
             warehouseStocks
@@ -32,53 +34,88 @@ public sealed class InventoryReportService(
                 .Distinct()
                 .Count();
 
-        var totalAvailable =
-            stockItems.Sum(x => x.AvailableQuantity);
+        var locationCount =
+            warehouseStocks
+                .Select(x => x.LocationId)
+                .Distinct()
+                .Count();
 
-        var totalReserved =
-            stockItems.Sum(x => x.ReservedQuantity);
+        var stockRecordCount =
+            stockItems.Count;
 
-        var totalQuantity =
-            stockItems.Sum(x => x.TotalQuantity);
+        var lowStockCount =
+            warehouseStocks.Count(
+                x => x.IsLowStock);
 
-        var totalOnHand =
-            warehouseStocks.Sum(x => x.OnHandQuantity);
+        var totalOnHandQuantity =
+            warehouseStocks.Sum(
+                x => x.OnHandQuantity);
 
-        var totalIncoming =
-            warehouseStocks.Sum(x => x.IncomingQuantity);
+        var totalReservedQuantity =
+            stockItems.Sum(
+                x => x.ReservedQuantity);
 
-        var totalDamaged =
-            warehouseStocks.Sum(x => x.DamagedQuantity);
+        var totalIncomingQuantity =
+            warehouseStocks.Sum(
+                x => x.IncomingQuantity);
+
+        var totalDamagedQuantity =
+            warehouseStocks.Sum(
+                x => x.DamagedQuantity);
 
         return new InventorySummaryDto(
-            stockItemCount,
             warehouseCount,
-            totalAvailable,
-            totalReserved,
-            totalQuantity,
-            totalOnHand,
-            totalIncoming,
-            totalDamaged);
+            locationCount,
+            stockRecordCount,
+            lowStockCount,
+            totalOnHandQuantity,
+            totalReservedQuantity,
+            totalIncomingQuantity,
+            totalDamagedQuantity);
     }
 
     public async Task<IReadOnlyList<WarehouseStockSummaryDto>>
-       GetLowStockAsync(
-    string tenantId,
-    Guid? warehouseId,
-    int skip,
-    int take,
-    CancellationToken cancellationToken)
+        GetLowStockAsync(
+            string tenantId,
+            Guid? warehouseId,
+            int skip,
+            int take,
+            CancellationToken cancellationToken = default)
     {
+        ValidateTenantId(tenantId);
+        ValidatePaging(skip, take);
+
         var warehouseStocks =
             await warehouseStockRepository.GetAllAsync(
                 tenantId,
-                false,
+                true,
                 cancellationToken);
 
-        return warehouseStocks
-            .Where(x => x.IsLowStock)
-            .OrderBy(x => x.AvailableQuantity)
-            .ThenBy(x => x.ProductVariantId)
+        var pageSize =
+            Math.Min(
+                take,
+                MaxPageSize);
+
+        var query =
+            warehouseStocks
+                .Where(x => x.IsLowStock);
+
+        if (warehouseId.HasValue)
+        {
+            query =
+                query.Where(
+                    x =>
+                        x.WarehouseId ==
+                        warehouseId.Value);
+        }
+
+        return query
+            .OrderBy(
+                x => x.AvailableQuantity)
+            .ThenBy(
+                x => x.ProductVariantId)
+            .Skip(skip)
+            .Take(pageSize)
             .Select(
                 x =>
                     new WarehouseStockSummaryDto(
@@ -96,12 +133,15 @@ public sealed class InventoryReportService(
     }
 
     public async Task<IReadOnlyList<InventoryDiscrepancyDto>>
-       GetDiscrepanciesAsync(
-    string tenantId,
-    int skip,
-    int take,
-    CancellationToken cancellationToken = default)
+        GetDiscrepanciesAsync(
+            string tenantId,
+            int skip,
+            int take,
+            CancellationToken cancellationToken = default)
     {
+        ValidateTenantId(tenantId);
+        ValidatePaging(skip, take);
+
         var stockItems =
             await inventoryRepository.GetStocksAsync(
                 tenantId,
@@ -110,17 +150,22 @@ public sealed class InventoryReportService(
         var warehouseStocks =
             await warehouseStockRepository.GetAllAsync(
                 tenantId,
-                false,
+                true,
                 cancellationToken);
 
         var logicalStockByVariant =
-            stockItems.ToDictionary(
-                x => x.ProductVariantId,
-                x => x.TotalQuantity);
+            stockItems
+                .GroupBy(
+                    x => x.ProductVariantId)
+                .ToDictionary(
+                    group => group.Key,
+                    group => group.Sum(
+                        x => x.TotalQuantity));
 
         var physicalStockByVariant =
             warehouseStocks
-                .GroupBy(x => x.ProductVariantId)
+                .GroupBy(
+                    x => x.ProductVariantId)
                 .ToDictionary(
                     group => group.Key,
                     group => group.Sum(
@@ -128,44 +173,83 @@ public sealed class InventoryReportService(
 
         var variantIds =
             logicalStockByVariant.Keys
-                .Union(physicalStockByVariant.Keys)
+                .Union(
+                    physicalStockByVariant.Keys)
                 .Distinct();
 
-        var result =
+        var discrepancies =
             new List<InventoryDiscrepancyDto>();
 
         foreach (var productVariantId in variantIds)
         {
             logicalStockByVariant.TryGetValue(
                 productVariantId,
-                out var inventoryQuantity);
+                out var globalQuantity);
 
             physicalStockByVariant.TryGetValue(
                 productVariantId,
                 out var physicalQuantity);
 
             var difference =
-                physicalQuantity - inventoryQuantity;
+                physicalQuantity -
+                globalQuantity;
 
             if (difference == 0)
             {
                 continue;
             }
 
-            result.Add(
+            discrepancies.Add(
                 new InventoryDiscrepancyDto(
                     productVariantId,
-                    inventoryQuantity,
+                    globalQuantity,
                     physicalQuantity,
                     difference,
                     true));
         }
 
-        return result
+        var pageSize =
+            Math.Min(
+                take,
+                MaxPageSize);
+
+        return discrepancies
             .OrderByDescending(
                 x => Math.Abs(x.Difference))
             .ThenBy(
                 x => x.ProductVariantId)
+            .Skip(skip)
+            .Take(pageSize)
             .ToList();
     }
+
+    private static void ValidateTenantId(
+        string tenantId)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+    }
+
+    private static void ValidatePaging(
+        int skip,
+        int take)
+    {
+        if (skip < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(skip));
+        }
+
+        if (take <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(take));
+        }
+    }
+
+
 }

@@ -13,7 +13,9 @@ public sealed class InventoryDbContext(
     public DbSet<WarehouseStockMovement> WarehouseStockMovements => Set<WarehouseStockMovement>();
     public DbSet<WarehouseLocation> WarehouseLocations =>
         Set<WarehouseLocation>();
-
+    public DbSet<WarehouseStockReservation>
+    WarehouseStockReservations =>
+    Set<WarehouseStockReservation>();
     public DbSet<WarehouseStock> WarehouseStocks =>
         Set<WarehouseStock>();
     public DbSet<StockItem> StockItems =>
@@ -28,6 +30,109 @@ public sealed class InventoryDbContext(
     protected override void OnModelCreating(
         ModelBuilder modelBuilder)
     {
+        modelBuilder.Entity<WarehouseStockReservation>(
+    entity =>
+    {
+        entity.ToTable(
+            "WarehouseStockReservations");
+
+        entity.HasKey(
+            x => x.Id);
+
+        entity.Property(
+            x => x.TenantId)
+            .IsRequired()
+            .HasMaxLength(64);
+
+        entity.Property(
+            x => x.OrderId)
+            .IsRequired();
+
+        entity.Property(
+            x => x.FulfillmentId)
+            .IsRequired();
+
+        entity.Property(
+            x => x.OrderInventoryReservationId)
+            .IsRequired();
+
+        entity.Property(
+            x => x.ReservationKey)
+            .IsRequired()
+            .HasMaxLength(128);
+
+        entity.Property(
+            x => x.WarehouseId)
+            .IsRequired();
+
+        entity.Property(
+            x => x.LocationId)
+            .IsRequired();
+
+        entity.Property(
+            x => x.ProductVariantId)
+            .IsRequired();
+
+        entity.Property(
+            x => x.Quantity)
+            .IsRequired();
+
+        entity.Property(
+            x => x.Status)
+            .IsRequired();
+
+        entity.Property(
+            x => x.ReservedAt)
+            .IsRequired();
+
+        entity.HasOne<Warehouse>()
+            .WithMany()
+            .HasForeignKey(
+                x => x.WarehouseId)
+            .OnDelete(
+                DeleteBehavior.Restrict);
+
+        entity.HasOne<WarehouseLocation>()
+            .WithMany()
+            .HasForeignKey(
+                x => x.LocationId)
+            .OnDelete(
+                DeleteBehavior.Restrict);
+
+        entity.HasIndex(
+            x => new
+            {
+                x.TenantId,
+                x.OrderInventoryReservationId,
+                x.WarehouseId,
+                x.LocationId
+            })
+            .IsUnique();
+
+        entity.HasIndex(
+            x => new
+            {
+                x.TenantId,
+                x.OrderId,
+                x.Status
+            });
+
+        entity.HasIndex(
+            x => new
+            {
+                x.TenantId,
+                x.ReservationKey
+            });
+
+        entity.HasIndex(
+            x => new
+            {
+                x.TenantId,
+                x.ProductVariantId,
+                x.WarehouseId,
+                x.LocationId
+            });
+    });
         base.OnModelCreating(
             modelBuilder);
         modelBuilder.Entity<WarehouseTransfer>(entity => { entity.ToTable("WarehouseTransfers"); 

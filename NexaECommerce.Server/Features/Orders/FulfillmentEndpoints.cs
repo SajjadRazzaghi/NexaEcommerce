@@ -41,6 +41,10 @@ public sealed class FulfillmentEndpoints : IFeatureEndpoints
             .RequirePermission(
                 OrderPermissions.Manage);
 
+        // ========================================================
+        // Picking
+        // ========================================================
+
         group.MapPost(
                 "/orders/{orderId:guid}/start-picking",
                 StartPicking)
@@ -52,6 +56,10 @@ public sealed class FulfillmentEndpoints : IFeatureEndpoints
                 MarkPicked)
             .RequirePermission(
                 OrderPermissions.Manage);
+
+        // ========================================================
+        // Packing
+        // ========================================================
 
         group.MapPost(
                 "/orders/{orderId:guid}/start-packing",
@@ -65,6 +73,10 @@ public sealed class FulfillmentEndpoints : IFeatureEndpoints
             .RequirePermission(
                 OrderPermissions.Manage);
 
+        // ========================================================
+        // Ready to ship
+        // ========================================================
+
         group.MapPost(
                 "/orders/{orderId:guid}/ready-to-ship",
                 MarkReadyToShip)
@@ -72,11 +84,15 @@ public sealed class FulfillmentEndpoints : IFeatureEndpoints
                 OrderPermissions.Manage);
     }
 
+    // ============================================================
+    // Queue
+    // ============================================================
+
     private static async Task<IResult> GetQueue(
         int skip,
         int take,
-        IFulfillmentService service,
-        ICurrentTenant tenant,
+        [FromServices] IFulfillmentService service,
+        [FromServices] ICurrentTenant tenant,
         CancellationToken ct)
     {
         try
@@ -106,10 +122,14 @@ public sealed class FulfillmentEndpoints : IFeatureEndpoints
         }
     }
 
+    // ============================================================
+    // Get fulfillment by order
+    // ============================================================
+
     private static async Task<IResult> GetByOrder(
         Guid orderId,
-        IFulfillmentService service,
-        ICurrentTenant tenant,
+        [FromServices] IFulfillmentService service,
+        [FromServices] ICurrentTenant tenant,
         CancellationToken ct)
     {
         try
@@ -134,10 +154,14 @@ public sealed class FulfillmentEndpoints : IFeatureEndpoints
         }
     }
 
+    // ============================================================
+    // Create fulfillment
+    // ============================================================
+
     private static async Task<IResult> Create(
         Guid orderId,
-        IFulfillmentService service,
-        ICurrentTenant tenant,
+        [FromServices] IFulfillmentService service,
+        [FromServices] ICurrentTenant tenant,
         CancellationToken ct)
     {
         try
@@ -178,11 +202,15 @@ public sealed class FulfillmentEndpoints : IFeatureEndpoints
         }
     }
 
+    // ============================================================
+    // Assign warehouse
+    // ============================================================
+
     private static async Task<IResult> AssignWarehouse(
         Guid orderId,
         [FromBody] AssignFulfillmentWarehouseRequest request,
-        IFulfillmentService service,
-        ICurrentTenant tenant,
+        [FromServices] IFulfillmentService service,
+        [FromServices] ICurrentTenant tenant,
         CancellationToken ct)
     {
         try
@@ -223,75 +251,241 @@ public sealed class FulfillmentEndpoints : IFeatureEndpoints
         }
     }
 
-    private static Task<IResult> StartPicking(
+    // ============================================================
+    // Start picking
+    // ============================================================
+
+    private static async Task<IResult> StartPicking(
         Guid orderId,
-        IFulfillmentService service,
-        ICurrentTenant tenant,
+        [FromServices] WarehousePickingOrchestrator orchestrator,
+        [FromServices] ICurrentTenant tenant,
         CancellationToken ct)
     {
-        return Transition(
-            () =>
-                service.StartPickingAsync(
+        try
+        {
+            var result =
+                await orchestrator.StartAsync(
                     tenant.Id,
                     orderId,
-                    ct));
+                    ct);
+
+            return Results.Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
     }
 
-    private static Task<IResult> MarkPicked(
+    // ============================================================
+    // Complete picking
+    // ============================================================
+
+    private static async Task<IResult> MarkPicked(
         Guid orderId,
-        IFulfillmentService service,
-        ICurrentTenant tenant,
+        [FromServices] WarehousePickingOrchestrator orchestrator,
+        [FromServices] ICurrentTenant tenant,
         CancellationToken ct)
     {
-        return Transition(
-            () =>
-                service.MarkPickedAsync(
+        try
+        {
+            var result =
+                await orchestrator.CompleteAsync(
                     tenant.Id,
                     orderId,
-                    ct));
+                    ct);
+
+            return Results.Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
     }
 
-    private static Task<IResult> StartPacking(
+    // ============================================================
+    // Start packing
+    // ============================================================
+
+    private static async Task<IResult> StartPacking(
         Guid orderId,
-        IFulfillmentService service,
-        ICurrentTenant tenant,
+        [FromServices] WarehousePackingOrchestrator orchestrator,
+        [FromServices] ICurrentTenant tenant,
         CancellationToken ct)
     {
-        return Transition(
-            () =>
-                service.StartPackingAsync(
+        try
+        {
+            var result =
+                await orchestrator.StartAsync(
                     tenant.Id,
                     orderId,
-                    ct));
+                    ct);
+
+            return Results.Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
     }
 
-    private static Task<IResult> MarkPacked(
+    // ============================================================
+    // Complete packing
+    // ============================================================
+
+    private static async Task<IResult> MarkPacked(
         Guid orderId,
-        IFulfillmentService service,
-        ICurrentTenant tenant,
+        [FromServices] WarehousePackingOrchestrator orchestrator,
+        [FromServices] ICurrentTenant tenant,
         CancellationToken ct)
     {
-        return Transition(
-            () =>
-                service.MarkPackedAsync(
+        try
+        {
+            var result =
+                await orchestrator.CompleteAsync(
                     tenant.Id,
                     orderId,
-                    ct));
+                    ct);
+
+            return Results.Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
     }
 
-    private static Task<IResult> MarkReadyToShip(
-        Guid orderId,
-        IFulfillmentService service,
-        ICurrentTenant tenant,
-        CancellationToken ct)
+    // ============================================================
+    // Ready to ship
+    // ============================================================
+
+
+private static async Task<IResult> MarkReadyToShip(
+    Guid orderId,
+    [FromServices] WarehouseReadyToShipOrchestrator orchestrator,
+    [FromServices] ICurrentTenant tenant,
+    CancellationToken ct)
     {
-        return Transition(
-            () =>
-                service.MarkReadyToShipAsync(
+        try
+        {
+            var result =
+                await orchestrator.ExecuteAsync(
                     tenant.Id,
                     orderId,
-                    ct));
+                    ct);
+
+            return Results.Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
     }
+
+
+    // ============================================================
+    // Generic service transition
+    // ============================================================
 
     private static async Task<IResult> Transition(
         Func<Task<FulfillmentDto>> action)

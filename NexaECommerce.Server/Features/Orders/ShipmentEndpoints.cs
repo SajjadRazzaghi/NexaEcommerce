@@ -187,19 +187,20 @@ public sealed class ShipmentEndpoints
         }
     }
 
-    private static async Task<IResult>
-        Ship(
-            Guid orderId,
-            [FromServices]
-            IShipmentService shipments,
-            [FromServices]
-            ICurrentTenant tenant,
-            CancellationToken ct)
+
+private static async Task<IResult>
+    Ship(
+        Guid orderId,
+        [FromServices]
+        WarehouseShipmentOrchestrator orchestrator,
+        [FromServices]
+        ICurrentTenant tenant,
+        CancellationToken ct)
     {
         try
         {
             var result =
-                await shipments.ShipAsync(
+                await orchestrator.ShipAsync(
                     tenant.Id,
                     orderId,
                     ct);
@@ -232,19 +233,22 @@ public sealed class ShipmentEndpoints
         }
     }
 
-    private static async Task<IResult>
-        Deliver(
-            Guid orderId,
-            [FromServices]
-            IShipmentService shipments,
-            [FromServices]
-            ICurrentTenant tenant,
-            CancellationToken ct)
+
+
+   
+private static async Task<IResult>
+    Deliver(
+        Guid orderId,
+        [FromServices]
+        WarehouseShipmentOrchestrator orchestrator,
+        [FromServices]
+        ICurrentTenant tenant,
+        CancellationToken ct)
     {
         try
         {
             var result =
-                await shipments.DeliverAsync(
+                await orchestrator.DeliverAsync(
                     tenant.Id,
                     orderId,
                     ct);
@@ -276,4 +280,6 @@ public sealed class ShipmentEndpoints
                 });
         }
     }
+
+
 }
