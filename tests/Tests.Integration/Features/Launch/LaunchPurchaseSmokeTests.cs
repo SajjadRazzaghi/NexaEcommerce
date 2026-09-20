@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -256,8 +256,10 @@ public sealed class LaunchPurchaseSmokeTests(
             $"launch-payment-{Guid.NewGuid():N}";
 
         var callbackUrl =
-            "https://localhost:3000/orders/payment/" +
-            orderId;
+            new Uri(
+                client.BaseAddress ?? new Uri("https://localhost:5001"),
+                $"/api/orders/payment/zarinpal/callback?orderId={orderId:D}")
+                .ToString();
 
         using var paymentRequest =
             new HttpRequestMessage(

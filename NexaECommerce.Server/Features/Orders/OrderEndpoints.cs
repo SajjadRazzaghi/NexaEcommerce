@@ -38,7 +38,10 @@ public sealed class OrderEndpoints
             "/admin",
             ListAdmin)
             .RequirePermission(OrderPermissions.Manage);
-
+        group.MapGet(
+    "/admin/{id:guid}",
+    GetAdmin)
+    .RequirePermission(OrderPermissions.Manage);
         group.MapGet(
             "/{id:guid}",
             Get)
@@ -53,7 +56,23 @@ public sealed class OrderEndpoints
             "/{id:guid}/cancel",
             Cancel);
     }
+    private static async Task<IResult> GetAdmin(
+        Guid id,
+        [FromServices] IOrderService orderService,
+        [FromServices] ICurrentTenant tenant,
+        CancellationToken ct)
+    {
+        var order =
+            await orderService.GetAsync(
+                tenant.Id,
+                id,
+                null,
+                ct);
 
+        return order is null
+            ? Results.NotFound()
+            : Results.Ok(order);
+    }
     private static async Task<IResult> Checkout(
         [FromBody] CheckoutRequest request,
         [FromServices] ICartService cartService,

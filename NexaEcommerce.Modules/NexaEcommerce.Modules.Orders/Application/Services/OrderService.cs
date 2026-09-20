@@ -240,7 +240,7 @@ public sealed class OrderService(
     public async Task<OrderDto?> GetAsync(
         string tenantId,
         Guid id,
-        string userId,
+        string? userId,
         CancellationToken cancellationToken = default)
     {
         var order =
@@ -254,7 +254,6 @@ public sealed class OrderService(
             ? null
             : Map(order);
     }
-
     public async Task<OrderListDto> GetUserOrdersAsync(
         string tenantId,
         string userId,

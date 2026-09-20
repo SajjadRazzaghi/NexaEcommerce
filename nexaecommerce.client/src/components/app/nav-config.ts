@@ -13,12 +13,14 @@ import {
     Tags,
     User,
     Users,
+    Warehouse,
     type LucideIcon,
 } from 'lucide-react';
 
 import { PERM } from '@/lib/api/admin';
 
 import { HEALTH_PERM } from '@/lib/api/health';
+import { INVENTORY_PERM } from '@/lib/api/inventory';
 
 export type NavItem = {
     titleKey: string;
@@ -119,6 +121,18 @@ export const NAV: NavSection[] = [
                 to: '/admin/manufacturers',
                 icon: Factory,
                 permission: PERM.manufacturersRead,
+            },
+        ],
+    },
+
+    {
+        labelKey: 'nav.inventory',
+        items: [
+            {
+                titleKey: 'nav.warehouses',
+                to: '/admin/warehouses',
+                icon: Warehouse,
+                permission: INVENTORY_PERM.read,
             },
         ],
     },

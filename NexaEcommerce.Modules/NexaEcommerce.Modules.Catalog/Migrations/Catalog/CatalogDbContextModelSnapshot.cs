@@ -756,7 +756,7 @@ namespace NexaEcommerce.Modules.Catalog.Migrations.Catalog
                     b.HasOne("NexaEcommerce.Modules.Catalog.Domain.Entities.ProductVariant", "ProductVariant")
                         .WithMany("AttributeValues")
                         .HasForeignKey("ProductVariantId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("AttributeValue");

@@ -34,13 +34,21 @@ public sealed class FulfillmentEndpoints : IFeatureEndpoints
                 Create)
             .RequirePermission(
                 OrderPermissions.Manage);
-
+        group.MapPost(
+        "/orders/{orderId:guid}/start",
+        StartFulfillment)
+    .RequirePermission(
+        OrderPermissions.Manage);
         group.MapPut(
                 "/orders/{orderId:guid}/warehouse",
                 AssignWarehouse)
             .RequirePermission(
                 OrderPermissions.Manage);
-
+        group.MapPost(
+        "/orders/{orderId:guid}/allocate",
+        AllocateWarehouse)
+    .RequirePermission(
+        OrderPermissions.Manage);
         // ========================================================
         // Picking
         // ========================================================
@@ -251,6 +259,92 @@ public sealed class FulfillmentEndpoints : IFeatureEndpoints
         }
     }
 
+    private static async Task<IResult> AllocateWarehouse(
+    Guid orderId,
+    [FromServices] WarehouseAllocationOrchestrator orchestrator,
+    [FromServices] ICurrentTenant tenant,
+    CancellationToken ct)
+    {
+        try
+        {
+            var result =
+                await orchestrator.AllocateAsync(
+                    tenant.Id,
+                    orderId,
+                    ct);
+
+            return Results.Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+    }
+    // ============================================================
+    // Start fulfillment
+    // ============================================================
+
+    private static async Task<IResult> StartFulfillment(
+        Guid orderId,
+        [FromServices] OrderFulfillmentOrchestrator orchestrator,
+        [FromServices] ICurrentTenant tenant,
+        CancellationToken ct)
+    {
+        try
+        {
+            var result =
+                await orchestrator.StartAsync(
+                    tenant.Id,
+                    orderId,
+                    ct);
+
+            return Results.Ok(result);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+    }
     // ============================================================
     // Start picking
     // ============================================================

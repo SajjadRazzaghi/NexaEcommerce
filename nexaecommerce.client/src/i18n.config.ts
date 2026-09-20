@@ -9,6 +9,8 @@ import de from './locales/de.json';
 import ar from './locales/ar.json';
 import zh from './locales/zh.json';
 import fa from './locales/fa.json';
+import warehouseEn from './locales/warehouse.en';
+import warehouseFa from './locales/warehouse.fa';
 
 export type LanguageMeta = { code: string; name: string; dir:'ltr'|'rtl'};
 
@@ -37,13 +39,25 @@ i18n
   .use(initReactI18next)
   .init({
     resources: {
-      en: { translation: en },
+      en: {
+        translation: {
+          ...en,
+          nav: { ...en.nav, ...warehouseEn.nav },
+          warehouses: warehouseEn.warehouses,
+        },
+      },
       es: { translation: es },
       fr: { translation: fr },
       de: { translation: de },
       ar: { translation: ar },
       zh: { translation: zh },
-      fa: { translation: fa },
+      fa: {
+        translation: {
+          ...fa,
+          nav: { ...fa.nav, ...warehouseFa.nav },
+          warehouses: warehouseFa.warehouses,
+        },
+      },
     },
     fallbackLng: 'fa',
     supportedLngs,

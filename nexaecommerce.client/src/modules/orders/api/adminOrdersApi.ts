@@ -36,7 +36,7 @@ export async function getAdminOrders(
 
     const { data } =
         await api.get<OrderListDto>(
-            '/api/orders/admin',
+            '/orders/admin',
             {
                 params: {
                     page,
@@ -56,9 +56,17 @@ export async function getAdminOrders(
 export async function getAdminOrder(
     id: string,
 ): Promise<OrderDto> {
+    const normalizedId = id.trim();
+
+    if (!normalizedId) {
+        throw new Error(
+            'Order id is required.',
+        );
+    }
+
     const { data } =
         await api.get<OrderDto>(
-            `/api/orders/${id}`,
+            `/orders/admin/${normalizedId}`,
         );
 
     return data;
@@ -68,9 +76,17 @@ export async function updateOrderStatus(
     id: string,
     request: UpdateOrderStatusRequest,
 ): Promise<UpdateOrderStatusResponse> {
+    const normalizedId = id.trim();
+
+    if (!normalizedId) {
+        throw new Error(
+            'Order id is required.',
+        );
+    }
+
     const { data } =
         await api.put<UpdateOrderStatusResponse>(
-            `/api/orders/${id}/status`,
+            `/orders/${normalizedId}/status`,
             request,
         );
 

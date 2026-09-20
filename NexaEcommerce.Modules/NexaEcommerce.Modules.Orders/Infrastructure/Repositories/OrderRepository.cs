@@ -24,13 +24,14 @@ public sealed class OrderRepository(
         CancellationToken cancellationToken = default)
     {
         IQueryable<Order> query =
-            context.Orders
-                .Include(x => x.Items)
-                .Include(x => x.InventoryReservations)
-                .Where(
-                    x =>
-                        x.Id == id &&
-                        x.TenantId == tenantId);
+     context.Orders
+         .AsSplitQuery()
+         .Include(x => x.Items)
+         .Include(x => x.InventoryReservations)
+         .Where(
+             x =>
+                 x.Id == id &&
+                 x.TenantId == tenantId);
 
         if (!string.IsNullOrWhiteSpace(userId))
         {

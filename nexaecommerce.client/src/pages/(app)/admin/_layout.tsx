@@ -23,6 +23,10 @@ import {
 } from '@/lib/api/health';
 
 import {
+    INVENTORY_PERM,
+} from '@/lib/api/inventory';
+
+import {
     EmptyState,
 } from '@/components/data-states';
 
@@ -48,6 +52,7 @@ export default function AdminLayout() {
                 PERM.settingsRead,
                 PERM.auditRead,
                 PERM.webhooksRead,
+                INVENTORY_PERM.read,
                 HEALTH_PERM.read,
             ],
         );

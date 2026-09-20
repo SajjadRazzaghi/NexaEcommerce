@@ -286,13 +286,36 @@ const runFulfillmentMutation =
         try {
             await action();
         } catch (error) {
+            const axiosLikeError =
+                error as {
+                    response?: {
+                        data?: {
+                            error?: string;
+                            message?: string;
+                        };
+                    };
+                    message?: string;
+                };
+
+            const serverMessage =
+                axiosLikeError
+                    .response
+                    ?.data
+                    ?.error ??
+                axiosLikeError
+                    .response
+                    ?.data
+                    ?.message;
+
             setFulfillmentError(
-                error instanceof Error
-                    ? error.message
-                    : text.fulfillmentError,
+                serverMessage ??
+                    axiosLikeError.message ??
+                    text.fulfillmentError,
             );
         }
     };
+
+
 
 if (
     orderLoading ||

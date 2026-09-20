@@ -12,12 +12,17 @@ import {
 } from 'react-router-dom';
 
 import {
+    CheckCircle2,
     ChevronLeft,
     ChevronRight,
+    Clock3,
     Eye,
     Filter,
+    LoaderCircle,
     Package,
     Search,
+    Truck,
+    XCircle,
 } from 'lucide-react';
 
 import {
@@ -90,7 +95,60 @@ function statusLabel(
         ? labels[status].fa
         : labels[status].en;
 }
+function StatusIcon({
+    status,
+    className = 'size-3.5',
+}: {
+    status: OrderStatus;
+    className?: string;
+}) {
+    switch (status) {
+        case 'PendingPayment':
+            return <Clock3 className={className} />;
 
+        case 'Paid':
+            return (
+                <CheckCircle2
+                    className={className}
+                />
+            );
+
+        case 'Processing':
+            return (
+                <LoaderCircle
+                    className={className}
+                />
+            );
+
+        case 'Shipped':
+            return (
+                <Truck
+                    className={className}
+                />
+            );
+
+        case 'Delivered':
+            return (
+                <CheckCircle2
+                    className={className}
+                />
+            );
+
+        case 'Cancelled':
+            return (
+                <XCircle
+                    className={className}
+                />
+            );
+
+        default:
+            return (
+                <Package
+                    className={className}
+                />
+            );
+    }
+}
 function statusClass(
     status: OrderStatus,
 ) {
@@ -419,11 +477,9 @@ export default function AdminOrdersPage() {
                                             }
                                         </th>
 
-                                        <th className="px-4 py-3 text-start font-medium">
-                                            {
-                                                text.status
-                                            }
-                                        </th>
+                                    <th className="whitespace-nowrap px-4 py-3 text-start font-medium">
+                                        {text.status}
+                                    </th>
 
                                         <th className="px-4 py-3 text-start font-medium">
                                             {
@@ -455,14 +511,30 @@ export default function AdminOrdersPage() {
                                                 className="border-b last:border-b-0"
                                             >
                                                 <td className="px-4 py-4">
-                                                    <Link
-                                                        to={`/admin/orders/${order.id}`}
-                                                        className="font-medium underline-offset-4 hover:underline"
-                                                    >
-                                                        {
-                                                            order.orderNumber
-                                                        }
-                                                    </Link>
+                                                    <div className="grid gap-2">
+                                                        <Link
+                                                            to={`/admin/orders/${order.id}`}
+                                                            className="w-fit whitespace-nowrap font-medium underline-offset-4 hover:underline"
+                                                        >
+                                                            {order.orderNumber}
+                                                        </Link>
+
+                                                        <span
+                                                            className={`inline-flex w-fit items-center gap-1.5 rounded-full border px-2 py-1 text-[11px] font-medium md:hidden ${statusClass(
+                                                                order.status,
+                                                            )}`}
+                                                        >
+                                                            <StatusIcon
+                                                                status={order.status}
+                                                                className="size-3"
+                                                            />
+
+                                                            {statusLabel(
+                                                                order.status,
+                                                                isFa,
+                                                            )}
+                                                        </span>
+                                                    </div>
                                                 </td>
 
                                                 <td className="px-4 py-4">
@@ -473,18 +545,20 @@ export default function AdminOrdersPage() {
                                                     </div>
                                                 </td>
 
-                                                <td className="px-4 py-4">
+                                                <td className="whitespace-nowrap px-4 py-4">
                                                     <span
-                                                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass(
+                                                        className={`inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass(
                                                             order.status,
                                                         )}`}
                                                     >
-                                                        {
-                                                            statusLabel(
-                                                                order.status,
-                                                                isFa,
-                                                            )
-                                                        }
+                                                        <StatusIcon
+                                                            status={order.status}
+                                                        />
+
+                                                        {statusLabel(
+                                                            order.status,
+                                                            isFa,
+                                                        )}
                                                     </span>
                                                 </td>
 

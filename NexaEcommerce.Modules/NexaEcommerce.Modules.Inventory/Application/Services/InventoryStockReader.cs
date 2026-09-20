@@ -1,10 +1,14 @@
-﻿using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
+using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
 using NexaEcommerce.SharedKernel.Abstractions;
 
 namespace NexaEcommerce.Modules.Inventory.Application.Services;
 
+/// <summary>
+/// Reads sellable stock from physical warehouse inventory.
+/// WarehouseStock is the source of truth for available product quantity.
+/// </summary>
 public sealed class InventoryStockReader(
-    IInventoryRepository repository)
+    IWarehouseStockRepository repository)
     : IInventoryStockReader
 {
     public async Task<int?> GetAvailableQuantityAsync(
@@ -12,13 +16,29 @@ public sealed class InventoryStockReader(
         Guid productVariantId,
         CancellationToken cancellationToken = default)
     {
-        var stock =
-            await repository.GetStockAsync(
-                tenantId,
-                productVariantId,
+        if (string.IsNullOrWhiteSpace(tenantId) ||
+            productVariantId == Guid.Empty)
+        {
+            return null;
+        }
+
+        var stocks =
+            await repository.GetAllAsync(
+                tenantId.Trim(),
+                includeZeroStock: true,
                 cancellationToken);
 
-        return stock?.AvailableQuantity;
+        var matching =
+            stocks
+                .Where(x => x.ProductVariantId == productVariantId)
+                .ToList();
+
+        if (matching.Count == 0)
+        {
+            return null;
+        }
+
+        return matching.Sum(x => x.AvailableQuantity);
     }
 
     public async Task<bool> IsInStockAsync(
@@ -41,29 +61,32 @@ public sealed class InventoryStockReader(
             IEnumerable<Guid> productVariantIds,
             CancellationToken cancellationToken = default)
     {
-        var result =
-            new Dictionary<Guid, int>();
-
-        foreach (
-            var productVariantId in
+        var ids =
             productVariantIds
                 .Where(x => x != Guid.Empty)
-                .Distinct())
-        {
-            var quantity =
-                await GetAvailableQuantityAsync(
-                    tenantId,
-                    productVariantId,
-                    cancellationToken);
+                .Distinct()
+                .ToArray();
 
-            if (quantity.HasValue)
-            {
-                result[productVariantId] =
-                    quantity.Value;
-            }
+        if (string.IsNullOrWhiteSpace(tenantId) ||
+            ids.Length == 0)
+        {
+            return new Dictionary<Guid, int>();
         }
 
-        return result;
+        var idSet =
+            ids.ToHashSet();
+
+        var stocks =
+            await repository.GetAllAsync(
+                tenantId.Trim(),
+                includeZeroStock: true,
+                cancellationToken);
+
+        return stocks
+            .Where(x => idSet.Contains(x.ProductVariantId))
+            .GroupBy(x => x.ProductVariantId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(x => x.AvailableQuantity));
     }
 }
-

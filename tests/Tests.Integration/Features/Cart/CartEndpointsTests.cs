@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using NexaECommerce.Server.Platform.Authorization;
@@ -22,8 +22,16 @@ public sealed class CartEndpointsTests(
             await GetExistingSellableVariantIdAsync();
 
         const string tenantId = "default";
+        const int testQuantity = 1;
 
-        int originalAvailableQuantity;
+        Guid warehouseId;
+        Guid locationId;
+        int originalOnHand;
+        int originalReserved;
+        int originalIncoming;
+        int originalDamaged;
+        int originalReorderPoint;
+        bool created = false;
 
         using (var scope =
                factory.Services.CreateScope())
@@ -34,32 +42,85 @@ public sealed class CartEndpointsTests(
                         NexaEcommerce.Modules.Inventory.Infrastructure.Persistence
                             .InventoryDbContext>();
 
+            var warehouse =
+                await inventoryDb.Warehouses
+                    .Where(
+                        x =>
+                            x.TenantId == tenantId &&
+                            x.IsActive)
+                    .OrderByDescending(x => x.IsDefault)
+                    .ThenBy(x => x.Code)
+                    .FirstOrDefaultAsync();
+
+            warehouse.ShouldNotBeNull();
+
+            var location =
+                await inventoryDb.WarehouseLocations
+                    .Where(
+                        x =>
+                            x.TenantId == tenantId &&
+                            x.WarehouseId == warehouse!.Id &&
+                            x.IsActive)
+                    .OrderBy(x => x.Code)
+                    .FirstOrDefaultAsync();
+
+            location.ShouldNotBeNull();
+
+            warehouseId = warehouse!.Id;
+            locationId = location!.Id;
+
             var stock =
-                await inventoryDb.StockItems
+                await inventoryDb.WarehouseStocks
                     .FirstOrDefaultAsync(
                         x =>
                             x.TenantId == tenantId &&
+                            x.WarehouseId == warehouseId &&
+                            x.LocationId == locationId &&
                             x.ProductVariantId == variantId);
 
-            stock.ShouldNotBeNull();
-
-            originalAvailableQuantity =
-                stock!.AvailableQuantity;
-
-            if (stock.ReservedQuantity > 0)
+            if (stock is null)
             {
-                stock.Release(
-                    stock.ReservedQuantity);
+                stock =
+                    NexaEcommerce.Modules.Inventory.Domain.Entities
+                        .WarehouseStock.Create(
+                            tenantId,
+                            warehouseId,
+                            locationId,
+                            variantId,
+                            onHandQuantity: testQuantity);
+
+                await inventoryDb.WarehouseStocks.AddAsync(stock);
+                created = true;
+
+                originalOnHand = 0;
+                originalReserved = 0;
+                originalIncoming = 0;
+                originalDamaged = 0;
+                originalReorderPoint = 0;
             }
+            else
+            {
+                originalOnHand = stock.OnHandQuantity;
+                originalReserved = stock.ReservedQuantity;
+                originalIncoming = stock.IncomingQuantity;
+                originalDamaged = stock.DamagedQuantity;
+                originalReorderPoint = stock.ReorderPoint;
 
-            if (stock.AvailableQuantity > 1)
-            {
-                stock.Remove(
-                    stock.AvailableQuantity - 1);
-            }
-            else if (stock.AvailableQuantity == 0)
-            {
-                stock.Add(1);
+                if (stock.ReservedQuantity > 0)
+                {
+                    stock.Release(stock.ReservedQuantity);
+                }
+
+                if (stock.OnHandQuantity > testQuantity)
+                {
+                    stock.RemoveOnHand(
+                        stock.OnHandQuantity - testQuantity);
+                }
+                else if (stock.OnHandQuantity < testQuantity)
+                {
+                    stock.AddOnHand(
+                        testQuantity - stock.OnHandQuantity);
+                }
             }
 
             await inventoryDb.SaveChangesAsync();
@@ -98,39 +159,39 @@ public sealed class CartEndpointsTests(
                             .InventoryDbContext>();
 
             var stock =
-                await inventoryDb.StockItems
+                await inventoryDb.WarehouseStocks
                     .FirstOrDefaultAsync(
                         x =>
                             x.TenantId == tenantId &&
+                            x.WarehouseId == warehouseId &&
+                            x.LocationId == locationId &&
                             x.ProductVariantId == variantId);
 
-            stock.ShouldNotBeNull();
-
-            if (stock!.ReservedQuantity > 0)
+            if (stock is not null)
             {
-                stock.Release(
-                    stock.ReservedQuantity);
-            }
+                if (created)
+                {
+                    inventoryDb.WarehouseStocks.Remove(stock);
+                }
+                else
+                {
+                    stock.SetQuantities(
+                        originalOnHand,
+                        originalReserved,
+                        originalIncoming,
+                        originalDamaged);
 
-            if (stock.AvailableQuantity < originalAvailableQuantity)
-            {
-                stock.Add(
-                    originalAvailableQuantity -
-                    stock.AvailableQuantity);
-            }
-            else if (stock.AvailableQuantity > originalAvailableQuantity)
-            {
-                stock.Remove(
-                    stock.AvailableQuantity -
-                    originalAvailableQuantity);
-            }
+                    stock.SetReorderPoint(
+                        originalReorderPoint);
+                }
 
-            await inventoryDb.SaveChangesAsync();
+                await inventoryDb.SaveChangesAsync();
+            }
         }
     }
-  
-[Fact]
-public async Task Guest_cart_can_be_merged_into_authenticated_user_cart()
+
+    [Fact]
+    public async Task Guest_cart_can_be_merged_into_authenticated_user_cart()
     {
         using var client =
             factory.CreateClient();

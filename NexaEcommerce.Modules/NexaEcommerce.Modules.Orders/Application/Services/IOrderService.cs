@@ -12,10 +12,10 @@ public interface IOrderService
         CancellationToken cancellationToken = default);
 
     Task<OrderDto?> GetAsync(
-        string tenantId,
-        Guid id,
-        string userId,
-        CancellationToken cancellationToken = default);
+     string tenantId,
+     Guid id,
+     string? userId,
+     CancellationToken cancellationToken = default);
 
     Task<OrderListDto> GetUserOrdersAsync(
         string tenantId,

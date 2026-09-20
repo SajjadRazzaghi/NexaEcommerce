@@ -31,142 +31,139 @@ export interface FulfillmentDto {
 export async function getFulfillment(
     orderId: string,
 ): Promise<FulfillmentDto | null> {
+    const normalizedId = orderId.trim();
+
+    if (!normalizedId) {
+        throw new Error(
+            'Order id is required.',
+        );
+    }
+
     try {
         const { data } =
             await api.get<FulfillmentDto>(
-                `/api/fulfillment/orders/${orderId}`,
+                `/fulfillment/orders/${normalizedId}`,
             );
 
-        
-    return data;
-} catch (error) {
-    const status =
-        (
-            error as {
-                response?: {
-                    status?: number;
-                };
-            }
-        ).response?.status;
+        return data;
+    } catch (error) {
+        const status =
+            (
+                error as {
+                    response?: {
+                        status?: number;
+                    };
+                }
+            ).response?.status;
 
-    if (status === 404) {
-        return null;
+        if (status === 404) {
+            return null;
+        }
+
+        throw error;
     }
-
-    throw error;
 }
 
-
-    }
-
 export async function startFulfillment(
-        orderId: string,
-    ): Promise<unknown> {
-        const { data } =
-            await api.post(
-                `/api/fulfillment/orders/${orderId}/start`,
-            );
+    orderId: string,
+): Promise<unknown> {
+    const normalizedId = orderId.trim();
 
-        
-return data;
+    const { data } =
+        await api.post(
+            `/fulfillment/orders/${normalizedId}/start`,
+        );
 
+    return data;
+}
 
-    }
+export async function allocateWarehouse(
+    orderId: string,
+): Promise<unknown> {
+    const normalizedId = orderId.trim();
 
-    export async function allocateWarehouse(
-        orderId: string,
-    ): Promise<unknown> {
-        const { data } =
-            await api.post(
-                `/api/fulfillment/orders/${orderId}/allocate`,
-            );
+    const { data } =
+        await api.post(
+            `/fulfillment/orders/${normalizedId}/allocate`,
+        );
 
-        
-return data;
+    return data;
+}
 
+export async function reserveStock(
+    orderId: string,
+): Promise<unknown> {
+    const normalizedId = orderId.trim();
 
-    }
+    const { data } =
+        await api.post(
+            `/fulfillment/orders/${normalizedId}/reserve-stock`,
+        );
 
-    export async function reserveStock(
-        orderId: string,
-    ): Promise<unknown> {
-        const { data } =
-            await api.post(
-                `/api/fulfillment/orders/${orderId}/reserve-stock`,
-            );
+    return data;
+}
 
-        
-return data;
+export async function startPicking(
+    orderId: string,
+): Promise<unknown> {
+    const normalizedId = orderId.trim();
 
+    const { data } =
+        await api.post(
+            `/fulfillment/orders/${normalizedId}/start-picking`,
+        );
 
-    }
+    return data;
+}
 
-    export async function startPicking(
-        orderId: string,
-    ): Promise<unknown> {
-        const { data } =
-            await api.post(
-                `/api/fulfillment/orders/${orderId}/start-picking`,
-            );
+export async function markPicked(
+    orderId: string,
+): Promise<unknown> {
+    const normalizedId = orderId.trim();
 
-        
-return data;
+    const { data } =
+        await api.post(
+            `/fulfillment/orders/${normalizedId}/picked`,
+        );
 
+    return data;
+}
 
-    }
+export async function startPacking(
+    orderId: string,
+): Promise<unknown> {
+    const normalizedId = orderId.trim();
 
-    export async function markPicked(
-        orderId: string,
-    ): Promise<unknown> {
-        const { data } =
-            await api.post(
-                `/api/fulfillment/orders/${orderId}/picked`,
-            );
+    const { data } =
+        await api.post(
+            `/fulfillment/orders/${normalizedId}/start-packing`,
+        );
 
-        
-return data;
+    return data;
+}
 
+export async function markPacked(
+    orderId: string,
+): Promise<unknown> {
+    const normalizedId = orderId.trim();
 
-    }
+    const { data } =
+        await api.post(
+            `/fulfillment/orders/${normalizedId}/packed`,
+        );
 
-    export async function startPacking(
-        orderId: string,
-    ): Promise<unknown> {
-        const { data } =
-            await api.post(
-                `/api/fulfillment/orders/${orderId}/start-packing`,
-            );
+    return data;
+}
 
-        
-return data;
+export async function markReadyToShip(
+    orderId: string,
+): Promise<unknown> {
+    const normalizedId = orderId.trim();
 
+    const { data } =
+        await api.post(
+            `/fulfillment/orders/${normalizedId}/ready-to-ship`,
+        );
 
-    }
-
-    export async function markPacked(
-        orderId: string,
-    ): Promise<unknown> {
-        const { data } =
-            await api.post(
-                `/api/fulfillment/orders/${orderId}/packed`,
-            );
-
-        
-return data;
-
-
-    }
-
-    export async function markReadyToShip(
-        orderId: string,
-    ): Promise<unknown> {
-        const { data } =
-            await api.post(
-                `/api/fulfillment/orders/${orderId}/ready-to-ship`,
-            );
-
-        
-return data;
-
-
-    }
+    return data;
+}

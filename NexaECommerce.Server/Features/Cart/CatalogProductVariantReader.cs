@@ -1,11 +1,14 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
 using NexaEcommerce.Modules.ShoppingCart.Application.Services;
+using NexaEcommerce.SharedKernel.Abstractions;
 
 namespace NexaECommerce.Server.Features.Cart;
 
 public sealed class CatalogProductVariantReader(
-    CatalogDbContext catalogDbContext)
+    CatalogDbContext catalogDbContext,
+    IStockReader stockReader,
+    ICurrentTenant currentTenant)
     : IProductVariantReader
 {
     public async Task<ProductVariantSnapshot?>
@@ -38,10 +41,16 @@ public sealed class CatalogProductVariantReader(
                 .Select(x => x.ImageUrl)
                 .FirstOrDefault();
 
+        var stockQuantity =
+            await stockReader.GetAvailableQuantityAsync(
+                currentTenant.Id,
+                variant.Id,
+                cancellationToken) ?? 0;
+
         return new ProductVariantSnapshot(
             variant.Id,
             variant.PriceOverride,
-            variant.StockQuantity,
+            Math.Max(0, stockQuantity),
             variant.Product.Name,
             image,
             variant.IsActive,

@@ -11,6 +11,8 @@ using Microsoft.Extensions.Hosting;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
 using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence;
+using NexaEcommerce.Modules.Orders.Application.Payments;
+using NexaEcommerce.Modules.Orders.Infrastructure.Payments;
 using NexaEcommerce.Modules.Orders.Infrastructure.Persistence;
 using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
 using NexaECommerce.Server.Data;
@@ -67,6 +69,7 @@ public sealed class CustomWebApplicationFactory
         builder.ConfigureTestServices(
             services =>
             {
+                
                 services.RemoveAll(
     typeof(OrdersDbContext));
 
@@ -178,6 +181,7 @@ public sealed class CustomWebApplicationFactory
                         TestAuthHandler>(
                         TestAuthHandler.SchemeName,
                         _ => { });
+                services.AddScoped<IPaymentGateway, TestPaymentGateway>();
             });
     }
 
@@ -374,6 +378,85 @@ public sealed class CustomWebApplicationFactory
 
             await inventoryDb.StockItems.AddAsync(
                 stockItem);
+        }
+
+        // Physical warehouse inventory used by storefront/cart/fulfillment tests.
+        // ProductVariant is still created only by Catalog; WarehouseStock only
+        // describes where the existing variant is physically stored.
+        var warehouse =
+            await inventoryDb.Warehouses
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.TenantId == DefaultTenantId &&
+                        x.Code == "TEST-DEFAULT-WAREHOUSE");
+
+        if (warehouse is null)
+        {
+            warehouse =
+                Warehouse.Create(
+                    DefaultTenantId,
+                    "TEST-DEFAULT-WAREHOUSE",
+                    "Integration Test Warehouse",
+                    city: "Tehran",
+                    isDefault: true);
+
+            await inventoryDb.Warehouses.AddAsync(warehouse);
+            await inventoryDb.SaveChangesAsync();
+        }
+        else
+        {
+            warehouse.SetActive(true);
+            warehouse.SetDefault(true);
+        }
+
+        var location =
+            await inventoryDb.WarehouseLocations
+                .FirstOrDefaultAsync(
+                    x =>
+                        x.TenantId == DefaultTenantId &&
+                        x.WarehouseId == warehouse.Id &&
+                        x.Code == "TEST-DEFAULT-LOCATION");
+
+        if (location is null)
+        {
+            location =
+                WarehouseLocation.Create(
+                    DefaultTenantId,
+                    warehouse.Id,
+                    "TEST-DEFAULT-LOCATION",
+                    "Integration Test Location");
+
+            await inventoryDb.WarehouseLocations.AddAsync(location);
+            await inventoryDb.SaveChangesAsync();
+        }
+        else
+        {
+            location.SetActive(true);
+        }
+
+        var physicalVariantIds =
+            await inventoryDb.WarehouseStocks
+                .AsNoTracking()
+                .Where(
+                    x =>
+                        x.TenantId == DefaultTenantId &&
+                        x.WarehouseId == warehouse.Id &&
+                        x.LocationId == location.Id)
+                .Select(x => x.ProductVariantId)
+                .ToHashSetAsync();
+
+        foreach (var variantId in variants)
+        {
+            if (physicalVariantIds.Contains(variantId))
+                continue;
+
+            await inventoryDb.WarehouseStocks.AddAsync(
+                WarehouseStock.Create(
+                    DefaultTenantId,
+                    warehouse.Id,
+                    location.Id,
+                    variantId,
+                    onHandQuantity: testQuantity));
         }
 
         await inventoryDb.SaveChangesAsync();

@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -25,61 +25,100 @@ public sealed class ProductEndpointsTests(
         const string tenantId = "default";
         const int testQuantity = 1;
 
-        int? originalAvailableQuantity = null;
+        Guid warehouseId;
+        Guid locationId;
+        int originalOnHand;
+        int originalReserved;
+        int originalIncoming;
+        int originalDamaged;
+        int originalReorderPoint;
+        bool created = false;
 
         using (var scope =
                factory.Services.CreateScope())
         {
             var inventoryDb =
                 scope.ServiceProvider
-                    .GetRequiredService<
-                        InventoryDbContext>();
+                    .GetRequiredService<InventoryDbContext>();
+
+            var warehouse =
+                await inventoryDb.Warehouses
+                    .Where(
+                        x =>
+                            x.TenantId == tenantId &&
+                            x.IsActive)
+                    .OrderByDescending(x => x.IsDefault)
+                    .ThenBy(x => x.Code)
+                    .FirstOrDefaultAsync();
+
+            warehouse.ShouldNotBeNull();
+
+            var location =
+                await inventoryDb.WarehouseLocations
+                    .Where(
+                        x =>
+                            x.TenantId == tenantId &&
+                            x.WarehouseId == warehouse!.Id &&
+                            x.IsActive)
+                    .OrderBy(x => x.Code)
+                    .FirstOrDefaultAsync();
+
+            location.ShouldNotBeNull();
+
+            warehouseId = warehouse!.Id;
+            locationId = location!.Id;
 
             var stock =
-                await inventoryDb.StockItems
+                await inventoryDb.WarehouseStocks
                     .FirstOrDefaultAsync(
                         x =>
                             x.TenantId == tenantId &&
-                            x.ProductVariantId ==
-                            info.VariantId);
+                            x.WarehouseId == warehouseId &&
+                            x.LocationId == locationId &&
+                            x.ProductVariantId == info.VariantId);
 
             if (stock is null)
             {
                 stock =
                     NexaEcommerce.Modules.Inventory.Domain.Entities
-                        .StockItem.Create(
+                        .WarehouseStock.Create(
                             tenantId,
+                            warehouseId,
+                            locationId,
                             info.VariantId,
-                            testQuantity);
+                            onHandQuantity: testQuantity);
 
-                await inventoryDb.StockItems
-                    .AddAsync(stock);
+                await inventoryDb.WarehouseStocks.AddAsync(stock);
+                created = true;
+
+                originalOnHand = 0;
+                originalReserved = 0;
+                originalIncoming = 0;
+                originalDamaged = 0;
+                originalReorderPoint = 0;
             }
             else
             {
-                originalAvailableQuantity =
-                    stock.AvailableQuantity;
+                originalOnHand = stock.OnHandQuantity;
+                originalReserved = stock.ReservedQuantity;
+                originalIncoming = stock.IncomingQuantity;
+                originalDamaged = stock.DamagedQuantity;
+                originalReorderPoint = stock.ReorderPoint;
 
                 if (stock.ReservedQuantity > 0)
                 {
-                    stock.Release(
-                        stock.ReservedQuantity);
+                    stock.Release(stock.ReservedQuantity);
                 }
 
-                if (stock.AvailableQuantity >
-                    testQuantity)
+                if (stock.OnHandQuantity > testQuantity)
                 {
-                    stock.Remove(
-                        stock.AvailableQuantity -
-                        testQuantity);
+                    stock.RemoveOnHand(
+                        stock.OnHandQuantity - testQuantity);
                 }
-                else if (
-                    stock.AvailableQuantity <
-                    testQuantity)
+                else if (stock.OnHandQuantity < testQuantity)
                 {
-                    stock.Add(
-                        testQuantity -
-                        stock.AvailableQuantity);
+                    stock.AddOnHand(
+                        testQuantity - stock.OnHandQuantity);
                 }
             }
 
@@ -99,18 +138,12 @@ public sealed class ProductEndpointsTests(
                 await response.Content
                     .ReadAsStringAsync();
 
-            body
-                .ShouldNotBeNullOrWhiteSpace();
-
             using var json =
                 JsonDocument.Parse(body);
 
-            var items =
-                json.RootElement
-                    .GetProperty("items");
-
             var product =
-                items
+                json.RootElement
+                    .GetProperty("items")
                     .EnumerateArray()
                     .FirstOrDefault(
                         x =>
@@ -119,8 +152,7 @@ public sealed class ProductEndpointsTests(
                             info.ProductId);
 
             product.ValueKind
-                .ShouldNotBe(
-                    JsonValueKind.Undefined);
+                .ShouldNotBe(JsonValueKind.Undefined);
 
             product
                 .GetProperty("stockQuantity")
@@ -139,47 +171,33 @@ public sealed class ProductEndpointsTests(
 
             var inventoryDb =
                 scope.ServiceProvider
-                    .GetRequiredService<
-                        InventoryDbContext>();
+                    .GetRequiredService<InventoryDbContext>();
 
             var stock =
-                await inventoryDb.StockItems
+                await inventoryDb.WarehouseStocks
                     .FirstOrDefaultAsync(
                         x =>
                             x.TenantId == tenantId &&
-                            x.ProductVariantId ==
-                            info.VariantId);
+                            x.WarehouseId == warehouseId &&
+                            x.LocationId == locationId &&
+                            x.ProductVariantId == info.VariantId);
 
             if (stock is not null)
             {
-                if (stock.ReservedQuantity > 0)
+                if (created)
                 {
-                    stock.Release(
-                        stock.ReservedQuantity);
-                }
-
-                if (originalAvailableQuantity is null)
-                {
-                    inventoryDb.StockItems
-                        .Remove(stock);
+                    inventoryDb.WarehouseStocks.Remove(stock);
                 }
                 else
                 {
-                    if (stock.AvailableQuantity >
-                        originalAvailableQuantity.Value)
-                    {
-                        stock.Remove(
-                            stock.AvailableQuantity -
-                            originalAvailableQuantity.Value);
-                    }
-                    else if (
-                        stock.AvailableQuantity <
-                        originalAvailableQuantity.Value)
-                    {
-                        stock.Add(
-                            originalAvailableQuantity.Value -
-                            stock.AvailableQuantity);
-                    }
+                    stock.SetQuantities(
+                        originalOnHand,
+                        originalReserved,
+                        originalIncoming,
+                        originalDamaged);
+
+                    stock.SetReorderPoint(
+                        originalReorderPoint);
                 }
 
                 await inventoryDb.SaveChangesAsync();
@@ -187,7 +205,7 @@ public sealed class ProductEndpointsTests(
         }
     }
 
-private async Task<ProductInfo>
+    private async Task<ProductInfo>
     GetExistingProductAndVariantAsync()
     {
         using var scope =
