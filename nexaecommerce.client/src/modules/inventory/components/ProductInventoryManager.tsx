@@ -1,6 +1,7 @@
 /* eslint-disable react-hooks/set-state-in-effect */
 
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Boxes, MapPin, Package, Warehouse as WarehouseIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -54,6 +55,19 @@ export default function ProductInventoryManager({ productId }: { productId: stri
         }
     }, [locationId, locations]);
 
+    useEffect(() => {
+        if (warehouseId && !warehouses.some((warehouse) => warehouse.id === warehouseId)) {
+            setWarehouseId(warehouses[0]?.id ?? '');
+            setLocationId('');
+        }
+    }, [warehouseId, warehouses]);
+
+    useEffect(() => {
+        if (locationId && !locations.some((location) => location.id === locationId)) {
+            setLocationId(locations[0]?.id ?? '');
+        }
+    }, [locationId, locations]);
+
     const selectedStock = useMemo(
         () =>
             stockState.items.find(
@@ -81,7 +95,39 @@ export default function ProductInventoryManager({ productId }: { productId: stri
     }
 
     if (productQuery.isError || !productQuery.data) {
-        return <Alert variant="destructive"><AlertDescription>{t('inventory.productLoadError')}</AlertDescription></Alert>;
+        return (
+            <Alert variant="destructive">
+                <AlertDescription>{t('inventory.productLoadError')}</AlertDescription>
+            </Alert>
+        );
+    }
+
+    if (warehouses.length === 0) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>{t('inventory.productInventoryTitle')}</CardTitle>
+                    <CardDescription>{t('inventory.productInventoryDescription')}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Alert>
+                        <WarehouseIcon />
+                        <AlertDescription>
+                            <div className="space-y-1">
+                                <div className="font-medium">{t('inventory.noActiveWarehouses')}</div>
+                                <div>{t('inventory.noActiveWarehousesDescription')}</div>
+                            </div>
+                        </AlertDescription>
+                    </Alert>
+                    <Button asChild>
+                        <Link to="/admin/warehouses/new">
+                            <WarehouseIcon />
+                            {t('inventory.goToWarehouses')}
+                        </Link>
+                    </Button>
+                </CardContent>
+            </Card>
+        );
     }
 
     const save = async () => {
@@ -107,6 +153,8 @@ export default function ProductInventoryManager({ productId }: { productId: stri
             toast.error(error instanceof Error ? error.message : t('inventory.stockSaveError'));
         }
     };
+
+    const noActiveLocations = locationQuery.isSuccess && locations.length === 0;
 
     return (
         <Card>
@@ -151,13 +199,31 @@ export default function ProductInventoryManager({ productId }: { productId: stri
 
                             <div className="grid gap-2">
                                 <Label htmlFor="inventory-location">{t('inventory.location')}</Label>
-                                <select id="inventory-location" className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm" value={locationId} onChange={(event) => setLocationId(event.target.value)}>
+                                <select id="inventory-location" className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm" value={locationId} onChange={(event) => setLocationId(event.target.value)} disabled={locationQuery.isLoading || noActiveLocations}>
                                     {locations.map((location) => (
                                         <option key={location.id} value={location.id}>{location.code} — {location.name}</option>
                                     ))}
                                 </select>
                             </div>
                         </div>
+
+                        {noActiveLocations && (
+                            <Alert>
+                                <MapPin />
+                                <AlertDescription className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="space-y-1">
+                                        <div className="font-medium">{t('inventory.noActiveLocations')}</div>
+                                        <div>{t('inventory.noActiveLocationsDescription')}</div>
+                                    </div>
+                                    <Button asChild variant="outline">
+                                        <Link to={`/admin/warehouses/${warehouseId}/edit`}>
+                                            <MapPin />
+                                            {t('inventory.goToWarehouse')}
+                                        </Link>
+                                    </Button>
+                                </AlertDescription>
+                            </Alert>
+                        )}
 
                         <div className="rounded-lg border p-4">
                             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -173,16 +239,16 @@ export default function ProductInventoryManager({ productId }: { productId: stri
                             <div className="grid gap-4 md:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="inventory-on-hand">{t('inventory.onHand')}</Label>
-                                    <Input id="inventory-on-hand" type="number" min={0} value={onHand} onChange={(event) => setOnHand(Number(event.target.value) || 0)} />
+                                    <Input id="inventory-on-hand" type="number" min={0} value={onHand} onChange={(event) => setOnHand(Number(event.target.value) || 0)} disabled={noActiveLocations} />
                                 </div>
                                 <div className="grid gap-2">
                                     <Label htmlFor="inventory-reorder">{t('inventory.reorderPoint')}</Label>
-                                    <Input id="inventory-reorder" type="number" min={0} value={reorderPoint} onChange={(event) => setReorderPoint(Number(event.target.value) || 0)} />
+                                    <Input id="inventory-reorder" type="number" min={0} value={reorderPoint} onChange={(event) => setReorderPoint(Number(event.target.value) || 0)} disabled={noActiveLocations} />
                                 </div>
                             </div>
 
                             <div className="mt-4 flex justify-end">
-                                <Button onClick={save} disabled={setStock.isPending || !locations.length || !warehouses.length}>
+                                <Button onClick={save} disabled={setStock.isPending || !locations.length}>
                                     {t('inventory.saveStock')}
                                 </Button>
                             </div>

@@ -11,27 +11,28 @@ import zh from './locales/zh.json';
 import fa from './locales/fa.json';
 import warehouseEn from './locales/warehouse.en';
 import warehouseFa from './locales/warehouse.fa';
+import inventoryEn from './locales/inventory.en';
+import inventoryFa from './locales/inventory.fa';
 
-export type LanguageMeta = { code: string; name: string; dir:'ltr'|'rtl'};
+export type LanguageMeta = { code: string; name: string; dir: 'ltr' | 'rtl' };
 
 // Single source of truth for supported languages. To add one: drop `src/locales/<code>.json`,
-// import it into `resources` below, and add an entry here (set `dir: 'rtl'` for RTL scripts). The
-// `name` is the language's own autonym so the switcher reads natively regardless of current locale.
+// import it into `resources` below, and add an entry here (set `dir: 'rtl'` for RTL scripts).
+// The `name` is the language's own autonym so the switcher reads natively regardless of current locale.
 export const LANGUAGES: LanguageMeta[] = [
     { code: 'fa', name: 'فارسی', dir: 'rtl' },
     { code: 'en', name: 'English', dir: 'ltr' },
-  { code: 'es', name: 'Español', dir: 'ltr' },
-  { code: 'fr', name: 'Français', dir: 'ltr' },
-  { code: 'de', name: 'Deutsch', dir: 'ltr' },
-  { code: 'ar', name: 'العربية', dir: 'rtl' },
-  { code: 'zh', name: '中文', dir: 'ltr' },
-
+    { code: 'es', name: 'Español', dir: 'ltr' },
+    { code: 'fr', name: 'Français', dir: 'ltr' },
+    { code: 'de', name: 'Deutsch', dir: 'ltr' },
+    { code: 'ar', name: 'العربية', dir: 'rtl' },
+    { code: 'zh', name: '中文', dir: 'ltr' },
 ];
 
 export const supportedLngs = LANGUAGES.map((l) => l.code);
 
 export function directionOf(code: string): 'ltr' | 'rtl' {
-  return LANGUAGES.find((l) => l.code === code)?.dir ?? 'ltr';
+    return LANGUAGES.find((l) => l.code === code)?.dir ?? 'ltr';
 }
 
 i18n
@@ -42,8 +43,9 @@ i18n
       en: {
         translation: {
           ...en,
-          nav: { ...en.nav, ...warehouseEn.nav },
+          nav: { ...en.nav, ...warehouseEn.nav, ...inventoryEn.nav },
           warehouses: warehouseEn.warehouses,
+          inventory: inventoryEn.inventory,
         },
       },
       es: { translation: es },
@@ -54,15 +56,16 @@ i18n
       fa: {
         translation: {
           ...fa,
-          nav: { ...fa.nav, ...warehouseFa.nav },
+          nav: { ...fa.nav, ...warehouseFa.nav, ...inventoryFa.nav },
           warehouses: warehouseFa.warehouses,
+          inventory: inventoryFa.inventory,
         },
       },
     },
     fallbackLng: 'fa',
     supportedLngs,
-    nonExplicitSupportedLngs: true, // map regional tags (en-US → en) to a base language
-    interpolation: { escapeValue: false }, // React already escapes
+    nonExplicitSupportedLngs: true,
+    interpolation: { escapeValue: false },
     detection: {
       order: ['localStorage'],
       caches: ['localStorage'],
