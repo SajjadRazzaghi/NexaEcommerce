@@ -7,15 +7,42 @@ import {
 
 import {
     warehouseStockApi,
-    type WarehouseStock,
     type Warehouse,
+    type WarehouseStock,
+    type WarehouseStockMovement,
 } from '@/lib/api/inventory';
+
 import { useWarehouses } from './useWarehouses';
 
 export const inventoryStockQueryKeys = {
     all: ['inventory', 'warehouse-stock'] as const,
-    warehouse: (warehouseId: string, productVariantId?: string) =>
-        ['inventory', 'warehouse-stock', warehouseId, productVariantId ?? 'all'] as const,
+
+    warehouse: (
+        warehouseId: string,
+        productVariantId?: string,
+    ) =>
+        [
+            'inventory',
+            'warehouse-stock',
+            warehouseId,
+            productVariantId ?? 'all',
+        ] as const,
+
+    movements: (
+        warehouseId: string,
+        locationId: string,
+        productVariantId: string,
+        take: number,
+    ) =>
+        [
+            'inventory',
+            'warehouse-stock',
+            'movements',
+            warehouseId,
+            locationId,
+            productVariantId,
+            take,
+        ] as const,
 };
 
 export function useWarehouseStock(
@@ -24,10 +51,21 @@ export function useWarehouseStock(
 ) {
     return useQuery({
         queryKey: warehouseId
-            ? inventoryStockQueryKeys.warehouse(warehouseId, productVariantId)
-            : ['inventory', 'warehouse-stock', 'empty'],
+            ? inventoryStockQueryKeys.warehouse(
+                warehouseId,
+                productVariantId,
+            )
+            : [
+                'inventory',
+                'warehouse-stock',
+                'empty',
+            ],
+
         queryFn: async () => {
-            if (!warehouseId) return [] as WarehouseStock[];
+            if (!warehouseId) {
+                return [] as WarehouseStock[];
+            }
+
             return (
                 await warehouseStockApi.listByWarehouse(
                     warehouseId,
@@ -36,6 +74,7 @@ export function useWarehouseStock(
                 )
             ).items;
         },
+
         enabled: Boolean(warehouseId),
     });
 }
@@ -43,62 +82,164 @@ export function useWarehouseStock(
 export function useProductWarehouseStocks(
     productVariantId?: string,
 ) {
-    const warehouses = useWarehouses(false);
+    const warehouses =
+        useWarehouses(false);
 
-    const queries = useQueries({
-        queries: (warehouses.data ?? []).map((warehouse: Warehouse) => ({
-            queryKey: inventoryStockQueryKeys.warehouse(
-                warehouse.id,
-                productVariantId,
+    const queries =
+        useQueries({
+            queries: (
+                warehouses.data ?? []
+            ).map(
+                (warehouse: Warehouse) => ({
+                    queryKey:
+                        inventoryStockQueryKeys.warehouse(
+                            warehouse.id,
+                            productVariantId,
+                        ),
+
+                    queryFn: async () =>
+                        (
+                            await warehouseStockApi.listByWarehouse(
+                                warehouse.id,
+                                productVariantId,
+                                true,
+                            )
+                        ).items,
+
+                    enabled:
+                        Boolean(productVariantId),
+                }),
             ),
-            queryFn: async () =>
-                (
-                    await warehouseStockApi.listByWarehouse(
-                        warehouse.id,
-                        productVariantId,
-                        true,
-                    )
-                ).items,
-            enabled: Boolean(productVariantId),
-        })),
-    });
+        });
 
-    const items = queries.flatMap((query) => query.data ?? []);
+    const items =
+        queries.flatMap(
+            (query) =>
+                query.data ?? [],
+        );
 
     return {
         warehouses,
         queries,
         items,
+
         isLoading:
             warehouses.isLoading ||
-            queries.some((query) => query.isLoading),
+            queries.some(
+                (query) =>
+                    query.isLoading,
+            ),
+
         isError:
             warehouses.isError ||
-            queries.some((query) => query.isError),
+            queries.some(
+                (query) =>
+                    query.isError,
+            ),
+
         refetch: async () => {
             await warehouses.refetch();
-            await Promise.all(queries.map((query) => query.refetch()));
+
+            await Promise.all(
+                queries.map(
+                    (query) =>
+                        query.refetch(),
+                ),
+            );
         },
     };
 }
 
+export function useWarehouseStockMovements(
+    warehouseId?: string,
+    locationId?: string,
+    productVariantId?: string,
+    take = 20,
+) {
+    return useQuery({
+        queryKey:
+            warehouseId &&
+                locationId &&
+                productVariantId
+                ? inventoryStockQueryKeys.movements(
+                    warehouseId,
+                    locationId,
+                    productVariantId,
+                    take,
+                )
+                : [
+                    'inventory',
+                    'warehouse-stock',
+                    'movements',
+                    'empty',
+                ],
+
+        queryFn: async () => {
+            if (
+                !warehouseId ||
+                !locationId ||
+                !productVariantId
+            ) {
+                return [] as WarehouseStockMovement[];
+            }
+
+            return (
+                await warehouseStockApi.movements(
+                    warehouseId,
+                    locationId,
+                    productVariantId,
+                    0,
+                    take,
+                )
+            ).items;
+        },
+
+        enabled:
+            Boolean(
+                warehouseId &&
+                locationId &&
+                productVariantId,
+            ),
+    });
+}
+
 export function useSetWarehouseStock() {
-    const queryClient = useQueryClient();
+    const queryClient =
+        useQueryClient();
 
     return useMutation({
-        mutationFn: warehouseStockApi.set,
-        onSuccess: (stock) => {
-            queryClient.invalidateQueries({
-                queryKey: inventoryStockQueryKeys.all,
+        mutationFn:
+            warehouseStockApi.set,
+
+        onSuccess: async (stock) => {
+            await queryClient.invalidateQueries({
+                queryKey:
+                    inventoryStockQueryKeys.all,
             });
-            queryClient.invalidateQueries({
-                queryKey: inventoryStockQueryKeys.warehouse(
+
+            await queryClient.invalidateQueries({
+                queryKey:
+                    inventoryStockQueryKeys.warehouse(
+                        stock.warehouseId,
+                        stock.productVariantId,
+                    ),
+            });
+
+            await queryClient.invalidateQueries({
+                queryKey: [
+                    'products',
+                ],
+            });
+
+            await queryClient.invalidateQueries({
+                queryKey: [
+                    'inventory',
+                    'warehouse-stock',
+                    'movements',
                     stock.warehouseId,
+                    stock.locationId,
                     stock.productVariantId,
-                ),
-            });
-            queryClient.invalidateQueries({
-                queryKey: ['products'],
+                ],
             });
         },
     });

@@ -18,12 +18,15 @@ public sealed class WarehouseStockService(
         CancellationToken cancellationToken = default)
     {
         ValidateTenant(tenantId);
+
         ValidateGuid(
             warehouseId,
             nameof(warehouseId));
+
         ValidateGuid(
             locationId,
             nameof(locationId));
+
         ValidateGuid(
             productVariantId,
             nameof(productVariantId));
@@ -51,6 +54,7 @@ public sealed class WarehouseStockService(
             CancellationToken cancellationToken = default)
     {
         ValidateTenant(tenantId);
+
         ValidateGuid(
             warehouseId,
             nameof(warehouseId));
@@ -94,6 +98,7 @@ public sealed class WarehouseStockService(
         CancellationToken cancellationToken = default)
     {
         ValidateTenant(tenantId);
+
         ArgumentNullException.ThrowIfNull(request);
 
         ValidateRequestIds(
@@ -121,7 +126,8 @@ public sealed class WarehouseStockService(
             request.ReorderPoint,
             nameof(request.ReorderPoint));
 
-        if (request.ReservedQuantity > request.OnHandQuantity)
+        if (request.ReservedQuantity >
+            request.OnHandQuantity)
         {
             throw new InvalidOperationException(
                 "Reserved quantity cannot exceed on-hand quantity.");
@@ -171,6 +177,19 @@ public sealed class WarehouseStockService(
             stock,
             cancellationToken);
 
+        if (request.OnHandQuantity > 0)
+        {
+            await AddMovementAsync(
+                normalizedTenantId,
+                stock,
+                WarehouseStockMovementType.OpeningBalance,
+                request.OnHandQuantity,
+                "WarehouseStock.Create",
+                stock.Id.ToString(),
+                "Opening warehouse stock.",
+                cancellationToken);
+        }
+
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
 
@@ -183,6 +202,7 @@ public sealed class WarehouseStockService(
         CancellationToken cancellationToken = default)
     {
         ValidateTenant(tenantId);
+
         ArgumentNullException.ThrowIfNull(request);
 
         ValidateRequestIds(
@@ -210,7 +230,8 @@ public sealed class WarehouseStockService(
             request.ReorderPoint,
             nameof(request.ReorderPoint));
 
-        if (request.ReservedQuantity > request.OnHandQuantity)
+        if (request.ReservedQuantity >
+            request.OnHandQuantity)
         {
             throw new InvalidOperationException(
                 "Reserved quantity cannot exceed on-hand quantity.");
@@ -238,6 +259,12 @@ public sealed class WarehouseStockService(
                 request.ProductVariantId,
                 cancellationToken);
 
+        var wasCreated =
+            stock is null;
+
+        var previousOnHand =
+            stock?.OnHandQuantity ?? 0;
+
         if (stock is null)
         {
             stock =
@@ -261,6 +288,27 @@ public sealed class WarehouseStockService(
         stock.SetReorderPoint(
             request.ReorderPoint);
 
+        var onHandDelta =
+            request.OnHandQuantity -
+            previousOnHand;
+
+        if (onHandDelta != 0)
+        {
+            await AddMovementAsync(
+                normalizedTenantId,
+                stock,
+                wasCreated
+                    ? WarehouseStockMovementType.OpeningBalance
+                    : WarehouseStockMovementType.Correction,
+                onHandDelta,
+                "WarehouseStock.Set",
+                stock.Id.ToString(),
+                wasCreated
+                    ? "Opening warehouse stock."
+                    : "Manual warehouse stock correction.",
+                cancellationToken);
+        }
+
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
 
@@ -273,6 +321,7 @@ public sealed class WarehouseStockService(
         CancellationToken cancellationToken = default)
     {
         ValidateTenant(tenantId);
+
         ArgumentNullException.ThrowIfNull(request);
 
         ValidateRequestIds(
@@ -313,11 +362,34 @@ public sealed class WarehouseStockService(
         {
             stock.AddOnHand(
                 request.Quantity);
+
+            await AddMovementAsync(
+                normalizedTenantId,
+                stock,
+                WarehouseStockMovementType.AdjustmentIncrease,
+                request.Quantity,
+                "WarehouseStock.Adjust",
+                stock.Id.ToString(),
+                request.Reason,
+                cancellationToken);
         }
         else
         {
+            var positiveQuantity =
+                checked(-request.Quantity);
+
             stock.RemoveOnHand(
-                Math.Abs(request.Quantity));
+                positiveQuantity);
+
+            await AddMovementAsync(
+                normalizedTenantId,
+                stock,
+                WarehouseStockMovementType.AdjustmentDecrease,
+                -positiveQuantity,
+                "WarehouseStock.Adjust",
+                stock.Id.ToString(),
+                request.Reason,
+                cancellationToken);
         }
 
         await unitOfWork.SaveChangesAsync(
@@ -332,6 +404,7 @@ public sealed class WarehouseStockService(
         CancellationToken cancellationToken = default)
     {
         ValidateTenant(tenantId);
+
         ArgumentNullException.ThrowIfNull(request);
 
         ValidateRequestIds(
@@ -368,8 +441,41 @@ public sealed class WarehouseStockService(
                 request.ProductVariantId,
                 cancellationToken);
 
-        stock.AddOnHand(
-            request.Quantity);
+        var remaining =
+            request.Quantity;
+
+        if (stock.IncomingQuantity > 0)
+        {
+            var receiveFromIncoming =
+                Math.Min(
+                    remaining,
+                    stock.IncomingQuantity);
+
+            if (receiveFromIncoming > 0)
+            {
+                stock.ReceiveIncoming(
+                    receiveFromIncoming);
+
+                remaining -=
+                    receiveFromIncoming;
+            }
+        }
+
+        if (remaining > 0)
+        {
+            stock.AddOnHand(
+                remaining);
+        }
+
+        await AddMovementAsync(
+            normalizedTenantId,
+            stock,
+            WarehouseStockMovementType.Receive,
+            request.Quantity,
+            "WarehouseStock.Receive",
+            stock.Id.ToString(),
+            request.Reason,
+            cancellationToken);
 
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -383,6 +489,7 @@ public sealed class WarehouseStockService(
         CancellationToken cancellationToken = default)
     {
         ValidateTenant(tenantId);
+
         ArgumentNullException.ThrowIfNull(request);
 
         ValidateRequestIds(
@@ -425,6 +532,16 @@ public sealed class WarehouseStockService(
         stock.AddDamage(
             request.Quantity);
 
+        await AddMovementAsync(
+            normalizedTenantId,
+            stock,
+            WarehouseStockMovementType.Damage,
+            -request.Quantity,
+            "WarehouseStock.Damage",
+            stock.Id.ToString(),
+            request.Reason,
+            cancellationToken);
+
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
 
@@ -438,6 +555,7 @@ public sealed class WarehouseStockService(
             CancellationToken cancellationToken = default)
     {
         ValidateTenant(tenantId);
+
         ArgumentNullException.ThrowIfNull(request);
 
         ValidateRequestIds(
@@ -512,6 +630,39 @@ public sealed class WarehouseStockService(
             cancellationToken);
 
         return stock;
+    }
+
+    private async Task AddMovementAsync(
+        string tenantId,
+        WarehouseStock stock,
+        WarehouseStockMovementType type,
+        int quantityDelta,
+        string referenceType,
+        string referenceId,
+        string? reason,
+        CancellationToken cancellationToken)
+    {
+        if (quantityDelta == 0)
+        {
+            return;
+        }
+
+        var movement =
+            WarehouseStockMovement.Create(
+                tenantId,
+                stock.WarehouseId,
+                stock.LocationId,
+                stock.ProductVariantId,
+                type,
+                quantityDelta,
+                stock.OnHandQuantity,
+                referenceType,
+                referenceId,
+                reason);
+
+        await stockRepository.AddMovementAsync(
+            movement,
+            cancellationToken);
     }
 
     private async Task EnsureWarehouseExists(

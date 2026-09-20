@@ -50,6 +50,20 @@ export interface WarehouseStock {
     updatedAt: string | null;
 }
 
+export interface WarehouseStockMovement {
+    id: string;
+    warehouseId: string;
+    locationId: string;
+    productVariantId: string;
+    type: string;
+    quantityDelta: number;
+    balanceAfter: number;
+    referenceType: string | null;
+    referenceId: string | null;
+    reason: string | null;
+    occurredAt: string;
+}
+
 export interface WarehouseListResponse {
     items: Warehouse[];
 }
@@ -60,6 +74,15 @@ export interface WarehouseLocationsResponse {
 
 export interface WarehouseStockListResponse {
     items: WarehouseStock[];
+}
+
+export interface WarehouseStockMovementListResponse {
+    warehouseId: string;
+    locationId: string;
+    productVariantId: string;
+    skip: number;
+    take: number;
+    items: WarehouseStockMovement[];
 }
 
 export interface SaveWarehouseRequest {
@@ -113,31 +136,62 @@ export interface SetWarehouseStockRequest {
 
 export const warehousesApi = {
     list: (includeInactive = true) =>
-        api.get<WarehouseListResponse>('/inventory/warehouses/', {
-            params: { includeInactive },
-        }),
-
-    create: (body: SaveWarehouseRequest) =>
-        api.post<Warehouse>('/inventory/warehouses/', body),
-
-    update: (id: string, body: UpdateWarehouseRequest) =>
-        api.put<Warehouse>(`/inventory/warehouses/${id}`, body),
-
-    setStatus: (id: string, isActive: boolean) =>
-        api.put<Warehouse>(`/inventory/warehouses/${id}/status`, {
-            isActive,
-        }),
-
-    setDefault: (id: string) =>
-        api.post<Warehouse>(`/inventory/warehouses/${id}/set-default`),
-
-    locations: (warehouseId: string, includeInactive = true) =>
-        api.get<WarehouseLocationsResponse>(
-            `/inventory/warehouses/${warehouseId}/locations`,
-            { params: { includeInactive } },
+        api.get<WarehouseListResponse>(
+            '/inventory/warehouses/',
+            {
+                params: {
+                    includeInactive,
+                },
+            },
         ),
 
-    createLocation: (body: SaveWarehouseLocationRequest) =>
+    create: (body: SaveWarehouseRequest) =>
+        api.post<Warehouse>(
+            '/inventory/warehouses/',
+            body,
+        ),
+
+    update: (
+        id: string,
+        body: UpdateWarehouseRequest,
+    ) =>
+        api.put<Warehouse>(
+            `/inventory/warehouses/${id}`,
+            body,
+        ),
+
+    setStatus: (
+        id: string,
+        isActive: boolean,
+    ) =>
+        api.put<Warehouse>(
+            `/inventory/warehouses/${id}/status`,
+            {
+                isActive,
+            },
+        ),
+
+    setDefault: (id: string) =>
+        api.post<Warehouse>(
+            `/inventory/warehouses/${id}/set-default`,
+        ),
+
+    locations: (
+        warehouseId: string,
+        includeInactive = true,
+    ) =>
+        api.get<WarehouseLocationsResponse>(
+            `/inventory/warehouses/${warehouseId}/locations`,
+            {
+                params: {
+                    includeInactive,
+                },
+            },
+        ),
+
+    createLocation: (
+        body: SaveWarehouseLocationRequest,
+    ) =>
         api.post<WarehouseLocation>(
             `/inventory/warehouses/${body.warehouseId}/locations`,
             body,
@@ -160,7 +214,9 @@ export const warehousesApi = {
     ) =>
         api.put<WarehouseLocation>(
             `/inventory/warehouses/${warehouseId}/locations/${locationId}/status`,
-            { isActive },
+            {
+                isActive,
+            },
         ),
 };
 
@@ -181,6 +237,28 @@ export const warehouseStockApi = {
             },
         ),
 
-    set: (body: SetWarehouseStockRequest) =>
-        api.put<WarehouseStock>('/inventory/warehouse-stock/', body),
+    set: (
+        body: SetWarehouseStockRequest,
+    ) =>
+        api.put<WarehouseStock>(
+            '/inventory/warehouse-stock/',
+            body,
+        ),
+
+    movements: (
+        warehouseId: string,
+        locationId: string,
+        productVariantId: string,
+        skip = 0,
+        take = 20,
+    ) =>
+        api.get<WarehouseStockMovementListResponse>(
+            `/inventory/transfers/movements/${warehouseId}/${locationId}/${productVariantId}`,
+            {
+                params: {
+                    skip,
+                    take,
+                },
+            },
+        ),
 };

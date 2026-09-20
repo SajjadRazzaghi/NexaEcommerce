@@ -1,76 +1,283 @@
 const inventoryFa = {
-  nav: {
-    inventoryManagement: 'موجودی',
-  },
-  inventory: {
-    title: 'مدیریت موجودی',
-    description: 'موجودی انبار محصولات و واریانت‌های کاتالوگ را مدیریت کنید. محصول فقط یک‌بار در کاتالوگ ایجاد می‌شود.',
-    warehouses: 'انبارها',
-    createWarehouse: 'انبار جدید',
-    catalogProduct: 'محصول جدید در کاتالوگ',
-    searchPlaceholder: 'جستجوی نام محصول یا SKU…',
-    catalogOnly: 'فقط محصولات کاتالوگ',
-    activeInventory: 'موجودی فعال',
-    productLoadError: 'بارگذاری محصولات برای مدیریت موجودی انجام نشد.',
-    noProductsTitle: 'محصولی پیدا نشد',
-    noProductsDescription: 'ابتدا محصول را در کاتالوگ ایجاد کنید و سپس موجودی انبار آن را در این بخش مدیریت کنید.',
-    searchNoProductsDescription: 'نام محصول یا SKU دیگری را جستجو کنید.',
-    registerProduct: 'ایجاد محصول در کاتالوگ',
-    noManagePermission: 'برای اصلاح موجودی این محصول به مجوز مدیریت موجودی نیاز دارید.',
-    productInventoryTitle: 'موجودی انبار',
-    productInventoryDescription: 'موجودی و حد سفارش یک واریانت کاتالوگ را در یک موقعیت انبار تنظیم کنید.',
-    singleProductRule: 'هر محصول فقط یک‌بار در کاتالوگ ثبت می‌شود. موجودی انبار فقط مشخص می‌کند آن واریانت فیزیکی در کدام انبار و موقعیت قرار دارد.',
-    noActiveVariants: 'این محصول هیچ واریانت فعالی ندارد.',
-    variant: 'واریانت محصول',
-    warehouse: 'انبار',
-    location: 'موقعیت',
-    onHand: 'موجودی فعلی',
-    reorderPoint: 'نقطه سفارش مجدد',
-    totalAvailable: 'مجموع قابل فروش',
-    saveStock: 'ذخیره موجودی',
-    stockSaved: 'موجودی با موفقیت ذخیره شد.',
-    stockSaveError: 'ذخیره موجودی انجام نشد.',
-    currentLocations: 'موقعیت‌های دارای موجودی',
-    noStockLocations: 'هنوز برای این واریانت رکورد موجودی ایجاد نشده است. برای ایجاد آن، انبار و موقعیت را انتخاب کنید.',
-    onHandShort: 'فعلی',
-    reservedShort: 'رزرو شده',
-    availableShort: 'قابل فروش',
-    selectVariantWarehouseLocation: 'واریانت، انبار و موقعیت فعال را انتخاب کنید.',
-    noActiveWarehouses: 'هیچ انبار فعالی وجود ندارد.',
-    noActiveWarehousesDescription: 'پیش از ثبت موجودی این محصول، یک انبار ایجاد و فعال کنید.',
-    goToWarehouses: 'مدیریت انبارها',
-    noActiveLocations: 'در این انبار هیچ موقعیت فعالی وجود ندارد.',
-    noActiveLocationsDescription: 'پیش از ثبت موجودی، یک موقعیت فعال در انبار انتخاب‌شده ایجاد کنید.',
-    goToWarehouse: 'مدیریت موقعیت‌های انبار',
-    locationsTitle: 'موقعیت‌های انبار',
-    locationsDescription: '{{count}} موقعیت فعال در این انبار وجود دارد.',
-    addLocation: 'افزودن موقعیت',
-    editLocation: 'ویرایش موقعیت',
-    newLocation: 'موقعیت جدید',
-    locationCode: 'کد موقعیت',
-    locationName: 'نام موقعیت',
-    locationPath: 'زون / قفسه / طبقه / باکس',
-    zone: 'زون',
-    rack: 'قفسه',
-    shelf: 'طبقه',
-    bin: 'باکس',
-    status: 'وضعیت',
-    actions: 'عملیات',
-    active: 'فعال',
-    inactive: 'غیرفعال',
-    createLocation: 'ایجاد موقعیت',
-    locationRequired: 'کد و نام موقعیت الزامی است.',
-    locationCreated: 'موقعیت با موفقیت ایجاد شد.',
-    locationUpdated: 'موقعیت با موفقیت بروزرسانی شد.',
-    locationSaveError: 'ذخیره موقعیت انجام نشد.',
-    locationsLoadError: 'بارگذاری موقعیت‌های انبار انجام نشد.',
-    noLocations: 'هنوز برای این انبار موقعیتی ایجاد نشده است.',
-    locationDeactivated: 'موقعیت غیرفعال شد.',
-    locationActivated: 'موقعیت فعال شد.',
-    locationActionError: 'عملیات روی موقعیت انجام نشد.',
-    cancel: 'لغو',
-    saveChanges: 'ذخیره تغییرات',
-  },
+    nav: {
+        inventoryManagement: 'موجودی',
+    },
+
+    inventory: {
+        title: 'مدیریت موجودی',
+
+        description:
+            'موجودی انبار محصولات و واریانت‌های کاتالوگ را مدیریت کنید. محصول فقط یک‌بار در کاتالوگ ایجاد می‌شود.',
+
+        warehouses:
+            'انبارها',
+
+        createWarehouse:
+            'انبار جدید',
+
+        catalogProduct:
+            'محصول جدید در کاتالوگ',
+
+        searchPlaceholder:
+            'جستجوی نام محصول یا SKU…',
+
+        catalogOnly:
+            'فقط محصولات کاتالوگ',
+
+        activeInventory:
+            'موجودی فعال',
+
+        productLoadError:
+            'بارگذاری محصولات برای مدیریت موجودی انجام نشد.',
+
+        noProductsTitle:
+            'محصولی پیدا نشد',
+
+        noProductsDescription:
+            'ابتدا محصول را در کاتالوگ ایجاد کنید و سپس موجودی انبار آن را در این بخش مدیریت کنید.',
+
+        searchNoProductsDescription:
+            'نام محصول یا SKU دیگری را جستجو کنید.',
+
+        registerProduct:
+            'ایجاد محصول در کاتالوگ',
+
+        noManagePermission:
+            'برای اصلاح موجودی این محصول به مجوز مدیریت موجودی نیاز دارید.',
+
+        productInventoryTitle:
+            'موجودی انبار',
+
+        productInventoryDescription:
+            'موجودی و نقطه سفارش یک واریانت کاتالوگ را در یک موقعیت انبار مدیریت کنید.',
+
+        singleProductRule:
+            'هر محصول فقط یک‌بار در کاتالوگ ثبت می‌شود. موجودی انبار فقط مشخص می‌کند آن واریانت فیزیکی در کدام انبار و موقعیت قرار دارد.',
+
+        noActiveVariants:
+            'این محصول هیچ واریانت فعالی ندارد.',
+
+        variant:
+            'واریانت محصول',
+
+        warehouse:
+            'انبار',
+
+        location:
+            'موقعیت',
+
+        onHand:
+            'موجودی فعلی',
+
+        reorderPoint:
+            'نقطه سفارش مجدد',
+
+        totalAvailable:
+            'مجموع قابل فروش',
+
+        saveStock:
+            'ذخیره موجودی',
+
+        stockSaved:
+            'موجودی با موفقیت ذخیره شد.',
+
+        stockSaveError:
+            'ذخیره موجودی انجام نشد.',
+
+        currentLocations:
+            'موقعیت‌های دارای موجودی',
+
+        noStockLocations:
+            'هنوز برای این واریانت رکورد موجودی ایجاد نشده است. برای ایجاد آن، انبار و موقعیت را انتخاب کنید.',
+
+        onHandShort:
+            'فعلی',
+
+        reservedShort:
+            'رزرو شده',
+
+        availableShort:
+            'قابل فروش',
+
+        selectVariantWarehouseLocation:
+            'واریانت، انبار و موقعیت فعال را انتخاب کنید.',
+
+        noActiveWarehouses:
+            'هیچ انبار فعالی وجود ندارد.',
+
+        noActiveWarehousesDescription:
+            'پیش از ثبت موجودی این محصول، یک انبار ایجاد و فعال کنید.',
+
+        goToWarehouses:
+            'مدیریت انبارها',
+
+        noActiveLocations:
+            'در این انبار هیچ موقعیت فعالی وجود ندارد.',
+
+        noActiveLocationsDescription:
+            'پیش از ثبت موجودی، یک موقعیت فعال در انبار انتخاب‌شده ایجاد کنید.',
+
+        goToWarehouse:
+            'مدیریت موقعیت‌های انبار',
+
+        locationsTitle:
+            'موقعیت‌های انبار',
+
+        locationsDescription:
+            '{{count}} موقعیت فعال در این انبار وجود دارد.',
+
+        addLocation:
+            'افزودن موقعیت',
+
+        editLocation:
+            'ویرایش موقعیت',
+
+        newLocation:
+            'موقعیت جدید',
+
+        locationCode:
+            'کد موقعیت',
+
+        locationName:
+            'نام موقعیت',
+
+        locationPath:
+            'زون / قفسه / طبقه / باکس',
+
+        zone:
+            'زون',
+
+        rack:
+            'قفسه',
+
+        shelf:
+            'طبقه',
+
+        bin:
+            'باکس',
+
+        status:
+            'وضعیت',
+
+        actions:
+            'عملیات',
+
+        active:
+            'فعال',
+
+        inactive:
+            'غیرفعال',
+
+        createLocation:
+            'ایجاد موقعیت',
+
+        locationRequired:
+            'کد و نام موقعیت الزامی است.',
+
+        locationCreated:
+            'موقعیت با موفقیت ایجاد شد.',
+
+        locationUpdated:
+            'موقعیت با موفقیت بروزرسانی شد.',
+
+        locationSaveError:
+            'ذخیره موقعیت انجام نشد.',
+
+        locationsLoadError:
+            'بارگذاری موقعیت‌های انبار انجام نشد.',
+
+        noLocations:
+            'هنوز برای این انبار موقعیتی ایجاد نشده است.',
+
+        locationDeactivated:
+            'موقعیت غیرفعال شد.',
+
+        locationActivated:
+            'موقعیت فعال شد.',
+
+        locationActionError:
+            'عملیات روی موقعیت انجام نشد.',
+
+        movementLedgerTitle:
+            'دفترچه گردش موجودی',
+
+        movementLedgerDescription:
+            'آخرین گردش‌های فیزیکی موجودی برای واریانت و موقعیت انتخاب‌شده.',
+
+        movementLoadError:
+            'بارگذاری تاریخچه گردش موجودی انجام نشد.',
+
+        noMovements:
+            'برای این موقعیت هنوز گردش موجودی ثبت نشده است.',
+
+        movementDate:
+            'تاریخ',
+
+        movementType:
+            'نوع گردش',
+
+        movementDelta:
+            'تغییر',
+
+        movementBalance:
+            'موجودی پس از گردش',
+
+        movementReason:
+            'دلیل',
+
+        movementTypes: {
+            OpeningBalance:
+                'موجودی افتتاحیه',
+
+            Purchase:
+                'خرید',
+
+            Receive:
+                'دریافت',
+
+            AdjustmentIncrease:
+                'افزایش تعدیلی',
+
+            AdjustmentDecrease:
+                'کاهش تعدیلی',
+
+            Damage:
+                'خرابی',
+
+            TransferOut:
+                'انتقال خروجی',
+
+            TransferIn:
+                'انتقال ورودی',
+
+            Reservation:
+                'رزرو',
+
+            ReservationRelease:
+                'آزادسازی رزرو',
+
+            Sale:
+                'فروش',
+
+            Return:
+                'مرجوعی',
+
+            Correction:
+                'اصلاح',
+
+            Picking:
+                'برداشت',
+        },
+
+        cancel:
+            'لغو',
+
+        saveChanges:
+            'ذخیره تغییرات',
+
+        loading:
+            'در حال بارگذاری…',
+    },
 };
 
 export default inventoryFa;
