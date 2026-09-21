@@ -4,21 +4,15 @@ namespace NexaEcommerce.Modules.Inventory.Domain.Interfaces;
 
 public interface IWarehouseStockReservationRepository
 {
-    Task<WarehouseStockReservation?> GetAsync(
+    Task<IReadOnlyList<WarehouseStockReservation>> GetByOrderAsync(
         string tenantId,
-        Guid reservationId,
+        Guid orderId,
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<WarehouseStockReservation>>
-        GetPendingByOrderAsync(
+        GetActiveByOrderAsync(
             string tenantId,
             Guid orderId,
-            CancellationToken cancellationToken = default);
-
-    Task<IReadOnlyList<WarehouseStockReservation>>
-        GetExpiredPendingAsync(
-            DateTimeOffset utcNow,
-            int take,
             CancellationToken cancellationToken = default);
 
     Task AddAsync(

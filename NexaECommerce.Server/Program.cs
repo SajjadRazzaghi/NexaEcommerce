@@ -3,8 +3,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
 using NexaEcommerce.Modules.Catalog.Infrastructure.SeedData;
-using NexaECommerce.Server.Extensions;
 using NexaECommerce.Server.Data;
+using NexaECommerce.Server.Extensions;
 using NexaECommerce.Server.Platform;
 using NexaECommerce.Server.Platform.Features;
 using NexaECommerce.Server.Platform.MultiTenancy;
@@ -105,6 +105,7 @@ if (!builder.Environment.IsEnvironment("Testing"))
     builder.Services.AddHostedService<
         NexaECommerce.Server.Features.Inventory
             .InventoryOrderReconciliationWorker>();
+  
 }
 
 // ============================================================
