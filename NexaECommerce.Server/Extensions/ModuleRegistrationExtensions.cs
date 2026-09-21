@@ -8,6 +8,9 @@ using NexaEcommerce.Modules.Catalog;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
 using NexaEcommerce.Modules.Customers;
 using NexaEcommerce.Modules.Inventory;
+using NexaEcommerce.Modules.Inventory.Application.Services;
+using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
+using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence.Repositories;
 using NexaEcommerce.Modules.Orders;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.ShoppingCart;
@@ -61,6 +64,13 @@ public static class ModuleRegistrationExtensions
         // ========================================================
         // Inventory
         // ========================================================
+        services.AddScoped<
+    IWarehouseStockReservationRepository,
+    WarehouseStockReservationRepository>();
+
+        services.AddScoped<
+            IWarehouseStockReservationService,
+            WarehouseStockReservationService>();
         services.AddScoped<
     WarehouseReservationOrchestrator>();
         services.AddInventoryModule(

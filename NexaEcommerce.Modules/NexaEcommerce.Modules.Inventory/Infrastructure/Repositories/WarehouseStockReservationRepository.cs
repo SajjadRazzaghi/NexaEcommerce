@@ -1,55 +1,70 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
-using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence;
 
-namespace NexaEcommerce.Modules.Inventory.Infrastructure.Repositories;
+namespace NexaEcommerce.Modules.Inventory.Infrastructure.Persistence.Repositories;
 
 public sealed class WarehouseStockReservationRepository(
-    InventoryDbContext context)
+    InventoryDbContext dbContext)
     : IWarehouseStockReservationRepository
 {
+    public async Task<WarehouseStockReservation?> GetAsync(
+        string tenantId,
+        Guid reservationId,
+        CancellationToken cancellationToken = default)
+    {
+        return await dbContext
+            .WarehouseStockReservations
+            .FirstOrDefaultAsync(
+                reservation =>
+                    reservation.TenantId ==
+                        tenantId &&
+                    reservation.Id ==
+                        reservationId,
+                cancellationToken);
+    }
+
     public async Task<IReadOnlyList<WarehouseStockReservation>>
-        GetByOrderAsync(
+        GetPendingByOrderAsync(
             string tenantId,
             Guid orderId,
             CancellationToken cancellationToken = default)
     {
-        return await context.WarehouseStockReservations
-           
+        return await dbContext
+            .WarehouseStockReservations
             .Where(
-                x =>
-                    x.TenantId == tenantId &&
-                    x.OrderId == orderId)
+                reservation =>
+                    reservation.TenantId ==
+                        tenantId &&
+                    reservation.OrderId ==
+                        orderId &&
+                    reservation.Status ==
+                        WarehouseStockReservationStatus.Pending)
             .OrderBy(
-                x => x.ProductVariantId)
-            .ThenBy(
-                x => x.LocationId)
-            .ThenBy(
-                x => x.Id)
+                reservation =>
+                    reservation.CreatedAt)
             .ToListAsync(
                 cancellationToken);
     }
 
     public async Task<IReadOnlyList<WarehouseStockReservation>>
-        GetActiveByOrderAsync(
-            string tenantId,
-            Guid orderId,
+        GetExpiredPendingAsync(
+            DateTimeOffset utcNow,
+            int take,
             CancellationToken cancellationToken = default)
     {
-        return await context.WarehouseStockReservations
+        return await dbContext
+            .WarehouseStockReservations
             .Where(
-                x =>
-                    x.TenantId == tenantId &&
-                    x.OrderId == orderId &&
-                    x.Status ==
-                        WarehouseStockReservationStatus.Reserved)
+                reservation =>
+                    reservation.Status ==
+                        WarehouseStockReservationStatus.Pending &&
+                    reservation.ExpiresAt <=
+                        utcNow)
             .OrderBy(
-                x => x.ProductVariantId)
-            .ThenBy(
-                x => x.LocationId)
-            .ThenBy(
-                x => x.Id)
+                reservation =>
+                    reservation.ExpiresAt)
+            .Take(take)
             .ToListAsync(
                 cancellationToken);
     }
@@ -58,8 +73,10 @@ public sealed class WarehouseStockReservationRepository(
         WarehouseStockReservation reservation,
         CancellationToken cancellationToken = default)
     {
-        await context.WarehouseStockReservations.AddAsync(
-            reservation,
-            cancellationToken);
+        await dbContext
+            .WarehouseStockReservations
+            .AddAsync(
+                reservation,
+                cancellationToken);
     }
 }

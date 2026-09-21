@@ -31,108 +31,61 @@ public sealed class InventoryDbContext(
         ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<WarehouseStockReservation>(
-    entity =>
-    {
-        entity.ToTable(
-            "WarehouseStockReservations");
+         entity =>
+         {
+             entity.ToTable(
+                 "warehouse_stock_reservations");
 
-        entity.HasKey(
-            x => x.Id);
+             entity.HasKey(
+                 reservation =>
+                     reservation.Id);
 
-        entity.Property(
-            x => x.TenantId)
-            .IsRequired()
-            .HasMaxLength(64);
+             entity.Property(
+                 reservation =>
+                     reservation.TenantId)
+                 .HasMaxLength(100)
+                 .IsRequired();
 
-        entity.Property(
-            x => x.OrderId)
-            .IsRequired();
+             entity.Property(
+                 reservation =>
+                     reservation.Status)
+                 .HasConversion<string>()
+                 .HasMaxLength(32)
+                 .IsRequired();
 
-        entity.Property(
-            x => x.FulfillmentId)
-            .IsRequired();
+             entity.Property(
+                 reservation =>
+                     reservation.Quantity)
+                 .IsRequired();
 
-        entity.Property(
-            x => x.OrderInventoryReservationId)
-            .IsRequired();
+             entity.HasIndex(
+                 reservation =>
+                     new
+                     {
+                         reservation.TenantId,
+                         reservation.OrderId,
+                     });
 
-        entity.Property(
-            x => x.ReservationKey)
-            .IsRequired()
-            .HasMaxLength(128);
+             entity.HasIndex(
+                 reservation =>
+                     new
+                     {
+                         reservation.TenantId,
+                         reservation.Status,
+                         reservation.ExpiresAt,
+                     });
 
-        entity.Property(
-            x => x.WarehouseId)
-            .IsRequired();
-
-        entity.Property(
-            x => x.LocationId)
-            .IsRequired();
-
-        entity.Property(
-            x => x.ProductVariantId)
-            .IsRequired();
-
-        entity.Property(
-            x => x.Quantity)
-            .IsRequired();
-
-        entity.Property(
-            x => x.Status)
-            .IsRequired();
-
-        entity.Property(
-            x => x.ReservedAt)
-            .IsRequired();
-
-        entity.HasOne<Warehouse>()
-            .WithMany()
-            .HasForeignKey(
-                x => x.WarehouseId)
-            .OnDelete(
-                DeleteBehavior.Restrict);
-
-        entity.HasOne<WarehouseLocation>()
-            .WithMany()
-            .HasForeignKey(
-                x => x.LocationId)
-            .OnDelete(
-                DeleteBehavior.Restrict);
-
-        entity.HasIndex(
-            x => new
-            {
-                x.TenantId,
-                x.OrderInventoryReservationId,
-                x.WarehouseId,
-                x.LocationId
-            })
-            .IsUnique();
-
-        entity.HasIndex(
-            x => new
-            {
-                x.TenantId,
-                x.OrderId,
-                x.Status
-            });
-
-        entity.HasIndex(
-            x => new
-            {
-                x.TenantId,
-                x.ReservationKey
-            });
-
-        entity.HasIndex(
-            x => new
-            {
-                x.TenantId,
-                x.ProductVariantId,
-                x.WarehouseId,
-                x.LocationId
-            });
-    });
+             entity.HasIndex(
+                 reservation =>
+                     new
+                     {
+                         reservation.TenantId,
+                         reservation.ProductVariantId,
+                         reservation.WarehouseId,
+                         reservation.LocationId,
+                         reservation.Status,
+                     });
+         });
         base.OnModelCreating(
             modelBuilder);
         modelBuilder.Entity<WarehouseTransfer>(entity => { entity.ToTable("WarehouseTransfers"); 

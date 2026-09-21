@@ -9,68 +9,159 @@ import de from './locales/de.json';
 import ar from './locales/ar.json';
 import zh from './locales/zh.json';
 import fa from './locales/fa.json';
+
 import warehouseEn from './locales/warehouse.en';
 import warehouseFa from './locales/warehouse.fa';
+
 import inventoryEn from './locales/inventory.en';
 import inventoryFa from './locales/inventory.fa';
 
-export type LanguageMeta = { code: string; name: string; dir: 'ltr' | 'rtl' };
+export type LanguageMeta = {
+    code: string;
+    name: string;
+    dir: 'ltr' | 'rtl';
+};
 
-// Single source of truth for supported languages. To add one: drop `src/locales/<code>.json`,
-// import it into `resources` below, and add an entry here (set `dir: 'rtl'` for RTL scripts).
-// The `name` is the language's own autonym so the switcher reads natively regardless of current locale.
+// Single source of truth for supported languages.
 export const LANGUAGES: LanguageMeta[] = [
-    { code: 'fa', name: 'فارسی', dir: 'rtl' },
-    { code: 'en', name: 'English', dir: 'ltr' },
-    { code: 'es', name: 'Español', dir: 'ltr' },
-    { code: 'fr', name: 'Français', dir: 'ltr' },
-    { code: 'de', name: 'Deutsch', dir: 'ltr' },
-    { code: 'ar', name: 'العربية', dir: 'rtl' },
-    { code: 'zh', name: '中文', dir: 'ltr' },
+    {
+        code: 'fa',
+        name: 'فارسی',
+        dir: 'rtl',
+    },
+    {
+        code: 'en',
+        name: 'English',
+        dir: 'ltr',
+    },
+    {
+        code: 'es',
+        name: 'Español',
+        dir: 'ltr',
+    },
+    {
+        code: 'fr',
+        name: 'Français',
+        dir: 'ltr',
+    },
+    {
+        code: 'de',
+        name: 'Deutsch',
+        dir: 'ltr',
+    },
+    {
+        code: 'ar',
+        name: 'العربية',
+        dir: 'rtl',
+    },
+    {
+        code: 'zh',
+        name: '中文',
+        dir: 'ltr',
+    },
 ];
 
-export const supportedLngs = LANGUAGES.map((l) => l.code);
+export const supportedLngs =
+    LANGUAGES.map(
+        (language) =>
+            language.code,
+    );
 
-export function directionOf(code: string): 'ltr' | 'rtl' {
-    return LANGUAGES.find((l) => l.code === code)?.dir ?? 'ltr';
+export function directionOf(
+    code: string,
+): 'ltr' | 'rtl' {
+    return (
+        LANGUAGES.find(
+            (language) =>
+                language.code === code,
+        )?.dir ?? 'ltr'
+    );
 }
 
 i18n
-  .use(LanguageDetector)
-  .use(initReactI18next)
-  .init({
-    resources: {
-      en: {
-        translation: {
-          ...en,
-          nav: { ...en.nav, ...warehouseEn.nav, ...inventoryEn.nav },
-          warehouses: warehouseEn.warehouses,
-          inventory: inventoryEn.inventory,
+    .use(LanguageDetector)
+    .use(initReactI18next)
+    .init({
+        resources: {
+            en: {
+                translation: {
+                    ...en,
+
+                    nav: {
+                        ...en.nav,
+                        ...warehouseEn.nav,
+                        ...inventoryEn.nav,
+                    },
+
+                    warehouses:
+                        warehouseEn.warehouses,
+
+                    inventory:
+                        inventoryEn.inventory,
+                },
+            },
+
+            fa: {
+                translation: {
+                    ...fa,
+
+                    nav: {
+                        ...fa.nav,
+                        ...warehouseFa.nav,
+                        ...inventoryFa.nav,
+                    },
+
+                    warehouses:
+                        warehouseFa.warehouses,
+
+                    inventory:
+                        inventoryFa.inventory,
+                },
+            },
+
+            es: {
+                translation: es,
+            },
+
+            fr: {
+                translation: fr,
+            },
+
+            de: {
+                translation: de,
+            },
+
+            ar: {
+                translation: ar,
+            },
+
+            zh: {
+                translation: zh,
+            },
         },
-      },
-      es: { translation: es },
-      fr: { translation: fr },
-      de: { translation: de },
-      ar: { translation: ar },
-      zh: { translation: zh },
-      fa: {
-        translation: {
-          ...fa,
-          nav: { ...fa.nav, ...warehouseFa.nav, ...inventoryFa.nav },
-          warehouses: warehouseFa.warehouses,
-          inventory: inventoryFa.inventory,
+
+        fallbackLng: 'fa',
+
+        supportedLngs,
+
+        nonExplicitSupportedLngs: true,
+
+        interpolation: {
+            escapeValue: false,
         },
-      },
-    },
-    fallbackLng: 'fa',
-    supportedLngs,
-    nonExplicitSupportedLngs: true,
-    interpolation: { escapeValue: false },
-    detection: {
-      order: ['localStorage'],
-      caches: ['localStorage'],
-      lookupLocalStorage: 'nexaecommerce-lang',
-    },
-  });
+
+        detection: {
+            order: [
+                'localStorage',
+            ],
+
+            caches: [
+                'localStorage',
+            ],
+
+            lookupLocalStorage:
+                'nexaecommerce-lang',
+        },
+    });
 
 export default i18n;

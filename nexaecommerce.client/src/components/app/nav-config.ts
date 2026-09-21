@@ -1,6 +1,6 @@
 import {
     Activity,
-    Boxes,
+    Boxes, ArrowLeftRight,
     Factory,
     FolderTree,
     Home,
@@ -133,6 +133,12 @@ export const NAV: NavSection[] = [
                 titleKey: 'nav.inventoryManagement',
                 to: '/admin/inventory',
                 icon: Boxes,
+                permission: INVENTORY_PERM.read,
+            },
+            {
+                titleKey: 'nav.inventoryTransfers',
+                to: '/admin/inventory/transfers',
+                icon: ArrowLeftRight,
                 permission: INVENTORY_PERM.read,
             },
             {

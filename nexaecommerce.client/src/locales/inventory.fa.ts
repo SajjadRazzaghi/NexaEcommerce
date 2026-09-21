@@ -1,61 +1,113 @@
 const inventoryFa = {
     nav: {
-        inventoryManagement: 'موجودی',
+        inventoryManagement:
+            'موجودی',
+
+        inventoryTransfers:
+            'انتقالات انبار',
     },
 
     inventory: {
-        title: 'مدیریت موجودی',
+        reservationTitle:
+            'رزرو موجودی',
+
+        reservationDescription:
+            'قبل از تکمیل پرداخت، موجودی قابل فروش سفارش را رزرو کنید.',
+
+        reserveStock:
+            'رزرو موجودی',
+
+        releaseReservation:
+            'آزادسازی رزرو',
+
+        commitReservation:
+            'ثبت نهایی رزرو',
+
+        reservationCreated:
+            'موجودی با موفقیت رزرو شد.',
+
+        reservationReleased:
+            'رزرو با موفقیت آزاد شد.',
+
+        reservationCommitted:
+            'رزرو با موفقیت نهایی شد.',
+
+        reservationCreateError:
+            'رزرو موجودی انجام نشد.',
+
+        reservationReleaseError:
+            'آزادسازی رزرو انجام نشد.',
+
+        reservationCommitError:
+            'نهایی‌سازی رزرو انجام نشد.',
+
+        reservationExpired:
+            'منقضی‌شده',
+
+        reservationPending:
+            'در انتظار',
+
+        reservationCommittedStatus:
+            'نهایی‌شده',
+
+        reservationReleasedStatus:
+            'آزادشده',
+
+        reservationQuantity:
+            'مقدار رزرو',
+
+        reservationExpires:
+            'زمان انقضا',
+
+        insufficientStock:
+            'موجودی قابل فروش کافی نیست.',
+        title:
+            'مدیریت موجودی',
 
         description:
-            'موجودی انبار محصولات و واریانت‌های کاتالوگ را مدیریت کنید. محصول فقط یک‌بار در کاتالوگ ایجاد می‌شود.',
+            'موجودی انبار محصولات و واریانت‌های کاتالوگ را مدیریت کنید.',
 
         warehouses:
             'انبارها',
 
-        createWarehouse:
-            'انبار جدید',
+        goToWarehouses:
+            'مدیریت انبارها',
 
         catalogProduct:
             'محصول جدید در کاتالوگ',
 
-        searchPlaceholder:
-            'جستجوی نام محصول یا SKU…',
+        backToInventory:
+            'موجودی',
 
-        catalogOnly:
-            'فقط محصولات کاتالوگ',
+        loading:
+            'در حال بارگذاری…',
 
-        activeInventory:
-            'موجودی فعال',
+        noActiveWarehouses:
+            'هیچ انبار فعالی وجود ندارد.',
+
+        noActiveWarehousesDescription:
+            'ابتدا یک انبار ایجاد و فعال کنید.',
 
         productLoadError:
-            'بارگذاری محصولات برای مدیریت موجودی انجام نشد.',
+            'بارگذاری محصول انجام نشد.',
 
-        noProductsTitle:
-            'محصولی پیدا نشد',
+        noActiveLocations:
+            'هیچ موقعیت فعالی وجود ندارد.',
 
-        noProductsDescription:
-            'ابتدا محصول را در کاتالوگ ایجاد کنید و سپس موجودی انبار آن را در این بخش مدیریت کنید.',
+        noActiveLocationsDescription:
+            'ابتدا یک موقعیت فعال در این انبار ایجاد کنید.',
 
-        searchNoProductsDescription:
-            'نام محصول یا SKU دیگری را جستجو کنید.',
+        goToWarehouse:
+            'مدیریت موقعیت‌های انبار',
 
-        registerProduct:
-            'ایجاد محصول در کاتالوگ',
-
-        noManagePermission:
-            'برای اصلاح موجودی این محصول به مجوز مدیریت موجودی نیاز دارید.',
+        warehousesTitle:
+            'انبارها',
 
         productInventoryTitle:
             'موجودی انبار',
 
         productInventoryDescription:
-            'موجودی و نقطه سفارش یک واریانت کاتالوگ را در یک موقعیت انبار مدیریت کنید.',
-
-        singleProductRule:
-            'هر محصول فقط یک‌بار در کاتالوگ ثبت می‌شود. موجودی انبار فقط مشخص می‌کند آن واریانت فیزیکی در کدام انبار و موقعیت قرار دارد.',
-
-        noActiveVariants:
-            'این محصول هیچ واریانت فعالی ندارد.',
+            'موجودی واریانت محصول کاتالوگ را در موقعیت‌های انبار مدیریت کنید.',
 
         variant:
             'واریانت محصول',
@@ -88,7 +140,7 @@ const inventoryFa = {
             'موقعیت‌های دارای موجودی',
 
         noStockLocations:
-            'هنوز برای این واریانت رکورد موجودی ایجاد نشده است. برای ایجاد آن، انبار و موقعیت را انتخاب کنید.',
+            'هنوز برای این واریانت موجودی انبار ثبت نشده است.',
 
         onHandShort:
             'فعلی',
@@ -99,26 +151,38 @@ const inventoryFa = {
         availableShort:
             'قابل فروش',
 
+        singleProductRule:
+            'هر محصول فقط یک‌بار در کاتالوگ ایجاد می‌شود و موجودی فقط محل نگهداری فیزیکی واریانت را مشخص می‌کند.',
+
+        noActiveVariants:
+            'این محصول واریانت فعال ندارد.',
+
         selectVariantWarehouseLocation:
             'واریانت، انبار و موقعیت فعال را انتخاب کنید.',
 
-        noActiveWarehouses:
-            'هیچ انبار فعالی وجود ندارد.',
+        activeInventory:
+            'موجودی فعال',
 
-        noActiveWarehousesDescription:
-            'پیش از ثبت موجودی این محصول، یک انبار ایجاد و فعال کنید.',
+        catalogOnly:
+            'فقط محصولات کاتالوگ',
 
-        goToWarehouses:
-            'مدیریت انبارها',
+        searchPlaceholder:
+            'جستجوی نام محصول یا SKU…',
 
-        noActiveLocations:
-            'در این انبار هیچ موقعیت فعالی وجود ندارد.',
+        noProductsTitle:
+            'محصولی پیدا نشد',
 
-        noActiveLocationsDescription:
-            'پیش از ثبت موجودی، یک موقعیت فعال در انبار انتخاب‌شده ایجاد کنید.',
+        noProductsDescription:
+            'ابتدا محصول را در کاتالوگ ایجاد کنید.',
 
-        goToWarehouse:
-            'مدیریت موقعیت‌های انبار',
+        searchNoProductsDescription:
+            'نام محصول یا SKU دیگری را جستجو کنید.',
+
+        registerProduct:
+            'ایجاد محصول در کاتالوگ',
+
+        noManagePermission:
+            'برای اصلاح موجودی محصول به مجوز مدیریت موجودی نیاز دارید.',
 
         locationsTitle:
             'موقعیت‌های انبار',
@@ -269,14 +333,103 @@ const inventoryFa = {
                 'برداشت',
         },
 
-        cancel:
-            'لغو',
+        transfersTitle:
+            'انتقالات انبار',
 
-        saveChanges:
-            'ذخیره تغییرات',
+        transfersDescription:
+            'انتقال واریانت یک محصول کاتالوگ بین موقعیت‌های انبار، بدون ایجاد محصول جدید.',
 
-        loading:
-            'در حال بارگذاری…',
+        createTransferTitle:
+            'ایجاد انتقال',
+
+        createTransferDescription:
+            'محصول کاتالوگ، واریانت، مبدأ و مقصد انتقال را انتخاب کنید.',
+
+        transferReadOnly:
+            'شما فقط دسترسی مشاهده انتقالات انبار را دارید.',
+
+        transferProduct:
+            'محصول کاتالوگ',
+
+        transferVariant:
+            'واریانت محصول',
+
+        transferSource:
+            'مبدأ',
+
+        transferDestination:
+            'مقصد',
+
+        transferAvailable:
+            'قابل انتقال',
+
+        transferQuantity:
+            'تعداد',
+
+        transferStatus:
+            'وضعیت',
+
+        transferDate:
+            'تاریخ',
+
+        transferReasonPlaceholder:
+            'دلیل انتقال، اختیاری',
+
+        createTransfer:
+            'انتقال موجودی',
+
+        transferRequiredFields:
+            'محصول، واریانت، مبدأ و مقصد را انتخاب کنید.',
+
+        transferSameLocation:
+            'مبدأ و مقصد نمی‌توانند یک موقعیت باشند.',
+
+        transferInvalidQuantity:
+            'تعداد انتقال باید بیشتر از صفر باشد.',
+
+        transferInsufficientStock:
+            'موجودی قابل انتقال در مبدأ کافی نیست.',
+
+        transferCreated:
+            'انتقال موجودی با موفقیت انجام شد.',
+
+        transferCreateError:
+            'انتقال موجودی انجام نشد.',
+
+        transferHistory:
+            'تاریخچه انتقالات',
+
+        transferHistoryDescription:
+            'آخرین انتقالات ثبت‌شده بین انبارها و موقعیت‌ها.',
+
+        transferHistoryLoadError:
+            'بارگذاری تاریخچه انتقالات انجام نشد.',
+
+        transferHistoryEmpty:
+            'هنوز هیچ انتقالی ثبت نشده است.',
+
+        transferPage:
+            'صفحه',
+
+        transferStatusCompleted:
+            'تکمیل‌شده',
+
+        transferStatusPending:
+            'در انتظار',
+
+        transferStatusCancelled:
+            'لغوشده',
+
+        refresh:
+            'بروزرسانی',
+
+        previous:
+            'قبلی',
+
+        next:
+            'بعدی',
+
+     
     },
 };
 

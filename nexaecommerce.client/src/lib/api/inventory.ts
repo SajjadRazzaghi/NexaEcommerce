@@ -4,7 +4,56 @@ export const INVENTORY_PERM = {
     read: 'inventory.read',
     manage: 'inventory.manage',
 } as const;
+export interface WarehouseStockReservation {
+    id: string;
 
+    warehouseId: string;
+    locationId: string;
+    productVariantId: string;
+
+    orderId: string;
+
+    quantity: number;
+
+    status: string;
+
+    expiresAt: string;
+    createdAt: string;
+
+    releasedAt: string | null;
+    committedAt: string | null;
+}
+export const warehouseStockReservationApi = {
+    reserve: (
+        body: ReserveWarehouseStockRequest,
+    ) =>
+        api.post<WarehouseStockReservation>(
+            '/inventory/reservations',
+            body,
+        ),
+
+    release: (
+        reservationId: string,
+    ) =>
+        api.post<WarehouseStockReservation>(
+            `/inventory/reservations/${reservationId}/release`,
+        ),
+
+    commit: (
+        reservationId: string,
+    ) =>
+        api.post<WarehouseStockReservation>(
+            `/inventory/reservations/${reservationId}/commit`,
+        ),
+};
+export interface ReserveWarehouseStockRequest {
+    warehouseId: string;
+    locationId: string;
+    productVariantId: string;
+    orderId: string;
+    quantity: number;
+    durationMinutes?: number;
+}
 export interface Warehouse {
     id: string;
     code: string;
@@ -64,6 +113,20 @@ export interface WarehouseStockMovement {
     occurredAt: string;
 }
 
+export interface WarehouseTransfer {
+    id: string;
+    sourceWarehouseId: string;
+    sourceLocationId: string;
+    destinationWarehouseId: string;
+    destinationLocationId: string;
+    productVariantId: string;
+    quantity: number;
+    status: string;
+    reason: string | null;
+    requestedAt: string;
+    completedAt: string | null;
+}
+
 export interface WarehouseListResponse {
     items: Warehouse[];
 }
@@ -83,6 +146,12 @@ export interface WarehouseStockMovementListResponse {
     skip: number;
     take: number;
     items: WarehouseStockMovement[];
+}
+
+export interface WarehouseTransferListResponse {
+    skip: number;
+    take: number;
+    items: WarehouseTransfer[];
 }
 
 export interface SaveWarehouseRequest {
@@ -134,8 +203,20 @@ export interface SetWarehouseStockRequest {
     reorderPoint: number;
 }
 
+export interface CreateWarehouseTransferRequest {
+    sourceWarehouseId: string;
+    sourceLocationId: string;
+    destinationWarehouseId: string;
+    destinationLocationId: string;
+    productVariantId: string;
+    quantity: number;
+    reason?: string | null;
+}
+
 export const warehousesApi = {
-    list: (includeInactive = true) =>
+    list: (
+        includeInactive = true,
+    ) =>
         api.get<WarehouseListResponse>(
             '/inventory/warehouses/',
             {
@@ -145,7 +226,9 @@ export const warehousesApi = {
             },
         ),
 
-    create: (body: SaveWarehouseRequest) =>
+    create: (
+        body: SaveWarehouseRequest,
+    ) =>
         api.post<Warehouse>(
             '/inventory/warehouses/',
             body,
@@ -171,7 +254,9 @@ export const warehousesApi = {
             },
         ),
 
-    setDefault: (id: string) =>
+    setDefault: (
+        id: string,
+    ) =>
         api.post<Warehouse>(
             `/inventory/warehouses/${id}/set-default`,
         ),
@@ -260,5 +345,29 @@ export const warehouseStockApi = {
                     take,
                 },
             },
+        ),
+};
+
+export const warehouseTransferApi = {
+    list: (
+        skip = 0,
+        take = 20,
+    ) =>
+        api.get<WarehouseTransferListResponse>(
+            '/inventory/transfers/',
+            {
+                params: {
+                    skip,
+                    take,
+                },
+            },
+        ),
+
+    create: (
+        body: CreateWarehouseTransferRequest,
+    ) =>
+        api.post<WarehouseTransfer>(
+            '/inventory/transfers/',
+            body,
         ),
 };

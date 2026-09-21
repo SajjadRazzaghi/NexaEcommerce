@@ -75,6 +75,7 @@ public sealed class WarehouseStock : BaseEntity
         }
 
         TenantId = tenantId.Trim();
+
         WarehouseId = warehouseId;
         LocationId = locationId;
         ProductVariantId = productVariantId;
@@ -109,33 +110,10 @@ public sealed class WarehouseStock : BaseEntity
     public int Version { get; private set; }
 
     public int AvailableQuantity =>
-        Math.Max(
-            0,
-            OnHandQuantity - ReservedQuantity);
+        OnHandQuantity - ReservedQuantity;
 
     public bool IsLowStock =>
         AvailableQuantity <= ReorderPoint;
-public void ConsumeReserved(int quantity)
-    {
-        ValidatePositive(quantity);
-
-        if (quantity > ReservedQuantity)
-        {
-            throw new InvalidOperationException(
-                "Cannot consume more than reserved warehouse stock.");
-        }
-
-        if (quantity > OnHandQuantity)
-        {
-            throw new InvalidOperationException(
-                "Cannot consume more than on-hand warehouse stock.");
-        }
-
-        OnHandQuantity -= quantity;
-        ReservedQuantity -= quantity;
-
-        Touch();
-    }
 
     public static WarehouseStock Create(
         string tenantId,
@@ -233,7 +211,10 @@ public void ConsumeReserved(int quantity)
                 "Insufficient available warehouse stock.");
         }
 
-        ReservedQuantity += quantity;
+        checked
+        {
+            ReservedQuantity += quantity;
+        }
 
         Touch();
     }
@@ -248,6 +229,28 @@ public void ConsumeReserved(int quantity)
                 "Cannot release more than reserved warehouse stock.");
         }
 
+        ReservedQuantity -= quantity;
+
+        Touch();
+    }
+
+    public void ConsumeReserved(int quantity)
+    {
+        ValidatePositive(quantity);
+
+        if (quantity > ReservedQuantity)
+        {
+            throw new InvalidOperationException(
+                "Cannot consume more than reserved warehouse stock.");
+        }
+
+        if (quantity > OnHandQuantity)
+        {
+            throw new InvalidOperationException(
+                "Cannot consume more than on-hand warehouse stock.");
+        }
+
+        OnHandQuantity -= quantity;
         ReservedQuantity -= quantity;
 
         Touch();
@@ -275,8 +278,11 @@ public void ConsumeReserved(int quantity)
                 "Cannot receive more than incoming quantity.");
         }
 
-        IncomingQuantity -= quantity;
-        OnHandQuantity += quantity;
+        checked
+        {
+            IncomingQuantity -= quantity;
+            OnHandQuantity += quantity;
+        }
 
         Touch();
     }
@@ -310,7 +316,8 @@ public void ConsumeReserved(int quantity)
         UpdatedAt = DateTime.UtcNow;
     }
 
-    private static void ValidatePositive(int quantity)
+    private static void ValidatePositive(
+        int quantity)
     {
         if (quantity <= 0)
         {

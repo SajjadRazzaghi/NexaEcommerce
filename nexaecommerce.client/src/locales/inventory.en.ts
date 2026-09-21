@@ -1,58 +1,113 @@
 const inventoryEn = {
     nav: {
-        inventoryManagement: 'Inventory',
+        inventoryManagement:
+            'Inventory',
+
+        inventoryTransfers:
+            'Transfers',
     },
 
     inventory: {
-        title: 'Inventory management',
+        reservationTitle:
+            'Stock reservation',
+
+        reservationDescription:
+            'Reserve available stock for an order before payment is completed.',
+
+        reserveStock:
+            'Reserve stock',
+
+        releaseReservation:
+            'Release reservation',
+
+        commitReservation:
+            'Commit reservation',
+
+        reservationCreated:
+            'Stock reserved successfully.',
+
+        reservationReleased:
+            'Reservation released successfully.',
+
+        reservationCommitted:
+            'Reservation committed successfully.',
+
+        reservationCreateError:
+            'Stock could not be reserved.',
+
+        reservationReleaseError:
+            'Reservation could not be released.',
+
+        reservationCommitError:
+            'Reservation could not be committed.',
+
+        reservationExpired:
+            'Expired',
+
+        reservationPending:
+            'Pending',
+
+        reservationCommittedStatus:
+            'Committed',
+
+        reservationReleasedStatus:
+            'Released',
+
+        reservationQuantity:
+            'Reserved quantity',
+
+        reservationExpires:
+            'Expires',
+
+        insufficientStock:
+            'Not enough available stock.',
+        title:
+            'Inventory management',
 
         description:
-            'Manage warehouse stock for catalog products and product variants. Products are created only in the catalog.',
+            'Manage warehouse stock for catalog products and product variants.',
 
-        warehouses: 'Warehouses',
+        warehouses:
+            'Warehouses',
 
-        createWarehouse: 'New warehouse',
+        goToWarehouses:
+            'Manage warehouses',
 
-        catalogProduct: 'New catalog product',
+        catalogProduct:
+            'New catalog product',
 
-        searchPlaceholder:
-            'Search by product name or SKU…',
+        backToInventory:
+            'Inventory',
 
-        catalogOnly:
-            'Catalog products only',
+        loading:
+            'Loading…',
 
-        activeInventory:
-            'Active inventory',
+        noActiveWarehouses:
+            'No active warehouse is available.',
+
+        noActiveWarehousesDescription:
+            'Create and activate a warehouse before assigning stock.',
 
         productLoadError:
-            "We couldn't load products for inventory management.",
+            "We couldn't load the product.",
 
-        noProductsTitle:
-            'No products found',
+        noActiveLocations:
+            'No active location is available.',
 
-        noProductsDescription:
-            'Create a product in the catalog first, then manage its warehouse stock here.',
+        noActiveLocationsDescription:
+            'Create an active location before assigning stock.',
 
-        searchNoProductsDescription:
-            'Try another product name or SKU.',
+        goToWarehouse:
+            'Manage warehouse locations',
 
-        registerProduct:
-            'Create product in catalog',
-
-        noManagePermission:
-            'You need inventory management permission to edit this product stock.',
+        warehousesTitle:
+            'Warehouses',
 
         productInventoryTitle:
             'Warehouse inventory',
 
         productInventoryDescription:
-            'Set stock for a catalog product variant in a warehouse location.',
-
-        singleProductRule:
-            'A product is created once in the catalog. Warehouse stock only records where that catalog variant is physically stored.',
-
-        noActiveVariants:
-            'This product has no active variants.',
+            'Manage stock for a catalog product variant at warehouse locations.',
 
         variant:
             'Product variant',
@@ -85,7 +140,7 @@ const inventoryEn = {
             'Current stock locations',
 
         noStockLocations:
-            'This variant has no stock record yet. Select a warehouse and location to create one.',
+            'No warehouse stock has been recorded for this variant yet.',
 
         onHandShort:
             'On hand',
@@ -96,26 +151,38 @@ const inventoryEn = {
         availableShort:
             'Available',
 
+        singleProductRule:
+            'A product is created once in the catalog. Warehouse stock only records where its variants are physically stored.',
+
+        noActiveVariants:
+            'This product has no active variants.',
+
         selectVariantWarehouseLocation:
             'Select a variant, warehouse and active location.',
 
-        noActiveWarehouses:
-            'No active warehouse is available.',
+        activeInventory:
+            'Active inventory',
 
-        noActiveWarehousesDescription:
-            'Create and activate a warehouse before assigning stock to this product.',
+        catalogOnly:
+            'Catalog products only',
 
-        goToWarehouses:
-            'Manage warehouses',
+        searchPlaceholder:
+            'Search by product name or SKU…',
 
-        noActiveLocations:
-            'No active location is available in this warehouse.',
+        noProductsTitle:
+            'No products found',
 
-        noActiveLocationsDescription:
-            'Create an active location in the selected warehouse before setting stock.',
+        noProductsDescription:
+            'Create a product in the catalog first, then manage its warehouse stock.',
 
-        goToWarehouse:
-            'Manage warehouse locations',
+        searchNoProductsDescription:
+            'Try another product name or SKU.',
+
+        registerProduct:
+            'Create product in catalog',
+
+        noManagePermission:
+            'You need inventory management permission to edit product stock.',
 
         locationsTitle:
             'Warehouse locations',
@@ -199,13 +266,13 @@ const inventoryEn = {
             'Stock movement ledger',
 
         movementLedgerDescription:
-            'The latest physical stock movements for the selected variant and warehouse location.',
+            'Recent physical stock movements for the selected variant and location.',
 
         movementLoadError:
-            "We couldn't load the stock movement history.",
+            "We couldn't load stock movement history.",
 
         noMovements:
-            'No stock movements have been recorded for this location yet.',
+            'No stock movements have been recorded yet.',
 
         movementDate:
             'Date',
@@ -223,30 +290,146 @@ const inventoryEn = {
             'Reason',
 
         movementTypes: {
-            OpeningBalance: 'Opening balance',
-            Purchase: 'Purchase',
-            Receive: 'Receive',
-            AdjustmentIncrease: 'Adjustment increase',
-            AdjustmentDecrease: 'Adjustment decrease',
-            Damage: 'Damage',
-            TransferOut: 'Transfer out',
-            TransferIn: 'Transfer in',
-            Reservation: 'Reservation',
-            ReservationRelease: 'Reservation release',
-            Sale: 'Sale',
-            Return: 'Return',
-            Correction: 'Correction',
-            Picking: 'Picking',
+            OpeningBalance:
+                'Opening balance',
+
+            Purchase:
+                'Purchase',
+
+            Receive:
+                'Receive',
+
+            AdjustmentIncrease:
+                'Adjustment increase',
+
+            AdjustmentDecrease:
+                'Adjustment decrease',
+
+            Damage:
+                'Damage',
+
+            TransferOut:
+                'Transfer out',
+
+            TransferIn:
+                'Transfer in',
+
+            Reservation:
+                'Reservation',
+
+            ReservationRelease:
+                'Reservation release',
+
+            Sale:
+                'Sale',
+
+            Return:
+                'Return',
+
+            Correction:
+                'Correction',
+
+            Picking:
+                'Picking',
         },
 
-        cancel:
-            'Cancel',
+    
 
-        saveChanges:
-            'Save changes',
+        transfersTitle:
+            'Warehouse transfers',
 
-        loading:
-            'Loading…',
+        transfersDescription:
+            'Transfer a catalog product variant between warehouse locations without creating another product.',
+
+        createTransferTitle:
+            'Create transfer',
+
+        createTransferDescription:
+            'Select a catalog product, its variant, source location and destination location.',
+
+        transferReadOnly:
+            'You have read-only access to warehouse transfers.',
+
+        transferProduct:
+            'Catalog product',
+
+        transferVariant:
+            'Product variant',
+
+        transferSource:
+            'Source',
+
+        transferDestination:
+            'Destination',
+
+        transferAvailable:
+            'Available to transfer',
+
+        transferQuantity:
+            'Quantity',
+
+        transferStatus:
+            'Status',
+
+        transferDate:
+            'Date',
+
+        transferReasonPlaceholder:
+            'Optional transfer reason',
+
+        createTransfer:
+            'Transfer stock',
+
+        transferRequiredFields:
+            'Select the product, variant, source and destination.',
+
+        transferSameLocation:
+            'Source and destination cannot be the same location.',
+
+        transferInvalidQuantity:
+            'Transfer quantity must be greater than zero.',
+
+        transferInsufficientStock:
+            'The source location does not have enough available stock.',
+
+        transferCreated:
+            'Stock transfer completed successfully.',
+
+        transferCreateError:
+            'The stock transfer could not be completed.',
+
+        transferHistory:
+            'Transfer history',
+
+        transferHistoryDescription:
+            'Recent warehouse transfer records.',
+
+        transferHistoryLoadError:
+            'Transfer history could not be loaded.',
+
+        transferHistoryEmpty:
+            'No warehouse transfers have been recorded yet.',
+
+        transferPage:
+            'Page',
+
+        transferStatusCompleted:
+            'Completed',
+
+        transferStatusPending:
+            'Pending',
+
+        transferStatusCancelled:
+            'Cancelled',
+
+        refresh:
+            'Refresh',
+
+        previous:
+            'Previous',
+
+        next:
+            'Next',
     },
 };
 
