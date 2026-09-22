@@ -11,75 +11,70 @@ namespace NexaEcommerce.Modules.Inventory;
 public static class InventoryModule
 {
     public static IServiceCollection AddInventoryModule(
-        this IServiceCollection services,
-        string connectionString)
+         this IServiceCollection services,
+         string connectionString)
     {
-        if (string.IsNullOrWhiteSpace(connectionString))
-        {
-            throw new ArgumentException(
-                "Connection string cannot be null or empty.",
-                nameof(connectionString));
-        }
-
         services.AddDbContext<InventoryDbContext>(
             options =>
             {
                 options.UseSqlServer(
                     connectionString,
-                    sqlOptions =>
-                        sqlOptions
-                            .MigrationsHistoryTable(
-                                "__EFMigrationsHistory_Inventory",
-                                "Inventory")
-                            .EnableRetryOnFailure(
-                                5,
-                                TimeSpan.FromSeconds(10),
-                                null));
+                    sql =>
+                    {
+                        sql.MigrationsHistoryTable(
+                            "__EFMigrationsHistory",
+                            "Inventory");
+                    });
             });
 
+        services.AddScoped<
+            IInventoryUnitOfWork,
+            InventoryUnitOfWork>();
 
-        services.AddScoped<
-    IWarehouseStockReservationRepository,
-    WarehouseStockReservationRepository>();
-        services.AddScoped<
-            IWarehouseTransferService,
-            WarehouseTransferService>();
-        services.AddScoped<
-            IInventoryReportService,
-            InventoryReportService>();
-        services.AddScoped<
-    IWarehouseStockRepository,
-    WarehouseStockRepository>();
-
-        services.AddScoped<
-            IWarehouseStockService,
-            WarehouseStockService>();
-
-        services.AddScoped<
-     IWarehouseRepository,
-     WarehouseRepository>();
-
-        services.AddScoped<
-            IWarehouseService,
-            WarehouseService>();
         services.AddScoped<
             IInventoryRepository,
             InventoryRepository>();
+
+        services.AddScoped<
+            IWarehouseRepository,
+            WarehouseRepository>();
+
+        services.AddScoped<
+            IWarehouseStockRepository,
+            WarehouseStockRepository>();
+
+        services.AddScoped<
+            IWarehouseStockReservationRepository,
+            WarehouseStockReservationRepository>();
 
         services.AddScoped<
             IInventoryService,
             InventoryService>();
 
         services.AddScoped<
-            IInventoryUnitOfWork,
-            InventoryUnitOfWork>();
-        services.AddScoped<
-    IInventoryStockReader,
-    InventoryStockReader>();
+            IInventoryReportService,
+            InventoryReportService>();
 
         services.AddScoped<
-            IStockReader>(
-            sp => sp.GetRequiredService<IInventoryStockReader>());
+            IWarehouseService,
+            WarehouseService>();
+
+        services.AddScoped<
+            IWarehouseStockService,
+            WarehouseStockService>();
+
+        services.AddScoped<
+            IWarehouseTransferService,
+            WarehouseTransferService>();
+
+        services.AddScoped<
+            IInventoryStockReader,
+            InventoryStockReader>();
+
+        services.AddScoped<
+            IStockReader,
+            WarehouseStockReader>();
+
         return services;
     }
 }
