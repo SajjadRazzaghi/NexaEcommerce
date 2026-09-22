@@ -1,5 +1,4 @@
-﻿using NexaEcommerce.Modules.Inventory.Application.Services;
-using NexaEcommerce.Modules.Orders.Application.Services;
+﻿using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 
@@ -8,13 +7,13 @@ namespace NexaECommerce.Server.Features.Orders;
 public sealed class OrderCancellationOrchestrator(
     IOrderRepository orderRepository,
     IOrderUnitOfWork orderUnitOfWork,
-    WarehouseReservationOrchestrator warehouseReservation)
+    IWarehouseReservationOrchestrator warehouseReservation)
 {
     public async Task CancelAsync(
-     string tenantId,
-     string userId,
-     Guid orderId,
-     CancellationToken cancellationToken = default)
+        string tenantId,
+        string userId,
+        Guid orderId,
+        CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(tenantId))
         {
@@ -58,17 +57,11 @@ public sealed class OrderCancellationOrchestrator(
                 "Shipped or delivered orders cannot be cancelled.");
         }
 
-        /*
-         * Physical warehouse stock is the source of truth.
-         */
         await warehouseReservation.ReleaseAsync(
             tenantId,
             orderId,
             cancellationToken);
 
-        /*
-         * Logical order reservations are then released.
-         */
         order.Cancel();
 
         await orderUnitOfWork.SaveChangesAsync(

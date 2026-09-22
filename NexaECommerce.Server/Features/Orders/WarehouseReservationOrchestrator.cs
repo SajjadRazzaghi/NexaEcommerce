@@ -14,6 +14,7 @@ public sealed class WarehouseReservationOrchestrator(
     IWarehouseStockRepository warehouseStockRepository,
     IWarehouseStockReservationRepository reservationRepository,
     IInventoryUnitOfWork inventoryUnitOfWork)
+    : IWarehouseReservationOrchestrator
 {
     private const int MaxConcurrencyRetries = 3;
 

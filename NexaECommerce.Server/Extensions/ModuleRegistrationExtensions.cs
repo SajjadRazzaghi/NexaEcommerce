@@ -62,7 +62,8 @@ public static class ModuleRegistrationExtensions
         // Inventory
         // ========================================================
         services.AddScoped<
-    WarehouseReservationOrchestrator>();
+      IWarehouseReservationOrchestrator,
+      WarehouseReservationOrchestrator>();
         services.AddInventoryModule(
             connectionString);
        
