@@ -10,7 +10,7 @@ public sealed class PaymentFailureOrchestrator(
     IPaymentAttemptRepository paymentAttemptRepository,
     IOrderRepository orderRepository,
     IOrderUnitOfWork orderUnitOfWork,
-    IInventoryService inventory)
+    WarehouseReservationOrchestrator warehouseReservation)
 {
     public async Task<PaymentFailureResult> FailAsync(
         string tenantId,
@@ -85,7 +85,7 @@ public sealed class PaymentFailureOrchestrator(
          * to this order before allowing another payment attempt.
          */
         foreach (var reservation in
-                 order.InventoryReservations)
+             order.InventoryReservations)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -95,31 +95,15 @@ public sealed class PaymentFailureOrchestrator(
                 continue;
             }
 
-            try
-            {
-                await inventory.ReleaseAsync(
-                    tenantId,
-                    reservation.ReservationKey,
-                    cancellationToken);
+            reservation.MarkReleased();
 
-                reservation.MarkReleased();
-
-                releasedCount++;
-            }
-            catch (KeyNotFoundException)
-            {
-                /*
-                 * Inventory may already have released the reservation
-                 * through an expiration/compensation process.
-                 *
-                 * Keep the Order aggregate synchronized.
-                 */
-                reservation.MarkReleased();
-
-                releasedCount++;
-            }
+            releasedCount++;
         }
 
+        await warehouseReservation.ReleaseAsync(
+            tenantId,
+            paymentAttempt.OrderId,
+            cancellationToken);
         await paymentAttempts.MarkFailedAsync(
             tenantId,
             userId,

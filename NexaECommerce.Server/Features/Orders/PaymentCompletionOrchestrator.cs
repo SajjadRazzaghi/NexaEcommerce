@@ -1,5 +1,4 @@
-﻿using NexaEcommerce.Modules.Inventory.Application.Services;
-using NexaEcommerce.Modules.Orders.Application.Payments;
+﻿using NexaEcommerce.Modules.Orders.Application.Payments;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
@@ -9,7 +8,6 @@ namespace NexaECommerce.Server.Features.Orders;
 public sealed class PaymentCompletionOrchestrator(
     IPaymentAttemptRepository paymentAttemptRepository,
     IOrderRepository orderRepository,
-    IInventoryService inventory,
     IOrderUnitOfWork unitOfWork,
     PaymentGatewayService gateways)
 {
@@ -54,9 +52,6 @@ public sealed class PaymentCompletionOrchestrator(
                 "Order was not found.");
         }
 
-        /*
-         * Fully completed payment is terminal and idempotent.
-         */
         if (paymentAttempt.Status ==
             PaymentAttemptStatus.Succeeded &&
             order.Status ==
@@ -83,21 +78,15 @@ public sealed class PaymentCompletionOrchestrator(
                 "A cancelled order cannot be paid.");
         }
 
-        if (order.Status ==
-            OrderStatus.Delivered ||
-            order.Status ==
-            OrderStatus.Shipped ||
-            order.Status ==
-            OrderStatus.Processing)
+        if (order.Status is
+            OrderStatus.Processing or
+            OrderStatus.Shipped or
+            OrderStatus.Delivered)
         {
             throw new InvalidOperationException(
                 "The order is already in a post-payment lifecycle state.");
         }
 
-        /*
-         * If the order was already marked Paid but the attempt did not
-         * reach Succeeded, repair the payment attempt state.
-         */
         if (order.Status ==
             OrderStatus.Paid)
         {
@@ -135,23 +124,19 @@ public sealed class PaymentCompletionOrchestrator(
                 "The order does not contain inventory reservations.");
         }
 
+        if (!order.HasActiveInventoryReservations &&
+            !order.HasCommittedInventoryReservations)
+        {
+            throw new InvalidOperationException(
+                "The order has no active inventory reservation.");
+        }
+
         var normalizedGatewayName =
             gatewayName.Trim();
 
         var normalizedGatewayReference =
             gatewayReference.Trim();
 
-        /*
-         * For a normal Pending payment attempt, Completion performs
-         * its own gateway verification.
-         *
-         * This prevents a caller from making an order Paid merely
-         * by posting an arbitrary gateway reference to /complete.
-         *
-         * When the attempt is already Succeeded but the Order is still
-         * PendingPayment, we treat that as a recoverable legacy/partial
-         * state and continue with finalization.
-         */
         if (paymentAttempt.Status ==
             PaymentAttemptStatus.Pending)
         {
@@ -186,7 +171,7 @@ public sealed class PaymentCompletionOrchestrator(
                 gateways.Get(
                     paymentAttempt.GatewayName);
 
-            var gatewayVerification =
+            var verification =
                 await gateway.VerifyAsync(
                     new PaymentGatewayVerifyRequest(
                         order.OrderNumber,
@@ -194,18 +179,18 @@ public sealed class PaymentCompletionOrchestrator(
                         normalizedGatewayReference),
                     cancellationToken);
 
-            if (!gatewayVerification.Succeeded)
+            if (!verification.Succeeded)
             {
                 throw new InvalidOperationException(
-                    gatewayVerification.ErrorMessage ??
+                    verification.ErrorMessage ??
                     "Payment gateway verification failed.");
             }
 
             var verifiedReference =
                 string.IsNullOrWhiteSpace(
-                    gatewayVerification.GatewayReference)
+                    verification.GatewayReference)
                     ? normalizedGatewayReference
-                    : gatewayVerification.GatewayReference.Trim();
+                    : verification.GatewayReference.Trim();
 
             if (!string.Equals(
                     verifiedReference,
@@ -216,11 +201,6 @@ public sealed class PaymentCompletionOrchestrator(
                     "The gateway verification reference does not match the requested payment reference.");
             }
 
-            /*
-             * Keep the gateway identity/reference persisted while the
-             * payment attempt remains Pending. The Paid transition is
-             * still performed only below after inventory is committed.
-             */
             if (string.IsNullOrWhiteSpace(
                     paymentAttempt.GatewayReference))
             {
@@ -240,54 +220,17 @@ public sealed class PaymentCompletionOrchestrator(
         }
 
         /*
-         * Commit every reservation.
+         * IMPORTANT:
          *
-         * This operation is intentionally retry-safe:
-         * already-committed reservations are skipped by Inventory.
+         * Physical stock has already been reserved in WarehouseStock
+         * during checkout.
          *
-         * If a later reservation fails, an earlier committed reservation
-         * remains committed. A subsequent completion retry continues from
-         * the remaining active reservations.
+         * Payment does NOT reserve or commit physical stock again.
+         *
+         * It only commits the logical order reservations.
          */
-        foreach (var reservation in
-                 order.InventoryReservations)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
+        order.MarkInventoryReservationsCommitted();
 
-            switch (reservation.Status)
-            {
-                case InventoryReservationStatus.Committed:
-                    continue;
-
-                case InventoryReservationStatus.Reserved:
-                    await inventory.CommitAsync(
-                        tenantId,
-                        reservation.ReservationKey,
-                        cancellationToken);
-
-                    reservation.MarkCommitted();
-                    break;
-
-                case InventoryReservationStatus.Released:
-                    throw new InvalidOperationException(
-                        $"Inventory reservation '{reservation.ReservationKey}' has already been released.");
-
-                case InventoryReservationStatus.Expired:
-                    throw new InvalidOperationException(
-                        $"Inventory reservation '{reservation.ReservationKey}' has expired.");
-
-                default:
-                    throw new InvalidOperationException(
-                        $"Inventory reservation '{reservation.ReservationKey}' has an invalid status.");
-            }
-        }
-
-        /*
-         * At this point inventory is committed.
-         *
-         * Now finalize the payment attempt and the order in the Orders
-         * unit of work.
-         */
         paymentAttempt.MarkSucceeded(
             string.IsNullOrWhiteSpace(
                 paymentAttempt.GatewayName)
@@ -317,16 +260,14 @@ public sealed class PaymentCompletionOrchestrator(
         string gatewayName,
         string gatewayReference)
     {
-        if (string.IsNullOrWhiteSpace(
-                tenantId))
+        if (string.IsNullOrWhiteSpace(tenantId))
         {
             throw new ArgumentException(
                 "Tenant id is required.",
                 nameof(tenantId));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                userId))
+        if (string.IsNullOrWhiteSpace(userId))
         {
             throw new ArgumentException(
                 "User id is required.",
@@ -340,16 +281,14 @@ public sealed class PaymentCompletionOrchestrator(
                 nameof(paymentAttemptId));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                gatewayName))
+        if (string.IsNullOrWhiteSpace(gatewayName))
         {
             throw new ArgumentException(
                 "Gateway name is required.",
                 nameof(gatewayName));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                gatewayReference))
+        if (string.IsNullOrWhiteSpace(gatewayReference))
         {
             throw new ArgumentException(
                 "Gateway reference is required.",

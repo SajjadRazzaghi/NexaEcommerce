@@ -8,13 +8,13 @@ namespace NexaECommerce.Server.Features.Orders;
 public sealed class OrderCancellationOrchestrator(
     IOrderRepository orderRepository,
     IOrderUnitOfWork orderUnitOfWork,
-    IInventoryService inventory)
+    WarehouseReservationOrchestrator warehouseReservation)
 {
     public async Task CancelAsync(
-        string tenantId,
-        string userId,
-        Guid orderId,
-        CancellationToken cancellationToken = default)
+     string tenantId,
+     string userId,
+     Guid orderId,
+     CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(tenantId))
         {
@@ -59,32 +59,15 @@ public sealed class OrderCancellationOrchestrator(
         }
 
         /*
-         * Only inventory reservations which are still Reserved
-         * must be released.
-         *
-         * Committed reservations belong to already-paid stock and
-         * must not be returned to available inventory by cancellation.
+         * Physical warehouse stock is the source of truth.
          */
-        foreach (var reservation in
-                 order.InventoryReservations)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-
-            if (reservation.Status !=
-                InventoryReservationStatus.Reserved)
-            {
-                continue;
-            }
-
-            await inventory.ReleaseAsync(
-                tenantId,
-                reservation.ReservationKey,
-                cancellationToken);
-        }
+        await warehouseReservation.ReleaseAsync(
+            tenantId,
+            orderId,
+            cancellationToken);
 
         /*
-         * Order.Cancel() updates the aggregate-side reservation state
-         * from Reserved to Released and changes the order status.
+         * Logical order reservations are then released.
          */
         order.Cancel();
 

@@ -136,9 +136,9 @@ public sealed class CheckoutOrchestrator(
             try
             {
                 await warehouseReservation.ReleaseAsync(
-                    tenantId,
-                    order.Id,
-                    cancellationToken);
+      tenantId,
+      order.Id,
+      CancellationToken.None);
             }
             catch
             {
@@ -148,10 +148,10 @@ public sealed class CheckoutOrchestrator(
             try
             {
                 await orders.CancelAsync(
-                    tenantId,
-                    order.Id,
-                    userId,
-                    cancellationToken);
+      tenantId,
+      order.Id,
+      userId,
+      CancellationToken.None);
             }
             catch
             {
