@@ -1,5 +1,5 @@
-﻿
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Inventory.Application.DTOs;
 using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.SharedKernel.Abstractions;
@@ -61,6 +61,14 @@ public sealed class WarehouseTransferEndpoints : IFeatureEndpoints
                     items = result
                 });
         }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
         catch (ArgumentException ex)
         {
             return Results.BadRequest(
@@ -89,6 +97,14 @@ public sealed class WarehouseTransferEndpoints : IFeatureEndpoints
                 $"/api/inventory/transfers/{result.Id}",
                 result);
         }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
         catch (ArgumentException ex)
         {
             return Results.BadRequest(
@@ -111,6 +127,15 @@ public sealed class WarehouseTransferEndpoints : IFeatureEndpoints
                 new
                 {
                     error = ex.Message
+                });
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error =
+                        "Warehouse stock was changed by another operation. Please refresh and try again."
                 });
         }
     }
@@ -148,6 +173,14 @@ public sealed class WarehouseTransferEndpoints : IFeatureEndpoints
                     items = result
                 });
         }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
         catch (ArgumentException ex)
         {
             return Results.BadRequest(
@@ -156,6 +189,5 @@ public sealed class WarehouseTransferEndpoints : IFeatureEndpoints
                     error = ex.Message
                 });
         }
-       
     }
 }

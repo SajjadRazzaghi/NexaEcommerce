@@ -1,5 +1,4 @@
-﻿using NexaEcommerce.Modules.Inventory.Application.DTOs;
-using NexaEcommerce.Modules.Inventory.Application.Services;
+﻿using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
@@ -29,35 +28,11 @@ public sealed class OrderCancellationOrchestratorTests
             "1234567890");
     }
 
-    private static StockReservationDto CreateReservationDto(
-        string reservationKey,
-        Guid productVariantId,
-        int quantity)
-    {
-        return new StockReservationDto(
-            reservationKey,
-            productVariantId,
-            quantity,
-            "Released",
-            DateTimeOffset.UtcNow);
-    }
-
     [Fact]
-    public async Task Cancel_releases_reserved_inventory()
+    public async Task Cancel_releases_warehouse_inventory()
     {
         var order =
             CreateOrder();
-
-        var variantId =
-            Guid.NewGuid();
-
-        var reservation =
-            order.AddInventoryReservation(
-                "checkout:tenant-1:user-1:key-1:" +
-                variantId.ToString("N"),
-                variantId,
-                2,
-                DateTimeOffset.UtcNow.AddMinutes(10));
 
         var repository =
             Substitute.For<IOrderRepository>();
@@ -65,8 +40,8 @@ public sealed class OrderCancellationOrchestratorTests
         var unitOfWork =
             Substitute.For<IOrderUnitOfWork>();
 
-        var inventory =
-            Substitute.For<IInventoryService>();
+        var warehouseReservation =
+            Substitute.For<IWarehouseReservationOrchestrator>();
 
         repository
             .GetByIdAsync(
@@ -76,17 +51,16 @@ public sealed class OrderCancellationOrchestratorTests
                 Arg.Any<CancellationToken>())
             .Returns(order);
 
-        inventory
+        warehouseReservation
             .ReleaseAsync(
                 "tenant-1",
-                reservation.ReservationKey,
+                order.Id,
                 Arg.Any<CancellationToken>())
             .Returns(
-                Task.FromResult(
-                    CreateReservationDto(
-                        reservation.ReservationKey,
-                        variantId,
-                        2)));
+                new WarehouseReleaseResultDto(
+                    order.Id,
+                    2,
+                    true));
 
         unitOfWork
             .SaveChangesAsync(
@@ -97,7 +71,7 @@ public sealed class OrderCancellationOrchestratorTests
             new OrderCancellationOrchestrator(
                 repository,
                 unitOfWork,
-                inventory);
+                warehouseReservation);
 
         await sut.CancelAsync(
             "tenant-1",
@@ -107,15 +81,11 @@ public sealed class OrderCancellationOrchestratorTests
         order.Status
             .ShouldBe(OrderStatus.Cancelled);
 
-        reservation.Status
-            .ShouldBe(
-                InventoryReservationStatus.Released);
-
-        await inventory
+        await warehouseReservation
             .Received(1)
             .ReleaseAsync(
                 "tenant-1",
-                reservation.ReservationKey,
+                order.Id,
                 Arg.Any<CancellationToken>());
 
         await unitOfWork
@@ -125,23 +95,10 @@ public sealed class OrderCancellationOrchestratorTests
     }
 
     [Fact]
-    public async Task Cancel_does_not_release_committed_inventory()
+    public async Task Cancel_succeeds_when_order_has_no_active_warehouse_reservation()
     {
         var order =
             CreateOrder();
-
-        var variantId =
-            Guid.NewGuid();
-
-        var reservation =
-            order.AddInventoryReservation(
-                "checkout:tenant-1:user-1:key-2:" +
-                variantId.ToString("N"),
-                variantId,
-                1,
-                DateTimeOffset.UtcNow.AddMinutes(10));
-
-        reservation.MarkCommitted();
 
         var repository =
             Substitute.For<IOrderRepository>();
@@ -149,8 +106,8 @@ public sealed class OrderCancellationOrchestratorTests
         var unitOfWork =
             Substitute.For<IOrderUnitOfWork>();
 
-        var inventory =
-            Substitute.For<IInventoryService>();
+        var warehouseReservation =
+            Substitute.For<IWarehouseReservationOrchestrator>();
 
         repository
             .GetByIdAsync(
@@ -159,6 +116,17 @@ public sealed class OrderCancellationOrchestratorTests
                 "user-1",
                 Arg.Any<CancellationToken>())
             .Returns(order);
+
+        warehouseReservation
+            .ReleaseAsync(
+                "tenant-1",
+                order.Id,
+                Arg.Any<CancellationToken>())
+            .Returns(
+                new WarehouseReleaseResultDto(
+                    order.Id,
+                    0,
+                    false));
 
         unitOfWork
             .SaveChangesAsync(
@@ -169,7 +137,7 @@ public sealed class OrderCancellationOrchestratorTests
             new OrderCancellationOrchestrator(
                 repository,
                 unitOfWork,
-                inventory);
+                warehouseReservation);
 
         await sut.CancelAsync(
             "tenant-1",
@@ -179,15 +147,16 @@ public sealed class OrderCancellationOrchestratorTests
         order.Status
             .ShouldBe(OrderStatus.Cancelled);
 
-        reservation.Status
-            .ShouldBe(
-                InventoryReservationStatus.Committed);
-
-        await inventory
-            .DidNotReceive()
+        await warehouseReservation
+            .Received(1)
             .ReleaseAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
+                "tenant-1",
+                order.Id,
+                Arg.Any<CancellationToken>());
+
+        await unitOfWork
+            .Received(1)
+            .SaveChangesAsync(
                 Arg.Any<CancellationToken>());
     }
 
@@ -203,8 +172,8 @@ public sealed class OrderCancellationOrchestratorTests
         var unitOfWork =
             Substitute.For<IOrderUnitOfWork>();
 
-        var inventory =
-            Substitute.For<IInventoryService>();
+        var warehouseReservation =
+            Substitute.For<IWarehouseReservationOrchestrator>();
 
         repository
             .GetByIdAsync(
@@ -219,7 +188,7 @@ public sealed class OrderCancellationOrchestratorTests
             new OrderCancellationOrchestrator(
                 repository,
                 unitOfWork,
-                inventory);
+                warehouseReservation);
 
         await Should.ThrowAsync<KeyNotFoundException>(
             () =>
@@ -227,6 +196,18 @@ public sealed class OrderCancellationOrchestratorTests
                     "tenant-1",
                     "missing-user",
                     orderId));
+
+        await warehouseReservation
+            .DidNotReceive()
+            .ReleaseAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>());
+
+        await unitOfWork
+            .DidNotReceive()
+            .SaveChangesAsync(
+                Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -245,8 +226,8 @@ public sealed class OrderCancellationOrchestratorTests
         var unitOfWork =
             Substitute.For<IOrderUnitOfWork>();
 
-        var inventory =
-            Substitute.For<IInventoryService>();
+        var warehouseReservation =
+            Substitute.For<IWarehouseReservationOrchestrator>();
 
         repository
             .GetByIdAsync(
@@ -260,7 +241,7 @@ public sealed class OrderCancellationOrchestratorTests
             new OrderCancellationOrchestrator(
                 repository,
                 unitOfWork,
-                inventory);
+                warehouseReservation);
 
         var exception =
             await Should.ThrowAsync<
@@ -278,12 +259,138 @@ public sealed class OrderCancellationOrchestratorTests
         order.Status
             .ShouldBe(OrderStatus.Shipped);
 
-        await inventory
+        await warehouseReservation
             .DidNotReceive()
             .ReleaseAsync(
                 Arg.Any<string>(),
-                Arg.Any<string>(),
+                Arg.Any<Guid>(),
                 Arg.Any<CancellationToken>());
+
+        await unitOfWork
+            .DidNotReceive()
+            .SaveChangesAsync(
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Cancel_rejects_delivered_order()
+    {
+        var order =
+            CreateOrder();
+
+        order.MarkPaid();
+        order.StartProcessing();
+        order.MarkShipped();
+        order.MarkDelivered();
+
+        var repository =
+            Substitute.For<IOrderRepository>();
+
+        var unitOfWork =
+            Substitute.For<IOrderUnitOfWork>();
+
+        var warehouseReservation =
+            Substitute.For<IWarehouseReservationOrchestrator>();
+
+        repository
+            .GetByIdAsync(
+                "tenant-1",
+                order.Id,
+                "user-1",
+                Arg.Any<CancellationToken>())
+            .Returns(order);
+
+        var sut =
+            new OrderCancellationOrchestrator(
+                repository,
+                unitOfWork,
+                warehouseReservation);
+
+        var exception =
+            await Should.ThrowAsync<
+                InvalidOperationException>(
+                () =>
+                    sut.CancelAsync(
+                        "tenant-1",
+                        "user-1",
+                        order.Id));
+
+        exception.Message
+            .ShouldBe(
+                "Shipped or delivered orders cannot be cancelled.");
+
+        order.Status
+            .ShouldBe(OrderStatus.Delivered);
+
+        await warehouseReservation
+            .DidNotReceive()
+            .ReleaseAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>());
+
+        await unitOfWork
+            .DidNotReceive()
+            .SaveChangesAsync(
+                Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Cancel_does_not_save_when_warehouse_release_fails()
+    {
+        var order =
+            CreateOrder();
+
+        var repository =
+            Substitute.For<IOrderRepository>();
+
+        var unitOfWork =
+            Substitute.For<IOrderUnitOfWork>();
+
+        var warehouseReservation =
+            Substitute.For<IWarehouseReservationOrchestrator>();
+
+        repository
+            .GetByIdAsync(
+                "tenant-1",
+                order.Id,
+                "user-1",
+                Arg.Any<CancellationToken>())
+            .Returns(order);
+
+        warehouseReservation
+            .ReleaseAsync(
+                "tenant-1",
+                order.Id,
+                Arg.Any<CancellationToken>())
+            .Returns<Task<WarehouseReleaseResultDto>>(
+                _ =>
+                    Task.FromException<
+                        WarehouseReleaseResultDto>(
+                        new InvalidOperationException(
+                            "Warehouse stock was not found while releasing the reservation.")));
+
+        var sut =
+            new OrderCancellationOrchestrator(
+                repository,
+                unitOfWork,
+                warehouseReservation);
+
+        var exception =
+            await Should.ThrowAsync<
+                InvalidOperationException>(
+                () =>
+                    sut.CancelAsync(
+                        "tenant-1",
+                        "user-1",
+                        order.Id));
+
+        exception.Message
+            .ShouldBe(
+                "Warehouse stock was not found while releasing the reservation.");
+
+        order.Status
+            .ShouldNotBe(OrderStatus.Cancelled);
 
         await unitOfWork
             .DidNotReceive()
