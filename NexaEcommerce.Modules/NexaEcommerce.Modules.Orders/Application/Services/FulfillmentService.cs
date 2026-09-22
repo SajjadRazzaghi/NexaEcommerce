@@ -65,12 +65,10 @@ public sealed class FulfillmentService(
                 "Order was not found.");
         }
 
-        if (order.Status is
-            OrderStatus.PendingPayment or
-            OrderStatus.Cancelled)
+        if (order.Status == OrderStatus.Cancelled)
         {
             throw new InvalidOperationException(
-                "Only paid or processing orders can enter fulfillment.");
+                "Cancelled orders cannot enter fulfillment.");
         }
 
         var existing =

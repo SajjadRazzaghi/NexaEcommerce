@@ -1,0 +1,35 @@
+diff --git a/NexaECommerce.Server/Features/Orders/CheckoutOrchestrator.cs b/NexaECommerce.Server/Features/Orders/CheckoutOrchestrator.cs
+--- a/NexaECommerce.Server/Features/Orders/CheckoutOrchestrator.cs
++++ b/NexaECommerce.Server/Features/Orders/CheckoutOrchestrator.cs
+@@ -1,8 +1,7 @@
+ ﻿using System.Security.Cryptography;
+ using System.Text;
+-using NexaEcommerce.Modules.Inventory.Application.Services;
+ using NexaEcommerce.Modules.Orders.Application.DTOs;
+ using NexaEcommerce.Modules.Orders.Application.Services;
+ 
+ namespace NexaECommerce.Server.Features.Orders;
+ 
+ public sealed class CheckoutOrchestrator(
+-    IInventoryService inventory,
+-    IOrderService orders)
++    IOrderService orders,
++    IFulfillmentService fulfillmentService,
++    WarehouseAllocationOrchestrator warehouseAllocation,
++    WarehouseReservationOrchestrator warehouseReservations)
+ {
+     private static readonly TimeSpan ReservationLifetime =
+         TimeSpan.FromMinutes(15);
+@@ -27,59 +26,61 @@
+         {
+             return order;
+         }
+ 
+-        var acquiredReservationKeys =
+-            new List<string>();
+-
+         try
+         {
++            /*
++             * Fulfillment is created while the order is still pending
++             * payment so warehouse allocation can happen

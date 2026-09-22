@@ -64,10 +64,13 @@ public sealed class WarehouseAllocationOrchestrator(
                 "Order was not found.");
         }
 
-        if (order.Status != OrderStatus.Processing)
+        if (order.Status is
+     OrderStatus.Cancelled or
+     OrderStatus.Shipped or
+     OrderStatus.Delivered)
         {
             throw new InvalidOperationException(
-                "Only processing orders can be allocated to a warehouse.");
+                "This order cannot be allocated to a warehouse in its current state.");
         }
 
         if (order.Items.Count == 0)

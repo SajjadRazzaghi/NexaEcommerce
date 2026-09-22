@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
-using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 
@@ -17,11 +17,10 @@ public sealed class WarehouseReservationOrchestrator(
 {
     private const int MaxConcurrencyRetries = 3;
 
-    public async Task<WarehouseReservationResultDto>
-        ReserveAsync(
-            string tenantId,
-            Guid orderId,
-            CancellationToken cancellationToken = default)
+    public async Task<WarehouseReservationResultDto> ReserveAsync(
+        string tenantId,
+        Guid orderId,
+        CancellationToken cancellationToken = default)
     {
         ValidateTenant(tenantId);
 
@@ -32,15 +31,13 @@ public sealed class WarehouseReservationOrchestrator(
                 nameof(orderId));
         }
 
-        var normalizedTenantId =
-            tenantId.Trim();
+        var normalizedTenantId = tenantId.Trim();
 
-        var order =
-            await orderRepository.GetByIdAsync(
-                normalizedTenantId,
-                orderId,
-                null,
-                cancellationToken);
+        var order = await orderRepository.GetByIdAsync(
+            normalizedTenantId,
+            orderId,
+            null,
+            cancellationToken);
 
         if (order is null)
         {
@@ -54,11 +51,10 @@ public sealed class WarehouseReservationOrchestrator(
                 "Warehouse stock can only be reserved for a processing order.");
         }
 
-        var fulfillment =
-            await fulfillmentRepository.GetByOrderAsync(
-                normalizedTenantId,
-                orderId,
-                cancellationToken);
+        var fulfillment = await fulfillmentRepository.GetByOrderAsync(
+            normalizedTenantId,
+            orderId,
+            cancellationToken);
 
         if (fulfillment is null)
         {
@@ -74,11 +70,10 @@ public sealed class WarehouseReservationOrchestrator(
 
         ValidateOrderReservations(order);
 
-        var existing =
-            await reservationRepository.GetByOrderAsync(
-                normalizedTenantId,
-                orderId,
-                cancellationToken);
+        var existing = await reservationRepository.GetByOrderAsync(
+            normalizedTenantId,
+            orderId,
+            cancellationToken);
 
         if (existing.Count > 0)
         {
@@ -93,14 +88,12 @@ public sealed class WarehouseReservationOrchestrator(
                 alreadyReserved: true);
         }
 
-        var warehouseId =
-            fulfillment.WarehouseId.Value;
+        var warehouseId = fulfillment.WarehouseId.Value;
 
-        var warehouse =
-            await warehouseRepository.GetWarehouseAsync(
-                normalizedTenantId,
-                warehouseId,
-                cancellationToken);
+        var warehouse = await warehouseRepository.GetWarehouseAsync(
+            normalizedTenantId,
+            warehouseId,
+            cancellationToken);
 
         if (warehouse is null)
         {
@@ -114,12 +107,11 @@ public sealed class WarehouseReservationOrchestrator(
                 "Allocated warehouse is inactive.");
         }
 
-        var locations =
-            await warehouseRepository.GetLocationsAsync(
-                normalizedTenantId,
-                warehouseId,
-                includeInactive: false,
-                cancellationToken);
+        var locations = await warehouseRepository.GetLocationsAsync(
+            normalizedTenantId,
+            warehouseId,
+            includeInactive: false,
+            cancellationToken);
 
         if (locations.Count == 0)
         {
@@ -127,51 +119,33 @@ public sealed class WarehouseReservationOrchestrator(
                 "Allocated warehouse has no active locations.");
         }
 
-        var locationIds =
-            locations
-                .Select(x => x.Id)
-                .ToHashSet();
+        var locationIds = locations
+            .Select(x => x.Id)
+            .ToHashSet();
 
-        var stockSnapshot =
-            await warehouseStockRepository.GetByWarehouseAsync(
-                normalizedTenantId,
-                warehouseId,
-                includeZeroStock: true,
-                cancellationToken: cancellationToken);
+        var stockSnapshot = await warehouseStockRepository.GetByWarehouseAsync(
+            normalizedTenantId,
+            warehouseId,
+            includeZeroStock: true,
+            cancellationToken: cancellationToken);
 
-        var availableStock =
-            stockSnapshot
-                .Where(
-                    x =>
-                        locationIds.Contains(
-                            x.LocationId))
-                .ToList();
+        var availableStock = stockSnapshot
+            .Where(x => locationIds.Contains(x.LocationId))
+            .ToList();
 
-        var required =
-            order.InventoryReservations
-                .Where(
-                    x =>
-                        x.Status ==
-                        InventoryReservationStatus.Committed)
-                .GroupBy(
-                    x =>
-                        x.ProductVariantId)
-                .ToDictionary(
-                    g => g.Key,
-                    g => g.Sum(
-                        x => x.Quantity));
+        var required = order.InventoryReservations
+            .Where(x => x.Status == InventoryReservationStatus.Committed)
+            .GroupBy(x => x.ProductVariantId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Sum(x => x.Quantity));
 
         foreach (var requirement in required)
         {
-            var available =
-                availableStock
-                    .Where(
-                        x =>
-                            x.ProductVariantId ==
-                            requirement.Key)
-                    .Sum(
-                        x =>
-                            x.AvailableQuantity);
+            var available = availableStock
+                .Where(x =>
+                    x.ProductVariantId == requirement.Key)
+                .Sum(x => x.AvailableQuantity);
 
             if (available < requirement.Value)
             {
@@ -180,10 +154,9 @@ public sealed class WarehouseReservationOrchestrator(
             }
         }
 
-        var plannedChunks =
-            BuildPlan(
-                order,
-                availableStock);
+        var plannedChunks = BuildPlan(
+            order,
+            availableStock);
 
         for (var attempt = 1;
              attempt <= MaxConcurrencyRetries;
@@ -192,78 +165,73 @@ public sealed class WarehouseReservationOrchestrator(
             try
             {
                 var created =
-                    await inventoryUnitOfWork
-                        .ExecuteInTransactionAsync(
-                            async ct =>
-                            {
-                                var createdReservations =
-                                    new List<WarehouseStockReservation>(
-                                        plannedChunks.Count);
+                    await inventoryUnitOfWork.ExecuteInTransactionAsync(
+                        async ct =>
+                        {
+                            var createdReservations =
+                                new List<WarehouseStockReservation>(
+                                    plannedChunks.Count);
 
-                                var grouped =
-                                    plannedChunks
-                                        .GroupBy(
-                                            x =>
-                                                new
-                                                {
-                                                    x.LocationId,
-                                                    x.ProductVariantId
-                                                })
-                                        .ToList();
-
-                                foreach (var group in grouped)
-                                {
-                                    ct.ThrowIfCancellationRequested();
-
-                                    var stock =
-                                        await warehouseStockRepository.GetAsync(
-                                            normalizedTenantId,
-                                            warehouseId,
-                                            group.Key.LocationId,
-                                            group.Key.ProductVariantId,
-                                            ct);
-
-                                    if (stock is null)
+                            var grouped =
+                                plannedChunks
+                                    .GroupBy(x => new
                                     {
-                                        throw new InvalidOperationException(
-                                            "Warehouse stock changed while reserving order inventory.");
-                                    }
+                                        x.LocationId,
+                                        x.ProductVariantId
+                                    })
+                                    .ToList();
 
-                                    var totalQuantity =
-                                        group.Sum(
-                                            x => x.Quantity);
+                            foreach (var group in grouped)
+                            {
+                                ct.ThrowIfCancellationRequested();
 
-                                    stock.Reserve(
-                                        totalQuantity);
-                                }
-
-                                foreach (var chunk in plannedChunks)
-                                {
-                                    ct.ThrowIfCancellationRequested();
-
-                                    var reservation =
-                                        WarehouseStockReservation.Create(
-                                            normalizedTenantId,
-                                            order.Id,
-                                            fulfillment.Id,
-                                            chunk.OrderInventoryReservationId,
-                                            chunk.ReservationKey,
-                                            warehouseId,
-                                            chunk.LocationId,
-                                            chunk.ProductVariantId,
-                                            chunk.Quantity);
-
-                                    await reservationRepository.AddAsync(
-                                        reservation,
+                                var stock =
+                                    await warehouseStockRepository.GetAsync(
+                                        normalizedTenantId,
+                                        warehouseId,
+                                        group.Key.LocationId,
+                                        group.Key.ProductVariantId,
                                         ct);
 
-                                    createdReservations.Add(
-                                        reservation);
+                                if (stock is null)
+                                {
+                                    throw new InvalidOperationException(
+                                        "Warehouse stock changed while reserving order inventory.");
                                 }
 
-                                return createdReservations;
-                            },
-                            cancellationToken);
+                                var totalQuantity =
+                                    group.Sum(x => x.Quantity);
+
+                                stock.Reserve(totalQuantity);
+                            }
+
+                            foreach (var chunk in plannedChunks)
+                            {
+                                ct.ThrowIfCancellationRequested();
+
+                                var reservation =
+                                    WarehouseStockReservation.Create(
+                                        normalizedTenantId,
+                                        order.Id,
+                                        fulfillment.Id,
+                                        chunk.OrderInventoryReservationId,
+                                        chunk.ReservationKey,
+                                        warehouseId,
+                                        chunk.LocationId,
+                                        chunk.ProductVariantId,
+                                        chunk.Quantity);
+
+                                await reservationRepository.AddAsync(
+                                    reservation,
+                                    ct);
+
+                                createdReservations.Add(
+                                    reservation);
+                            }
+
+                            return createdReservations;
+                        },
+                        cancellationToken);
 
                 return MapResult(
                     order,
@@ -282,11 +250,10 @@ public sealed class WarehouseReservationOrchestrator(
             "Warehouse stock changed concurrently. Please retry the warehouse reservation.");
     }
 
-    public async Task<WarehouseReleaseResultDto>
-        ReleaseAsync(
-            string tenantId,
-            Guid orderId,
-            CancellationToken cancellationToken = default)
+    public async Task<WarehouseReleaseResultDto> ReleaseAsync(
+        string tenantId,
+        Guid orderId,
+        CancellationToken cancellationToken = default)
     {
         ValidateTenant(tenantId);
 
@@ -297,8 +264,7 @@ public sealed class WarehouseReservationOrchestrator(
                 nameof(orderId));
         }
 
-        var normalizedTenantId =
-            tenantId.Trim();
+        var normalizedTenantId = tenantId.Trim();
 
         var activeReservations =
             await reservationRepository.GetActiveByOrderAsync(
@@ -314,58 +280,53 @@ public sealed class WarehouseReservationOrchestrator(
                 false);
         }
 
-        await inventoryUnitOfWork
-            .ExecuteInTransactionAsync(
-                async ct =>
-                {
-                    var grouped =
-                        activeReservations
-                            .GroupBy(
-                                x =>
-                                    new
-                                    {
-                                        x.WarehouseId,
-                                        x.LocationId,
-                                        x.ProductVariantId
-                                    })
-                            .ToList();
-
-                    foreach (var group in grouped)
-                    {
-                        ct.ThrowIfCancellationRequested();
-
-                        var stock =
-                            await warehouseStockRepository.GetAsync(
-                                normalizedTenantId,
-                                group.Key.WarehouseId,
-                                group.Key.LocationId,
-                                group.Key.ProductVariantId,
-                                ct);
-
-                        if (stock is null)
+        await inventoryUnitOfWork.ExecuteInTransactionAsync(
+            async ct =>
+            {
+                var grouped =
+                    activeReservations
+                        .GroupBy(x => new
                         {
-                            throw new InvalidOperationException(
-                                "Warehouse stock was not found while releasing the reservation.");
-                        }
+                            x.WarehouseId,
+                            x.LocationId,
+                            x.ProductVariantId
+                        })
+                        .ToList();
 
-                        stock.Release(
-                            group.Sum(
-                                x => x.Quantity));
-                    }
+                foreach (var group in grouped)
+                {
+                    ct.ThrowIfCancellationRequested();
 
-                    foreach (var reservation in activeReservations)
+                    var stock =
+                        await warehouseStockRepository.GetAsync(
+                            normalizedTenantId,
+                            group.Key.WarehouseId,
+                            group.Key.LocationId,
+                            group.Key.ProductVariantId,
+                            ct);
+
+                    if (stock is null)
                     {
-                        reservation.Release();
+                        throw new InvalidOperationException(
+                            "Warehouse stock was not found while releasing the reservation.");
                     }
 
-                    return true;
-                },
-                cancellationToken);
+                    stock.Release(
+                        group.Sum(x => x.Quantity));
+                }
+
+                foreach (var reservation in activeReservations)
+                {
+                    reservation.Release();
+                }
+
+                return true;
+            },
+            cancellationToken);
 
         return new WarehouseReleaseResultDto(
             orderId,
-            activeReservations.Sum(
-                x => x.Quantity),
+            activeReservations.Sum(x => x.Quantity),
             true);
     }
 
@@ -376,28 +337,24 @@ public sealed class WarehouseReservationOrchestrator(
         var plans =
             new List<WarehouseReservationPlan>();
 
-        var groupedRequirements =
+        var reservations =
             order.InventoryReservations
-                .Where(
-                    x =>
-                        x.Status ==
-                        InventoryReservationStatus.Committed)
-                .OrderBy(
-                    x => x.ReservationKey)
+                .Where(x =>
+                    x.Status ==
+                    InventoryReservationStatus.Committed)
+                .OrderBy(x => x.ReservationKey)
                 .ToList();
 
-        foreach (var reservation in groupedRequirements)
+        foreach (var reservation in reservations)
         {
-            var remaining =
-                reservation.Quantity;
+            var remaining = reservation.Quantity;
 
             var candidates =
                 stocks
-                    .Where(
-                        x =>
-                            x.ProductVariantId ==
+                    .Where(x =>
+                        x.ProductVariantId ==
                             reservation.ProductVariantId &&
-                            x.AvailableQuantity > 0)
+                        x.AvailableQuantity > 0)
                     .OrderByDescending(
                         x => x.AvailableQuantity)
                     .ThenBy(
@@ -453,25 +410,20 @@ public sealed class WarehouseReservationOrchestrator(
 
         var itemRequirements =
             order.Items
-                .GroupBy(
-                    x => x.ProductVariantId)
+                .GroupBy(x => x.ProductVariantId)
                 .ToDictionary(
                     g => g.Key,
-                    g => g.Sum(
-                        x => x.Quantity));
+                    g => g.Sum(x => x.Quantity));
 
         var reservationRequirements =
             order.InventoryReservations
-                .Where(
-                    x =>
-                        x.Status ==
-                        InventoryReservationStatus.Committed)
-                .GroupBy(
-                    x => x.ProductVariantId)
+                .Where(x =>
+                    x.Status ==
+                    InventoryReservationStatus.Committed)
+                .GroupBy(x => x.ProductVariantId)
                 .ToDictionary(
                     g => g.Key,
-                    g => g.Sum(
-                        x => x.Quantity));
+                    g => g.Sum(x => x.Quantity));
 
         foreach (var item in itemRequirements)
         {
@@ -499,29 +451,23 @@ public sealed class WarehouseReservationOrchestrator(
     {
         var expected =
             order.InventoryReservations
-                .Where(
-                    x =>
-                        x.Status ==
-                        InventoryReservationStatus.Committed)
-                .GroupBy(
-                    x => x.ProductVariantId)
+                .Where(x =>
+                    x.Status ==
+                    InventoryReservationStatus.Committed)
+                .GroupBy(x => x.ProductVariantId)
                 .ToDictionary(
                     g => g.Key,
-                    g => g.Sum(
-                        x => x.Quantity));
+                    g => g.Sum(x => x.Quantity));
 
         var actual =
             existing
-                .Where(
-                    x =>
-                        x.Status ==
-                        WarehouseStockReservationStatus.Reserved)
-                .GroupBy(
-                    x => x.ProductVariantId)
+                .Where(x =>
+                    x.Status ==
+                    WarehouseStockReservationStatus.Reserved)
+                .GroupBy(x => x.ProductVariantId)
                 .ToDictionary(
                     g => g.Key,
-                    g => g.Sum(
-                        x => x.Quantity));
+                    g => g.Sum(x => x.Quantity));
 
         if (expected.Count != actual.Count)
         {
@@ -555,20 +501,17 @@ public sealed class WarehouseReservationOrchestrator(
             fulfillment.WarehouseId!.Value,
             alreadyReserved,
             reservations
-                .OrderBy(
-                    x => x.ProductVariantId)
-                .ThenBy(
-                    x => x.LocationId)
-                .Select(
-                    x =>
-                        new WarehouseReservationLineDto(
-                            x.Id,
-                            x.OrderInventoryReservationId,
-                            x.ReservationKey,
-                            x.ProductVariantId,
-                            x.LocationId,
-                            x.Quantity,
-                            x.Status.ToString()))
+                .OrderBy(x => x.ProductVariantId)
+                .ThenBy(x => x.LocationId)
+                .Select(x =>
+                    new WarehouseReservationLineDto(
+                        x.Id,
+                        x.OrderInventoryReservationId,
+                        x.ReservationKey,
+                        x.ProductVariantId,
+                        x.LocationId,
+                        x.Quantity,
+                        x.Status.ToString()))
                 .ToList());
     }
 

@@ -1,14 +1,15 @@
 ﻿using System.Security.Cryptography;
 using System.Text;
-using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Services;
 
 namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class CheckoutOrchestrator(
-    IInventoryService inventory,
-    IOrderService orders)
+    IOrderService orders,
+    WarehouseAllocationOrchestrator warehouseAllocation,
+    WarehouseReservationOrchestrator warehouseReservation,
+    IFulfillmentService fulfillmentService)
 {
     private static readonly TimeSpan ReservationLifetime =
         TimeSpan.FromMinutes(15);
@@ -42,11 +43,25 @@ public sealed class CheckoutOrchestrator(
             return order;
         }
 
-        var acquiredReservationKeys =
-            new List<string>();
-
         try
         {
+            /*
+             * 1. Create fulfillment before payment.
+             *
+             * Warehouse selection is required before we can reserve
+             * physical warehouse stock.
+             */
+            await fulfillmentService.CreateForOrderAsync(
+                tenantId,
+                order.Id,
+                cancellationToken);
+
+            /*
+             * 2. Create logical order reservations.
+             *
+             * These are NOT physical stock reservations.
+             * Physical stock is reserved only in WarehouseStock.
+             */
             foreach (var item in order.Items)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -58,24 +73,6 @@ public sealed class CheckoutOrchestrator(
                         idempotencyKey,
                         item.ProductVariantId);
 
-                /*
-                 * Reserve first.
-                 *
-                 * Only register the reservation for compensation after
-                 * Inventory has successfully persisted it.
-                 */
-                var reservation =
-      await inventory.ReserveAsync(
-          tenantId,
-          item.ProductVariantId,
-          item.Quantity,
-          reservationKey,
-          ReservationLifetime,
-          cancellationToken);
-
-                acquiredReservationKeys.Add(
-                    reservationKey);
-
                 await orders.RecordInventoryReservationAsync(
                     tenantId,
                     userId,
@@ -83,9 +80,44 @@ public sealed class CheckoutOrchestrator(
                     reservationKey,
                     item.ProductVariantId,
                     item.Quantity,
-                    reservation.ExpiresAt,
+                    DateTimeOffset.UtcNow.Add(
+                        ReservationLifetime),
                     cancellationToken);
             }
+
+            /*
+             * Refresh order so the reservation collection contains
+             * the records created above.
+             */
+            order =
+                await orders.GetAsync(
+                    tenantId,
+                    order.Id,
+                    userId,
+                    cancellationToken)
+                ?? throw new InvalidOperationException(
+                    "Order could not be reloaded after inventory reservation creation.");
+
+            /*
+             * 3. Select one warehouse.
+             *
+             * Allocation itself does not change stock.
+             */
+            await warehouseAllocation.AllocateAsync(
+                tenantId,
+                order.Id,
+                cancellationToken);
+
+            /*
+             * 4. Reserve the physical stock exactly once.
+             *
+             * WarehouseStock.Reserve(...) is now the only physical
+             * reservation performed during checkout.
+             */
+            await warehouseReservation.ReserveAsync(
+                tenantId,
+                order.Id,
+                cancellationToken);
 
             return
                 await orders.GetAsync(
@@ -97,55 +129,36 @@ public sealed class CheckoutOrchestrator(
         }
         catch
         {
-            await CompensateFailedCheckoutAsync(
-                tenantId,
-                userId,
-                order.Id,
-                acquiredReservationKeys);
-
-            throw;
-        }
-    }
-
-    private async Task CompensateFailedCheckoutAsync(
-        string tenantId,
-        string userId,
-        Guid orderId,
-        IReadOnlyCollection<string> reservationKeys)
-    {
-        foreach (var reservationKey in
-                 reservationKeys
-                     .Distinct(StringComparer.Ordinal)
-                     .Reverse())
-        {
+            /*
+             * Cancellation releases warehouse reservations through
+             * the normal cancellation workflow.
+             */
             try
             {
-                await inventory.ReleaseAsync(
+                await warehouseReservation.ReleaseAsync(
                     tenantId,
-                    reservationKey);
+                    order.Id,
+                    cancellationToken);
             }
             catch
             {
-                /*
-                 * Continue compensating the remaining reservations.
-                 * Reconciliation can repair a reservation that remains
-                 * inconsistent.
-                 */
+                // Preserve the original checkout exception.
             }
-        }
 
-        try
-        {
-            await orders.CancelAsync(
-                tenantId,
-                orderId,
-                userId);
-        }
-        catch
-        {
-            /*
-             * Preserve the original checkout exception.
-             */
+            try
+            {
+                await orders.CancelAsync(
+                    tenantId,
+                    order.Id,
+                    userId,
+                    cancellationToken);
+            }
+            catch
+            {
+                // Preserve the original checkout exception.
+            }
+
+            throw;
         }
     }
 
@@ -155,27 +168,23 @@ public sealed class CheckoutOrchestrator(
         string idempotencyKey,
         CheckoutRequest request)
     {
-        ArgumentNullException.ThrowIfNull(
-            request);
+        ArgumentNullException.ThrowIfNull(request);
 
-        if (string.IsNullOrWhiteSpace(
-                tenantId))
+        if (string.IsNullOrWhiteSpace(tenantId))
         {
             throw new ArgumentException(
                 "Tenant id is required.",
                 nameof(tenantId));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                userId))
+        if (string.IsNullOrWhiteSpace(userId))
         {
             throw new ArgumentException(
                 "User id is required.",
                 nameof(userId));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                idempotencyKey))
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
             throw new ArgumentException(
                 "Idempotency key is required.",
@@ -204,24 +213,21 @@ public sealed class CheckoutOrchestrator(
         string idempotencyKey,
         Guid productVariantId)
     {
-        if (string.IsNullOrWhiteSpace(
-                tenantId))
+        if (string.IsNullOrWhiteSpace(tenantId))
         {
             throw new ArgumentException(
                 "Tenant id is required.",
                 nameof(tenantId));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                userId))
+        if (string.IsNullOrWhiteSpace(userId))
         {
             throw new ArgumentException(
                 "User id is required.",
                 nameof(userId));
         }
 
-        if (string.IsNullOrWhiteSpace(
-                idempotencyKey))
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
             throw new ArgumentException(
                 "Idempotency key is required.",
@@ -247,8 +253,7 @@ public sealed class CheckoutOrchestrator(
 
         var hash =
             SHA256.HashData(
-                Encoding.UTF8.GetBytes(
-                    material));
+                Encoding.UTF8.GetBytes(material));
 
         return string.Concat(
             "checkout:",
@@ -256,4 +261,3 @@ public sealed class CheckoutOrchestrator(
                 .ToLowerInvariant());
     }
 }
-
