@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 
+using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
@@ -11,7 +13,9 @@ public sealed class PaymentFailureOrchestrator(
     IPaymentAttemptRepository paymentAttemptRepository,
     IOrderRepository orderRepository,
     IOrderUnitOfWork orderUnitOfWork,
-    IWarehouseReservationOrchestrator warehouseReservation)
+    IInventoryService inventory,
+    IWarehouseReservationOrchestrator warehouseReservation,
+    ILogger<PaymentFailureOrchestrator> logger)
 {
     public async Task<PaymentFailureResult> FailAsync(
         string tenantId,
@@ -25,6 +29,9 @@ public sealed class PaymentFailureOrchestrator(
             tenantId,
             userId,
             paymentAttemptId);
+
+        tenantId = tenantId.Trim();
+        userId = userId.Trim();
 
         var paymentAttempt =
             await paymentAttemptRepository.GetByIdAsync(
@@ -81,15 +88,57 @@ public sealed class PaymentFailureOrchestrator(
 
         var releasedCount = 0;
 
+        /*
+         * Release the global inventory reservation immediately.
+         *
+         * The order reservation is the durable logical record.
+         * InventoryService owns the actual StockItem reservation.
+         */
         foreach (var reservation in
-                 order.InventoryReservations)
+                 order.InventoryReservations
+                     .Where(
+                         x =>
+                             x.Status ==
+                             InventoryReservationStatus.Reserved)
+                     .OrderBy(
+                         x =>
+                             x.ReservationKey))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (reservation.Status !=
-                InventoryReservationStatus.Reserved)
+            try
             {
-                continue;
+                await inventory.ReleaseAsync(
+                    tenantId,
+                    reservation.ReservationKey,
+                    cancellationToken);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                /*
+                 * The inventory reservation may already have been
+                 * released or expired independently.
+                 *
+                 * The order-level state is still reconciled below.
+                 */
+                logger.LogWarning(
+                    ex,
+                    "Inventory reservation {ReservationKey} was not found while failing payment attempt {PaymentAttemptId}.",
+                    reservation.ReservationKey,
+                    paymentAttemptId);
+            }
+            catch (InvalidOperationException ex)
+            {
+                /*
+                 * Preserve payment failure processing. The inventory
+                 * reconciliation worker can repair an inconsistent
+                 * reservation state after the order is marked released.
+                 */
+                logger.LogWarning(
+                    ex,
+                    "Inventory reservation {ReservationKey} could not be released while failing payment attempt {PaymentAttemptId}.",
+                    reservation.ReservationKey,
+                    paymentAttemptId);
             }
 
             reservation.MarkReleased();
@@ -97,10 +146,36 @@ public sealed class PaymentFailureOrchestrator(
             releasedCount++;
         }
 
-        await warehouseReservation.ReleaseAsync(
-            tenantId,
-            paymentAttempt.OrderId,
-            cancellationToken);
+        /*
+         * Release any physical warehouse reservations.
+         *
+         * This is deliberately best-effort because a failed payment
+         * must still be persisted as Failed even when a warehouse
+         * cleanup operation encounters a transient problem.
+         */
+        try
+        {
+            await warehouseReservation.ReleaseAsync(
+                tenantId,
+                paymentAttempt.OrderId,
+                cancellationToken);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Warehouse reservation was not found while failing payment attempt {PaymentAttemptId} for order {OrderId}.",
+                paymentAttemptId,
+                paymentAttempt.OrderId);
+        }
+        catch (InvalidOperationException ex)
+        {
+            logger.LogWarning(
+                ex,
+                "Warehouse reservation could not be released while failing payment attempt {PaymentAttemptId} for order {OrderId}.",
+                paymentAttemptId,
+                paymentAttempt.OrderId);
+        }
 
         await paymentAttempts.MarkFailedAsync(
             tenantId,
