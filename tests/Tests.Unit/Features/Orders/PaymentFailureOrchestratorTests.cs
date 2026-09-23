@@ -1,11 +1,14 @@
-﻿
-using NSubstitute;
+﻿using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.Logging.Abstractions;
+using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 using NexaECommerce.Server.Features.Orders;
+using NSubstitute;
 using Shouldly;
+using System.Net.NetworkInformation;
 
 namespace NexaECommerce.Tests.Unit.Features.Orders;
 
@@ -29,30 +32,44 @@ public sealed class PaymentFailureOrchestratorTests
             "1234567890");
     }
 
+    private static PaymentFailureOrchestrator CreateSut(
+        IPaymentAttemptService paymentAttempts,
+        IPaymentAttemptRepository paymentAttemptRepository,
+        IOrderRepository orderRepository,
+        IOrderUnitOfWork orderUnitOfWork,
+        IInventoryService inventory,
+        IWarehouseReservationOrchestrator warehouseReservation)
+    {
+        return new PaymentFailureOrchestrator(
+            paymentAttempts,
+            paymentAttemptRepository,
+            orderRepository,
+            orderUnitOfWork,
+            inventory,
+            warehouseReservation,
+            NullLogger<PaymentFailureOrchestrator>.Instance);
+    }
+
     [Fact]
     public async Task Failed_payment_releases_active_inventory_reservations()
     {
-        var order =
-            CreateOrder();
+        var order = CreateOrder();
 
-        var variantId =
-            Guid.NewGuid();
+        var variantId = Guid.NewGuid();
 
-        var reservation =
-            order.AddInventoryReservation(
-                "reservation-payment-failure",
-                variantId,
-                2,
-                DateTimeOffset.UtcNow.AddMinutes(10));
+        var reservation = order.AddInventoryReservation(
+            "reservation-payment-failure",
+            variantId,
+            2,
+            DateTimeOffset.UtcNow.AddMinutes(10));
 
-        var paymentAttempt =
-            PaymentAttempt.Create(
-                order.Id,
-                "tenant-1",
-                "user-1",
-                Guid.NewGuid().ToString("N"),
-                200000,
-                "IRR");
+        var paymentAttempt = PaymentAttempt.Create(
+            order.Id,
+            "tenant-1",
+            "user-1",
+            Guid.NewGuid().ToString("N"),
+            200000,
+            "IRR");
 
         var paymentAttempts =
             Substitute.For<IPaymentAttemptService>();
@@ -65,6 +82,9 @@ public sealed class PaymentFailureOrchestratorTests
 
         var orderUnitOfWork =
             Substitute.For<IOrderUnitOfWork>();
+
+        var inventory =
+            Substitute.For<IInventoryService>();
 
         var warehouseReservation =
             Substitute.For<IWarehouseReservationOrchestrator>();
@@ -123,21 +143,20 @@ public sealed class PaymentFailureOrchestratorTests
                 Arg.Any<CancellationToken>())
             .Returns(1);
 
-        var sut =
-            new PaymentFailureOrchestrator(
-                paymentAttempts,
-                paymentAttemptRepository,
-                orderRepository,
-                orderUnitOfWork,
-                warehouseReservation);
+        var sut = CreateSut(
+            paymentAttempts,
+            paymentAttemptRepository,
+            orderRepository,
+            orderUnitOfWork,
+            inventory,
+            warehouseReservation);
 
-        var result =
-            await sut.FailAsync(
-                "tenant-1",
-                "user-1",
-                paymentAttempt.Id,
-                "DECLINED",
-                "Gateway declined payment");
+        var result = await sut.FailAsync(
+            "tenant-1",
+            "user-1",
+            paymentAttempt.Id,
+            "DECLINED",
+            "Gateway declined payment");
 
         result.Status
             .ShouldBe("Failed");
@@ -151,6 +170,13 @@ public sealed class PaymentFailureOrchestratorTests
         reservation.Status
             .ShouldBe(
                 InventoryReservationStatus.Released);
+
+        await inventory
+            .Received(1)
+            .ReleaseAsync(
+                "tenant-1",
+                "reservation-payment-failure",
+                Arg.Any<CancellationToken>());
 
         await warehouseReservation
             .Received(1)
@@ -181,17 +207,15 @@ public sealed class PaymentFailureOrchestratorTests
     [Fact]
     public async Task Already_failed_payment_is_idempotent()
     {
-        var order =
-            CreateOrder();
+        var order = CreateOrder();
 
-        var paymentAttempt =
-            PaymentAttempt.Create(
-                order.Id,
-                "tenant-1",
-                "user-1",
-                Guid.NewGuid().ToString("N"),
-                100000,
-                "IRR");
+        var paymentAttempt = PaymentAttempt.Create(
+            order.Id,
+            "tenant-1",
+            "user-1",
+            Guid.NewGuid().ToString("N"),
+            100000,
+            "IRR");
 
         paymentAttempt.MarkFailed(
             "DECLINED",
@@ -209,6 +233,9 @@ public sealed class PaymentFailureOrchestratorTests
         var orderUnitOfWork =
             Substitute.For<IOrderUnitOfWork>();
 
+        var inventory =
+            Substitute.For<IInventoryService>();
+
         var warehouseReservation =
             Substitute.For<IWarehouseReservationOrchestrator>();
 
@@ -220,21 +247,20 @@ public sealed class PaymentFailureOrchestratorTests
                 Arg.Any<CancellationToken>())
             .Returns(paymentAttempt);
 
-        var sut =
-            new PaymentFailureOrchestrator(
-                paymentAttempts,
-                paymentAttemptRepository,
-                orderRepository,
-                orderUnitOfWork,
-                warehouseReservation);
+        var sut = CreateSut(
+            paymentAttempts,
+            paymentAttemptRepository,
+            orderRepository,
+            orderUnitOfWork,
+            inventory,
+            warehouseReservation);
 
-        var result =
-            await sut.FailAsync(
-                "tenant-1",
-                "user-1",
-                paymentAttempt.Id,
-                "DECLINED",
-                "Declined");
+        var result = await sut.FailAsync(
+            "tenant-1",
+            "user-1",
+            paymentAttempt.Id,
+            "DECLINED",
+            "Declined");
 
         result.Status
             .ShouldBe("Failed");
@@ -244,6 +270,13 @@ public sealed class PaymentFailureOrchestratorTests
 
         result.ReleasedReservations
             .ShouldBe(0);
+
+        await inventory
+            .DidNotReceive()
+            .ReleaseAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>());
 
         await warehouseReservation
             .DidNotReceive()
@@ -271,29 +304,25 @@ public sealed class PaymentFailureOrchestratorTests
     [Fact]
     public async Task Failed_payment_does_not_release_committed_reservations()
     {
-        var order =
-            CreateOrder();
+        var order = CreateOrder();
 
-        var variantId =
-            Guid.NewGuid();
+        var variantId = Guid.NewGuid();
 
-        var reservation =
-            order.AddInventoryReservation(
-                "reservation-committed",
-                variantId,
-                2,
-                DateTimeOffset.UtcNow.AddMinutes(10));
+        var reservation = order.AddInventoryReservation(
+            "reservation-committed",
+            variantId,
+            2,
+            DateTimeOffset.UtcNow.AddMinutes(10));
 
         reservation.MarkCommitted();
 
-        var paymentAttempt =
-            PaymentAttempt.Create(
-                order.Id,
-                "tenant-1",
-                "user-1",
-                Guid.NewGuid().ToString("N"),
-                200000,
-                "IRR");
+        var paymentAttempt = PaymentAttempt.Create(
+            order.Id,
+            "tenant-1",
+            "user-1",
+            Guid.NewGuid().ToString("N"),
+            200000,
+            "IRR");
 
         var paymentAttempts =
             Substitute.For<IPaymentAttemptService>();
@@ -306,6 +335,9 @@ public sealed class PaymentFailureOrchestratorTests
 
         var orderUnitOfWork =
             Substitute.For<IOrderUnitOfWork>();
+
+        var inventory =
+            Substitute.For<IInventoryService>();
 
         var warehouseReservation =
             Substitute.For<IWarehouseReservationOrchestrator>();
@@ -364,21 +396,20 @@ public sealed class PaymentFailureOrchestratorTests
                 Arg.Any<CancellationToken>())
             .Returns(1);
 
-        var sut =
-            new PaymentFailureOrchestrator(
-                paymentAttempts,
-                paymentAttemptRepository,
-                orderRepository,
-                orderUnitOfWork,
-                warehouseReservation);
+        var sut = CreateSut(
+            paymentAttempts,
+            paymentAttemptRepository,
+            orderRepository,
+            orderUnitOfWork,
+            inventory,
+            warehouseReservation);
 
-        var result =
-            await sut.FailAsync(
-                "tenant-1",
-                "user-1",
-                paymentAttempt.Id,
-                "DECLINED",
-                "Declined");
+        var result = await sut.FailAsync(
+            "tenant-1",
+            "user-1",
+            paymentAttempt.Id,
+            "DECLINED",
+            "Declined");
 
         result.Status
             .ShouldBe("Failed");
@@ -393,6 +424,13 @@ public sealed class PaymentFailureOrchestratorTests
             .ShouldBe(
                 InventoryReservationStatus.Committed);
 
+        await inventory
+            .DidNotReceive()
+            .ReleaseAsync(
+                "tenant-1",
+                "reservation-committed",
+                Arg.Any<CancellationToken>());
+
         await warehouseReservation
             .Received(1)
             .ReleaseAsync(
@@ -404,8 +442,7 @@ public sealed class PaymentFailureOrchestratorTests
     [Fact]
     public async Task Failed_payment_throws_when_payment_attempt_does_not_exist()
     {
-        var paymentAttemptId =
-            Guid.NewGuid();
+        var paymentAttemptId = Guid.NewGuid();
 
         var paymentAttempts =
             Substitute.For<IPaymentAttemptService>();
@@ -419,6 +456,9 @@ public sealed class PaymentFailureOrchestratorTests
         var orderUnitOfWork =
             Substitute.For<IOrderUnitOfWork>();
 
+        var inventory =
+            Substitute.For<IInventoryService>();
+
         var warehouseReservation =
             Substitute.For<IWarehouseReservationOrchestrator>();
 
@@ -431,13 +471,13 @@ public sealed class PaymentFailureOrchestratorTests
             .Returns(
                 Task.FromResult<PaymentAttempt?>(null));
 
-        var sut =
-            new PaymentFailureOrchestrator(
-                paymentAttempts,
-                paymentAttemptRepository,
-                orderRepository,
-                orderUnitOfWork,
-                warehouseReservation);
+        var sut = CreateSut(
+            paymentAttempts,
+            paymentAttemptRepository,
+            orderRepository,
+            orderUnitOfWork,
+            inventory,
+            warehouseReservation);
 
         await Should.ThrowAsync<KeyNotFoundException>(
             () =>
@@ -447,6 +487,13 @@ public sealed class PaymentFailureOrchestratorTests
                     paymentAttemptId,
                     "DECLINED",
                     "Declined"));
+
+        await inventory
+            .DidNotReceive()
+            .ReleaseAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>());
 
         await warehouseReservation
             .DidNotReceive()
@@ -469,19 +516,19 @@ public sealed class PaymentFailureOrchestratorTests
     [Fact]
     public async Task Failed_payment_rejects_successful_payment_attempt()
     {
-        var order =
-            CreateOrder();
+        var order = CreateOrder();
 
-        var paymentAttempt =
-            PaymentAttempt.Create(
-                order.Id,
-                "tenant-1",
-                "user-1",
-                Guid.NewGuid().ToString("N"),
-                100000,
-                "IRR");
+        var paymentAttempt = PaymentAttempt.Create(
+            order.Id,
+            "tenant-1",
+            "user-1",
+            Guid.NewGuid().ToString("N"),
+            100000,
+            "IRR");
 
-        paymentAttempt.MarkSucceeded("gateway-reference", "gateway-reference");
+        paymentAttempt.MarkSucceeded(
+            "gateway-reference",
+            "gateway-reference");
 
         var paymentAttempts =
             Substitute.For<IPaymentAttemptService>();
@@ -495,6 +542,9 @@ public sealed class PaymentFailureOrchestratorTests
         var orderUnitOfWork =
             Substitute.For<IOrderUnitOfWork>();
 
+        var inventory =
+            Substitute.For<IInventoryService>();
+
         var warehouseReservation =
             Substitute.For<IWarehouseReservationOrchestrator>();
 
@@ -506,17 +556,16 @@ public sealed class PaymentFailureOrchestratorTests
                 Arg.Any<CancellationToken>())
             .Returns(paymentAttempt);
 
-        var sut =
-            new PaymentFailureOrchestrator(
-                paymentAttempts,
-                paymentAttemptRepository,
-                orderRepository,
-                orderUnitOfWork,
-                warehouseReservation);
+        var sut = CreateSut(
+            paymentAttempts,
+            paymentAttemptRepository,
+            orderRepository,
+            orderUnitOfWork,
+            inventory,
+            warehouseReservation);
 
         var exception =
-            await Should.ThrowAsync<
-                InvalidOperationException>(
+            await Should.ThrowAsync<InvalidOperationException>(
                 () =>
                     sut.FailAsync(
                         "tenant-1",
@@ -528,6 +577,13 @@ public sealed class PaymentFailureOrchestratorTests
         exception.Message
             .ShouldBe(
                 "A successful payment attempt cannot be marked as failed.");
+
+        await inventory
+            .DidNotReceive()
+            .ReleaseAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>());
 
         await warehouseReservation
             .DidNotReceive()
@@ -547,4 +603,3 @@ public sealed class PaymentFailureOrchestratorTests
                 Arg.Any<CancellationToken>());
     }
 }
-
