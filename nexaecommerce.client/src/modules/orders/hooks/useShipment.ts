@@ -30,12 +30,23 @@ export function useShipment(
             shipmentQueryKey(
                 orderId ?? '',
             ),
+
         queryFn: () =>
             getShipment(
                 orderId!,
             ),
+
         enabled:
             Boolean(orderId),
+
+        refetchInterval:
+            15_000,
+
+        refetchOnWindowFocus:
+            true,
+
+        staleTime:
+            5_000,
     });
 }
 
@@ -53,18 +64,21 @@ export function useShipmentMutations(
                         orderId,
                     ),
             }),
+
             queryClient.invalidateQueries({
                 queryKey: [
                     'order',
                     orderId,
                 ],
             }),
+
             queryClient.invalidateQueries({
                 queryKey: [
                     'admin',
                     'orders',
                 ],
             }),
+
             queryClient.invalidateQueries({
                 queryKey: [
                     'orders',
@@ -90,6 +104,7 @@ export function useShipmentMutations(
                     carrier,
                     trackingNumber,
                 ),
+
             onSuccess:
                 invalidate,
         });
@@ -100,11 +115,12 @@ export function useShipmentMutations(
                 trackingNumber,
             }: {
                 trackingNumber: string;
-                }) =>
+            }) =>
                 updateShipmentTrackingNumber(
                     orderId,
                     trackingNumber,
                 ),
+
             onSuccess:
                 invalidate,
         });
@@ -115,6 +131,7 @@ export function useShipmentMutations(
                 shipOrder(
                     orderId,
                 ),
+
             onSuccess:
                 invalidate,
         });
@@ -125,6 +142,7 @@ export function useShipmentMutations(
                 deliverOrder(
                     orderId,
                 ),
+
             onSuccess:
                 invalidate,
         });
@@ -136,3 +154,4 @@ export function useShipmentMutations(
         deliver,
     };
 }
+

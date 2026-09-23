@@ -1,3 +1,4 @@
+
 export interface CheckoutLine {
     productVariantId: string;
     quantity: number;
@@ -12,6 +13,7 @@ export interface CheckoutRequest {
     shippingPostalCode?: string | null;
     shippingMethodId: string;
     couponCode?: string | null;
+    taxRateId?: string | null;
 }
 
 export interface OrderItemDto {
@@ -40,8 +42,12 @@ export interface OrderDto {
     subtotal: number;
     shippingAmount: number;
     discountAmount: number;
-    couponCode?: string | null;
+    taxableAmount: number;
+    taxRatePercent: number;
+    taxAmount: number;
     totalAmount: number;
+
+    couponCode?: string | null;
 
     shippingFullName: string;
     shippingPhone: string;
@@ -104,3 +110,4 @@ export interface ShipmentDto {
     shippedAt?: string | null;
     deliveredAt?: string | null;
 }
+

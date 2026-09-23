@@ -19,19 +19,44 @@ export function useOrders(
                 status,
             },
         ],
+
         queryFn: () =>
             getMyOrders(
                 page,
                 pageSize,
                 status,
             ),
+
+        refetchOnWindowFocus:
+            true,
     });
 }
 
-export function useOrder(id?: string) {
+export function useOrder(
+    id?: string,
+) {
     return useQuery({
-        queryKey: ['order', id],
-        queryFn: () => getOrder(id!),
-        enabled: Boolean(id),
+        queryKey: [
+            'order',
+            id,
+        ],
+
+        queryFn: () =>
+            getOrder(
+                id!,
+            ),
+
+        enabled:
+            Boolean(id),
+
+        refetchInterval:
+            15_000,
+
+        refetchOnWindowFocus:
+            true,
+
+        staleTime:
+            5_000,
     });
 }
+

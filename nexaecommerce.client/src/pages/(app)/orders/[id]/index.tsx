@@ -1,6 +1,8 @@
 import {
     Check,
     Clock3,
+    CreditCard,
+    MapPin,
     Package,
     Truck,
 } from 'lucide-react';
@@ -15,12 +17,8 @@ import {
 } from 'react-i18next';
 
 import {
-    useQuery,
-} from '@tanstack/react-query';
-
-import {
-    getOrder,
-} from '@/modules/orders/api/ordersApi';
+    useOrder,
+} from '@/modules/orders/hooks/useOrders';
 
 import {
     useShipment,
@@ -28,6 +26,7 @@ import {
 
 import type {
     OrderStatus,
+    ShipmentStatus,
 } from '@/modules/orders/types';
 
 function statusLabel(
@@ -45,22 +44,27 @@ function statusLabel(
             en: 'Pending payment',
             fa: 'در انتظار پرداخت',
         },
+
         Paid: {
             en: 'Paid',
             fa: 'پرداخت شده',
         },
+
         Processing: {
             en: 'Processing',
             fa: 'در حال پردازش',
         },
+
         Shipped: {
             en: 'Shipped',
             fa: 'ارسال شده',
         },
+
         Delivered: {
             en: 'Delivered',
             fa: 'تحویل شده',
         },
+
         Cancelled: {
             en: 'Cancelled',
             fa: 'لغو شده',
@@ -97,8 +101,27 @@ function statusClass(
     }
 }
 
+function formatMoney(
+    amount: number,
+    currency: string,
+    isFa: boolean,
+) {
+    return (
+        new Intl.NumberFormat(
+            isFa
+                ? 'fa-IR'
+                : undefined,
+            {
+                maximumFractionDigits: 0,
+            },
+        ).format(amount) +
+        ` ${ currency } `
+    );
+}
+
 export default function OrderDetailsPage() {
-    const { id } = useParams();
+    const { id } =
+        useParams();
 
     const { i18n } =
         useTranslation();
@@ -110,24 +133,21 @@ export default function OrderDetailsPage() {
 
     const {
         data: order,
-        isLoading: orderLoading,
-        isError: orderError,
-    } = useQuery({
-        queryKey: [
-            'order',
-            id,
-        ],
-        queryFn: () =>
-            getOrder(id!),
-        enabled:
-            Boolean(id),
-    });
+        isLoading:
+            orderLoading,
+        isError:
+            orderError,
+    } =
+        useOrder(id);
 
     const {
         data: shipment,
-        isLoading: shipmentLoading,
-        isError: shipmentError,
-    } = useShipment(id);
+        isLoading:
+            shipmentLoading,
+        isError:
+            shipmentError,
+    } =
+        useShipment(id);
 
     const text = isFa
         ? {
@@ -155,6 +175,10 @@ export default function OrderDetailsPage() {
                 'جمع جزء',
             shippingCost:
                 'هزینه ارسال',
+            discount:
+                'تخفیف',
+            tax:
+                'مالیات',
             total:
                 'مبلغ نهایی',
             shipment:
@@ -167,18 +191,22 @@ export default function OrderDetailsPage() {
                 'کد رهگیری',
             noShipment:
                 'هنوز مرسوله‌ای برای این سفارش ثبت نشده است.',
-            pending:
-                'آماده‌سازی سفارش',
-            shipped:
-                'ارسال شده',
-            delivered:
-                'تحویل داده شده',
             orderPlaced:
                 'سفارش ثبت شد',
+            paid:
+                'پرداخت شد',
+            processing:
+                'در حال آماده‌سازی',
+            shipped:
+                'ارسال شد',
+            delivered:
+                'تحویل داده شد',
             payment:
                 'پرداخت سفارش',
             cancelled:
                 'این سفارش لغو شده است.',
+            coupon:
+                'کد تخفیف',
         }
         : {
             loading:
@@ -205,6 +233,10 @@ export default function OrderDetailsPage() {
                 'Subtotal',
             shippingCost:
                 'Shipping',
+            discount:
+                'Discount',
+            tax:
+                'Tax',
             total:
                 'Total',
             shipment:
@@ -217,18 +249,22 @@ export default function OrderDetailsPage() {
                 'Tracking number',
             noShipment:
                 'No shipment has been created for this order yet.',
-            pending:
-                'Preparing shipment',
+            orderPlaced:
+                'Order placed',
+            paid:
+                'Paid',
+            processing:
+                'Preparing',
             shipped:
                 'Shipped',
             delivered:
                 'Delivered',
-            orderPlaced:
-                'Order placed',
             payment:
                 'Pay for order',
             cancelled:
                 'This order has been cancelled.',
+            coupon:
+                'Coupon',
         };
 
     if (
@@ -246,8 +282,12 @@ export default function OrderDetailsPage() {
             >
                 <div className="animate-pulse space-y-4">
                     <div className="h-8 w-64 rounded-lg bg-muted" />
+
                     <div className="h-5 w-40 rounded-lg bg-muted" />
+
                     <div className="h-48 rounded-2xl bg-muted" />
+
+                    <div className="h-64 rounded-2xl bg-muted" />
                 </div>
             </div>
         );
@@ -255,7 +295,8 @@ export default function OrderDetailsPage() {
 
     if (
         orderError ||
-        !order
+        !order ||
+        !id
     ) {
         return (
             <div
@@ -290,31 +331,45 @@ export default function OrderDetailsPage() {
         order.status ===
         'PendingPayment';
 
-    const showShipping =
+    const showTracking =
         order.status !==
             'PendingPayment' &&
         order.status !==
             'Cancelled';
 
     const formattedSubtotal =
-        order.subtotal.toLocaleString(
-            isFa
-                ? 'fa-IR'
-                : undefined,
+        formatMoney(
+            order.subtotal,
+            order.currency,
+            isFa,
         );
 
     const formattedShipping =
-        order.shippingAmount.toLocaleString(
-            isFa
-                ? 'fa-IR'
-                : undefined,
+        formatMoney(
+            order.shippingAmount,
+            order.currency,
+            isFa,
+        );
+
+    const formattedDiscount =
+        formatMoney(
+            order.discountAmount,
+            order.currency,
+            isFa,
+        );
+
+    const formattedTax =
+        formatMoney(
+            order.taxAmount,
+            order.currency,
+            isFa,
         );
 
     const formattedTotal =
-        order.totalAmount.toLocaleString(
-            isFa
-                ? 'fa-IR'
-                : undefined,
+        formatMoney(
+            order.totalAmount,
+            order.currency,
+            isFa,
         );
 
     return (
@@ -339,7 +394,7 @@ export default function OrderDetailsPage() {
     statusClass(
         order.status,
     )
-}`}
+} `}
                         >
                             {statusLabel(
                                 order.status,
@@ -366,6 +421,11 @@ export default function OrderDetailsPage() {
 
             <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
                 <div className="space-y-6">
+
+                    {/* ==================================================
+                        Order items
+                       ================================================== */}
+
                     <section className="rounded-2xl border bg-card p-6">
                         <div className="flex items-center gap-2">
                             <Package className="size-5" />
@@ -410,15 +470,20 @@ export default function OrderDetailsPage() {
                                             </div>
 
                                             <div className="shrink-0 text-end">
-                                                <div className="font-semibold">
-                                                    {item.lineTotal.toLocaleString(
-                                                        isFa
-                                                            ? 'fa-IR'
-                                                            : undefined,
-                                                    )}{' '}
-                                                    {
-                                                        order.currency
-                                                    }
+                                                <div className="text-sm text-muted-foreground">
+                                                    {formatMoney(
+                                                        item.unitPrice,
+                                                        order.currency,
+                                                        isFa,
+                                                    )}
+                                                </div>
+
+                                                <div className="mt-1 font-semibold">
+                                                    {formatMoney(
+                                                        item.lineTotal,
+                                                        order.currency,
+                                                        isFa,
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -428,10 +493,52 @@ export default function OrderDetailsPage() {
                         </div>
                     </section>
 
-                    {showShipping && (
+                    {/* ==================================================
+                        Order progress
+                       ================================================== */}
+
+                    {order.status !==
+                        'Cancelled' && (
                         <section className="rounded-2xl border bg-card p-6">
                             <div className="flex items-center gap-2">
-                                <Package className="size-5" />
+                                <Clock3 className="size-5" />
+
+                                <h2 className="text-xl font-semibold">
+                                    {text.status}
+                                </h2>
+                            </div>
+
+                            <OrderTimeline
+                                orderStatus={
+                                    order.status
+                                }
+                                shipmentStatus={
+                                    shipment?.status
+                                }
+                                labels={{
+                                    orderPlaced:
+                                        text.orderPlaced,
+                                    paid:
+                                        text.paid,
+                                    processing:
+                                        text.processing,
+                                    shipped:
+                                        text.shipped,
+                                    delivered:
+                                        text.delivered,
+                                }}
+                            />
+                        </section>
+                    )}
+
+                    {/* ==================================================
+                        Shipment
+                       ================================================== */}
+
+                    {showTracking && (
+                        <section className="rounded-2xl border bg-card p-6">
+                            <div className="flex items-center gap-2">
+                                <Truck className="size-5" />
 
                                 <h2 className="text-xl font-semibold">
                                     {
@@ -442,7 +549,9 @@ export default function OrderDetailsPage() {
 
                             {shipmentError ? (
                                 <div className="mt-5 rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
-                                    {text.error}
+                                    {
+                                        text.error
+                                    }
                                 </div>
                             ) : !shipment ? (
                                 <div className="mt-5 rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
@@ -451,8 +560,8 @@ export default function OrderDetailsPage() {
                                     }
                                 </div>
                             ) : (
-                                <>
-                                    <div className="mt-6 grid gap-4 sm:grid-cols-2">
+                                <div className="mt-6 grid gap-5">
+                                    <div className="grid gap-4 sm:grid-cols-2">
                                         <Info
                                             label={
                                                 text.method
@@ -491,34 +600,41 @@ export default function OrderDetailsPage() {
                                         />
                                     </div>
 
-                                    <ShipmentTimeline
-                                        orderStatus={
-                                            order.status
-                                        }
-                                        shipmentStatus={
-                                            shipment.status
-                                        }
-                                        labels={{
-                                            orderPlaced:
-                                                text.orderPlaced,
-                                            pending:
-                                                text.pending,
-                                            shipped:
-                                                text.shipped,
-                                            delivered:
-                                                text.delivered,
-                                        }}
-                                    />
-                                </>
+                                    {shipment.trackingNumber && (
+                                        <div className="rounded-xl border bg-muted/20 p-4">
+                                            <div className="text-xs text-muted-foreground">
+                                                {
+                                                    text.tracking
+                                                }
+                                            </div>
+
+                                            <div className="mt-2 break-all font-mono text-sm font-medium">
+                                                {
+                                                    shipment.trackingNumber
+                                                }
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             )}
                         </section>
                     )}
 
-                    {showShipping && (
+                    {/* ==================================================
+                        Shipping address
+                       ================================================== */}
+
+                    {showTracking && (
                         <section className="rounded-2xl border bg-card p-6">
-                            <h2 className="text-xl font-semibold">
-                                {text.shipping}
-                            </h2>
+                            <div className="flex items-center gap-2">
+                                <MapPin className="size-5" />
+
+                                <h2 className="text-xl font-semibold">
+                                    {
+                                        text.shipping
+                                    }
+                                </h2>
+                            </div>
 
                             <div className="mt-5 rounded-xl border p-5">
                                 <div className="font-medium">
@@ -557,6 +673,10 @@ export default function OrderDetailsPage() {
                     )}
                 </div>
 
+                {/* ======================================================
+                    Order summary
+                   ====================================================== */}
+
                 <aside className="h-fit rounded-2xl border bg-card p-6 lg:sticky lg:top-24">
                     <h2 className="text-xl font-semibold">
                         {text.total}
@@ -573,9 +693,6 @@ export default function OrderDetailsPage() {
                             <span className="font-medium">
                                 {
                                     formattedSubtotal
-                                }{' '}
-                                {
-                                    order.currency
                                 }
                             </span>
                         </div>
@@ -590,12 +707,71 @@ export default function OrderDetailsPage() {
                             <span className="font-medium">
                                 {
                                     formattedShipping
-                                }{' '}
-                                {
-                                    order.currency
                                 }
                             </span>
                         </div>
+
+                        {order.discountAmount >
+                            0 && (
+                            <div className="flex justify-between gap-4 text-sm text-emerald-600 dark:text-emerald-400">
+                                <span>
+                                    {
+                                        text.discount
+                                    }
+                                </span>
+
+                                <span className="font-medium">
+                                    -
+                                    {
+                                        formattedDiscount
+                                    }
+                                </span>
+                            </div>
+                        )}
+
+                        {order.taxAmount >
+                            0 && (
+                            <div className="flex justify-between gap-4 text-sm">
+                                <span>
+                                    {
+                                        text.tax
+                                    }
+                                    {order.taxRatePercent >
+                                        0 && (
+                                        <>
+                                            {' '}
+                                            (
+                                            {
+                                                order.taxRatePercent
+                                            }
+                                            %)
+                                        </>
+                                    )}
+                                </span>
+
+                                <span className="font-medium">
+                                    {
+                                        formattedTax
+                                    }
+                                </span>
+                            </div>
+                        )}
+
+                        {order.couponCode && (
+                            <div className="rounded-xl border bg-muted/20 p-3 text-sm">
+                                <div className="text-xs text-muted-foreground">
+                                    {
+                                        text.coupon
+                                    }
+                                </div>
+
+                                <div className="mt-1 font-mono font-medium">
+                                    {
+                                        order.couponCode
+                                    }
+                                </div>
+                            </div>
+                        )}
 
                         <div className="border-t pt-4">
                             <div className="flex justify-between gap-4 text-lg font-bold">
@@ -608,9 +784,6 @@ export default function OrderDetailsPage() {
                                 <span>
                                     {
                                         formattedTotal
-                                    }{' '}
-                                    {
-                                        order.currency
                                     }
                                 </span>
                             </div>
@@ -618,9 +791,11 @@ export default function OrderDetailsPage() {
 
                         {showPayment && (
                             <Link
-                                to={`/ orders / payment /${ order.id }`}
-                                className="mt-4 flex w-full items-center justify-center rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
+                                to={`/ orders / payment / ${ order.id } `}
+                                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
                             >
+                                <CreditCard className="size-4" />
+
                                 {
                                     text.payment
                                 }
@@ -633,70 +808,101 @@ export default function OrderDetailsPage() {
     );
 }
 
-interface ShipmentTimelineProps {
+interface OrderTimelineProps {
     orderStatus: OrderStatus;
-    shipmentStatus: string;
+    shipmentStatus?: ShipmentStatus | null;
     labels: {
         orderPlaced: string;
-        pending: string;
+        paid: string;
+        processing: string;
         shipped: string;
         delivered: string;
     };
 }
 
-function ShipmentTimeline({
+function OrderTimeline({
     orderStatus,
     shipmentStatus,
     labels,
-}: ShipmentTimelineProps) {
-    const delivered =
-        shipmentStatus ===
-        'Delivered' ||
+}: OrderTimelineProps) {
+    const isCancelled =
         orderStatus ===
-        'Delivered';
+        'Cancelled';
 
-    const shipped =
-        shipmentStatus ===
-            'Shipped' ||
-        delivered ||
+    const isPaid =
         orderStatus ===
-            'Shipped';
-
-    const processing =
+            'Paid' ||
         orderStatus ===
             'Processing' ||
-        shipped ||
-        delivered;
+        orderStatus ===
+            'Shipped' ||
+        orderStatus ===
+            'Delivered';
+
+    const isProcessing =
+        orderStatus ===
+            'Processing' ||
+        orderStatus ===
+            'Shipped' ||
+        orderStatus ===
+            'Delivered';
+
+    const isShipped =
+        orderStatus ===
+            'Shipped' ||
+        orderStatus ===
+            'Delivered' ||
+        shipmentStatus ===
+            'Shipped' ||
+        shipmentStatus ===
+            'Delivered';
+
+    const isDelivered =
+        orderStatus ===
+            'Delivered' ||
+        shipmentStatus ===
+            'Delivered';
 
     const steps = [
         {
             label:
                 labels.orderPlaced,
             complete:
-                orderStatus !==
-                'PendingPayment',
-            icon: Check,
+                !isCancelled,
+            icon:
+                Check,
         },
         {
             label:
-                labels.pending,
+                labels.paid,
             complete:
-                processing,
-            icon: Clock3,
+                isPaid,
+            icon:
+                CreditCard,
+        },
+        {
+            label:
+                labels.processing,
+            complete:
+                isProcessing,
+            icon:
+                Package,
         },
         {
             label:
                 labels.shipped,
             complete:
-                shipped,
-            icon: Truck,
+                isShipped,
+            icon:
+                Truck,
         },
         {
             label:
                 labels.delivered,
             complete:
-                delivered,
-            icon: Check,
+                isDelivered,
+            icon:
+                Check,
         },
     ];
 
@@ -720,7 +926,7 @@ function ShipmentTimeline({
     step.complete
         ? 'border-primary bg-primary text-primary-foreground'
         : 'border-border text-muted-foreground'
-}`}
+} `}
                                 >
                                     <Icon className="size-4" />
                                 </span>
@@ -764,3 +970,4 @@ function Info({
         </div>
     );
 }
+

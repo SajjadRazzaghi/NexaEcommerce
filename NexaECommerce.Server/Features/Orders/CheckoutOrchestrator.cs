@@ -1,5 +1,6 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using System.Text;
+
 using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Services;
@@ -9,8 +10,6 @@ namespace NexaECommerce.Server.Features.Orders;
 public sealed class CheckoutOrchestrator(
     IOrderService orders,
     IInventoryService inventory,
-    WarehouseAllocationOrchestrator warehouseAllocation,
-    WarehouseReservationOrchestrator warehouseReservation,
     IFulfillmentService fulfillmentService)
 {
     private static readonly TimeSpan ReservationLifetime =
@@ -45,22 +44,33 @@ public sealed class CheckoutOrchestrator(
             return order;
         }
 
+        var reservationKeys =
+            new List<string>();
+
         try
         {
-            /*
-             * 1. Create fulfillment before payment.
-             *
-             * Warehouse selection is required before physical
-             * warehouse stock can be reserved.
-             */
+            // ========================================================
+            // 1. Create fulfillment
+            //
+            // Fulfillment is created during checkout so the order has
+            // a fulfillment record ready for later warehouse work.
+            //
+            // Warehouse allocation and physical warehouse reservation
+            // intentionally do NOT happen during checkout.
+            // ========================================================
+
             await fulfillmentService.CreateForOrderAsync(
                 tenantId,
                 order.Id,
                 cancellationToken);
 
-            /*
-             * 2. Create logical order reservations.
-             */
+            // ========================================================
+            // 2. Create logical inventory reservations
+            //
+            // OrderDto does not expose InventoryReservations, so we
+            // retain the deterministic reservation keys locally.
+            // ========================================================
+
             foreach (var item in order.Items)
             {
                 cancellationToken.ThrowIfCancellationRequested();
@@ -72,6 +82,9 @@ public sealed class CheckoutOrchestrator(
                         idempotencyKey,
                         item.ProductVariantId);
 
+                reservationKeys.Add(
+                    reservationKey);
+
                 await orders.RecordInventoryReservationAsync(
                     tenantId,
                     userId,
@@ -82,70 +95,32 @@ public sealed class CheckoutOrchestrator(
                     DateTimeOffset.UtcNow.Add(
                         ReservationLifetime),
                     cancellationToken);
-            }
 
-            /*
-             * Refresh the order so the reservation collection contains
-             * the records created above.
-             */
-            order =
-                await orders.GetAsync(
-                    tenantId,
-                    order.Id,
-                    userId,
-                    cancellationToken)
-                ?? throw new InvalidOperationException(
-                    "Order could not be reloaded after inventory reservation creation.");
-
-            /*
-             * 3. Reserve global inventory.
-             *
-             * StockItem represents the global sellable inventory.
-             * This reservation moves quantity from AvailableQuantity
-             * to ReservedQuantity.
-             *
-             * ReserveAsync is idempotent by reservation key.
-             */
-            foreach (var reservation in order.InventoryReservations)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                if (reservation.Status is
-                    not NexaEcommerce.Modules.Orders.Domain.Entities.InventoryReservationStatus.Reserved
-                    and not NexaEcommerce.Modules.Orders.Domain.Entities.InventoryReservationStatus.Committed)
-                {
-                    continue;
-                }
+                // ====================================================
+                // 3. Reserve GLOBAL inventory
+                //
+                // StockItem:
+                //
+                // Available -> Reserved
+                //
+                // This is the sellable/global inventory reservation.
+                // ====================================================
 
                 await inventory.ReserveAsync(
                     tenantId,
-                    reservation.ProductVariantId,
-                    reservation.Quantity,
-                    reservation.ReservationKey,
+                    item.ProductVariantId,
+                    item.Quantity,
+                    reservationKey,
                     ReservationLifetime,
                     cancellationToken);
             }
 
-            /*
-             * 4. Select one warehouse.
-             *
-             * Allocation itself does not change stock.
-             */
-            await warehouseAllocation.AllocateAsync(
-                tenantId,
-                order.Id,
-                cancellationToken);
-
-            /*
-             * 5. Reserve physical warehouse stock.
-             *
-             * WarehouseStock.Reserve(...) changes the physical
-             * warehouse availability.
-             */
-            await warehouseReservation.ReserveAsync(
-                tenantId,
-                order.Id,
-                cancellationToken);
+            // ========================================================
+            // 4. Return the latest order state.
+            //
+            // Warehouse allocation/reservation belongs to fulfillment
+            // and will happen later through the fulfillment endpoints.
+            // ========================================================
 
             return
                 await orders.GetAsync(
@@ -157,66 +132,38 @@ public sealed class CheckoutOrchestrator(
         }
         catch
         {
-            /*
-             * Release physical warehouse reservations first.
-             */
-            try
-            {
-                await warehouseReservation.ReleaseAsync(
-                    tenantId,
-                    order.Id,
-                    CancellationToken.None);
-            }
-            catch
-            {
-                // Preserve the original checkout exception.
-            }
+            // ========================================================
+            // Rollback global inventory reservations created by this
+            // checkout attempt.
+            //
+            // We intentionally do not access OrderDto.InventoryReservations
+            // because that property does not exist in the current DTO.
+            // ========================================================
 
-            /*
-             * Release global StockItem reservations.
-             *
-             * Inventory release is intentionally best-effort here.
-             * Inventory reconciliation can repair a reservation if
-             * the release could not be completed immediately.
-             */
-            try
+            foreach (
+                var reservationKey
+                in reservationKeys
+                    .Distinct(StringComparer.Ordinal))
             {
-                var failedOrder =
-                    await orders.GetAsync(
-                        tenantId,
-                        order.Id,
-                        userId,
-                        CancellationToken.None);
-
-                if (failedOrder is not null)
+                try
                 {
-                    foreach (var reservation in
-                             failedOrder.InventoryReservations)
-                    {
-                        if (reservation.Status !=
-                            NexaEcommerce.Modules.Orders.Domain.Entities.InventoryReservationStatus.Reserved)
-                        {
-                            continue;
-                        }
-
-                        try
-                        {
-                            await inventory.ReleaseAsync(
-                                tenantId,
-                                reservation.ReservationKey,
-                                CancellationToken.None);
-                        }
-                        catch
-                        {
-                            // Preserve the original checkout exception.
-                        }
-                    }
+                    await inventory.ReleaseAsync(
+                        tenantId,
+                        reservationKey,
+                        CancellationToken.None);
+                }
+                catch
+                {
+                    // Preserve the original checkout exception.
+                    // Inventory reconciliation can repair a failed
+                    // release later.
                 }
             }
-            catch
-            {
-                // Preserve the original checkout exception.
-            }
+
+            // ========================================================
+            // Cancel the order after inventory rollback has been
+            // attempted.
+            // ========================================================
 
             try
             {
@@ -235,13 +182,62 @@ public sealed class CheckoutOrchestrator(
         }
     }
 
+    public static string BuildReservationKey(
+        string tenantId,
+        string userId,
+        string idempotencyKey,
+        Guid productVariantId)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException(
+                "User id is required.",
+                nameof(userId));
+        }
+
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            throw new ArgumentException(
+                "Idempotency key is required.",
+                nameof(idempotencyKey));
+        }
+
+        if (productVariantId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Product variant id is required.",
+                nameof(productVariantId));
+        }
+
+        var raw =
+            $"{tenantId.Trim()}|" +
+            $"{userId.Trim()}|" +
+            $"{idempotencyKey.Trim()}|" +
+            $"{productVariantId:D}";
+
+        var hash =
+            SHA256.HashData(
+                Encoding.UTF8.GetBytes(raw));
+
+        return
+            $"checkout:{Convert.ToHexString(hash)}";
+    }
+
     private static void ValidateInput(
         string tenantId,
         string userId,
         string idempotencyKey,
         CheckoutRequest request)
     {
-        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(
+            request);
 
         if (string.IsNullOrWhiteSpace(tenantId))
         {
@@ -266,4 +262,10 @@ public sealed class CheckoutOrchestrator(
 
         if (idempotencyKey.Trim().Length > 128)
         {
-            throw
+            throw new ArgumentException(
+                "Idempotency key cannot exceed 128 characters.",
+                nameof(idempotencyKey));
+        }
+    }
+}
+
