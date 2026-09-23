@@ -1,4 +1,5 @@
-﻿using NexaEcommerce.Modules.Orders.Application.DTOs;
+using Microsoft.AspNetCore.Mvc;
+using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
@@ -8,8 +9,8 @@ namespace NexaECommerce.Server.Features.Orders;
 public sealed class WarehouseShipmentOrchestrator(
 IOrderRepository orders,
 IFulfillmentRepository fulfillments,
-IPackageService packages,
-IShipmentService shipments,
+[FromServices] IPackageService packages,
+[FromServices] IShipmentService shipments,
 IOrderUnitOfWork unitOfWork)
 {
     public async Task<WarehouseShipmentResultDto> ShipAsync(

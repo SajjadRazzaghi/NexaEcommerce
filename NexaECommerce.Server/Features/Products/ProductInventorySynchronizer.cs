@@ -1,11 +1,12 @@
-﻿using NexaEcommerce.Modules.Catalog.Application.DTOs;
+using Microsoft.AspNetCore.Mvc;
+using NexaEcommerce.Modules.Catalog.Application.DTOs;
 using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaECommerce.Server.Platform.MultiTenancy;
 
 namespace NexaECommerce.Server.Features.Products;
 
 public sealed class ProductInventorySynchronizer(
-    IInventoryService inventoryService)
+    [FromServices] IInventoryService inventoryService)
 {
     public async Task SyncMissingStockAsync(
         string tenantId,

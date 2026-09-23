@@ -455,7 +455,6 @@ public sealed class WarehouseTransferEndpointsTests(
                     x.Type == "TransferOut" &&
                     x.QuantityDelta == -3);
     }
-
     private async Task<TransferScenario>
         CreateTransferScenarioAsync(
             int sourceQuantity)
@@ -488,30 +487,42 @@ public sealed class WarehouseTransferEndpointsTests(
             scope.ServiceProvider
                 .GetRequiredService<InventoryDbContext>();
 
+        var sourceWarehouseCode =
+            $"SRC-{Guid.NewGuid():N}"[..32];
+
+        var destinationWarehouseCode =
+            $"DST-{Guid.NewGuid():N}"[..32];
+
         var sourceWarehouse =
             NexaEcommerce.Modules.Inventory.Domain.Entities
                 .Warehouse.Create(
                     "default",
-                    $"TEST-SRC-{Guid.NewGuid():N}",
+                    sourceWarehouseCode,
                     $"Source {Guid.NewGuid():N}");
 
         var destinationWarehouse =
             NexaEcommerce.Modules.Inventory.Domain.Entities
                 .Warehouse.Create(
                     "default",
-                    $"TEST-DST-{Guid.NewGuid():N}",
+                    destinationWarehouseCode,
                     $"Destination {Guid.NewGuid():N}");
 
         await inventoryDb.Warehouses.AddRangeAsync(
             sourceWarehouse,
             destinationWarehouse);
 
+        var sourceLocationCode =
+            $"SRC-{Guid.NewGuid():N}"[..32];
+
+        var destinationLocationCode =
+            $"DST-{Guid.NewGuid():N}"[..32];
+
         var sourceLocation =
             NexaEcommerce.Modules.Inventory.Domain.Entities
                 .WarehouseLocation.Create(
                     "default",
                     sourceWarehouse.Id,
-                    $"SRC-{Guid.NewGuid():N}",
+                    sourceLocationCode,
                     "Source Location");
 
         var destinationLocation =
@@ -519,7 +530,7 @@ public sealed class WarehouseTransferEndpointsTests(
                 .WarehouseLocation.Create(
                     "default",
                     destinationWarehouse.Id,
-                    $"DST-{Guid.NewGuid():N}",
+                    destinationLocationCode,
                     "Destination Location");
 
         await inventoryDb.WarehouseLocations.AddRangeAsync(
@@ -547,7 +558,6 @@ public sealed class WarehouseTransferEndpointsTests(
             destinationLocation.Id,
             variantId);
     }
-
     private sealed record TransferScenario(
         Guid SourceWarehouseId,
         Guid SourceLocationId,

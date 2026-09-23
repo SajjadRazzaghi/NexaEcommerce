@@ -1,4 +1,5 @@
-﻿﻿using Microsoft.AspNetCore.WebUtilities;
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
@@ -24,11 +25,11 @@ public sealed class ZarinPalCallbackEndpoints
     private static async Task<IResult>
         HandleCallback(
             HttpContext http,
-            ICurrentTenant tenant,
+            [FromServices] ICurrentTenant tenant,
             IPaymentAttemptRepository paymentAttemptRepository,
             IOrderRepository orderRepository,
-            PaymentCompletionOrchestrator completion,
-            PaymentFailureOrchestrator failure,
+            [FromServices] PaymentCompletionOrchestrator completion,
+            [FromServices] PaymentFailureOrchestrator failure,
             IConfiguration configuration,
             ILogger<ZarinPalCallbackEndpoints> logger,
             CancellationToken cancellationToken)

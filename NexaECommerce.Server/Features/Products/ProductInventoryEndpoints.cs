@@ -1,4 +1,5 @@
-﻿using NexaEcommerce.Modules.Catalog.Application.Services;
+using Microsoft.AspNetCore.Mvc;
+using NexaEcommerce.Modules.Catalog.Application.Services;
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaECommerce.Server.Platform.Authorization;
 using NexaECommerce.Server.Platform.Features;
@@ -20,9 +21,9 @@ public sealed class ProductInventoryEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Sync(
         Guid id,
-        IProductService productService,
+        [FromServices] IProductService productService,
         ProductInventorySynchronizer inventorySynchronizer,
-        ICurrentTenant currentTenant,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         var product =

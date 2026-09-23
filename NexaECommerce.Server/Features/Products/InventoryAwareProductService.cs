@@ -1,4 +1,5 @@
-﻿using NexaEcommerce.Modules.Catalog.Application.DTOs;
+using Microsoft.AspNetCore.Mvc;
+using NexaEcommerce.Modules.Catalog.Application.DTOs;
 using NexaEcommerce.Modules.Catalog.Application.Services;
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaEcommerce.SharedKernel.Pagination;
@@ -13,8 +14,8 @@ namespace NexaECommerce.Server.Features.Products;
 /// </summary>
 public sealed class InventoryAwareProductService(
     ProductService inner,
-    IStockReader stockReader,
-    ICurrentTenant currentTenant)
+    [FromServices] IStockReader stockReader,
+    [FromServices] ICurrentTenant currentTenant)
     : IProductService
 {
     public async Task<PagedResult<ProductDto>> GetPagedAsync(

@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
@@ -9,7 +10,7 @@ namespace NexaECommerce.Server.Features.Orders;
 public sealed class OrderFulfillmentOrchestrator(
 IOrderRepository orderRepository,
 IOrderUnitOfWork unitOfWork,
-IFulfillmentService fulfillmentService)
+[FromServices] IFulfillmentService fulfillmentService)
 {
     public async Task<OrderFulfillmentStartResult> StartAsync(
     string tenantId,

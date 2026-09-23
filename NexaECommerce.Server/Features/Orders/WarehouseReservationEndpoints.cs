@@ -1,4 +1,5 @@
-﻿using NexaECommerce.Server.Platform.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using NexaECommerce.Server.Platform.Authorization;
 using NexaECommerce.Server.Platform.Features;
 using NexaECommerce.Server.Platform.Filters;
 using NexaEcommerce.SharedKernel.Abstractions;
@@ -30,8 +31,8 @@ public sealed class WarehouseReservationEndpoints
 
     private static async Task<IResult> Reserve(
         Guid orderId,
-        WarehouseReservationOrchestrator orchestrator,
-        ICurrentTenant tenant,
+        [FromServices] WarehouseReservationOrchestrator orchestrator,
+        [FromServices] ICurrentTenant tenant,
         CancellationToken ct)
     {
         try
@@ -72,8 +73,8 @@ public sealed class WarehouseReservationEndpoints
 
     private static async Task<IResult> Release(
         Guid orderId,
-        WarehouseReservationOrchestrator orchestrator,
-        ICurrentTenant tenant,
+        [FromServices] WarehouseReservationOrchestrator orchestrator,
+        [FromServices] ICurrentTenant tenant,
         CancellationToken ct)
     {
         try

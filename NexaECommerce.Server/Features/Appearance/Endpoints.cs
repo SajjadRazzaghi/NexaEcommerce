@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using System.Net.Mail;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -61,9 +62,9 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
     }
 
     private static async Task<IResult> Get(
-        ISettingService settings,
-        ITenantContext tenant,
-        AppDbContext db,
+        [FromServices] ISettingService settings,
+        [FromServices] ITenantContext tenant,
+        [FromServices] AppDbContext db,
         CancellationToken ct)
     {
         var theme =
@@ -172,9 +173,9 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Update(
         UpdateAppearanceRequest req,
-        ISettingService settings,
-        ITenantContext tenant,
-        AppDbContext db,
+        [FromServices] ISettingService settings,
+        [FromServices] ITenantContext tenant,
+        [FromServices] AppDbContext db,
         CancellationToken ct)
     {
         var storeName =

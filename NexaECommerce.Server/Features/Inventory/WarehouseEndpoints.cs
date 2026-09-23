@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Inventory.Application.DTOs;
 using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.SharedKernel.Abstractions;
@@ -74,8 +74,8 @@ public sealed class WarehouseEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> GetWarehouses(
         bool includeInactive,
-        IWarehouseService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         var result =
@@ -93,8 +93,8 @@ public sealed class WarehouseEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> CreateWarehouse(
         [FromBody] CreateWarehouseRequest request,
-        IWarehouseService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -130,8 +130,8 @@ public sealed class WarehouseEndpoints : IFeatureEndpoints
     private static async Task<IResult> UpdateWarehouse(
         Guid warehouseId,
         [FromBody] UpdateWarehouseRequest request,
-        IWarehouseService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -174,8 +174,8 @@ public sealed class WarehouseEndpoints : IFeatureEndpoints
     private static async Task<IResult> SetWarehouseStatus(
         Guid warehouseId,
         [FromBody] SetWarehouseStatusRequest request,
-        IWarehouseService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -209,8 +209,8 @@ public sealed class WarehouseEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> SetDefaultWarehouse(
         Guid warehouseId,
-        IWarehouseService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -244,8 +244,8 @@ public sealed class WarehouseEndpoints : IFeatureEndpoints
     private static async Task<IResult> GetLocations(
         Guid warehouseId,
         bool includeInactive,
-        IWarehouseService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -284,8 +284,8 @@ public sealed class WarehouseEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> CreateLocation(
         [FromBody] CreateWarehouseLocationRequest request,
-        IWarehouseService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -330,8 +330,8 @@ public sealed class WarehouseEndpoints : IFeatureEndpoints
         Guid warehouseId,
         Guid locationId,
         [FromBody] UpdateWarehouseLocationRequest request,
-        IWarehouseService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -376,8 +376,8 @@ public sealed class WarehouseEndpoints : IFeatureEndpoints
         Guid warehouseId,
         Guid locationId,
         [FromBody] SetWarehouseLocationStatusRequest request,
-        IWarehouseService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try

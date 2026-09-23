@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using NexaECommerce.Server.Platform.Settings;
@@ -8,7 +9,7 @@ namespace NexaECommerce.Server.Features.Roles;
 /// Supplies the live roles as dropdown options for role-valued settings (e.g. <c>Account.DefaultRole</c>),
 /// keyed "roles". Reflection-discovered, so a role-valued setting just declares <c>optionsProvider: "roles"</c>.
 /// </summary>
-public sealed class RoleOptionsProvider(RoleManager<IdentityRole> roles) : ISettingOptionsProvider
+public sealed class RoleOptionsProvider([FromServices] RoleManager<IdentityRole> roles) : ISettingOptionsProvider
 {
     public string Key => "roles";
 

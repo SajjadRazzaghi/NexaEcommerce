@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using System.Text;
 using Microsoft.AspNetCore.WebUtilities;
 using NexaECommerce.Server.Data;
@@ -13,7 +14,7 @@ namespace NexaECommerce.Server.Features.Auth;
 internal static class AuthEmails
 {
     public static Task SendEmailConfirmationAsync(
-        IEmailSender email, AppUser user, string token, string clientBaseUrl, string product, string? brandColor,
+        [FromServices] IEmailSender email, AppUser user, string token, string clientBaseUrl, string product, string? brandColor,
         CancellationToken ct)
     {
         var link = $"{clientBaseUrl}/verify-email?userId={Uri.EscapeDataString(user.Id)}&token={Encode(token)}";
@@ -27,7 +28,7 @@ internal static class AuthEmails
     }
 
     public static Task SendPasswordResetAsync(
-        IEmailSender email, AppUser user, string token, string clientBaseUrl, string product, string? brandColor,
+        [FromServices] IEmailSender email, AppUser user, string token, string clientBaseUrl, string product, string? brandColor,
         CancellationToken ct)
     {
         var link = $"{clientBaseUrl}/reset-password?email={Uri.EscapeDataString(user.Email!)}&token={Encode(token)}";

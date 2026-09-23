@@ -61,12 +61,33 @@ public static class ModuleRegistrationExtensions
         // ========================================================
         // Inventory
         // ========================================================
+        // ========================================================
+        // Inventory
+        // ========================================================
+
         services.AddScoped<
-      IWarehouseReservationOrchestrator,
-      WarehouseReservationOrchestrator>();
+            WarehouseReservationOrchestrator>();
+
+        services.AddScoped<
+            IWarehouseReservationOrchestrator>(sp =>
+            sp.GetRequiredService<
+                WarehouseReservationOrchestrator>());
+
         services.AddInventoryModule(
             connectionString);
-       
+
+        services.AddScoped<
+            WarehousePackingOrchestrator>();
+
+        services.AddScoped<
+            WarehousePickingOrchestrator>();
+
+        services.AddScoped<
+            WarehouseReadyToShipOrchestrator>();
+
+        services.AddScoped<
+            WarehouseShipmentOrchestrator>();
+
         services.AddScoped<WarehousePackingOrchestrator>();
         services.AddScoped<WarehousePickingOrchestrator>();
         services.AddScoped<WarehouseReadyToShipOrchestrator>();

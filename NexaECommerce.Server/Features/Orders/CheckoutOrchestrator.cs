@@ -1,5 +1,6 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using System.Text;
+using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Services;
 
@@ -7,6 +8,7 @@ namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class CheckoutOrchestrator(
     IOrderService orders,
+    IInventoryService inventory,
     WarehouseAllocationOrchestrator warehouseAllocation,
     WarehouseReservationOrchestrator warehouseReservation,
     IFulfillmentService fulfillmentService)
@@ -48,8 +50,8 @@ public sealed class CheckoutOrchestrator(
             /*
              * 1. Create fulfillment before payment.
              *
-             * Warehouse selection is required before we can reserve
-             * physical warehouse stock.
+             * Warehouse selection is required before physical
+             * warehouse stock can be reserved.
              */
             await fulfillmentService.CreateForOrderAsync(
                 tenantId,
@@ -58,9 +60,6 @@ public sealed class CheckoutOrchestrator(
 
             /*
              * 2. Create logical order reservations.
-             *
-             * These are NOT physical stock reservations.
-             * Physical stock is reserved only in WarehouseStock.
              */
             foreach (var item in order.Items)
             {
@@ -86,7 +85,7 @@ public sealed class CheckoutOrchestrator(
             }
 
             /*
-             * Refresh order so the reservation collection contains
+             * Refresh the order so the reservation collection contains
              * the records created above.
              */
             order =
@@ -99,7 +98,36 @@ public sealed class CheckoutOrchestrator(
                     "Order could not be reloaded after inventory reservation creation.");
 
             /*
-             * 3. Select one warehouse.
+             * 3. Reserve global inventory.
+             *
+             * StockItem represents the global sellable inventory.
+             * This reservation moves quantity from AvailableQuantity
+             * to ReservedQuantity.
+             *
+             * ReserveAsync is idempotent by reservation key.
+             */
+            foreach (var reservation in order.InventoryReservations)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (reservation.Status is
+                    not NexaEcommerce.Modules.Orders.Domain.Entities.InventoryReservationStatus.Reserved
+                    and not NexaEcommerce.Modules.Orders.Domain.Entities.InventoryReservationStatus.Committed)
+                {
+                    continue;
+                }
+
+                await inventory.ReserveAsync(
+                    tenantId,
+                    reservation.ProductVariantId,
+                    reservation.Quantity,
+                    reservation.ReservationKey,
+                    ReservationLifetime,
+                    cancellationToken);
+            }
+
+            /*
+             * 4. Select one warehouse.
              *
              * Allocation itself does not change stock.
              */
@@ -109,10 +137,10 @@ public sealed class CheckoutOrchestrator(
                 cancellationToken);
 
             /*
-             * 4. Reserve the physical stock exactly once.
+             * 5. Reserve physical warehouse stock.
              *
-             * WarehouseStock.Reserve(...) is now the only physical
-             * reservation performed during checkout.
+             * WarehouseStock.Reserve(...) changes the physical
+             * warehouse availability.
              */
             await warehouseReservation.ReserveAsync(
                 tenantId,
@@ -130,15 +158,60 @@ public sealed class CheckoutOrchestrator(
         catch
         {
             /*
-             * Cancellation releases warehouse reservations through
-             * the normal cancellation workflow.
+             * Release physical warehouse reservations first.
              */
             try
             {
                 await warehouseReservation.ReleaseAsync(
-      tenantId,
-      order.Id,
-      CancellationToken.None);
+                    tenantId,
+                    order.Id,
+                    CancellationToken.None);
+            }
+            catch
+            {
+                // Preserve the original checkout exception.
+            }
+
+            /*
+             * Release global StockItem reservations.
+             *
+             * Inventory release is intentionally best-effort here.
+             * Inventory reconciliation can repair a reservation if
+             * the release could not be completed immediately.
+             */
+            try
+            {
+                var failedOrder =
+                    await orders.GetAsync(
+                        tenantId,
+                        order.Id,
+                        userId,
+                        CancellationToken.None);
+
+                if (failedOrder is not null)
+                {
+                    foreach (var reservation in
+                             failedOrder.InventoryReservations)
+                    {
+                        if (reservation.Status !=
+                            NexaEcommerce.Modules.Orders.Domain.Entities.InventoryReservationStatus.Reserved)
+                        {
+                            continue;
+                        }
+
+                        try
+                        {
+                            await inventory.ReleaseAsync(
+                                tenantId,
+                                reservation.ReservationKey,
+                                CancellationToken.None);
+                        }
+                        catch
+                        {
+                            // Preserve the original checkout exception.
+                        }
+                    }
+                }
             }
             catch
             {
@@ -148,10 +221,10 @@ public sealed class CheckoutOrchestrator(
             try
             {
                 await orders.CancelAsync(
-      tenantId,
-      order.Id,
-      userId,
-      CancellationToken.None);
+                    tenantId,
+                    order.Id,
+                    userId,
+                    CancellationToken.None);
             }
             catch
             {
@@ -193,71 +266,4 @@ public sealed class CheckoutOrchestrator(
 
         if (idempotencyKey.Trim().Length > 128)
         {
-            throw new ArgumentException(
-                "Idempotency key cannot exceed 128 characters.",
-                nameof(idempotencyKey));
-        }
-
-        if (request.Items is null ||
-            request.Items.Count == 0)
-        {
-            throw new ArgumentException(
-                "Checkout must contain at least one item.",
-                nameof(request));
-        }
-    }
-
-    public static string BuildReservationKey(
-        string tenantId,
-        string userId,
-        string idempotencyKey,
-        Guid productVariantId)
-    {
-        if (string.IsNullOrWhiteSpace(tenantId))
-        {
-            throw new ArgumentException(
-                "Tenant id is required.",
-                nameof(tenantId));
-        }
-
-        if (string.IsNullOrWhiteSpace(userId))
-        {
-            throw new ArgumentException(
-                "User id is required.",
-                nameof(userId));
-        }
-
-        if (string.IsNullOrWhiteSpace(idempotencyKey))
-        {
-            throw new ArgumentException(
-                "Idempotency key is required.",
-                nameof(idempotencyKey));
-        }
-
-        if (productVariantId == Guid.Empty)
-        {
-            throw new ArgumentException(
-                "Product variant id is required.",
-                nameof(productVariantId));
-        }
-
-        var material =
-            string.Concat(
-                tenantId.Trim(),
-                "|",
-                userId.Trim(),
-                "|",
-                idempotencyKey.Trim(),
-                "|",
-                productVariantId.ToString("N"));
-
-        var hash =
-            SHA256.HashData(
-                Encoding.UTF8.GetBytes(material));
-
-        return string.Concat(
-            "checkout:",
-            Convert.ToHexString(hash)
-                .ToLowerInvariant());
-    }
-}
+            throw

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Catalog.Application.Brands.DTOs;
 using NexaEcommerce.Modules.Catalog.Application.Services;
 using NexaECommerce.Server.Platform.Authorization;
@@ -103,7 +103,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> List(
         PagedRequest request,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         var filter = new BrandFilterDto
@@ -130,7 +130,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
     // =========================================================
 
     private static async Task<IResult> Lookup(
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         var result =
@@ -145,7 +145,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Get(
         Guid id,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         var result =
@@ -162,7 +162,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> GetBySlug(
         string slug,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(slug))
@@ -184,7 +184,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Create(
         [FromBody] CreateBrandDto request,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         var id =
@@ -207,7 +207,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
     private static async Task<IResult> Update(
         Guid id,
         [FromBody] UpdateBrandDto request,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         var result =
@@ -225,7 +225,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Delete(
         Guid id,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         await service.DeleteAsync(
@@ -241,7 +241,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Restore(
         Guid id,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         await service.RestoreAsync(
@@ -257,7 +257,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Activate(
         Guid id,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         await service.ActivateAsync(id, ct);
@@ -267,7 +267,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Deactivate(
         Guid id,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         await service.DeactivateAsync(id, ct);
@@ -281,7 +281,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Publish(
         Guid id,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         await service.PublishAsync(id, ct);
@@ -291,7 +291,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> UnPublish(
         Guid id,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         await service.UnPublishAsync(id, ct);
@@ -305,7 +305,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Feature(
         Guid id,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         await service.FeatureAsync(id, ct);
@@ -315,7 +315,7 @@ public sealed class BrandEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> UnFeature(
         Guid id,
-        IBrandService service,
+        [FromServices] IBrandService service,
         CancellationToken ct)
     {
         await service.UnFeatureAsync(id, ct);

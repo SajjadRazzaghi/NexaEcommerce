@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NexaECommerce.Server.Data;
@@ -28,7 +29,7 @@ public sealed class SettingEndpoints : IFeatureEndpoints
     }
 
     private static async Task<IResult> List(
-        AppDbContext db, IEnumerable<ISettingOptionsProvider> optionProviders, CancellationToken ct)
+        [FromServices] AppDbContext db, [FromServices] IEnumerable<ISettingOptionsProvider> optionProviders, CancellationToken ct)
     {
         var definitions = SettingDefinitions.All.Where(d => d.Scopes.Contains(SettingScope.App)).ToList();
 
@@ -62,7 +63,7 @@ public sealed class SettingEndpoints : IFeatureEndpoints
     }
 
     private static async Task<IResult> Update(
-        string key, UpdateSettingRequest req, ISettingService settings, CancellationToken ct)
+        string key, UpdateSettingRequest req, [FromServices] ISettingService settings, CancellationToken ct)
     {
         var definition = SettingDefinitions.Find(key);
         if (definition is null || !definition.Scopes.Contains(SettingScope.App))

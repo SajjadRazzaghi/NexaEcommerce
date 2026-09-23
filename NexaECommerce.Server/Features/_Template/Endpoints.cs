@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NexaECommerce.Server.Data;
 using NexaECommerce.Server.Platform.Authorization;
@@ -25,18 +26,18 @@ public sealed class TemplateEndpoints : IFeatureEndpoints
         group.MapDelete("/{id:int}", Delete).RequirePermission(TemplatePermissions.Delete).AddEndpointFilter<TransactionFilter>();
     }
 
-    private static async Task<IResult> List(AppDbContext db, CancellationToken ct)
+    private static async Task<IResult> List([FromServices] AppDbContext db, CancellationToken ct)
     {
         var items = await db.Set<TemplateItem>().AsNoTracking().ToListAsync(ct);
         return Results.Ok(items.Select(x => x.ToDto()));
     }
 
-    private static async Task<IResult> Get(int id, AppDbContext db, CancellationToken ct) =>
+    private static async Task<IResult> Get(int id, [FromServices] AppDbContext db, CancellationToken ct) =>
         await db.Set<TemplateItem>().AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, ct) is { } item
             ? Results.Ok(item.ToDto())
             : Results.NotFound();
 
-    private static async Task<IResult> Create(CreateTemplateItemRequest req, AppDbContext db, CancellationToken ct)
+    private static async Task<IResult> Create(CreateTemplateItemRequest req, [FromServices] AppDbContext db, CancellationToken ct)
     {
         var item = new TemplateItem { Name = req.Name, Description = req.Description, CreatedAt = DateTimeOffset.UtcNow };
         db.Add(item);
@@ -44,7 +45,7 @@ public sealed class TemplateEndpoints : IFeatureEndpoints
         return Results.Created($"/api/template/{item.Id}", item.ToDto());
     }
 
-    private static async Task<IResult> Update(int id, UpdateTemplateItemRequest req, AppDbContext db, CancellationToken ct)
+    private static async Task<IResult> Update(int id, UpdateTemplateItemRequest req, [FromServices] AppDbContext db, CancellationToken ct)
     {
         var item = await db.Set<TemplateItem>().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return Results.NotFound();
@@ -55,7 +56,7 @@ public sealed class TemplateEndpoints : IFeatureEndpoints
         return Results.Ok(item.ToDto());
     }
 
-    private static async Task<IResult> Delete(int id, AppDbContext db, CancellationToken ct)
+    private static async Task<IResult> Delete(int id, [FromServices] AppDbContext db, CancellationToken ct)
     {
         var item = await db.Set<TemplateItem>().FirstOrDefaultAsync(x => x.Id == id, ct);
         if (item is null) return Results.NotFound();

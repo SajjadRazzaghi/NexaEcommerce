@@ -1,4 +1,5 @@
-﻿using System.Security.Cryptography;
+using Microsoft.AspNetCore.Mvc;
+using System.Security.Cryptography;
 using System.Text;
 using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
@@ -11,8 +12,8 @@ namespace NexaECommerce.Server.Features.Orders;
 public sealed class PaymentRetryOrchestrator(
     IOrderRepository orderRepository,
     IOrderUnitOfWork orderUnitOfWork,
-    IInventoryService inventory,
-    IPaymentAttemptService paymentAttempts)
+    [FromServices] IInventoryService inventory,
+    [FromServices] IPaymentAttemptService paymentAttempts)
 {
     private static readonly TimeSpan ReservationLifetime =
         TimeSpan.FromMinutes(15);

@@ -1,4 +1,5 @@
-﻿using NexaEcommerce.Modules.Inventory.Domain.Entities;
+using Microsoft.AspNetCore.Mvc;
+using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Inventory.Domain.Interfaces;
 using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Services;
@@ -32,7 +33,7 @@ public sealed class WarehouseAllocationOrchestrator(
     IFulfillmentRepository fulfillmentRepository,
     IWarehouseRepository warehouseRepository,
     IWarehouseStockRepository warehouseStockRepository,
-    IFulfillmentService fulfillmentService)
+    [FromServices] IFulfillmentService fulfillmentService)
 {
     public async Task<WarehouseAllocationResultDto> AllocateAsync(
         string tenantId,

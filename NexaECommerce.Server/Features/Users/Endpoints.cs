@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -60,7 +61,7 @@ public sealed class UserEndpoints : IFeatureEndpoints
         .DefaultSort("createdAt", descending: true);
 
     private static async Task<IResult> List(
-        PagedRequest request, UserManager<AppUser> users, ITenantContext tenant, ITenantRoleService tenantRoles,
+        PagedRequest request, [FromServices] UserManager<AppUser> users, [FromServices] ITenantContext tenant, [FromServices] ITenantRoleService tenantRoles,
         HttpContext http, CancellationToken ct)
     {
         var self = SelfId(http);
@@ -79,16 +80,16 @@ public sealed class UserEndpoints : IFeatureEndpoints
 
 
     private static async Task<IResult> Get(
-        string id, UserManager<AppUser> users, ITenantContext tenant, ITenantRoleService tenantRoles, HttpContext http)
+        string id, [FromServices] UserManager<AppUser> users, [FromServices] ITenantContext tenant, [FromServices] ITenantRoleService tenantRoles, HttpContext http)
     {
         var user = await users.FindByIdAsync(id) ?? throw new NotFoundException("User", id);
         return Results.Ok(await ToDtoAsync(user, tenantRoles, tenant.TenantId, SelfId(http), DateTimeOffset.UtcNow));
     }
 
     private static async Task<IResult> Create(
-        CreateUserRequest req, UserManager<AppUser> users, RoleManager<IdentityRole> roles, IEmailSender email,
-        ISettingService settings, ITenantContext tenant, ITenantRoleService tenantRoles, IEventBus bus,
-        IOptions<AppOptions> appOptions, HttpContext http, CancellationToken ct)
+        CreateUserRequest req, [FromServices] UserManager<AppUser> users, [FromServices] RoleManager<IdentityRole> roles, [FromServices] IEmailSender email,
+        [FromServices] ISettingService settings, [FromServices] ITenantContext tenant, [FromServices] ITenantRoleService tenantRoles, [FromServices] IEventBus bus,
+        [FromServices] IOptions<AppOptions> appOptions, HttpContext http, CancellationToken ct)
     {
         var user = new AppUser
         {
@@ -133,8 +134,8 @@ public sealed class UserEndpoints : IFeatureEndpoints
     }
 
     private static async Task<IResult> UpdateUser(
-        string id, UpdateUserRequest req, UserManager<AppUser> users,
-        ITenantContext tenant, ITenantRoleService tenantRoles, HttpContext http)
+        string id, UpdateUserRequest req, [FromServices] UserManager<AppUser> users,
+        [FromServices] ITenantContext tenant, [FromServices] ITenantRoleService tenantRoles, HttpContext http)
     {
         var user = await users.FindByIdAsync(id) ?? throw new NotFoundException("User", id);
 
@@ -155,7 +156,7 @@ public sealed class UserEndpoints : IFeatureEndpoints
 
     // Admin vouches for an address — flip EmailConfirmed so the user can sign in without the confirm step.
     private static async Task<IResult> ConfirmEmail(
-        string id, UserManager<AppUser> users, ITenantContext tenant, ITenantRoleService tenantRoles, HttpContext http)
+        string id, [FromServices] UserManager<AppUser> users, [FromServices] ITenantContext tenant, [FromServices] ITenantRoleService tenantRoles, HttpContext http)
     {
         var user = await users.FindByIdAsync(id) ?? throw new NotFoundException("User", id);
         if (!user.EmailConfirmed)
@@ -169,7 +170,7 @@ public sealed class UserEndpoints : IFeatureEndpoints
     // Re-send the email-confirmation link to a user still pending confirmation (the admin counterpart to
     // the anonymous self-service resend). For an already-invited account use Send password reset instead.
     private static async Task<IResult> ResendConfirmation(
-        string id, UserManager<AppUser> users, IEmailSender email, IOptions<AppOptions> appOptions,
+        string id, [FromServices] UserManager<AppUser> users, [FromServices] IEmailSender email, [FromServices] IOptions<AppOptions> appOptions,
         HttpContext http, CancellationToken ct)
     {
         var user = await users.FindByIdAsync(id) ?? throw new NotFoundException("User", id);
@@ -186,7 +187,7 @@ public sealed class UserEndpoints : IFeatureEndpoints
     // can re-enroll from scratch. Uses only core Identity APIs, so it compiles even in editions without 2FA
     // (where no account ever has it enabled, the admin UI simply never offers this).
     private static async Task<IResult> DisableTwoFactor(
-        string id, UserManager<AppUser> users, ITenantContext tenant, ITenantRoleService tenantRoles, HttpContext http)
+        string id, [FromServices] UserManager<AppUser> users, [FromServices] ITenantContext tenant, [FromServices] ITenantRoleService tenantRoles, HttpContext http)
     {
         var user = await users.FindByIdAsync(id) ?? throw new NotFoundException("User", id);
         if (user.TwoFactorEnabled)
@@ -203,7 +204,7 @@ public sealed class UserEndpoints : IFeatureEndpoints
     // 1-minute validation window) — hygiene for a possibly-compromised account — and must come BEFORE the
     // token is minted, since the reset token embeds the stamp.
     private static async Task<IResult> SendPasswordReset(
-        string id, UserManager<AppUser> users, IEmailSender email, IOptions<AppOptions> appOptions,
+        string id, [FromServices] UserManager<AppUser> users, [FromServices] IEmailSender email, [FromServices] IOptions<AppOptions> appOptions,
         HttpContext http, CancellationToken ct)
     {
         var user = await users.FindByIdAsync(id) ?? throw new NotFoundException("User", id);
@@ -216,8 +217,8 @@ public sealed class UserEndpoints : IFeatureEndpoints
     }
 
     private static async Task<IResult> UpdateRoles(
-        string id, UpdateUserRolesRequest req, UserManager<AppUser> users, RoleManager<IdentityRole> roles,
-        ITenantContext tenant, ITenantRoleService tenantRoles, IEventBus bus, HttpContext http)
+        string id, UpdateUserRolesRequest req, [FromServices] UserManager<AppUser> users, [FromServices] RoleManager<IdentityRole> roles,
+        [FromServices] ITenantContext tenant, [FromServices] ITenantRoleService tenantRoles, [FromServices] IEventBus bus, HttpContext http)
     {
         var user = await RequireOther(id, users, http, "change your own roles");
 
@@ -241,8 +242,8 @@ public sealed class UserEndpoints : IFeatureEndpoints
     }
 
     private static async Task<IResult> Lock(
-        string id, UserManager<AppUser> users, ITenantContext tenant, ITenantRoleService tenantRoles,
-        IEventBus bus, HttpContext http)
+        string id, [FromServices] UserManager<AppUser> users, [FromServices] ITenantContext tenant, [FromServices] ITenantRoleService tenantRoles,
+        [FromServices] IEventBus bus, HttpContext http)
     {
         var user = await RequireOther(id, users, http, "lock your own account");
 
@@ -255,8 +256,8 @@ public sealed class UserEndpoints : IFeatureEndpoints
     }
 
     private static async Task<IResult> Unlock(
-        string id, UserManager<AppUser> users, ITenantContext tenant, ITenantRoleService tenantRoles,
-        IEventBus bus, HttpContext http)
+        string id, [FromServices] UserManager<AppUser> users, [FromServices] ITenantContext tenant, [FromServices] ITenantRoleService tenantRoles,
+        [FromServices] IEventBus bus, HttpContext http)
     {
         var user = await RequireOther(id, users, http, "unlock your own account");
 
@@ -267,7 +268,7 @@ public sealed class UserEndpoints : IFeatureEndpoints
         return Results.Ok(await ToDtoAsync(user, tenantRoles, tenant.TenantId, SelfId(http), DateTimeOffset.UtcNow));
     }
 
-    private static async Task<IResult> Delete(string id, UserManager<AppUser> users, IEventBus bus, HttpContext http)
+    private static async Task<IResult> Delete(string id, [FromServices] UserManager<AppUser> users, [FromServices] IEventBus bus, HttpContext http)
     {
         var user = await RequireOther(id, users, http, "delete your own account");
 
@@ -280,7 +281,7 @@ public sealed class UserEndpoints : IFeatureEndpoints
     }
 
     // Loads the target and guarantees it isn't the caller — the guard behind every mutating action.
-    private static async Task<AppUser> RequireOther(string id, UserManager<AppUser> users, HttpContext http, string action)
+    private static async Task<AppUser> RequireOther(string id, [FromServices] UserManager<AppUser> users, HttpContext http, string action)
     {
         var user = await users.FindByIdAsync(id) ?? throw new NotFoundException("User", id);
         if (user.Id == SelfId(http)) throw new ForbiddenException($"You can't {action}.");
@@ -288,7 +289,7 @@ public sealed class UserEndpoints : IFeatureEndpoints
     }
 
     private static async Task<UserDto> ToDtoAsync(
-        AppUser user, ITenantRoleService tenantRoles, string tenantId, string? self, DateTimeOffset now)
+        AppUser user, [FromServices] ITenantRoleService tenantRoles, string tenantId, string? self, DateTimeOffset now)
     {
         var roles = (await tenantRoles.RoleNamesAsync(user.Id, tenantId)).ToArray();
         var lockedOut = user.LockoutEnd is { } end && end > now;

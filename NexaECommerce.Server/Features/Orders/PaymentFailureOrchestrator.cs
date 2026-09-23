@@ -1,4 +1,5 @@
-﻿
+using Microsoft.AspNetCore.Mvc;
+
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
@@ -6,7 +7,7 @@ using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class PaymentFailureOrchestrator(
-    IPaymentAttemptService paymentAttempts,
+    [FromServices] IPaymentAttemptService paymentAttempts,
     IPaymentAttemptRepository paymentAttemptRepository,
     IOrderRepository orderRepository,
     IOrderUnitOfWork orderUnitOfWork,

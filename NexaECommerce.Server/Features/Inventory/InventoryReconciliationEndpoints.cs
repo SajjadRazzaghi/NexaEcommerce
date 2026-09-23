@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaECommerce.Server.Platform.Authorization;
 using NexaECommerce.Server.Platform.Features;
@@ -30,7 +30,7 @@ public sealed class InventoryReconciliationEndpoints
 
         InventoryOrderReconciliationService service,
 
-        ICurrentTenant currentTenant,
+        [FromServices] ICurrentTenant currentTenant,
 
         CancellationToken ct)
     {

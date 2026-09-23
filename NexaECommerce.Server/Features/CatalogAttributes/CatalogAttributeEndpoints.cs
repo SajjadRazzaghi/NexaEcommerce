@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Catalog.Application.CatalogAttributes.DTOs;
 using NexaEcommerce.Modules.Catalog.Application.Services;
 using NexaECommerce.Server.Features.Products;
@@ -63,7 +63,7 @@ public sealed class CatalogAttributeEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> List(
         [FromQuery] string? search,
-        ICatalogAttributeService service,
+        [FromServices] ICatalogAttributeService service,
         CancellationToken ct)
     {
         var result =
@@ -76,7 +76,7 @@ public sealed class CatalogAttributeEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Get(
         Guid id,
-        ICatalogAttributeService service,
+        [FromServices] ICatalogAttributeService service,
         CancellationToken ct)
     {
         var result =
@@ -91,7 +91,7 @@ public sealed class CatalogAttributeEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Create(
         [FromBody] CreateCatalogAttributeDto request,
-        ICatalogAttributeService service,
+        [FromServices] ICatalogAttributeService service,
         CancellationToken ct)
     {
         try
@@ -118,7 +118,7 @@ public sealed class CatalogAttributeEndpoints : IFeatureEndpoints
     private static async Task<IResult> Update(
         Guid id,
         [FromBody] UpdateCatalogAttributeDto request,
-        ICatalogAttributeService service,
+        [FromServices] ICatalogAttributeService service,
         CancellationToken ct)
     {
         try
@@ -145,7 +145,7 @@ public sealed class CatalogAttributeEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Delete(
         Guid id,
-        ICatalogAttributeService service,
+        [FromServices] ICatalogAttributeService service,
         CancellationToken ct)
     {
         var result =
@@ -161,7 +161,7 @@ public sealed class CatalogAttributeEndpoints : IFeatureEndpoints
     private static async Task<IResult> AddValue(
         Guid attributeId,
         [FromBody] CreateCatalogAttributeValueDto request,
-        ICatalogAttributeService service,
+        [FromServices] ICatalogAttributeService service,
         CancellationToken ct)
     {
         try
@@ -192,7 +192,7 @@ public sealed class CatalogAttributeEndpoints : IFeatureEndpoints
         Guid attributeId,
         Guid valueId,
         [FromBody] UpdateCatalogAttributeValueDto request,
-        ICatalogAttributeService service,
+        [FromServices] ICatalogAttributeService service,
         CancellationToken ct)
     {
         try
@@ -221,7 +221,7 @@ public sealed class CatalogAttributeEndpoints : IFeatureEndpoints
     private static async Task<IResult> DeleteValue(
         Guid attributeId,
         Guid valueId,
-        ICatalogAttributeService service,
+        [FromServices] ICatalogAttributeService service,
         CancellationToken ct)
     {
         var result =

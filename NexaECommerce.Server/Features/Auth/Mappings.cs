@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using NexaECommerce.Server.Data;
 using NexaECommerce.Server.Platform.Authorization;
 using NexaECommerce.Server.Platform.MultiTenancy;
@@ -26,8 +27,8 @@ internal static class AuthMappings
 
     public static async Task<AuthUserDto> ToAuthDtoAsync(
         this AppUser user,
-        ITenantRoleService tenantRoles,
-        PermissionResolver permissions)
+        [FromServices] ITenantRoleService tenantRoles,
+        [FromServices] PermissionResolver permissions)
     {
         var roles =
             (await tenantRoles.RoleNamesAsync(

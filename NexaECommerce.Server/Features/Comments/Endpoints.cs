@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Identity;
@@ -37,7 +38,7 @@ public sealed partial class CommentEndpoints : IFeatureEndpoints
     }
 
     private static async Task<IResult> List(
-        string entityType, string entityId, AppDbContext db, HttpContext http, CancellationToken ct)
+        string entityType, string entityId, [FromServices] AppDbContext db, HttpContext http, CancellationToken ct)
     {
         var me = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
         var canModerate = Can(http, CommentPermissions.Moderate);
@@ -62,7 +63,7 @@ public sealed partial class CommentEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Create(
         string entityType, string entityId, CreateCommentRequest req,
-        AppDbContext db, UserManager<AppUser> users,
+        [FromServices] AppDbContext db, [FromServices] UserManager<AppUser> users,
         HttpContext http, CancellationToken ct)
     {
         var author = await users.GetUserAsync(http.User) ?? throw new UnauthorizedException("Sign in to comment.");
@@ -84,7 +85,7 @@ public sealed partial class CommentEndpoints : IFeatureEndpoints
         return Results.Created($"/api/comments/{comment.Id}", comment.ToDto(canDelete: true, author.AvatarUrl));
     }
 
-    private static async Task<IResult> Delete(int id, AppDbContext db, HttpContext http, CancellationToken ct)
+    private static async Task<IResult> Delete(int id, [FromServices] AppDbContext db, HttpContext http, CancellationToken ct)
     {
         var me = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
         var comment = await db.Set<Comment>().FirstOrDefaultAsync(c => c.Id == id, ct)
@@ -99,7 +100,7 @@ public sealed partial class CommentEndpoints : IFeatureEndpoints
     }
 
     // Lightweight user directory for the composer's @mention autocomplete (any signed-in user).
-    private static async Task<IResult> Mentionable(string? q, AppDbContext db, HttpContext http, CancellationToken ct)
+    private static async Task<IResult> Mentionable(string? q, [FromServices] AppDbContext db, HttpContext http, CancellationToken ct)
     {
         var me = http.User.FindFirstValue(ClaimTypes.NameIdentifier);
         var query = db.Set<AppUser>().AsNoTracking().Where(u => u.Id != me);

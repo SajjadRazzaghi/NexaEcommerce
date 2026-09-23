@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Identity;
 using NexaECommerce.Server.Data;
@@ -32,7 +33,7 @@ public sealed class RoleEndpoints : IFeatureEndpoints
         group.MapDelete("/{id}", Delete).RequirePermission(RolePermissions.Delete).AddEndpointFilter<TransactionFilter>();
     }
 
-    private static async Task<IResult> List(RoleManager<IdentityRole> roles, ITenantRoleService tenantRoles, CancellationToken ct)
+    private static async Task<IResult> List([FromServices] RoleManager<IdentityRole> roles, [FromServices] ITenantRoleService tenantRoles, CancellationToken ct)
     {
         var all = roles.Roles.OrderBy(r => r.Name).ToList();
         var dtos = new List<RoleDto>(all.Count);
@@ -42,14 +43,14 @@ public sealed class RoleEndpoints : IFeatureEndpoints
         return Results.Ok(dtos);
     }
 
-    private static async Task<IResult> Get(string id, RoleManager<IdentityRole> roles, ITenantRoleService tenantRoles)
+    private static async Task<IResult> Get(string id, [FromServices] RoleManager<IdentityRole> roles, [FromServices] ITenantRoleService tenantRoles)
     {
         var role = await roles.FindByIdAsync(id) ?? throw new NotFoundException("Role", id);
         return Results.Ok(await ToDtoAsync(role, roles, tenantRoles));
     }
 
     private static async Task<IResult> Create(
-        SaveRoleRequest req, RoleManager<IdentityRole> roles, ITenantRoleService tenantRoles)
+        SaveRoleRequest req, [FromServices] RoleManager<IdentityRole> roles, [FromServices] ITenantRoleService tenantRoles)
     {
         var role = new IdentityRole(req.Name.Trim());
         var result = await roles.CreateAsync(role);
@@ -60,7 +61,7 @@ public sealed class RoleEndpoints : IFeatureEndpoints
     }
 
     private static async Task<IResult> Update(
-        string id, SaveRoleRequest req, RoleManager<IdentityRole> roles, ITenantRoleService tenantRoles)
+        string id, SaveRoleRequest req, [FromServices] RoleManager<IdentityRole> roles, [FromServices] ITenantRoleService tenantRoles)
     {
         var role = await roles.FindByIdAsync(id) ?? throw new NotFoundException("Role", id);
         if (SystemRoles.IsSystem(role.Name!))
@@ -77,7 +78,7 @@ public sealed class RoleEndpoints : IFeatureEndpoints
         return Results.Ok(await ToDtoAsync(role, roles, tenantRoles));
     }
 
-    private static async Task<IResult> Delete(string id, RoleManager<IdentityRole> roles, ITenantRoleService tenantRoles)
+    private static async Task<IResult> Delete(string id, [FromServices] RoleManager<IdentityRole> roles, [FromServices] ITenantRoleService tenantRoles)
     {
         var role = await roles.FindByIdAsync(id) ?? throw new NotFoundException("Role", id);
         if (SystemRoles.IsSystem(role.Name!))
@@ -94,7 +95,7 @@ public sealed class RoleEndpoints : IFeatureEndpoints
 
     // Reconcile the role's permission claims to exactly the requested set (add the new, drop the gone).
     private static async Task SyncPermissionsAsync(
-        IdentityRole role, IReadOnlyList<string> desired, RoleManager<IdentityRole> roles)
+        IdentityRole role, IReadOnlyList<string> desired, [FromServices] RoleManager<IdentityRole> roles)
     {
         var current = (await roles.GetClaimsAsync(role))
             .Where(c => c.Type == PermissionClaims.ClaimType)
@@ -110,7 +111,7 @@ public sealed class RoleEndpoints : IFeatureEndpoints
     }
 
     private static async Task<RoleDto> ToDtoAsync(
-        IdentityRole role, RoleManager<IdentityRole> roles, ITenantRoleService tenantRoles)
+        IdentityRole role, [FromServices] RoleManager<IdentityRole> roles, [FromServices] ITenantRoleService tenantRoles)
     {
         var permissions = (await roles.GetClaimsAsync(role))
             .Where(c => c.Type == PermissionClaims.ClaimType)

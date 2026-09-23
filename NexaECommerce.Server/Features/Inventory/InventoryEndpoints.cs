@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Inventory.Application.DTOs;
 using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.SharedKernel.Abstractions;
@@ -70,8 +70,8 @@ public sealed class InventoryEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> GetStock(
         Guid productVariantId,
-        IInventoryService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IInventoryService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         var result =
@@ -93,8 +93,8 @@ private static async Task<IResult> GetMovements(
     Guid productVariantId,
     int skip,
     int take,
-    IInventoryService service,
-    ICurrentTenant currentTenant,
+    [FromServices] IInventoryService service,
+    [FromServices] ICurrentTenant currentTenant,
     CancellationToken ct)
     {
         try
@@ -147,8 +147,8 @@ private static async Task<IResult> GetMovements(
 
     private static async Task<IResult> SetStock(
         [FromBody] SetStockRequest request,
-        IInventoryService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IInventoryService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -182,8 +182,8 @@ private static async Task<IResult> GetMovements(
 
     private static async Task<IResult> AdjustStock(
         [FromBody] AdjustStockRequest request,
-        IInventoryService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IInventoryService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -217,8 +217,8 @@ private static async Task<IResult> GetMovements(
 
     private static async Task<IResult> Reserve(
         [FromBody] ReserveStockRequest request,
-        IInventoryService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IInventoryService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -258,8 +258,8 @@ private static async Task<IResult> GetMovements(
 
     private static async Task<IResult> Release(
         string reservationKey,
-        IInventoryService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IInventoryService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -292,8 +292,8 @@ private static async Task<IResult> GetMovements(
 
     private static async Task<IResult> Commit(
         string reservationKey,
-        IInventoryService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IInventoryService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try

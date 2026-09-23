@@ -1,4 +1,5 @@
-﻿using NexaEcommerce.Modules.Inventory.Application.Services;
+using Microsoft.AspNetCore.Mvc;
+using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaECommerce.Server.Platform.Authorization;
 using NexaECommerce.Server.Platform.Features;
@@ -35,8 +36,8 @@ public sealed class InventoryReportEndpoints : IFeatureEndpoints
     }
 
     private static async Task<IResult> GetSummary(
-        IInventoryReportService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IInventoryReportService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         var result =
@@ -52,8 +53,8 @@ public sealed class InventoryReportEndpoints : IFeatureEndpoints
         Guid? warehouseId,
         int skip,
         int take,
-        IInventoryReportService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IInventoryReportService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -90,8 +91,8 @@ public sealed class InventoryReportEndpoints : IFeatureEndpoints
     private static async Task<IResult> GetDiscrepancies(
         int skip,
         int take,
-        IInventoryReportService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IInventoryReportService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try

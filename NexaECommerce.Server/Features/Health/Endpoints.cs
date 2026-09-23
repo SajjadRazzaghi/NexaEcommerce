@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using NexaECommerce.Server.Platform.Authorization;
 using NexaECommerce.Server.Platform.Features;
@@ -21,7 +22,7 @@ public sealed class HealthEndpoints : IFeatureEndpoints
         group.MapGet("/", Get).RequirePermission(HealthPermissions.Read);
     }
 
-    private static async Task<IResult> Get(HealthCheckService health, CancellationToken ct)
+    private static async Task<IResult> Get([FromServices] HealthCheckService health, CancellationToken ct)
     {
         var report = await health.CheckHealthAsync(ct);
 

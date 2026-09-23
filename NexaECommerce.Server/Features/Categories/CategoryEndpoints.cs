@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Catalog.Application.DTOs;
 using NexaEcommerce.Modules.Catalog.Application.Services;
 using NexaECommerce.Server.Platform.Authorization;
@@ -60,7 +60,7 @@ public sealed class CategoryEndpoints : IFeatureEndpoints
     // =========================================================
 
     private static async Task<IResult> GetAll(
-        ICategoryService service,
+        [FromServices] ICategoryService service,
         CancellationToken ct)
     {
         var categories =
@@ -74,7 +74,7 @@ public sealed class CategoryEndpoints : IFeatureEndpoints
     // =========================================================
 
     private static async Task<IResult> GetRoots(
-        ICategoryService service,
+        [FromServices] ICategoryService service,
         CancellationToken ct)
     {
         var categories =
@@ -89,7 +89,7 @@ public sealed class CategoryEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> GetById(
         Guid id,
-        ICategoryService service,
+        [FromServices] ICategoryService service,
         CancellationToken ct)
     {
         var category =
@@ -115,7 +115,7 @@ public sealed class CategoryEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> GetBySlug(
         string slug,
-        ICategoryService service,
+        [FromServices] ICategoryService service,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(slug))
@@ -150,7 +150,7 @@ public sealed class CategoryEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> GetChildren(
         Guid parentCategoryId,
-        ICategoryService service,
+        [FromServices] ICategoryService service,
         CancellationToken ct)
     {
         var categories =
@@ -167,7 +167,7 @@ public sealed class CategoryEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Create(
         [FromBody] CreateCategoryDto request,
-        ICategoryService service,
+        [FromServices] ICategoryService service,
         CancellationToken ct)
     {
         try
@@ -206,7 +206,7 @@ public sealed class CategoryEndpoints : IFeatureEndpoints
     private static async Task<IResult> Update(
         Guid id,
         [FromBody] UpdateCategoryDto request,
-        ICategoryService service,
+        [FromServices] ICategoryService service,
         CancellationToken ct)
     {
         try
@@ -252,7 +252,7 @@ public sealed class CategoryEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Delete(
         Guid id,
-        ICategoryService service,
+        [FromServices] ICategoryService service,
         CancellationToken ct)
     {
         try

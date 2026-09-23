@@ -1,4 +1,5 @@
-﻿using NexaEcommerce.Modules.Inventory.Application.DTOs;
+using Microsoft.AspNetCore.Mvc;
+using NexaEcommerce.Modules.Inventory.Application.DTOs;
 using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Application.Services;
@@ -10,7 +11,7 @@ namespace NexaECommerce.Server.Features.Inventory;
 public sealed class InventoryOrderReconciliationService(
     IOrderRepository orderRepository,
     IOrderUnitOfWork orderUnitOfWork,
-    IInventoryService inventory,
+    [FromServices] IInventoryService inventory,
     ILogger<InventoryOrderReconciliationService> logger)
 {
     public async Task<InventoryReconciliationResult>

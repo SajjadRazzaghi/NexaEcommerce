@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
 using NexaEcommerce.Modules.ShoppingCart.Application.Services;
 using NexaEcommerce.SharedKernel.Abstractions;
@@ -7,8 +8,8 @@ namespace NexaECommerce.Server.Features.Cart;
 
 public sealed class CatalogProductVariantReader(
     CatalogDbContext catalogDbContext,
-    IStockReader stockReader,
-    ICurrentTenant currentTenant)
+    [FromServices] IStockReader stockReader,
+    [FromServices] ICurrentTenant currentTenant)
     : IProductVariantReader
 {
     public async Task<ProductVariantSnapshot?>

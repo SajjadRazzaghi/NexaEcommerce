@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
@@ -78,8 +79,8 @@ public sealed class AuthEndpoints : IFeatureEndpoints
     /// Anonymous bootstrap for the sign-in / register screens.
     /// </summary>
     private static async Task<IResult> PublicConfig(
-        ISettingService settings,
-        IOptions<AppOptions> appOptions,
+        [FromServices] ISettingService settings,
+        [FromServices] IOptions<AppOptions> appOptions,
         CancellationToken ct)
     {
         var demo = appOptions.Value.DemoLogin;
@@ -111,9 +112,9 @@ public sealed class AuthEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> UpdateProfile(
         UpdateProfileRequest req,
-        UserManager<AppUser> users,
-        ITenantRoleService tenantRoles,
-        PermissionResolver permissions,
+        [FromServices] UserManager<AppUser> users,
+        [FromServices] ITenantRoleService tenantRoles,
+        [FromServices] PermissionResolver permissions,
         HttpContext http)
     {
         var user = await users.GetUserAsync(http.User);
@@ -139,9 +140,9 @@ public sealed class AuthEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> UpdatePreferences(
         UpdatePreferencesRequest req,
-        UserManager<AppUser> users,
-        ITenantRoleService tenantRoles,
-        PermissionResolver permissions,
+        [FromServices] UserManager<AppUser> users,
+        [FromServices] ITenantRoleService tenantRoles,
+        [FromServices] PermissionResolver permissions,
         HttpContext http)
     {
         var user = await users.GetUserAsync(http.User);
@@ -179,9 +180,9 @@ public sealed class AuthEndpoints : IFeatureEndpoints
     /// The current tenant is marked with Current = true.
     /// </summary>
     private static async Task<IResult> MyTenants(
-        UserManager<AppUser> users,
-        ITenantRoleService tenantRoles,
-        AppDbContext db,
+        [FromServices] UserManager<AppUser> users,
+        [FromServices] ITenantRoleService tenantRoles,
+        [FromServices] AppDbContext db,
         HttpContext http,
         CancellationToken ct)
     {
@@ -236,11 +237,11 @@ public sealed class AuthEndpoints : IFeatureEndpoints
     /// </summary>
     private static async Task<IResult> SwitchTenant(
         SwitchTenantRequest req,
-        UserManager<AppUser> users,
-        SignInManager<AppUser> signIn,
-        ITenantRoleService tenantRoles,
-        PermissionResolver permissions,
-        AppDbContext db,
+        [FromServices] UserManager<AppUser> users,
+        [FromServices] SignInManager<AppUser> signIn,
+        [FromServices] ITenantRoleService tenantRoles,
+        [FromServices] PermissionResolver permissions,
+        [FromServices] AppDbContext db,
         HttpContext http,
         CancellationToken ct)
     {
@@ -347,13 +348,13 @@ public sealed class AuthEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Register(
         RegisterRequest req,
-        UserManager<AppUser> users,
-        RoleManager<IdentityRole> roles,
-        IEmailSender email,
-        ISettingService settings,
-        ITenantRoleService tenantRoles,
-        ITenantContext tenant,
-        IOptions<AppOptions> appOptions,
+        [FromServices] UserManager<AppUser> users,
+        [FromServices] RoleManager<IdentityRole> roles,
+        [FromServices] IEmailSender email,
+        [FromServices] ISettingService settings,
+        [FromServices] ITenantRoleService tenantRoles,
+        [FromServices] ITenantContext tenant,
+        [FromServices] IOptions<AppOptions> appOptions,
         HttpContext http,
         CancellationToken ct)
     {
@@ -415,10 +416,10 @@ public sealed class AuthEndpoints : IFeatureEndpoints
     /// </summary>
     internal static async Task AssignDefaultRoleAsync(
         AppUser user,
-        ISettingService settings,
-        RoleManager<IdentityRole> roles,
-        ITenantRoleService tenantRoles,
-        ITenantContext tenant,
+        [FromServices] ISettingService settings,
+        [FromServices] RoleManager<IdentityRole> roles,
+        [FromServices] ITenantRoleService tenantRoles,
+        [FromServices] ITenantContext tenant,
         CancellationToken ct)
     {
         var roleName =
@@ -448,7 +449,7 @@ public sealed class AuthEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> ConfirmEmail(
         ConfirmEmailRequest req,
-        UserManager<AppUser> users)
+        [FromServices] UserManager<AppUser> users)
     {
         var user =
             await users.FindByIdAsync(req.UserId);
@@ -487,9 +488,9 @@ public sealed class AuthEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> ResendConfirmation(
         ResendConfirmationRequest req,
-        UserManager<AppUser> users,
-        IEmailSender email,
-        IOptions<AppOptions> appOptions,
+        [FromServices] UserManager<AppUser> users,
+        [FromServices] IEmailSender email,
+        [FromServices] IOptions<AppOptions> appOptions,
         HttpContext http,
         CancellationToken ct)
     {
@@ -529,11 +530,11 @@ public sealed class AuthEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Login(
         LoginRequest req,
-        SignInManager<AppUser> signIn,
-        UserManager<AppUser> users,
-        ITenantRoleService tenantRoles,
-        PermissionResolver permissions,
-        IAuditService audit,
+        [FromServices] SignInManager<AppUser> signIn,
+        [FromServices] UserManager<AppUser> users,
+        [FromServices] ITenantRoleService tenantRoles,
+        [FromServices] PermissionResolver permissions,
+        [FromServices] IAuditService audit,
         HttpContext http,
         CancellationToken ct)
     {
@@ -605,8 +606,8 @@ public sealed class AuthEndpoints : IFeatureEndpoints
     // ============================================================
 
     private static async Task<IResult> Logout(
-        SignInManager<AppUser> signIn,
-        IAuditService audit,
+        [FromServices] SignInManager<AppUser> signIn,
+        [FromServices] IAuditService audit,
         HttpContext http,
         CancellationToken ct)
     {
@@ -632,9 +633,9 @@ public sealed class AuthEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> ForgotPassword(
         ForgotPasswordRequest req,
-        UserManager<AppUser> users,
-        IEmailSender email,
-        IOptions<AppOptions> appOptions,
+        [FromServices] UserManager<AppUser> users,
+        [FromServices] IEmailSender email,
+        [FromServices] IOptions<AppOptions> appOptions,
         HttpContext http,
         CancellationToken ct)
     {
@@ -670,7 +671,7 @@ public sealed class AuthEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> ResetPassword(
         ResetPasswordRequest req,
-        UserManager<AppUser> users)
+        [FromServices] UserManager<AppUser> users)
     {
         var user =
             await users.FindByEmailAsync(
@@ -707,9 +708,9 @@ public sealed class AuthEndpoints : IFeatureEndpoints
     // ============================================================
 
     private static async Task<IResult> Me(
-        UserManager<AppUser> users,
-        ITenantRoleService tenantRoles,
-        PermissionResolver permissions,
+        [FromServices] UserManager<AppUser> users,
+        [FromServices] ITenantRoleService tenantRoles,
+        [FromServices] PermissionResolver permissions,
         HttpContext http)
     {
         var user =
@@ -730,9 +731,9 @@ public sealed class AuthEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> ChangePassword(
         ChangePasswordRequest req,
-        UserManager<AppUser> users,
-        SignInManager<AppUser> signIn,
-        IAuditService audit,
+        [FromServices] UserManager<AppUser> users,
+        [FromServices] SignInManager<AppUser> signIn,
+        [FromServices] IAuditService audit,
         HttpContext http,
         CancellationToken ct)
     {

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Catalog.Application.DTOs;
 using NexaEcommerce.Modules.Catalog.Application.Services;
 using NexaEcommerce.Modules.Inventory.Application.Services;
@@ -90,7 +90,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> GetBySlug(
         string slug,
-        IProductService productService,
+        [FromServices] IProductService productService,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(slug))
@@ -395,7 +395,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Get(
         Guid id,
-        IProductService productService,
+        [FromServices] IProductService productService,
         CancellationToken ct)
     {
         var product =
@@ -414,7 +414,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> GetByCategory(
         Guid categoryId,
-        IProductService productService,
+        [FromServices] IProductService productService,
         CancellationToken ct)
     {
         var products =
@@ -427,7 +427,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Search(
         [FromQuery] string? q,
-        IProductService productService,
+        [FromServices] IProductService productService,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(q))
@@ -457,9 +457,9 @@ public sealed class ProductEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Create(
         [FromBody] CreateProductDto request,
-        IProductService productService,
+        [FromServices] IProductService productService,
         ProductInventorySynchronizer inventorySynchronizer,
-        ICurrentTenant currentTenant,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -490,9 +490,9 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     private static async Task<IResult> Update(
      Guid id,
      [FromBody] UpdateProductDto request,
-     IProductService productService,
+     [FromServices] IProductService productService,
      ProductInventorySynchronizer inventorySynchronizer,
-     ICurrentTenant currentTenant,
+     [FromServices] ICurrentTenant currentTenant,
      CancellationToken ct)
     {
         try
@@ -538,9 +538,9 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     private static async Task<IResult> UpdateStock(
         Guid id,
         [FromBody] UpdateStockRequest request,
-        IProductService productService,
-        IInventoryService inventoryService,
-        ICurrentTenant currentTenant,
+        [FromServices] IProductService productService,
+        [FromServices] IInventoryService inventoryService,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -622,7 +622,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     private static async Task<IResult> SetActive(
         Guid id,
         [FromBody] SetProductStateRequest request,
-        IProductService productService,
+        [FromServices] IProductService productService,
         CancellationToken ct)
     {
         try
@@ -647,7 +647,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     private static async Task<IResult> SetFeatured(
         Guid id,
         [FromBody] SetProductStateRequest request,
-        IProductService productService,
+        [FromServices] IProductService productService,
         CancellationToken ct)
     {
         try
@@ -671,7 +671,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Delete(
         Guid id,
-        IProductService productService,
+        [FromServices] IProductService productService,
         CancellationToken ct)
     {
         try

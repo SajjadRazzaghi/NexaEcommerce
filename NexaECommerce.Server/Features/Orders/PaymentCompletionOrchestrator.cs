@@ -2,13 +2,14 @@
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
-
+using NexaEcommerce.Modules.Inventory.Application.Services;
 namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class PaymentCompletionOrchestrator(
     IPaymentAttemptRepository paymentAttemptRepository,
     IOrderRepository orderRepository,
     IOrderUnitOfWork unitOfWork,
+    IInventoryService inventory,
     PaymentGatewayService gateways)
 {
     public async Task<PaymentCompletionResult> CompleteAsync(
@@ -229,6 +230,30 @@ public sealed class PaymentCompletionOrchestrator(
          *
          * It only commits the logical order reservations.
          */
+        /*
+    * Global inventory was reserved during checkout.
+    *
+    * Payment commits the global StockItem reservation.
+    * Physical WarehouseStock remains reserved until fulfillment.
+    */
+        foreach (var orderReservation in
+                 order.InventoryReservations
+                     .Where(
+                         x =>
+                             x.Status is
+                                 InventoryReservationStatus.Reserved or
+                                 InventoryReservationStatus.Committed)
+                     .OrderBy(
+                         x => x.ReservationKey))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            await inventory.CommitAsync(
+                tenantId,
+                orderReservation.ReservationKey,
+                cancellationToken);
+        }
+
         order.MarkInventoryReservationsCommitted();
 
         paymentAttempt.MarkSucceeded(

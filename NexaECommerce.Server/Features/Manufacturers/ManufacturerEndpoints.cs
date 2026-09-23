@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Catalog.Application.Manufacturers.DTOs;
 using NexaEcommerce.Modules.Catalog.Application.Services;
 using NexaECommerce.Server.Platform.Authorization;
@@ -86,7 +86,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> List(
         PagedRequest request,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         var filter = new ManufacturerFilterDto
@@ -112,7 +112,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
     }
 
     private static async Task<IResult> Lookup(
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         var result =
@@ -123,7 +123,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Get(
         Guid id,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         var result =
@@ -136,7 +136,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> GetBySlug(
         string slug,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(slug))
@@ -154,7 +154,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Create(
         [FromBody] CreateManufacturerDto request,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         var id =
@@ -170,7 +170,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
     private static async Task<IResult> Update(
         Guid id,
         [FromBody] UpdateManufacturerDto request,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         var result =
@@ -184,7 +184,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Delete(
         Guid id,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         await service.DeleteAsync(id, ct);
@@ -194,7 +194,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Restore(
         Guid id,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         await service.RestoreAsync(id, ct);
@@ -204,7 +204,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Activate(
         Guid id,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         await service.ActivateAsync(id, ct);
@@ -214,7 +214,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Deactivate(
         Guid id,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         await service.DeactivateAsync(id, ct);
@@ -224,7 +224,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Publish(
         Guid id,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         await service.PublishAsync(id, ct);
@@ -234,7 +234,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> UnPublish(
         Guid id,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         await service.UnPublishAsync(id, ct);
@@ -244,7 +244,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Feature(
         Guid id,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         await service.FeatureAsync(id, ct);
@@ -254,7 +254,7 @@ public sealed class ManufacturerEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> UnFeature(
         Guid id,
-        IManufacturerService service,
+        [FromServices] IManufacturerService service,
         CancellationToken ct)
     {
         await service.UnFeatureAsync(id, ct);

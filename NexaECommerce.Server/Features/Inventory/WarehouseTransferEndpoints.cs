@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Inventory.Application.DTOs;
 using NexaEcommerce.Modules.Inventory.Application.Services;
@@ -40,8 +40,8 @@ public sealed class WarehouseTransferEndpoints : IFeatureEndpoints
     private static async Task<IResult> GetTransfers(
         int skip,
         int take,
-        IWarehouseTransferService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseTransferService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -81,8 +81,8 @@ public sealed class WarehouseTransferEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Transfer(
         [FromBody] CreateWarehouseTransferRequest request,
-        IWarehouseTransferService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseTransferService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -146,8 +146,8 @@ public sealed class WarehouseTransferEndpoints : IFeatureEndpoints
         Guid productVariantId,
         int skip,
         int take,
-        IWarehouseTransferService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseTransferService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try

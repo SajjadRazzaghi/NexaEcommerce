@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Inventory.Application.DTOs;
 using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.SharedKernel.Abstractions;
@@ -71,8 +71,8 @@ public sealed class WarehouseStockEndpoints : IFeatureEndpoints
         Guid? locationId,
         Guid? productVariantId,
         bool includeZeroStock,
-        IWarehouseStockService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseStockService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -126,8 +126,8 @@ public sealed class WarehouseStockEndpoints : IFeatureEndpoints
         Guid warehouseId,
         Guid locationId,
         Guid productVariantId,
-        IWarehouseStockService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseStockService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -160,8 +160,8 @@ public sealed class WarehouseStockEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Create(
         [FromBody] CreateWarehouseStockRequest request,
-        IWarehouseStockService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseStockService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -204,8 +204,8 @@ public sealed class WarehouseStockEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Set(
         [FromBody] SetWarehouseStockRequest request,
-        IWarehouseStockService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseStockService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -246,8 +246,8 @@ public sealed class WarehouseStockEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Adjust(
         [FromBody] AdjustWarehouseStockRequest request,
-        IWarehouseStockService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseStockService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -289,8 +289,8 @@ public sealed class WarehouseStockEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Receive(
         [FromBody] ReceiveWarehouseStockRequest request,
-        IWarehouseStockService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseStockService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -332,8 +332,8 @@ public sealed class WarehouseStockEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> Damage(
         [FromBody] DamageWarehouseStockRequest request,
-        IWarehouseStockService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseStockService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
@@ -375,8 +375,8 @@ public sealed class WarehouseStockEndpoints : IFeatureEndpoints
 
     private static async Task<IResult> SetReorderPoint(
         [FromBody] SetWarehouseReorderPointRequest request,
-        IWarehouseStockService service,
-        ICurrentTenant currentTenant,
+        [FromServices] IWarehouseStockService service,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         try
