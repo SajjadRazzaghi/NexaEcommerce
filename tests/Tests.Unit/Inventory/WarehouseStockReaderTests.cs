@@ -2,6 +2,7 @@
 using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence;
+using NexaEcommerce.Modules.Inventory.Infrastructure.Repositories;
 using Shouldly;
 
 namespace NexaECommerce.Tests.Unit.Inventory;
@@ -19,7 +20,8 @@ public sealed class WarehouseStockReaderTests
         await using var db =
             new InventoryDbContext(options);
 
-        var variantId = Guid.NewGuid();
+        var variantId =
+            Guid.NewGuid();
 
         var warehouse1 =
             Warehouse.Create(
@@ -80,8 +82,11 @@ public sealed class WarehouseStockReaderTests
 
         await db.SaveChangesAsync();
 
+        var repository =
+            new WarehouseStockRepository(db);
+
         var reader =
-            new WarehouseStockReader(db);
+            new WarehouseStockReader(repository);
 
         var result =
             await reader.GetAvailableQuantityAsync(
@@ -102,7 +107,8 @@ public sealed class WarehouseStockReaderTests
         await using var db =
             new InventoryDbContext(options);
 
-        var variantId = Guid.NewGuid();
+        var variantId =
+            Guid.NewGuid();
 
         var warehouse =
             Warehouse.Create(
@@ -125,25 +131,33 @@ public sealed class WarehouseStockReaderTests
                 variantId,
                 100);
 
-        await db.Warehouses.AddAsync(warehouse);
-        await db.WarehouseLocations.AddAsync(location);
-        await db.WarehouseStocks.AddAsync(stock);
+        await db.Warehouses.AddAsync(
+            warehouse);
+
+        await db.WarehouseLocations.AddAsync(
+            location);
+
+        await db.WarehouseStocks.AddAsync(
+            stock);
 
         await db.SaveChangesAsync();
 
+        var repository =
+            new WarehouseStockRepository(db);
+
         var reader =
-            new WarehouseStockReader(db);
+            new WarehouseStockReader(repository);
 
         var result =
             await reader.GetAvailableQuantityAsync(
                 "default",
                 variantId);
 
-        result.ShouldBe(0);
+        result.ShouldBeNull();
     }
 
     [Fact]
-    public async Task Returns_zero_when_variant_has_no_stock()
+    public async Task Returns_null_when_variant_has_no_stock()
     {
         var options =
             new DbContextOptionsBuilder<InventoryDbContext>()
@@ -153,15 +167,18 @@ public sealed class WarehouseStockReaderTests
         await using var db =
             new InventoryDbContext(options);
 
+        var repository =
+            new WarehouseStockRepository(db);
+
         var reader =
-            new WarehouseStockReader(db);
+            new WarehouseStockReader(repository);
 
         var result =
             await reader.GetAvailableQuantityAsync(
                 "default",
                 Guid.NewGuid());
 
-        result.ShouldBe(0);
+        result.ShouldBeNull();
     }
 
     [Fact]
@@ -175,8 +192,11 @@ public sealed class WarehouseStockReaderTests
         await using var db =
             new InventoryDbContext(options);
 
-        var variant1 = Guid.NewGuid();
-        var variant2 = Guid.NewGuid();
+        var variant1 =
+            Guid.NewGuid();
+
+        var variant2 =
+            Guid.NewGuid();
 
         var warehouse =
             Warehouse.Create(
@@ -210,16 +230,23 @@ public sealed class WarehouseStockReaderTests
         stock1.Reserve(5);
         stock2.Reserve(10);
 
-        await db.Warehouses.AddAsync(warehouse);
-        await db.WarehouseLocations.AddAsync(location);
+        await db.Warehouses.AddAsync(
+            warehouse);
+
+        await db.WarehouseLocations.AddAsync(
+            location);
+
         await db.WarehouseStocks.AddRangeAsync(
             stock1,
             stock2);
 
         await db.SaveChangesAsync();
 
+        var repository =
+            new WarehouseStockRepository(db);
+
         var reader =
-            new WarehouseStockReader(db);
+            new WarehouseStockReader(repository);
 
         var result =
             await reader.GetAvailableQuantitiesAsync(
@@ -233,8 +260,11 @@ public sealed class WarehouseStockReaderTests
         result.ShouldContainKey(variant1);
         result.ShouldContainKey(variant2);
 
-        result[variant1].ShouldBe(15);
-        result[variant2].ShouldBe(20);
+        result[variant1]
+            .ShouldBe(15);
+
+        result[variant2]
+            .ShouldBe(20);
     }
 
     [Fact]
@@ -248,7 +278,8 @@ public sealed class WarehouseStockReaderTests
         await using var db =
             new InventoryDbContext(options);
 
-        var variantId = Guid.NewGuid();
+        var variantId =
+            Guid.NewGuid();
 
         var warehouse =
             Warehouse.Create(
@@ -271,14 +302,22 @@ public sealed class WarehouseStockReaderTests
                 variantId,
                 100);
 
-        await db.Warehouses.AddAsync(warehouse);
-        await db.WarehouseLocations.AddAsync(location);
-        await db.WarehouseStocks.AddAsync(stock);
+        await db.Warehouses.AddAsync(
+            warehouse);
+
+        await db.WarehouseLocations.AddAsync(
+            location);
+
+        await db.WarehouseStocks.AddAsync(
+            stock);
 
         await db.SaveChangesAsync();
 
+        var repository =
+            new WarehouseStockRepository(db);
+
         var reader =
-            new WarehouseStockReader(db);
+            new WarehouseStockReader(repository);
 
         var result =
             await reader.GetAvailableQuantitiesAsync(
