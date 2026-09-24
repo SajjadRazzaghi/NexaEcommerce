@@ -5,8 +5,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { z } from 'zod';
-import { Loader2, MailCheck, Lock } from 'lucide-react';
-
+import {
+    CircleCheck,
+    Loader2,
+    Lock,
+    MailCheck,
+} from 'lucide-react';
 import { authApi } from '@/lib/api/auth';
 import { applyApiErrorToForm, type FormBannerState } from '@/lib/api/form-errors';
 import { useDocumentTitle } from '@/hooks/use-document-title';
@@ -72,22 +76,55 @@ export default function RegisterPage() {
     );
   }
 
-  if (register.isSuccess) {
-    return (
-      <div className="grid gap-4 text-center">
-        <div className="bg-success/10 text-success mx-auto grid size-12 place-items-center rounded-full">
-          <MailCheck className="size-6" />
-        </div>
-        <h1 className="text-2xl font-semibold tracking-tight">{t('auth.register.checkEmailTitle')}</h1>
-        <p className="text-muted-foreground text-sm text-balance">
-          {t('auth.register.checkEmailDesc', { email: form.getValues('email') })}
-        </p>
-        <Button asChild variant="outline" className="mt-2">
-          <Link to="/login">{t('auth.backToSignIn')}</Link>
-        </Button>
-      </div>
-    );
-  }
+    if (register.isSuccess) {
+        const requiresEmailConfirmation =
+            register.data?.requiresEmailConfirmation ?? false;
+
+        return (
+            <div className="grid gap-4 text-center">
+                <div className="bg-success/10 text-success mx-auto grid size-12 place-items-center rounded-full">
+                    {requiresEmailConfirmation ? (
+                        <MailCheck className="size-6" />
+                    ) : (
+                        <CircleCheck className="size-6" />
+                    )}
+                </div>
+
+                <h1 className="text-2xl font-semibold tracking-tight">
+                    {requiresEmailConfirmation
+                        ? t(
+                            'auth.register.checkEmailTitle',
+                            'Check your email',
+                        )
+                        : t(
+                            'auth.register.successTitle',
+                            'Registration successful',
+                        )}
+                </h1>
+
+                <p className="text-muted-foreground text-sm text-balance">
+                    {requiresEmailConfirmation
+                        ? t(
+                            'auth.register.checkEmailDesc',
+                            {
+                                email:
+                                    form.getValues('email'),
+                            },
+                        )
+                        : t(
+                            'auth.register.successDesc',
+                            'Your account has been created successfully. You can now sign in.',
+                        )}
+                </p>
+
+                <Button asChild className="mt-2">
+                    <Link to="/login">
+                        {t('auth.backToSignIn')}
+                    </Link>
+                </Button>
+            </div>
+        );
+    }
 
   // Optional OAuth sign-in buttons — built in TS into a const slot so the JSX below needs no build-time conditional.
   const slots: Record<string, ReactNode> = {};

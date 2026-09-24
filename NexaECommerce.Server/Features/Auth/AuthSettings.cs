@@ -8,7 +8,12 @@ namespace NexaECommerce.Server.Features.Auth;
 public static class AccountSettings
 {
     public const string Category = "Account";
-
+    /// <summary>
+    /// When true, newly registered users must confirm their email before signing in.
+    /// When false, registration is completed immediately.
+    /// </summary>
+    public const string RequireEmailConfirmation =
+        "Account.RequireEmailConfirmation";
     /// <summary>When false, self-service registration is rejected (invite-only).</summary>
     public const string AllowRegistration = "Account.AllowRegistration";
 
@@ -33,5 +38,11 @@ public sealed class AccountSettingsContributor : ISettingsContributor
         SettingDefinitions.Register(
             AccountSettings.DefaultRole, typeof(string), [SettingScope.App], SystemRoles.Member,
             AccountSettings.Category, optionsProvider: "roles");
+        SettingDefinitions.Register(
+    AccountSettings.RequireEmailConfirmation,
+    typeof(bool),
+    [SettingScope.App],
+    false,
+    AccountSettings.Category);
     }
 }

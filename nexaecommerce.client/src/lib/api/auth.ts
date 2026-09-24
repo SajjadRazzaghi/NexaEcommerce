@@ -65,8 +65,17 @@ export const authApi = {
     api.post<LoginResult>('/auth/login/2fa', body),
   loginRecoveryCode: (body: { recoveryCode: string; rememberMe?: boolean }) =>
     api.post<LoginResult>('/auth/login/recovery-code', body),
-  register: (body: { email: string; password: string; displayName?: string }) =>
-    api.post<{ message: string }>('/auth/register', body),
+    register: (
+        body: {
+            email: string;
+            password: string;
+            displayName?: string;
+        },
+    ) =>
+        api.post<{
+            message: string;
+            requiresEmailConfirmation: boolean;
+        }>('/auth/register', body),
   confirmEmail: (body: { userId: string; token: string }) =>
     api.post<{ message: string }>('/auth/confirm-email', body),
   resendConfirmation: (body: { email: string }) =>

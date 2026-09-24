@@ -366,11 +366,23 @@ public sealed class AuthEndpoints : IFeatureEndpoints
                 "Registration is currently disabled. Contact an administrator for an invitation.");
         }
 
+        var requireEmailConfirmation =
+            await settings.GetAsync<bool>(
+                AccountSettings.RequireEmailConfirmation,
+                ct);
+
         var user = new AppUser
         {
             UserName = req.Email,
             Email = req.Email,
-            DisplayName = req.DisplayName
+            DisplayName = req.DisplayName,
+
+            // -----------------------------------------------------
+            // When email confirmation is disabled, the account is
+            // immediately ready for login.
+            // -----------------------------------------------------
+            EmailConfirmed =
+                !requireEmailConfirmation
         };
 
         var result =
@@ -389,25 +401,37 @@ public sealed class AuthEndpoints : IFeatureEndpoints
             tenant,
             ct);
 
-        var token =
-            await users.GenerateEmailConfirmationTokenAsync(
-                user);
+        // ---------------------------------------------------------
+        // Send confirmation only when the feature is enabled.
+        // ---------------------------------------------------------
 
-        await AuthEmails.SendEmailConfirmationAsync(
-            email,
-            user,
-            token,
-            AuthUrls.ClientBaseUrl(
-                http,
-                appOptions.Value),
-            appOptions.Value.ProductName,
-            appOptions.Value.BrandColor,
-            ct);
+        if (requireEmailConfirmation)
+        {
+            var token =
+                await users.GenerateEmailConfirmationTokenAsync(
+                    user);
+
+            await AuthEmails.SendEmailConfirmationAsync(
+                email,
+                user,
+                token,
+                AuthUrls.ClientBaseUrl(
+                    http,
+                    appOptions.Value),
+                appOptions.Value.ProductName,
+                appOptions.Value.BrandColor,
+                ct);
+        }
 
         return Results.Ok(new
         {
             message =
-                "Account created. Check your email to confirm your address."
+                requireEmailConfirmation
+                    ? "Account created. Check your email to confirm your address."
+                    : "Account created successfully.",
+
+            requiresEmailConfirmation =
+                requireEmailConfirmation
         });
     }
 
@@ -457,7 +481,18 @@ public sealed class AuthEndpoints : IFeatureEndpoints
         if (user is null)
             throw new BadRequestException(
                 "Invalid confirmation link.");
+        var requireEmailConfirmation =
+    await settings.GetAsync<bool>(
+        AccountSettings.RequireEmailConfirmation,
+        ct);
 
+        if (requireEmailConfirmation &&
+            !user.EmailConfirmed)
+        {
+            throw new UnauthorizedException(
+                "Confirm your email before signing in.",
+                "EMAIL_NOT_CONFIRMED");
+        }
         // Idempotent by design.
         if (user.EmailConfirmed)
         {
@@ -529,14 +564,15 @@ public sealed class AuthEndpoints : IFeatureEndpoints
     // ============================================================
 
     private static async Task<IResult> Login(
-        LoginRequest req,
-        [FromServices] SignInManager<AppUser> signIn,
-        [FromServices] UserManager<AppUser> users,
-        [FromServices] ITenantRoleService tenantRoles,
-        [FromServices] PermissionResolver permissions,
-        [FromServices] IAuditService audit,
-        HttpContext http,
-        CancellationToken ct)
+       LoginRequest req,
+       [FromServices] SignInManager<AppUser> signIn,
+       [FromServices] UserManager<AppUser> users,
+       [FromServices] ITenantRoleService tenantRoles,
+       [FromServices] PermissionResolver permissions,
+       [FromServices] IAuditService audit,
+       [FromServices] ISettingService settings,
+       HttpContext http,
+       CancellationToken ct)
     {
         var user =
             await users.FindByEmailAsync(
