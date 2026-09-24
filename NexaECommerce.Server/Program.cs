@@ -1,8 +1,8 @@
 // NexaECommerce.Server/Program.cs
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.FileProviders;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
-using NexaEcommerce.Modules.Catalog.Infrastructure.SeedData;
 using NexaECommerce.Server.Data;
 using NexaECommerce.Server.Extensions;
 using NexaECommerce.Server.Platform;
@@ -11,92 +11,132 @@ using NexaECommerce.Server.Platform.MultiTenancy;
 using Scalar.AspNetCore;
 using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder =
+    WebApplication.CreateBuilder(
+        args);
 
 // ============================================================
 // 1. Serilog (Logging)
 // ============================================================
-builder.Host.UseSerilog((context, config) =>
-{
-    config.ReadFrom.Configuration(context.Configuration)
-          .Enrich.FromLogContext()
-          .WriteTo.Console();
-});
+
+builder.Host.UseSerilog(
+    (
+        context,
+        config) =>
+    {
+        config
+            .ReadFrom.Configuration(
+                context.Configuration)
+            .Enrich.FromLogContext()
+            .WriteTo.Console();
+    });
 
 // ============================================================
 // 2. Services
 // ============================================================
+
 builder.Services.AddControllers();
 
-builder.Services.AddSwaggerGen(c =>
-{
-    c.SwaggerDoc("v1", new()
+builder.Services.AddSwaggerGen(
+    c =>
     {
-        Title = "NexaEcommerce API",
-        Version = "v1",
-        Description = "NexaEcommerce API"
+        c.SwaggerDoc(
+            "v1",
+            new()
+            {
+                Title =
+                    "NexaEcommerce API",
+
+                Version =
+                    "v1",
+
+                Description =
+                    "NexaEcommerce API"
+            });
     });
-});
 
 // ============================================================
 // 3. Platform - Authentication & Authorization
 // ============================================================
-builder.Services.AddPlatform(builder.Configuration);
+
+builder.Services.AddPlatform(
+    builder.Configuration);
 
 // ============================================================
 // 4. AppDbContext
 // ============================================================
-builder.Services.AddDbContext<AppDbContext>((serviceProvider, options) =>
-{
-    var connectionString =
-        builder.Configuration.GetConnectionString("Default");
 
-    if (string.IsNullOrWhiteSpace(connectionString))
+builder.Services.AddDbContext<AppDbContext>(
+    (
+        serviceProvider,
+        options) =>
     {
-        throw new InvalidOperationException(
-            "Connection string 'Default' was not found.");
-    }
+        var connectionString =
+            builder.Configuration
+                .GetConnectionString(
+                    "Default");
 
-    options.UseSqlServer(connectionString);
-});
+        if (string.IsNullOrWhiteSpace(
+                connectionString))
+        {
+            throw new InvalidOperationException(
+                "Connection string 'Default' was not found.");
+        }
+
+        options.UseSqlServer(
+            connectionString);
+    });
 
 // ============================================================
 // 5. CORS
 // ============================================================
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowReactApp", policy =>
+
+builder.Services.AddCors(
+    options =>
     {
-        policy.WithOrigins(
-                "https://localhost:3000",
-                "http://localhost:5173",
-                "https://localhost:5173")
-              .AllowAnyHeader()
-              .AllowAnyMethod()
-              .AllowCredentials();
+        options.AddPolicy(
+            "AllowReactApp",
+            policy =>
+            {
+                policy
+                    .WithOrigins(
+                        "https://localhost:3000",
+                        "http://localhost:5173",
+                        "https://localhost:5173")
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .AllowCredentials();
+            });
     });
-});
 
 // ============================================================
 // 6. Ecommerce Modules
 // ============================================================
+
 builder.Services.AddEcommerceModules(
     builder.Configuration);
 
 // ============================================================
-// 7. Background Workers
+// 7. Ecommerce Database Initializer
+// ============================================================
+
+builder.Services.AddScoped<
+    EcommerceDatabaseInitializer>();
+
+// ============================================================
+// 8. Background Workers
 // ============================================================
 //
 // Inventory expiration and reconciliation are operational
 // background processes. Integration tests use isolated databases
 // and deterministic request flows, so these workers must not run
-// in the Testing environment. Running them during tests can mutate
-// the same inventory records that Checkout is validating and
-// reserving.
+// in the Testing environment.
 //
 // They remain enabled in Development/Production.
 //
-if (!builder.Environment.IsEnvironment("Testing"))
+
+if (!builder.Environment.IsEnvironment(
+        "Testing"))
 {
     builder.Services.AddHostedService<
         NexaECommerce.Server.Features.Inventory
@@ -105,128 +145,170 @@ if (!builder.Environment.IsEnvironment("Testing"))
     builder.Services.AddHostedService<
         NexaECommerce.Server.Features.Inventory
             .InventoryOrderReconciliationWorker>();
-  
 }
 
 // ============================================================
-// 8. Build Application
+// 9. Build Application
 // ============================================================
-var app = builder.Build();
+
+var app =
+    builder.Build();
 
 // ============================================================
-// 9. Exception Handling
+// 10. Exception Handling
 // ============================================================
+
 app.UseExceptionHandler();
 
 // ============================================================
-// 10. Request Logging
+// 11. Request Logging
 // ============================================================
+
 app.UseSerilogRequestLogging();
 
 // ============================================================
-// 11. Static Files
+// 12. Static Files
 // ============================================================
+
 app.UseDefaultFiles();
+
 app.MapStaticAssets();
+
 app.UseStaticFiles();
 
-app.UseStaticFiles(new StaticFileOptions
-{
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(
-            builder.Environment.ContentRootPath,
-            "wwwroot")),
-    RequestPath = "/uploads"
-});
+app.UseStaticFiles(
+    new StaticFileOptions
+    {
+        FileProvider =
+            new PhysicalFileProvider(
+                Path.Combine(
+                    builder.Environment.ContentRootPath,
+                    "wwwroot")),
+
+        RequestPath =
+            "/uploads"
+    });
 
 // ============================================================
-// 12. Swagger / Scalar
+// 13. Swagger / Scalar
 // ============================================================
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
 
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint(
-            "/swagger/v1/swagger.json",
-            "NexaEcommerce API V1");
+    app.UseSwaggerUI(
+        c =>
+        {
+            c.SwaggerEndpoint(
+                "/swagger/v1/swagger.json",
+                "NexaEcommerce API V1");
 
-        c.RoutePrefix = "swagger";
-    });
+            c.RoutePrefix =
+                "swagger";
+        });
 
-    app.MapScalarApiReference(options =>
-    {
-        options
-            .WithTitle("NexaEcommerce API")
-            .WithOpenApiRoutePattern(
-                "/swagger/{documentName}/swagger.json");
-    });
+    app.MapScalarApiReference(
+        options =>
+        {
+            options
+                .WithTitle(
+                    "NexaEcommerce API")
+                .WithOpenApiRoutePattern(
+                    "/swagger/{documentName}/swagger.json");
+        });
 }
 
 // ============================================================
-// 13. HTTPS Redirection
+// 14. HTTPS Redirection
 // ============================================================
+
 app.UseHttpsRedirection();
 
 // ============================================================
-// 14. Routing
+// 15. Routing
 // ============================================================
+
 app.UseRouting();
 
 // ============================================================
-// 15. CORS
+// 16. CORS
 // ============================================================
-app.UseCors("AllowReactApp");
+
+app.UseCors(
+    "AllowReactApp");
 
 // ============================================================
-// 16. Authentication
+// 17. Authentication
 // ============================================================
+
 app.UseAuthentication();
 
-app.UseMiddleware<TenantResolutionMiddleware>();
+app.UseMiddleware<
+    TenantResolutionMiddleware>();
 
 // ============================================================
-// 17. Authorization
+// 18. Authorization
 // ============================================================
+
 app.UseAuthorization();
 
 // ============================================================
-// 18. Endpoints
+// 19. Endpoints
 // ============================================================
+
 app.MapControllers();
+
 app.MapAllFeatures();
 
 // ============================================================
-// 19. Database Migration
+// 20. Database + Ecommerce Bootstrap
 // ============================================================
-using (var scope = app.Services.CreateScope())
+//
+// This is intentionally performed before Run() so the application
+// never starts serving checkout requests while one of its module
+// databases is still missing or outdated.
+//
+// The initializer:
+//   - migrates App/Identity
+//   - seeds admin roles/user
+//   - migrates Catalog
+//   - runs existing Catalog seed
+//   - migrates Customers
+//   - migrates Inventory
+//   - migrates ShoppingCart
+//   - migrates Orders
+//   - creates the default warehouse/location
+//   - creates the default shipping method
+//
+
+await using (
+    var scope =
+        app.Services.CreateAsyncScope())
 {
     try
     {
-        var catalogContext =
+        var initializer =
             scope.ServiceProvider
-                .GetRequiredService<CatalogDbContext>();
+                .GetRequiredService<
+                    EcommerceDatabaseInitializer>();
 
-        await catalogContext.Database.MigrateAsync();
-
-        await DbInitializer.InitializeAsync(
-            catalogContext);
-
-        app.Logger.LogInformation(
-            "Catalog database migration completed successfully.");
+        await initializer.InitializeAsync();
     }
     catch (Exception ex)
     {
-        app.Logger.LogError(
+        app.Logger.LogCritical(
             ex,
-            "Catalog database initialization failed");
+            "NexaECommerce startup initialization failed. Application cannot start safely.");
+
+        throw;
     }
 }
 
 // ============================================================
-// 20. Run
+// 21. Run
 // ============================================================
+
 app.Run();
 
 public partial class Program;

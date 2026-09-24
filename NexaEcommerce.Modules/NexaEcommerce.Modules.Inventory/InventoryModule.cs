@@ -11,8 +11,8 @@ namespace NexaEcommerce.Modules.Inventory;
 public static class InventoryModule
 {
     public static IServiceCollection AddInventoryModule(
-         this IServiceCollection services,
-         string connectionString)
+        this IServiceCollection services,
+        string connectionString)
     {
         services.AddDbContext<InventoryDbContext>(
             options =>
@@ -22,7 +22,7 @@ public static class InventoryModule
                     sql =>
                     {
                         sql.MigrationsHistoryTable(
-                            "__EFMigrationsHistory",
+                            "__EFMigrationsHistory_Inventory",
                             "Inventory");
                     });
             });
