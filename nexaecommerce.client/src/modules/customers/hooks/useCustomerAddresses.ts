@@ -22,10 +22,17 @@ export const customerAddressesQueryKey = [
     'addresses',
 ] as const;
 
-export function useCustomerAddresses() {
+export function useCustomerAddresses(
+    enabled = true,
+) {
     return useQuery({
-        queryKey: customerAddressesQueryKey,
-        queryFn: getCustomerAddresses,
+        queryKey:
+            customerAddressesQueryKey,
+
+        queryFn:
+            getCustomerAddresses,
+
+        enabled,
     });
 }
 
@@ -33,12 +40,15 @@ export function useCustomerAddressMutations() {
     const queryClient =
         useQueryClient();
 
-    const refresh = async () => {
-        await queryClient.invalidateQueries({
-            queryKey:
-                customerAddressesQueryKey,
-        });
-    };
+    const refresh =
+        async () => {
+            await queryClient.invalidateQueries(
+                {
+                    queryKey:
+                        customerAddressesQueryKey,
+                },
+            );
+        };
 
     const create =
         useMutation({
@@ -49,7 +59,9 @@ export function useCustomerAddressMutations() {
                     createCustomerAddress(
                         request,
                     ),
-            onSuccess: refresh,
+
+            onSuccess:
+                refresh,
         });
 
     const update =
@@ -66,21 +78,27 @@ export function useCustomerAddressMutations() {
                         id,
                         request,
                     ),
-            onSuccess: refresh,
+
+            onSuccess:
+                refresh,
         });
 
     const remove =
         useMutation({
             mutationFn:
                 deleteCustomerAddress,
-            onSuccess: refresh,
+
+            onSuccess:
+                refresh,
         });
 
     const setDefault =
         useMutation({
             mutationFn:
                 setDefaultCustomerAddress,
-            onSuccess: refresh,
+
+            onSuccess:
+                refresh,
         });
 
     return {

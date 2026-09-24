@@ -38,6 +38,14 @@ import {
     useAuth,
 } from '@/hooks/use-auth';
 
+import {
+    useCustomerAddresses,
+} from '@/modules/customers/hooks/useCustomerAddresses';
+
+import type {
+    CustomerAddress,
+} from '@/modules/customers/types';
+
 import type {
     CheckoutRequest,
 } from '@/modules/orders/types';
@@ -54,9 +62,9 @@ function formatMoney(
                 : undefined,
             {
                 maximumFractionDigits: 0,
-           },
+            },
         ).format(amount) +
-       ` ${currency}`
+        ` ${currency}`
     );
 }
 
@@ -69,7 +77,7 @@ function getErrorMessage(
         error.message.trim()
     ) {
         return error.message;
-   }
+    }
 
     return fallback;
 }
@@ -81,8 +89,93 @@ function SkeletonLine({
 }) {
     return (
         <div
-            className={`animate - pulse rounded - lg bg - muted ${className}`}
-       />
+            className={`animate-pulse rounded-lg bg-muted ${className}`}
+        />
+    );
+}
+
+function AddressOption({
+    address,
+    selected,
+    onSelect,
+    isFa,
+}: {
+    address: CustomerAddress;
+    selected: boolean;
+    onSelect: () => void;
+    isFa: boolean;
+}) {
+    return (
+        <button
+            type="button"
+            onClick={onSelect}
+            className={`w-full rounded-xl border p-4 text-start transition ${selected
+                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                    : 'hover:border-foreground/30'
+                }`}
+        >
+            <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <span className="font-semibold">
+                            {address.title}
+                        </span>
+
+                        {address.isDefault && (
+                            <span className="rounded-full border px-2 py-0.5 text-[11px] font-medium">
+                                {isFa
+                                    ? 'پیش‌فرض'
+                                    : 'Default'}
+                            </span>
+                        )}
+                    </div>
+
+                    <div className="mt-2 font-medium">
+                        {address.recipientName}
+                    </div>
+
+                    <div className="mt-1 text-sm text-muted-foreground">
+                        {address.phoneNumber}
+                    </div>
+
+                    <div className="mt-2 text-sm leading-6 text-muted-foreground">
+                        {address.addressLine}
+                    </div>
+
+                    <div className="text-sm text-muted-foreground">
+                        {[
+                            address.city,
+                            address.province,
+                            address.country,
+                        ]
+                            .filter(Boolean)
+                            .join(
+                                isFa
+                                    ? '، '
+                                    : ', ',
+                            )}
+                    </div>
+
+                    {address.postalCode && (
+                        <div className="mt-1 text-sm text-muted-foreground">
+                            {address.postalCode}
+                        </div>
+                    )}
+                </div>
+
+                <div
+                    className={`mt-1 flex size-6 shrink-0 items-center justify-center rounded-full border ${selected
+                            ? 'border-primary bg-primary text-primary-foreground'
+                            : 'border-muted-foreground/40'
+                        }`}
+                    aria-hidden="true"
+                >
+                    {selected && (
+                        <Check className="size-4" />
+                    )}
+                </div>
+            </div>
+        </button>
     );
 }
 
@@ -90,7 +183,7 @@ export default function CheckoutPage() {
     const {
         t,
         i18n,
-   } = useTranslation();
+    } = useTranslation();
 
     const navigate =
         useNavigate();
@@ -103,28 +196,16 @@ export default function CheckoutPage() {
     const {
         isAuthenticated,
         isLoading:
-            authLoading,
-   } = useAuth();
-
-    useEffect(() => {
-        if (
-            authLoading ||
-            isAuthenticated
-        ) {
-            return;
-       }
-
-        navigate(
-            '/login?returnUrl=%2Fcheckout',
-            {
-                replace: true,
-           },
-        );
-   }, [
         authLoading,
-        isAuthenticated,
-        navigate,
-    ]);
+    } = useAuth();
+    /*
+     * Saved customer addresses are only requested after
+     * authentication has been established.
+     */
+    const addressesQuery =
+        useCustomerAddresses(
+            isAuthenticated,
+        );
 
     const cartQuery =
         useCart();
@@ -140,42 +221,64 @@ export default function CheckoutPage() {
             null,
         );
 
+    const defaultAddressAppliedRef =
+        useRef(false);
+
     const [
         fullName,
         setFullName,
-    ] = useState('');
+    ] = useState(
+        '',
+    );
 
     const [
         phone,
         setPhone,
-    ] = useState('');
+    ] = useState(
+        '',
+    );
 
     const [
         address,
         setAddress,
-    ] = useState('');
+    ] = useState(
+        '',
+    );
 
     const [
         city,
         setCity,
-    ] = useState('');
+    ] = useState(
+        '',
+    );
 
     const [
         postalCode,
         setPostalCode,
-    ] = useState('');
+    ] = useState(
+        '',
+    );
+
+    const [
+        selectedAddressId,
+        setSelectedAddressId,
+    ] = useState<
+        string | null
+    >(null);
 
     const [
         shippingMethodId,
         setShippingMethodId,
-    ] = useState('');
+    ] = useState(
+        '',
+    );
 
     const [
         validationError,
         setValidationError,
-    ] = useState<string | null>(
-        null,
-    );
+    ] = useState<
+        string | null
+    >(null);
 
     const getText = (
         key: string,
@@ -186,8 +289,113 @@ export default function CheckoutPage() {
             {
                 defaultValue:
                     fallback,
-           },
+            },
         );
+
+    const addresses =
+        addressesQuery.data ??
+        [];
+
+    /*
+     * Pick the customer's explicit default address first.
+     * If none is marked default, use the first saved address.
+     */
+    const preferredAddress =
+        addresses.find(
+            item =>
+                item.isDefault,
+        ) ??
+        addresses[0] ??
+        null;
+
+    /*
+     * Apply the preferred address only once and only when
+     * the checkout form has not already been populated by
+     * the customer.
+     */
+    useEffect(() => {
+        if (
+            defaultAddressAppliedRef.current ||
+            !preferredAddress
+        ) {
+            return;
+        }
+
+        const formAlreadyPopulated =
+            Boolean(
+                fullName.trim() ||
+                phone.trim() ||
+                address.trim() ||
+                city.trim() ||
+                postalCode.trim(),
+            );
+
+        if (
+            formAlreadyPopulated
+        ) {
+            defaultAddressAppliedRef.current =
+                true;
+
+            return;
+        }
+
+        setFullName(
+            preferredAddress.recipientName,
+        );
+
+        setPhone(
+            preferredAddress.phoneNumber,
+        );
+
+        setAddress(
+            preferredAddress.addressLine,
+        );
+
+        setCity(
+            preferredAddress.city,
+        );
+
+        setPostalCode(
+            preferredAddress.postalCode ??
+            '',
+        );
+
+        setSelectedAddressId(
+            preferredAddress.id,
+        );
+
+        defaultAddressAppliedRef.current =
+            true;
+    }, [
+        preferredAddress,
+        fullName,
+        phone,
+        address,
+        city,
+        postalCode,
+    ]);
+
+    useEffect(() => {
+        if (
+            authLoading ||
+            isAuthenticated
+        ) {
+            return;
+        }
+
+        navigate(
+            '/login?returnUrl=%2Fcheckout',
+            {
+                replace: true,
+            },
+        );
+    }, [
+        authLoading,
+        isAuthenticated,
+        navigate,
+    ]);
+
+ 
 
     const activeShippingMethods =
         (
@@ -198,11 +406,9 @@ export default function CheckoutPage() {
                 method.isActive,
         );
 
-   /*
-     * Do not set state from an effect just to select
-     * the first shipping method. The first active method
-     * acts as the effective selection until the user
-     * explicitly chooses another method.
+    /*
+     * The first active shipping method is the effective
+     * selection until the customer explicitly chooses another.
      */
     const effectiveShippingMethodId =
         shippingMethodId ||
@@ -215,6 +421,57 @@ export default function CheckoutPage() {
                 method.id ===
                 effectiveShippingMethodId,
         );
+
+    const applyAddress =
+        (
+            customerAddress: CustomerAddress,
+        ) => {
+            setSelectedAddressId(
+                customerAddress.id,
+            );
+
+            setFullName(
+                customerAddress.recipientName,
+            );
+
+            setPhone(
+                customerAddress.phoneNumber,
+            );
+
+            setAddress(
+                customerAddress.addressLine,
+            );
+
+            setCity(
+                customerAddress.city,
+            );
+
+            setPostalCode(
+                customerAddress.postalCode ??
+                '',
+            );
+
+            setValidationError(
+                null,
+            );
+        };
+
+    const clearSelectedAddress =
+        () => {
+            setSelectedAddressId(
+                null,
+            );
+
+            setFullName('');
+            setPhone('');
+            setAddress('');
+            setCity('');
+            setPostalCode('');
+
+            setValidationError(
+                null,
+            );
+        };
 
     const handleSubmit = (
         event: FormEvent<HTMLFormElement>,
@@ -240,7 +497,7 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
 
         if (
             cart.items.length ===
@@ -254,7 +511,7 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
 
         if (
             !isAuthenticated
@@ -263,11 +520,11 @@ export default function CheckoutPage() {
                 '/login?returnUrl=%2Fcheckout',
                 {
                     replace: true,
-               },
+                },
             );
 
             return;
-       }
+        }
 
         if (
             !fullName.trim()
@@ -280,7 +537,7 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
 
         if (
             fullName.trim().length <
@@ -294,7 +551,7 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
 
         if (
             !phone.trim()
@@ -307,7 +564,7 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
 
         if (
             phone.trim().length <
@@ -321,7 +578,7 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
 
         if (
             !address.trim()
@@ -334,7 +591,7 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
 
         if (
             address.trim().length <
@@ -348,7 +605,7 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
 
         if (
             !city.trim()
@@ -361,7 +618,7 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
 
         if (
             !effectiveShippingMethodId
@@ -374,7 +631,7 @@ export default function CheckoutPage() {
             );
 
             return;
-       }
+        }
 
         if (
             !selectedShippingMethod
@@ -392,28 +649,35 @@ export default function CheckoutPage() {
                 setShippingMethodId(
                     '',
                 );
-           }
+            }
 
             return;
-       }
+        }
 
         if (
             !checkoutKeyRef.current
         ) {
             checkoutKeyRef.current =
                 crypto.randomUUID();
-       }
+        }
 
         const request:
             CheckoutRequest = {
+            /*
+             * The backend intentionally replaces these lines
+             * with its own authoritative cart contents.
+             * Keeping the current cart items here maintains the
+             * existing API contract.
+             */
             items:
                 cart.items.map(
                     item => ({
                         productVariantId:
                             item.productVariantId,
+
                         quantity:
                             item.quantity,
-                   }),
+                    }),
                 ),
 
             shippingFullName:
@@ -434,24 +698,25 @@ export default function CheckoutPage() {
 
             shippingMethodId:
                 selectedShippingMethod.id,
-       };
+        };
 
         checkout.mutate(
             {
                 request,
+
                 idempotencyKey:
                     checkoutKeyRef.current,
-           },
+            },
             {
                 onSuccess:
                     order => {
                         navigate(
-                           `/orders/payment/${order.id}`,
+                            `/orders/payment/${order.id}`,
                             {
                                 replace: true,
-                           },
+                            },
                         );
-                   },
+                    },
 
                 onError:
                     checkoutError => {
@@ -464,10 +729,10 @@ export default function CheckoutPage() {
                                 ),
                             ),
                         );
-                   },
-           },
+                    },
+            },
         );
-   };
+    };
 
     const cart =
         cartQuery.data;
@@ -483,20 +748,20 @@ export default function CheckoutPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-               }
+                }
             >
-                <SkeletonLine className="h-5 w-32"/>
+                <SkeletonLine className="h-5 w-32" />
 
-                <SkeletonLine className="h-10 w-48"/>
+                <SkeletonLine className="h-10 w-48" />
 
                 <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
-                    <SkeletonLine className="h-[560px] w-full"/>
+                    <SkeletonLine className="h-[560px] w-full" />
 
-                    <SkeletonLine className="h-[360px] w-full"/>
+                    <SkeletonLine className="h-[360px] w-full" />
                 </div>
             </div>
         );
-   }
+    }
 
     if (
         cartQuery.isLoading ||
@@ -509,24 +774,24 @@ export default function CheckoutPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-               }
+                }
             >
-                <SkeletonLine className="h-5 w-32"/>
+                <SkeletonLine className="h-5 w-32" />
 
-                <SkeletonLine className="h-10 w-48"/>
+                <SkeletonLine className="h-10 w-48" />
 
                 <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
                     <div className="space-y-6">
-                        <SkeletonLine className="h-72 w-full"/>
+                        <SkeletonLine className="h-72 w-full" />
 
-                        <SkeletonLine className="h-52 w-full"/>
+                        <SkeletonLine className="h-52 w-full" />
                     </div>
 
-                    <SkeletonLine className="h-[360px] w-full"/>
+                    <SkeletonLine className="h-[360px] w-full" />
                 </div>
             </div>
         );
-   }
+    }
 
     if (
         cartQuery.isError
@@ -537,11 +802,11 @@ export default function CheckoutPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-               }
+                }
                 className="mx-auto max-w-3xl p-6"
             >
                 <div className="rounded-2xl border border-destructive/30 p-10 text-center">
-                    <AlertCircle className="mx-auto size-12 text-destructive"/>
+                    <AlertCircle className="mx-auto size-12 text-destructive" />
 
                     <h1 className="mt-4 text-2xl font-semibold">
                         {getText(
@@ -564,10 +829,10 @@ export default function CheckoutPage() {
                         type="button"
                         onClick={() =>
                             cartQuery.refetch()
-                       }
+                        }
                         disabled={
                             cartQuery.isFetching
-                       }
+                        }
                         className="mt-6 inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium"
                     >
                         <RefreshCw
@@ -575,8 +840,8 @@ export default function CheckoutPage() {
                                 cartQuery.isFetching
                                     ? 'size-4 animate-spin'
                                     : 'size-4'
-                           }
-                       />
+                            }
+                        />
 
                         {getText(
                             'common.retry',
@@ -596,12 +861,12 @@ export default function CheckoutPage() {
                 </div>
             </div>
         );
-   }
+    }
 
     if (
         !cart ||
         cart.items.length ===
-            0
+        0
     ) {
         return (
             <div
@@ -609,7 +874,7 @@ export default function CheckoutPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-               }
+                }
                 className="mx-auto max-w-3xl p-6"
             >
                 <div className="rounded-2xl border p-10 text-center">
@@ -632,7 +897,7 @@ export default function CheckoutPage() {
                 </div>
             </div>
         );
-   }
+    }
 
     if (
         shippingMethodsQuery.isError
@@ -643,11 +908,11 @@ export default function CheckoutPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-               }
+                }
                 className="mx-auto max-w-3xl p-6"
             >
                 <div className="rounded-2xl border border-destructive/30 p-10 text-center">
-                    <AlertCircle className="mx-auto size-12 text-destructive"/>
+                    <AlertCircle className="mx-auto size-12 text-destructive" />
 
                     <h1 className="mt-4 text-2xl font-semibold">
                         {getText(
@@ -670,10 +935,10 @@ export default function CheckoutPage() {
                         type="button"
                         onClick={() =>
                             shippingMethodsQuery.refetch()
-                       }
+                        }
                         disabled={
                             shippingMethodsQuery.isFetching
-                       }
+                        }
                         className="mt-6 inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium"
                     >
                         <RefreshCw
@@ -681,8 +946,8 @@ export default function CheckoutPage() {
                                 shippingMethodsQuery.isFetching
                                     ? 'size-4 animate-spin'
                                     : 'size-4'
-                           }
-                       />
+                            }
+                        />
 
                         {getText(
                             'common.retry',
@@ -692,7 +957,7 @@ export default function CheckoutPage() {
                 </div>
             </div>
         );
-   }
+    }
 
     const subtotal =
         cart.subtotal;
@@ -716,7 +981,7 @@ export default function CheckoutPage() {
                 isFa
                     ? 'rtl'
                     : 'ltr'
-           }
+            }
             className="mx-auto max-w-7xl space-y-6 p-4 md:p-6"
         >
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
@@ -766,13 +1031,87 @@ export default function CheckoutPage() {
             )}
 
             <form
-                onSubmit={handleSubmit}
+                onSubmit={
+                    handleSubmit
+                }
                 className="grid gap-6 lg:grid-cols-[1fr_380px]"
             >
                 <section className="space-y-6">
+                    {addresses.length > 0 && (
+                        <div className="rounded-2xl border bg-card p-5 md:p-6">
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                <div>
+                                    <div className="flex items-center gap-3">
+                                        <MapPin className="size-5" />
+
+                                        <h2 className="font-semibold">
+                                            {getText(
+                                                'checkout.savedAddresses',
+                                                'Saved addresses',
+                                            )}
+                                        </h2>
+                                    </div>
+
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        {getText(
+                                            'checkout.savedAddressesHint',
+                                            'Choose a saved address or enter a different one below.',
+                                        )}
+                                    </p>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    onClick={
+                                        clearSelectedAddress
+                                    }
+                                    className={`rounded-lg border px-3 py-2 text-sm font-medium ${selectedAddressId ===
+                                            null
+                                            ? 'border-primary bg-primary/5'
+                                            : ''
+                                        }`}
+                                >
+                                    {getText(
+                                        'checkout.manualAddress',
+                                        'Enter manually',
+                                    )}
+                                </button>
+                            </div>
+
+                            <div className="mt-5 grid gap-3">
+                                {addresses.map(
+                                    item => (
+                                        <AddressOption
+                                            key={
+                                                item.id
+                                            }
+                                            address={
+                                                item
+                                            }
+                                            selected={
+                                                selectedAddressId ===
+                                                item.id
+                                            }
+                                            onSelect={() =>
+                                                applyAddress(
+                                                    item,
+                                                )
+                                            }
+                                            isFa={
+                                                Boolean(
+                                                    isFa,
+                                                )
+                                            }
+                                        />
+                                    ),
+                                )}
+                            </div>
+                        </div>
+                    )}
+
                     <div className="rounded-2xl border bg-card p-5 md:p-6">
                         <div className="flex items-center gap-3">
-                            <MapPin className="size-5"/>
+                            <MapPin className="size-5" />
 
                             <div>
                                 <h2 className="font-semibold">
@@ -801,19 +1140,25 @@ export default function CheckoutPage() {
                                 </span>
 
                                 <input
-                                    value={fullName}
-                                    onChange={event =>
+                                    value={
+                                        fullName
+                                    }
+                                    onChange={event => {
                                         setFullName(
                                             event.target.value,
-                                        )
-                                   }
+                                        );
+
+                                        setSelectedAddressId(
+                                            null,
+                                        );
+                                    }}
                                     autoComplete="name"
                                     required
                                     disabled={
                                         checkout.isPending
-                                   }
+                                    }
                                     className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                               />
+                                />
                             </label>
 
                             <label className="grid gap-2">
@@ -825,20 +1170,26 @@ export default function CheckoutPage() {
                                 </span>
 
                                 <input
-                                    value={phone}
-                                    onChange={event =>
+                                    value={
+                                        phone
+                                    }
+                                    onChange={event => {
                                         setPhone(
                                             event.target.value,
-                                        )
-                                   }
+                                        );
+
+                                        setSelectedAddressId(
+                                            null,
+                                        );
+                                    }}
                                     autoComplete="tel"
                                     inputMode="tel"
                                     required
                                     disabled={
                                         checkout.isPending
-                                   }
+                                    }
                                     className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                               />
+                                />
                             </label>
 
                             <label className="grid gap-2 md:col-span-2">
@@ -850,20 +1201,26 @@ export default function CheckoutPage() {
                                 </span>
 
                                 <textarea
-                                    value={address}
-                                    onChange={event =>
+                                    value={
+                                        address
+                                    }
+                                    onChange={event => {
                                         setAddress(
                                             event.target.value,
-                                        )
-                                   }
+                                        );
+
+                                        setSelectedAddressId(
+                                            null,
+                                        );
+                                    }}
                                     autoComplete="street-address"
                                     required
                                     rows={4}
                                     disabled={
                                         checkout.isPending
-                                   }
+                                    }
                                     className="resize-y rounded-xl border bg-background px-3 py-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                               />
+                                />
                             </label>
 
                             <label className="grid gap-2">
@@ -875,19 +1232,25 @@ export default function CheckoutPage() {
                                 </span>
 
                                 <input
-                                    value={city}
-                                    onChange={event =>
+                                    value={
+                                        city
+                                    }
+                                    onChange={event => {
                                         setCity(
                                             event.target.value,
-                                        )
-                                   }
+                                        );
+
+                                        setSelectedAddressId(
+                                            null,
+                                        );
+                                    }}
                                     autoComplete="address-level2"
                                     required
                                     disabled={
                                         checkout.isPending
-                                   }
+                                    }
                                     className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                               />
+                                />
                             </label>
 
                             <label className="grid gap-2">
@@ -899,26 +1262,32 @@ export default function CheckoutPage() {
                                 </span>
 
                                 <input
-                                    value={postalCode}
-                                    onChange={event =>
+                                    value={
+                                        postalCode
+                                    }
+                                    onChange={event => {
                                         setPostalCode(
                                             event.target.value,
-                                        )
-                                   }
+                                        );
+
+                                        setSelectedAddressId(
+                                            null,
+                                        );
+                                    }}
                                     autoComplete="postal-code"
                                     inputMode="numeric"
                                     disabled={
                                         checkout.isPending
-                                   }
+                                    }
                                     className="h-11 rounded-xl border bg-background px-3 outline-none focus:ring-2 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-60"
-                               />
+                                />
                             </label>
                         </div>
                     </div>
 
                     <div className="rounded-2xl border bg-card p-5 md:p-6">
                         <div className="flex items-center gap-3">
-                            <Truck className="size-5"/>
+                            <Truck className="size-5" />
 
                             <div>
                                 <h2 className="font-semibold">
@@ -956,59 +1325,57 @@ export default function CheckoutPage() {
                                             <label
                                                 key={
                                                     method.id
-                                               }
-                                                className={`block cursor - pointer rounded - xl border p - 4 transition ${
-    selected
-        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-        : 'hover:border-foreground/30'
-} ${
-    checkout.isPending
-        ? 'cursor-not-allowed opacity-60'
-        : ''
-}`}
+                                                }
+                                                className={`block cursor-pointer rounded-xl border p-4 transition ${selected
+                                                        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+                                                        : 'hover:border-foreground/30'
+                                                    } ${checkout.isPending
+                                                        ? 'cursor-not-allowed opacity-60'
+                                                        : ''
+                                                    }`}
                                             >
                                                 <input
                                                     type="radio"
                                                     name="shippingMethod"
                                                     value={
                                                         method.id
-                                                   }
+                                                    }
                                                     checked={
                                                         selected
-                                                   }
+                                                    }
                                                     onChange={event =>
                                                         setShippingMethodId(
                                                             event
                                                                 .target
                                                                 .value,
                                                         )
-                                                   }
+                                                    }
                                                     disabled={
                                                         checkout.isPending
-                                                   }
+                                                    }
                                                     className="sr-only"
-                                               />
+                                                />
 
                                                 <div className="flex items-center justify-between gap-4">
                                                     <div className="min-w-0">
                                                         <div className="flex items-center gap-2">
                                                             {selected && (
                                                                 <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                                                                    <Check className="size-4"/>
+                                                                    <Check className="size-4" />
                                                                 </span>
                                                             )}
 
                                                             <span className="font-medium">
                                                                 {
                                                                     method.name
-                                                               }
+                                                                }
                                                             </span>
                                                         </div>
 
                                                         <div className="mt-1 text-sm text-muted-foreground">
                                                             {
                                                                 method.carrier
-                                                           }
+                                                            }
                                                         </div>
                                                     </div>
 
@@ -1017,14 +1384,16 @@ export default function CheckoutPage() {
                                                             {formatMoney(
                                                                 method.price,
                                                                 cart.currency,
-                                                                isFa,
+                                                                Boolean(
+                                                                    isFa,
+                                                                ),
                                                             )}
                                                         </div>
                                                     </div>
                                                 </div>
                                             </label>
                                         );
-                                   },
+                                    },
                                 )}
                             </div>
                         )}
@@ -1073,7 +1442,9 @@ export default function CheckoutPage() {
                                 {formatMoney(
                                     subtotal,
                                     cart.currency,
-                                    isFa,
+                                    Boolean(
+                                        isFa,
+                                    ),
                                 )}
                             </span>
                         </div>
@@ -1089,14 +1460,16 @@ export default function CheckoutPage() {
                             <span className="font-medium">
                                 {selectedShippingMethod
                                     ? formatMoney(
-                                          shippingAmount,
-                                          cart.currency,
-                                          isFa,
-                                      )
+                                        shippingAmount,
+                                        cart.currency,
+                                        Boolean(
+                                            isFa,
+                                        ),
+                                    )
                                     : getText(
-                                          'checkout.selectShipping',
-                                          'Select a method',
-                                      )}
+                                        'checkout.selectShipping',
+                                        'Select a method',
+                                    )}
                             </span>
                         </div>
 
@@ -1113,7 +1486,9 @@ export default function CheckoutPage() {
                                     {formatMoney(
                                         estimatedTotal,
                                         cart.currency,
-                                        isFa,
+                                        Boolean(
+                                            isFa,
+                                        ),
                                     )}
                                 </span>
                             </div>
@@ -1124,23 +1499,23 @@ export default function CheckoutPage() {
                         type="submit"
                         disabled={
                             submitDisabled
-                       }
+                        }
                         className="mt-6 flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         {checkout.isPending
                             ? getText(
-                                  'checkout.processing',
-                                  'Processing...',
-                              )
+                                'checkout.processing',
+                                'Processing...',
+                            )
                             : getText(
-                                  'checkout.placeOrder',
-                                  'Place order',
-                              )}
+                                'checkout.placeOrder',
+                                'Place order',
+                            )}
                     </button>
 
                     <Link
                         to="/cart"
-                        className="mt-3 flex w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-medium transition-colors hover:bg-muted"
+                        className="mt-3 flex w-full items-center justify-center rounded-xl border px-4 py-3 text-sm font-medium"
                     >
                         {getText(
                             'checkout.backToCart',
