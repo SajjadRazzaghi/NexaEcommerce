@@ -14,12 +14,13 @@ public sealed class CategoryRepository : ICategoryRepository
     }
 
     public async Task<Category?> GetByIdAsync(
-        Guid id,
-        CancellationToken cancellationToken = default)
+      Guid id,
+      CancellationToken cancellationToken = default)
     {
         return await _context.Categories
             .Include(x => x.ParentCategory)
             .Include(x => x.SubCategories)
+            .Include(x => x.ProductCategories)
             .FirstOrDefaultAsync(
                 x => x.Id == id,
                 cancellationToken);
@@ -35,6 +36,7 @@ public sealed class CategoryRepository : ICategoryRepository
         return await _context.Categories
             .Include(x => x.ParentCategory)
             .Include(x => x.SubCategories)
+            .Include(x => x.ProductCategories)
             .FirstOrDefaultAsync(
                 x => x.Slug == slug,
                 cancellationToken);
@@ -47,6 +49,7 @@ public sealed class CategoryRepository : ICategoryRepository
             .AsNoTracking()
             .Include(x => x.ParentCategory)
             .Include(x => x.SubCategories)
+            .Include(x => x.ProductCategories)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
     }
@@ -57,6 +60,7 @@ public sealed class CategoryRepository : ICategoryRepository
         return await _context.Categories
             .AsNoTracking()
             .Include(x => x.SubCategories)
+            .Include(x => x.ProductCategories)
             .Where(x => x.ParentCategoryId == null)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
@@ -68,11 +72,12 @@ public sealed class CategoryRepository : ICategoryRepository
     {
         return await _context.Categories
             .AsNoTracking()
+            .Include(x => x.ProductCategories)
             .Where(x => x.ParentCategoryId == parentCategoryId)
             .OrderBy(x => x.Name)
             .ToListAsync(cancellationToken);
     }
-
+   
     public async Task<bool> ExistsAsync(
         Guid id,
         CancellationToken cancellationToken = default)
