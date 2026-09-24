@@ -433,12 +433,27 @@ const {
         activeVariant?.stockQuantity ??
         product?.stockQuantity ??
         0;
-
-    const price =
+    const baseVariantPrice =
         activeVariant?.priceOverride ??
-        product?.finalPrice ??
         product?.price ??
         0;
+
+    const discountPercentage =
+        Math.min(
+            Math.max(
+                product?.discountPercentage ?? 0,
+                0,
+            ),
+            100,
+        );
+
+    const price =
+        baseVariantPrice -
+        (
+            baseVariantPrice *
+            discountPercentage /
+            100
+        );
 
     const comparePrice =
         activeVariant?.comparePrice ??

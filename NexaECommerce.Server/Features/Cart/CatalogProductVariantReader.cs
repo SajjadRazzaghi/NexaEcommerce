@@ -33,7 +33,9 @@ public sealed class CatalogProductVariantReader(
                     cancellationToken);
 
         if (variant is null)
+        {
             return null;
+        }
 
         var image =
             variant.Product.Images
@@ -48,9 +50,23 @@ public sealed class CatalogProductVariantReader(
                 variant.Id,
                 cancellationToken) ?? 0;
 
+        var discountPercentage =
+            Math.Clamp(
+                variant.Product.DiscountPercentage,
+                0m,
+                100m);
+
+        var price =
+            variant.PriceOverride -
+            (
+                variant.PriceOverride *
+                discountPercentage /
+                100m
+            );
+
         return new ProductVariantSnapshot(
             variant.Id,
-            variant.PriceOverride,
+            price,
             Math.Max(0, stockQuantity),
             variant.Product.Name,
             image,
