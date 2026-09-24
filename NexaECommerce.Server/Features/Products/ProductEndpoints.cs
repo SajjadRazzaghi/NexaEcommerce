@@ -8,7 +8,6 @@ using NexaECommerce.Server.Platform.Features;
 using NexaECommerce.Server.Platform.Filters;
 using NexaECommerce.Server.Platform.MultiTenancy;
 
-
 namespace NexaECommerce.Server.Features.Products;
 
 public sealed class ProductEndpoints : IFeatureEndpoints
@@ -91,6 +90,8 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     private static async Task<IResult> GetBySlug(
         string slug,
         [FromServices] IProductService productService,
+        [FromServices] IStockReader stockReader,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(slug))
@@ -107,13 +108,23 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 slug,
                 ct);
 
-        return product is null
-            ? Results.NotFound(
+        if (product is null)
+        {
+            return Results.NotFound(
                 new
                 {
                     error = "Product not found."
-                })
-            : Results.Ok(product);
+                });
+        }
+
+        await ApplyLiveStockAsync(
+            product,
+            stockReader,
+            currentTenant.Id,
+            ct);
+
+        return Results.Ok(
+            product);
     }
 
     private static async Task<IResult> List(
@@ -156,9 +167,23 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 });
         }
 
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        page = Math.Max(
+            1,
+            page);
 
+        pageSize = Math.Clamp(
+            pageSize,
+            1,
+            100);
+
+        /*
+         * Catalog owns product metadata.
+         *
+         * Inventory owns sellable stock.
+         *
+         * Do not let the legacy Catalog stock flag hide products
+         * before the live Inventory quantities are evaluated.
+         */
         var result =
             await productService.GetPagedAsync(
                 page,
@@ -169,7 +194,9 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 minPrice,
                 maxPrice,
                 isFeatured,
-                isInStock,
+                isInStock.HasValue
+                    ? null
+                    : null,
                 isActive,
                 isPublished: true,
                 includeInactive: false,
@@ -180,17 +207,28 @@ public sealed class ProductEndpoints : IFeatureEndpoints
 
         var variantIds =
             result.Items
-                .SelectMany(x => x.Variants)
-                .Where(x => x.IsActive)
-                .Select(x => x.Id)
+                .SelectMany(
+                    x => x.Variants)
+                .Where(
+                    x => x.IsActive)
+                .Select(
+                    x => x.Id)
                 .Distinct()
                 .ToArray();
 
         var stockQuantities =
-            await stockReader.GetAvailableQuantitiesAsync(
-                currentTenant.Id,
-                variantIds,
-                ct);
+            variantIds.Length == 0
+                ? new Dictionary<Guid, int>()
+                : (
+                    await stockReader.GetAvailableQuantitiesAsync(
+                        currentTenant.Id,
+                        variantIds,
+                        ct)
+                ).ToDictionary(
+                    x => x.Key,
+                    x => Math.Max(
+                        0,
+                        x.Value));
 
         var items =
             result.Items
@@ -199,7 +237,8 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                     {
                         var stockQuantity =
                             p.Variants
-                                .Where(v => v.IsActive)
+                                .Where(
+                                    v => v.IsActive)
                                 .Sum(
                                     v =>
                                         stockQuantities.TryGetValue(
@@ -225,32 +264,65 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                             isActive = p.IsActive,
                             isFeatured = p.IsFeatured,
                             isPublished = p.IsPublished,
-                            isInStock = stockQuantity > 0,
+                            isInStock =
+                                stockQuantity > 0,
                             stockQuantity,
                             mainImage =
                                 p.Images
                                     .FirstOrDefault(
-                                        i => i.IsPrimary)
+                                        i =>
+                                            i.IsPrimary)
                                     ?.ImageUrl
                                 ??
                                 p.Images
                                     .FirstOrDefault()
                                     ?.ImageUrl,
-                            categoryNames = p.Categories,
-                            categoryIds = p.CategoryIds,
-                            createdAt = p.CreatedAt
+                            categoryNames =
+                                p.Categories,
+                            categoryIds =
+                                p.CategoryIds,
+                            createdAt =
+                                p.CreatedAt
                         };
                     })
+                .Where(
+                    item =>
+                        !isInStock.HasValue ||
+                        (isInStock.Value
+                            ? item.isInStock
+                            : !item.isInStock))
                 .ToList();
+
+        /*
+         * The inventory-aware filter is evaluated after live stock
+         * has been calculated.
+         *
+         * For the normal storefront path this is not relevant unless
+         * the user explicitly asks for in-stock/out-of-stock products.
+         */
+        var filteredTotal =
+            isInStock.HasValue
+                ? items.Count
+                : result.TotalItems;
+
+        var totalPages =
+            filteredTotal == 0
+                ? 0
+                : (int)Math.Ceiling(
+                    filteredTotal /
+                    (double)pageSize);
 
         return Results.Ok(
             new
             {
                 items,
-                total = result.TotalItems,
-                page = result.Page,
-                pageSize = result.PageSize,
-                totalPages = result.TotalPages
+                total =
+                    filteredTotal,
+                page =
+                    result.Page,
+                pageSize =
+                    result.PageSize,
+                totalPages
             });
     }
 
@@ -295,9 +367,20 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 });
         }
 
-        page = Math.Max(1, page);
-        pageSize = Math.Clamp(pageSize, 1, 100);
+        page = Math.Max(
+            1,
+            page);
 
+        pageSize = Math.Clamp(
+            pageSize,
+            1,
+            100);
+
+        /*
+         * Inventory is the source of truth for current stock.
+         * The legacy Catalog stock filter must not eliminate products
+         * before live stock has been evaluated.
+         */
         var result =
             await productService.GetPagedAsync(
                 page,
@@ -308,7 +391,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 minPrice,
                 maxPrice,
                 isFeatured,
-                isInStock,
+                null,
                 isActive,
                 isPublished,
                 includeInactive: true,
@@ -319,17 +402,28 @@ public sealed class ProductEndpoints : IFeatureEndpoints
 
         var variantIds =
             result.Items
-                .SelectMany(x => x.Variants)
-                .Where(x => x.IsActive)
-                .Select(x => x.Id)
+                .SelectMany(
+                    x => x.Variants)
+                .Where(
+                    x => x.IsActive)
+                .Select(
+                    x => x.Id)
                 .Distinct()
                 .ToArray();
 
         var stockQuantities =
-            await stockReader.GetAvailableQuantitiesAsync(
-                currentTenant.Id,
-                variantIds,
-                ct);
+            variantIds.Length == 0
+                ? new Dictionary<Guid, int>()
+                : (
+                    await stockReader.GetAvailableQuantitiesAsync(
+                        currentTenant.Id,
+                        variantIds,
+                        ct)
+                ).ToDictionary(
+                    x => x.Key,
+                    x => Math.Max(
+                        0,
+                        x.Value));
 
         var items =
             result.Items
@@ -338,7 +432,8 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                     {
                         var stockQuantity =
                             p.Variants
-                                .Where(v => v.IsActive)
+                                .Where(
+                                    v => v.IsActive)
                                 .Sum(
                                     v =>
                                         stockQuantities.TryGetValue(
@@ -364,38 +459,66 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                             isActive = p.IsActive,
                             isFeatured = p.IsFeatured,
                             isPublished = p.IsPublished,
-                            isInStock = stockQuantity > 0,
+                            isInStock =
+                                stockQuantity > 0,
                             stockQuantity,
                             mainImage =
                                 p.Images
                                     .FirstOrDefault(
-                                        i => i.IsPrimary)
+                                        i =>
+                                            i.IsPrimary)
                                     ?.ImageUrl
                                 ??
                                 p.Images
                                     .FirstOrDefault()
                                     ?.ImageUrl,
-                            categoryNames = p.Categories,
-                            categoryIds = p.CategoryIds,
-                            createdAt = p.CreatedAt
+                            categoryNames =
+                                p.Categories,
+                            categoryIds =
+                                p.CategoryIds,
+                            createdAt =
+                                p.CreatedAt
                         };
                     })
+                .Where(
+                    item =>
+                        !isInStock.HasValue ||
+                        (isInStock.Value
+                            ? item.isInStock
+                            : !item.isInStock))
                 .ToList();
+
+        var filteredTotal =
+            isInStock.HasValue
+                ? items.Count
+                : result.TotalItems;
+
+        var totalPages =
+            filteredTotal == 0
+                ? 0
+                : (int)Math.Ceiling(
+                    filteredTotal /
+                    (double)pageSize);
 
         return Results.Ok(
             new
             {
                 items,
-                total = result.TotalItems,
-                page = result.Page,
-                pageSize = result.PageSize,
-                totalPages = result.TotalPages
+                total =
+                    filteredTotal,
+                page =
+                    result.Page,
+                pageSize =
+                    result.PageSize,
+                totalPages
             });
     }
 
     private static async Task<IResult> Get(
         Guid id,
         [FromServices] IProductService productService,
+        [FromServices] IStockReader stockReader,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         var product =
@@ -403,18 +526,30 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 id,
                 ct);
 
-        return product is null
-            ? Results.NotFound(
+        if (product is null)
+        {
+            return Results.NotFound(
                 new
                 {
                     error = "Product not found."
-                })
-            : Results.Ok(product);
+                });
+        }
+
+        await ApplyLiveStockAsync(
+            product,
+            stockReader,
+            currentTenant.Id,
+            ct);
+
+        return Results.Ok(
+            product);
     }
 
     private static async Task<IResult> GetByCategory(
         Guid categoryId,
         [FromServices] IProductService productService,
+        [FromServices] IStockReader stockReader,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         var products =
@@ -422,37 +557,67 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 categoryId,
                 ct);
 
-        return Results.Ok(products);
+        await ApplyLiveStockAsync(
+            products,
+            stockReader,
+            currentTenant.Id,
+            ct);
+
+        return Results.Ok(
+            products);
     }
 
     private static async Task<IResult> Search(
         [FromQuery] string? q,
         [FromServices] IProductService productService,
+        [FromServices] IStockReader stockReader,
+        [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(q))
+        {
             return Results.Ok(
                 Array.Empty<ProductDto>());
+        }
 
         var products =
             await productService.SearchAsync(
                 q,
                 ct);
 
-        return Results.Ok(products);
+        await ApplyLiveStockAsync(
+            products,
+            stockReader,
+            currentTenant.Id,
+            ct);
+
+        return Results.Ok(
+            products);
     }
 
     private static async Task<IResult> GetFeatured(
         [FromQuery] int count = 8,
-        IProductService productService = null!,
+        [FromServices] IProductService productService = null!,
+        [FromServices] IStockReader stockReader = null!,
+        [FromServices] ICurrentTenant currentTenant = null!,
         CancellationToken ct = default)
     {
         var products =
             await productService.GetFeaturedAsync(
-                Math.Clamp(count, 1, 50),
+                Math.Clamp(
+                    count,
+                    1,
+                    50),
                 ct);
 
-        return Results.Ok(products);
+        await ApplyLiveStockAsync(
+            products,
+            stockReader,
+            currentTenant.Id,
+            ct);
+
+        return Results.Ok(
+            products);
     }
 
     private static async Task<IResult> Create(
@@ -487,13 +652,14 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 });
         }
     }
+
     private static async Task<IResult> Update(
-     Guid id,
-     [FromBody] UpdateProductDto request,
-     [FromServices] IProductService productService,
-     ProductInventorySynchronizer inventorySynchronizer,
-     [FromServices] ICurrentTenant currentTenant,
-     CancellationToken ct)
+        Guid id,
+        [FromBody] UpdateProductDto request,
+        [FromServices] IProductService productService,
+        ProductInventorySynchronizer inventorySynchronizer,
+        [FromServices] ICurrentTenant currentTenant,
+        CancellationToken ct)
     {
         try
         {
@@ -591,7 +757,8 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                     request.Quantity,
                     ct);
 
-            return Results.Ok(stock);
+            return Results.Ok(
+                stock);
         }
         catch (KeyNotFoundException ex)
         {
@@ -692,6 +859,112 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         }
     }
 
+    private static async Task ApplyLiveStockAsync(
+        ProductDto product,
+        IStockReader stockReader,
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        await ApplyLiveStockAsync(
+            new[]
+            {
+                product
+            },
+            stockReader,
+            tenantId,
+            cancellationToken);
+    }
+
+    private static async Task ApplyLiveStockAsync(
+        IEnumerable<ProductDto> products,
+        IStockReader stockReader,
+        string tenantId,
+        CancellationToken cancellationToken)
+    {
+        var productList =
+            products.ToList();
+
+        if (productList.Count == 0)
+        {
+            return;
+        }
+
+        var variantIds =
+            productList
+                .SelectMany(
+                    product =>
+                        product.Variants ?? new List<ProductVariantDto>())
+                .Where(
+                    variant =>
+                        variant.IsActive)
+                .Select(
+                    variant =>
+                        variant.Id)
+                .Distinct()
+                .ToArray();
+
+        if (variantIds.Length == 0)
+        {
+            foreach (var product in productList)
+            {
+                product.StockQuantity = 0;
+                product.IsInStock = false;
+
+                foreach (
+                    var variant
+                    in product.Variants ??
+                       new List<ProductVariantDto>())
+                {
+                    variant.StockQuantity = 0;
+                }
+            }
+
+            return;
+        }
+
+        var quantities =
+            await stockReader.GetAvailableQuantitiesAsync(
+                tenantId,
+                variantIds,
+                cancellationToken);
+
+        foreach (var product in productList)
+        {
+            var productStock =
+                0;
+
+            foreach (
+                var variant
+                in product.Variants ??
+                   new List<ProductVariantDto>())
+            {
+                if (!variant.IsActive)
+                {
+                    variant.StockQuantity = 0;
+                    continue;
+                }
+
+                variant.StockQuantity =
+                    quantities.TryGetValue(
+                        variant.Id,
+                        out var quantity)
+                        ? Math.Max(
+                            0,
+                            quantity)
+                        : 0;
+
+                productStock +=
+                    variant.StockQuantity;
+            }
+
+            product.StockQuantity =
+                productStock;
+
+            product.IsInStock =
+                productStock > 0;
+        }
+    }
+
     private static bool TryParseOptionalGuid(
         string? value,
         out Guid? result)
@@ -720,4 +993,3 @@ public sealed record UpdateStockRequest(
 
 public sealed record SetProductStateRequest(
     bool Value);
-

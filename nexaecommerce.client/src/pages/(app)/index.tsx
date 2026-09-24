@@ -273,7 +273,6 @@ export default function StorefrontHomePage() {
         pageSize: 8,
         isActive: true,
         isFeatured: true,
-        isInStock: true,
         sortBy: 'newest',
         desc: true,
     });
@@ -286,7 +285,6 @@ export default function StorefrontHomePage() {
         page: 1,
         pageSize: 8,
         isActive: true,
-        isInStock: true,
         sortBy: 'newest',
         desc: true,
     });
