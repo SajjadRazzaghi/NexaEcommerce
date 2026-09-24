@@ -7,7 +7,6 @@ import type {
 export interface StartPaymentRequest {
     orderId: string;
     gatewayName: string;
-    callbackUrl: string;
 }
 
 export interface CreatePaymentResultDto {

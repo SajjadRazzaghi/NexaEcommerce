@@ -1,76 +1,117 @@
-import { Outlet } from 'react-router';
+import { type ReactNode } from 'react';
+
+import {
+    Navigate,
+    Outlet,
+    useLocation,
+} from 'react-router';
 
 import { useTranslation } from 'react-i18next';
 
-import {
-    ShieldAlert,
-} from 'lucide-react';
+import { useAuth } from '@/hooks/use-auth';
+
+import { FullScreenLoader } from '@/components/full-screen-loader';
+
+import { AppSidebar } from '@/components/app/app-sidebar';
+
+import { AppTopbar } from '@/components/app/app-topbar';
 
 import {
-    useAuth,
-} from '@/hooks/use-auth';
+    SidebarInset,
+    SidebarProvider,
+} from '@/components/ui/sidebar';
 
-import {
-    hasAnyPermission,
-} from '@/lib/permissions';
+import StoreHeader from '@/components/storefront/StoreHeader';
 
-import {
-    PERM,
-} from '@/lib/api/admin';
+import { StoreBrandMeta } from '@/components/app/store-brand-meta';
 
-import {
-    HEALTH_PERM,
-} from '@/lib/api/health';
+export default function AppLayout() {
+    const {
+        isAuthenticated,
+        isLoading,
+    } = useAuth();
 
-import {
-    INVENTORY_PERM,
-} from '@/lib/api/inventory';
+    const { t } = useTranslation();
 
-import {
-    EmptyState,
-} from '@/components/data-states';
+    const location = useLocation();
 
-export default function AdminLayout() {
-    const { t } =
-        useTranslation();
+    /*
+     * Public storefront routes.
+     *
+     * These routes must never be forced through
+     * the authenticated application shell.
+     */
+    const isPublicStorefront =
+        location.pathname === '/' ||
+        location.pathname === '/cart' ||
+        location.pathname === '/products' ||
+        location.pathname.startsWith('/products/') ||
+        location.pathname === '/checkout' ||
+        location.pathname.startsWith('/orders/payment/');
 
-    const { user } =
-        useAuth();
-
-    const canEnter =
-        hasAnyPermission(
-            user?.permissions ?? [],
-            [
-                PERM.shippingRead,
-                PERM.usersRead,
-                PERM.brandsRead,
-                PERM.manufacturersRead,
-                PERM.categoriesRead,
-                PERM.productsRead,
-                PERM.ordersRead,
-                PERM.ordersManage,
-                PERM.rolesRead,
-                PERM.settingsRead,
-                PERM.auditRead,
-                PERM.webhooksRead,
-                INVENTORY_PERM.read,
-                HEALTH_PERM.read,
-            ],
-        );
-
-    if (!canEnter) {
+    if (isPublicStorefront) {
         return (
-            <EmptyState
-                icon={ShieldAlert}
-                title={t(
-                    'admin.noAccessTitle',
-                )}
-                description={t(
-                    'admin.noAccessDesc',
-                )}
+            <div className="min-h-screen bg-background">
+                <StoreBrandMeta />
+
+                <StoreHeader />
+
+                <main className="min-h-[calc(100vh-73px)]">
+                    <Outlet />
+                </main>
+            </div>
+        );
+    }
+
+    if (isLoading) {
+        return <FullScreenLoader />;
+    }
+
+    if (!isAuthenticated) {
+        const returnUrl =
+            `${location.pathname}${location.search}${location.hash}`;
+
+        return (
+            <Navigate
+                to={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}
+                replace
             />
         );
     }
 
-    return <Outlet />;
+    let onboardingTour: ReactNode = null;
+    let realtime: ReactNode = null;
+    let tenantBranding: ReactNode = null;
+
+    return (
+        <SidebarProvider>
+            <StoreBrandMeta />
+
+            <a
+                href="#main-content"
+                className="bg-background focus:ring-ring sr-only focus:fixed focus:start-4 focus:top-4 focus:z-50 focus:rounded-md focus:border focus:px-3 focus:py-2 focus:shadow-lg focus:ring-[3px]"
+            >
+                {t('common.skipToContent')}
+            </a>
+
+            {realtime}
+
+            {tenantBranding}
+
+            {onboardingTour}
+
+            <AppSidebar />
+
+            <SidebarInset>
+                <AppTopbar />
+
+                <div
+                    id="main-content"
+                    className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 lg:px-8"
+                >
+                    <Outlet />
+                </div>
+            </SidebarInset>
+        </SidebarProvider>
+    );
 }

@@ -927,9 +927,10 @@ export default function AdminOrderDetailsPage() {
                                                 onClick={() =>
                                                     void runOperation(
                                                         async () => {
-                                                            await updateTracking.mutateAsync(
-                                                                currentTracking.trim(),
-                                                            );
+                                                            await updateTracking.mutateAsync({
+                                                                trackingNumber:
+                                                                    currentTracking.trim(),
+                                                            });
 
                                                             setTrackingOverride(
                                                                 null,

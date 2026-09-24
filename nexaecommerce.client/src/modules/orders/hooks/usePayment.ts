@@ -5,6 +5,7 @@ import {
 
 import {
     completePayment,
+    retryPayment,
     startPayment,
     verifyPayment,
 } from '../api/paymentsApi';
@@ -14,19 +15,16 @@ export function useStartPayment() {
         mutationFn: ({
             orderId,
             gatewayName,
-            callbackUrl,
             idempotencyKey,
         }: {
             orderId: string;
             gatewayName: string;
-            callbackUrl: string;
             idempotencyKey: string;
         }) =>
             startPayment(
                 {
                     orderId,
                     gatewayName,
-                    callbackUrl,
                 },
                 idempotencyKey,
             ),
@@ -36,6 +34,43 @@ export function useStartPayment() {
 export function useVerifyPayment() {
     return useMutation({
         mutationFn: verifyPayment,
+    });
+}
+
+export function useRetryPayment() {
+    const queryClient =
+        useQueryClient();
+
+    return useMutation({
+        mutationFn: ({
+            orderId,
+            idempotencyKey,
+        }: {
+            orderId: string;
+            idempotencyKey: string;
+        }) =>
+            retryPayment(
+                orderId,
+                idempotencyKey,
+            ),
+
+        onSuccess:
+            async result => {
+                await Promise.all([
+                    queryClient.invalidateQueries({
+                        queryKey: [
+                            'order',
+                            result.orderId,
+                        ],
+                    }),
+
+                    queryClient.invalidateQueries({
+                        queryKey: [
+                            'orders',
+                        ],
+                    }),
+                ]);
+            },
     });
 }
 

@@ -15,10 +15,8 @@ import {
 } from 'react-router-dom';
 
 import {
-    useRef,
     useState,
 } from 'react';
-
 import {
     useTranslation,
 } from 'react-i18next';
@@ -33,10 +31,10 @@ import {
 
 import {
     useCompletePayment,
+    useRetryPayment,
     useStartPayment,
     useVerifyPayment,
 } from '@/modules/orders/hooks/usePayment';
-
 function formatMoney(
     amount: number,
     currency: string,
@@ -96,8 +94,7 @@ export default function PaymentPage() {
     const paymentReason =
         searchParams.get('reason');
 
-    const paymentKeyRef =
-        useRef<string | null>(null);
+  
 
     const [payment, setPayment] =
         useState<{
@@ -129,7 +126,8 @@ export default function PaymentPage() {
 
     const verifyPayment =
         useVerifyPayment();
-
+    const retryPaymentMutation =
+        useRetryPayment();
     const completePayment =
         useCompletePayment();
 
@@ -146,129 +144,127 @@ export default function PaymentPage() {
 
     const busy =
         startPayment.isPending ||
+        retryPaymentMutation.isPending ||
         verifyPayment.isPending ||
         completePayment.isPending;
 
     const paymentGateway =
         getPaymentGateway();
 
-    const handleStartPayment = () => {
-        if (!order) {
-            return;
-       }
+    const handleStartPayment =
+        async () => {
+            if (!order) {
+                return;
+            }
 
-        setError(null);
+            setError(null);
 
-       /*
-         * Every new payment start gets a new idempotency key.
-         * We intentionally do not reuse a previous key after
-         * returning from a failed/cancelled payment.
-         */
-        const paymentKey =
-            crypto.randomUUID();
+            const paymentKey =
+                crypto.randomUUID();
 
-        paymentKeyRef.current =
-            paymentKey;
+            try {
+                /*
+                 * A failed ZarinPal callback means the previous
+                 * payment attempt has been failed and its inventory
+                 * reservation has been released.
+                 *
+                 * Recreate the reservation and payment attempt first.
+                 */
+                if (
+                    paymentResult ===
+                    'failed'
+                ) {
+                    await retryPaymentMutation.mutateAsync({
+                        orderId:
+                            order.id,
 
-       /*
-         * ZarinPal must call the backend callback endpoint.
-         * The backend then verifies and completes the payment,
-         * and finally redirects the customer back to the frontend.
-         */
-        const apiBaseUrl =
-            (
-                import.meta.env.VITE_API_URL ||
-                'https://localhost:5001'
-            ).replace(
-               /\/+$/,
-                '',
-            );
+                        idempotencyKey:
+                            paymentKey,
+                    });
+                }
 
-        const callbackUrl =
-           `${apiBaseUrl}/api/orders/payment/zarinpal/callback?orderId=${encodeURIComponent(order.id)}`;
+                /*
+                 * For normal payment starts, this creates a fresh
+                 * payment attempt.
+                 *
+                 * For retry flow, PaymentRetryOrchestrator has already
+                 * created the attempt using the same idempotency key,
+                 * so PaymentService reuses it and only creates the
+                 * gateway transaction.
+                 */
+                const result =
+                    await startPayment.mutateAsync({
+                        orderId:
+                            order.id,
 
-        startPayment.mutate(
-            {
-                orderId:
-                    order.id,
+                        gatewayName:
+                            paymentGateway,
 
-                gatewayName:
-                    paymentGateway,
+                        idempotencyKey:
+                            paymentKey,
+                    });
 
-                callbackUrl,
+                /*
+                 * Real gateways such as ZarinPal return a paymentUrl.
+                 * Redirect the customer immediately to the gateway.
+                 */
+                if (
+                    result.paymentUrl
+                ) {
+                    window.location.assign(
+                        result.paymentUrl,
+                    );
 
-                idempotencyKey:
-                    paymentKey,
-           },
-            {
-                onSuccess:
-                    result => {
-                       /*
-                         * Real gateways such as ZarinPal return a paymentUrl.
-                         * Redirect the customer immediately to the gateway.
-                         */
-                        if (
-                            result.paymentUrl
-                        ) {
-                            window.location.assign(
-                                result.paymentUrl,
-                            );
+                    return;
+                }
 
-                            return;
-                       }
+                /*
+                 * Keep the response validation in place even though
+                 * ZarinPal currently returns an external payment URL.
+                 */
+                if (
+                    !result.gatewayReference
+                ) {
+                    setError(
+                        getText(
+                            'payment.missingReference',
+                            'The payment gateway did not return a payment reference.',
+                        ),
+                    );
 
-                       /*
-                         * Keep TestGateway/manual mode working for development.
-                         * In that case there may be no external paymentUrl.
-                         */
-                        if (
-                            !result.gatewayReference
-                        ) {
-                            setError(
-                                getText(
-                                    'payment.missingReference',
-                                    'The payment gateway did not return a payment reference.',
-                                ),
-                            );
+                    return;
+                }
 
-                            return;
-                       }
+                setPayment({
+                    paymentAttemptId:
+                        result.paymentAttemptId,
 
-                        setPayment({
-                            paymentAttemptId:
-                                result.paymentAttemptId,
+                    gatewayName:
+                        result.gatewayName,
 
-                            gatewayName:
-                                result.gatewayName,
+                    gatewayReference:
+                        result.gatewayReference,
 
-                            gatewayReference:
-                                result.gatewayReference,
+                    amount:
+                        result.amount,
 
-                            amount:
-                                result.amount,
+                    currency:
+                        result.currency,
 
-                            currency:
-                                result.currency,
-
-                            status:
-                                result.status,
-                       });
-                   },
-
-                onError:
-                    mutationError => {
-                        setError(
-                            mutationError instanceof Error
-                                ? mutationError.message
-                                : getText(
-                                    'payment.startError',
-                                    'Unable to start the payment. Please try again.',
-                                ),
-                        );
-                   },
-           },
-        );
-   };
+                    status:
+                        result.status,
+                });
+            } catch (mutationError) {
+                setError(
+                    mutationError instanceof Error
+                        ? mutationError.message
+                        : getText(
+                            'payment.startError',
+                            'Unable to start the payment. Please try again.',
+                        ),
+                );
+            }
+        };
 
     const handleConfirmPayment = () => {
         if (!payment) {
@@ -486,24 +482,34 @@ export default function PaymentPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-               }
+                }
                 className="mx-auto max-w-3xl p-6"
             >
                 <div className="rounded-2xl border p-10 text-center">
-                    <CheckCircle2 className="mx-auto size-14 text-green-600"/>
+                    <CheckCircle2 className="mx-auto size-14 text-green-600" />
 
                     <h1 className="mt-4 text-2xl font-semibold">
-                        {getText(
-                            'payment.alreadyPaid',
-                            'Order already paid',
-                        )}
+                        {callbackSuccess
+                            ? getText(
+                                'payment.success',
+                                'Payment completed successfully.',
+                            )
+                            : getText(
+                                'payment.alreadyPaid',
+                                'Order already paid',
+                            )}
                     </h1>
 
                     <p className="mt-2 text-muted-foreground">
-                        {getText(
-                            'payment.alreadyPaidDescription',
-                            'This order has already been paid successfully.',
-                        )}
+                        {callbackSuccess
+                            ? getText(
+                                'payment.successDescription',
+                                'Your payment was verified and your order has been completed.',
+                            )
+                            : getText(
+                                'payment.alreadyPaidDescription',
+                                'This order has already been paid successfully.',
+                            )}
                     </p>
 
                     <Link
@@ -518,7 +524,7 @@ export default function PaymentPage() {
                 </div>
             </div>
         );
-   }
+    }
 
     return (
         <div
