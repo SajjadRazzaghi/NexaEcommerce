@@ -144,11 +144,11 @@ modelBuilder.Entity<Package>(
             });
 
         entity.HasOne<Order>()
-            .WithMany()
-            .HasForeignKey(
-                x => x.OrderId)
-            .OnDelete(
-                DeleteBehavior.Cascade);
+    .WithMany()
+    .HasForeignKey(
+        x => x.OrderId)
+    .OnDelete(
+        DeleteBehavior.NoAction);
 
         entity.HasOne<Fulfillment>()
             .WithMany()

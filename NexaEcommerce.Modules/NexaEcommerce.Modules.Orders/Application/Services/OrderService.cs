@@ -72,7 +72,8 @@ public sealed class OrderService(
                 request.ShippingPhone,
                 request.ShippingAddress,
                 request.ShippingCity,
-                request.ShippingPostalCode);
+              request.ShippingPostalCode,
+request.ShippingMethodId);
 
         foreach (var line in grouped)
         {

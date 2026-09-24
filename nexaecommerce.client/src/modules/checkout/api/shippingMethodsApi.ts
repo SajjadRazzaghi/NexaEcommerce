@@ -15,7 +15,7 @@ export async function getShippingMethods(): Promise<
 > {
     const { data } =
         await api.get<ShippingMethodDto[]>(
-            '/api/shipping-methods',
+            '/shipping-methods',
         );
 
     return data;

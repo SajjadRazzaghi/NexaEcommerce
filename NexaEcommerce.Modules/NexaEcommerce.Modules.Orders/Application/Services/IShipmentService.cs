@@ -18,6 +18,11 @@ public interface IShipmentService
         string? trackingNumber,
         CancellationToken cancellationToken = default);
 
+    Task<ShipmentDto> PrepareAsync(
+        string tenantId,
+        Guid orderId,
+        CancellationToken cancellationToken = default);
+
     Task<ShipmentDto> SetTrackingNumberAsync(
         string tenantId,
         Guid orderId,

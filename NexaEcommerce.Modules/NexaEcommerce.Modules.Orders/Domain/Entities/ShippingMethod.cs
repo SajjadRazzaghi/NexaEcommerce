@@ -1,5 +1,4 @@
-﻿
-using NexaEcommerce.SharedKernel.Domain;
+﻿using NexaEcommerce.SharedKernel.Domain;
 
 namespace NexaEcommerce.Modules.Orders.Domain.Entities;
 
@@ -62,7 +61,7 @@ public sealed class ShippingMethod : BaseEntity
         ValidateText(
             name,
             nameof(name),
-            150);
+            100);
 
         ValidateText(
             carrier,
@@ -99,7 +98,7 @@ public sealed class ShippingMethod : BaseEntity
         ValidateText(
             name,
             nameof(name),
-            150);
+            100);
 
         ValidateText(
             carrier,
@@ -130,7 +129,9 @@ public sealed class ShippingMethod : BaseEntity
     public void Activate()
     {
         if (IsActive)
+        {
             return;
+        }
 
         IsActive = true;
 
@@ -141,7 +142,9 @@ public sealed class ShippingMethod : BaseEntity
     public void Deactivate()
     {
         if (!IsActive)
+        {
             return;
+        }
 
         IsActive = false;
 

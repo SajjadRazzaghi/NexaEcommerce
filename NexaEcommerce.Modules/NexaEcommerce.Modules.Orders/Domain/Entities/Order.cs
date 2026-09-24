@@ -26,7 +26,8 @@ public sealed class Order : AggregateRoot
         string shippingPhone,
         string shippingAddress,
         string shippingCity,
-        string? shippingPostalCode)
+        string? shippingPostalCode,
+        Guid? shippingMethodId)
     {
         TenantId = tenantId;
         UserId = userId;
@@ -43,6 +44,8 @@ public sealed class Order : AggregateRoot
         ShippingAddress = shippingAddress;
         ShippingCity = shippingCity;
         ShippingPostalCode = shippingPostalCode;
+
+        ShippingMethodId = shippingMethodId;
 
         TotalAmount =
             Subtotal +
@@ -82,6 +85,9 @@ public sealed class Order : AggregateRoot
     public string ShippingCity { get; private set; } = null!;
 
     public string? ShippingPostalCode { get; private set; }
+
+    public Guid? ShippingMethodId { get; private set; }
+
     public decimal TaxableAmount { get; private set; }
 
     public decimal TaxRatePercent { get; private set; }
@@ -89,6 +95,7 @@ public sealed class Order : AggregateRoot
     public decimal TaxAmount { get; private set; }
 
     public string? CouponCode { get; private set; }
+
     public IReadOnlyCollection<OrderItem> Items =>
         _items.AsReadOnly();
 
@@ -109,7 +116,8 @@ public sealed class Order : AggregateRoot
         string shippingPhone,
         string shippingAddress,
         string shippingCity,
-        string? shippingPostalCode)
+        string? shippingPostalCode,
+        Guid? shippingMethodId = null)
     {
         if (string.IsNullOrWhiteSpace(tenantId))
         {
@@ -166,6 +174,14 @@ public sealed class Order : AggregateRoot
                 nameof(discountAmount));
         }
 
+        if (shippingMethodId.HasValue &&
+            shippingMethodId.Value == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Shipping method id is invalid.",
+                nameof(shippingMethodId));
+        }
+
         if (string.IsNullOrWhiteSpace(shippingFullName))
         {
             throw new ArgumentException(
@@ -206,7 +222,8 @@ public sealed class Order : AggregateRoot
             string.IsNullOrWhiteSpace(
                 shippingPostalCode)
                 ? null
-                : shippingPostalCode.Trim());
+                : shippingPostalCode.Trim(),
+            shippingMethodId);
     }
 
     public OrderItem AddItem(
@@ -312,15 +329,16 @@ public sealed class Order : AggregateRoot
         UpdatedAt =
             DateTime.UtcNow;
     }
+
     public void ApplyPricing(
-    decimal subtotal,
-    decimal shippingAmount,
-    decimal discountAmount,
-    decimal taxableAmount,
-    decimal taxRatePercent,
-    decimal taxAmount,
-    decimal totalAmount,
-    string? couponCode)
+        decimal subtotal,
+        decimal shippingAmount,
+        decimal discountAmount,
+        decimal taxableAmount,
+        decimal taxRatePercent,
+        decimal taxAmount,
+        decimal totalAmount,
+        string? couponCode)
     {
         if (subtotal < 0m)
         {
@@ -372,6 +390,7 @@ public sealed class Order : AggregateRoot
         TaxRatePercent = taxRatePercent;
         TaxAmount = taxAmount;
         TotalAmount = totalAmount;
+
         CouponCode =
             string.IsNullOrWhiteSpace(couponCode)
                 ? null
@@ -380,6 +399,7 @@ public sealed class Order : AggregateRoot
         UpdatedAt =
             DateTime.UtcNow;
     }
+
     public OrderInventoryReservation
         AddInventoryReservation(
             string reservationKey,
@@ -463,11 +483,12 @@ public sealed class Order : AggregateRoot
 
     public void MarkInventoryReservationsCommitted()
     {
-        foreach (var reservation in
-                 _inventoryReservations.Where(
-                     x =>
-                         x.Status ==
-                         InventoryReservationStatus.Reserved))
+        foreach (
+            var reservation
+            in _inventoryReservations.Where(
+                x =>
+                    x.Status ==
+                    InventoryReservationStatus.Reserved))
         {
             reservation.MarkCommitted();
         }
@@ -478,11 +499,12 @@ public sealed class Order : AggregateRoot
 
     public void MarkInventoryReservationsReleased()
     {
-        foreach (var reservation in
-                 _inventoryReservations.Where(
-                     x =>
-                         x.Status ==
-                         InventoryReservationStatus.Reserved))
+        foreach (
+            var reservation
+            in _inventoryReservations.Where(
+                x =>
+                    x.Status ==
+                    InventoryReservationStatus.Reserved))
         {
             reservation.MarkReleased();
         }
@@ -501,7 +523,6 @@ public sealed class Order : AggregateRoot
         }
 
         var reservation =
-
             _inventoryReservations.FirstOrDefault(
                 x =>
                     string.Equals(
@@ -527,12 +548,13 @@ public sealed class Order : AggregateRoot
     {
         var count = 0;
 
-        foreach (var reservation in
-                 _inventoryReservations.Where(
-                     x =>
-                         x.Status ==
-                         InventoryReservationStatus.Reserved &&
-                         x.ExpiresAt <= now))
+        foreach (
+            var reservation
+            in _inventoryReservations.Where(
+                x =>
+                    x.Status ==
+                    InventoryReservationStatus.Reserved &&
+                    x.ExpiresAt <= now))
         {
             reservation.MarkExpired();
             count++;

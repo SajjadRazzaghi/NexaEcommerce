@@ -1,4 +1,5 @@
-﻿using NexaEcommerce.Modules.Orders.Application.DTOs;
+﻿using Microsoft.EntityFrameworkCore;
+using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 
@@ -7,6 +8,7 @@ namespace NexaEcommerce.Modules.Orders.Application.Services;
 public sealed class ShipmentService(
     IShipmentRepository shipments,
     IOrderRepository orders,
+    IShippingMethodRepository shippingMethods,
     IOrderUnitOfWork unitOfWork)
     : IShipmentService
 {
@@ -94,11 +96,48 @@ public sealed class ShipmentService(
                 "A shipment can only be created for an order in Processing status.");
         }
 
+        if (!order.ShippingMethodId.HasValue ||
+            order.ShippingMethodId.Value == Guid.Empty)
+        {
+            throw new InvalidOperationException(
+                "The order does not have a persisted shipping method.");
+        }
+
+        var selectedShippingMethod =
+            await shippingMethods.GetByIdAsync(
+                tenantId,
+                order.ShippingMethodId.Value,
+                cancellationToken);
+
+        if (selectedShippingMethod is null)
+        {
+            throw new InvalidOperationException(
+                "The selected shipping method no longer exists.");
+        }
+
         var normalizedShippingMethod =
             shippingMethod.Trim();
 
         var normalizedCarrier =
             carrier.Trim();
+
+        if (!string.Equals(
+                normalizedShippingMethod,
+                selectedShippingMethod.Name,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "The shipment shipping method does not match the shipping method selected for the order.");
+        }
+
+        if (!string.Equals(
+                normalizedCarrier,
+                selectedShippingMethod.Carrier,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "The shipment carrier does not match the shipping method selected for the order.");
+        }
 
         var normalizedTrackingNumber =
             string.IsNullOrWhiteSpace(
@@ -114,13 +153,6 @@ public sealed class ShipmentService(
 
         if (existing is not null)
         {
-            /*
-             * Shipment creation is intentionally idempotent when the
-             * request describes the same shipment.
-             *
-             * A different shipment definition for the same order is
-             * a business conflict and must not silently disappear.
-             */
             var sameShippingMethod =
                 string.Equals(
                     existing.ShippingMethod,
@@ -164,6 +196,107 @@ public sealed class ShipmentService(
 
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
+
+        return Map(shipment);
+    }
+
+    public async Task<ShipmentDto> PrepareAsync(
+        string tenantId,
+        Guid orderId,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateScope(
+            tenantId,
+            orderId);
+
+        var order =
+            await orders.GetByIdAsync(
+                tenantId,
+                orderId,
+                null,
+                cancellationToken);
+
+        if (order is null)
+        {
+            throw new KeyNotFoundException(
+                "Order was not found.");
+        }
+
+        if (order.Status !=
+            OrderStatus.Processing)
+        {
+            throw new InvalidOperationException(
+                "A shipment can only be prepared for an order in Processing status.");
+        }
+
+        if (!order.ShippingMethodId.HasValue ||
+            order.ShippingMethodId.Value == Guid.Empty)
+        {
+            throw new InvalidOperationException(
+                "The order does not have a shipping method selected.");
+        }
+
+        var selectedShippingMethod =
+            await shippingMethods.GetByIdAsync(
+                tenantId,
+                order.ShippingMethodId.Value,
+                cancellationToken);
+
+        if (selectedShippingMethod is null)
+        {
+            throw new InvalidOperationException(
+                "The selected shipping method no longer exists.");
+        }
+
+        if (selectedShippingMethod.Name.Trim().Length > 100)
+        {
+            throw new InvalidOperationException(
+                "The selected shipping method name is too long for shipment preparation.");
+        }
+
+        var existing =
+            await shipments.GetByOrderIdAsync(
+                tenantId,
+                orderId,
+                cancellationToken);
+
+        if (existing is not null)
+        {
+            return Map(existing);
+        }
+
+        var shipment =
+            Shipment.Create(
+                order.Id,
+                tenantId,
+                selectedShippingMethod.Name,
+                selectedShippingMethod.Carrier,
+                null);
+
+        await shipments.AddAsync(
+            shipment,
+            cancellationToken);
+
+        try
+        {
+            await unitOfWork.SaveChangesAsync(
+                cancellationToken);
+        }
+        catch (DbUpdateException)
+        {
+            var raced =
+                await shipments.GetByOrderIdAsync(
+                    tenantId,
+                    orderId,
+                    cancellationToken);
+
+            if (raced is not null)
+            {
+                return Map(raced);
+            }
+
+            throw;
+        }
 
         return Map(shipment);
     }
@@ -241,13 +374,6 @@ public sealed class ShipmentService(
                 "Shipment was not found.");
         }
 
-        /*
-         * Shipment.MarkShipped() is itself idempotent for an already
-         * shipped shipment, but the Order state must also agree.
-         *
-         * A repeated request after persistence therefore simply returns
-         * the existing shipped shipment.
-         */
         if (shipment.Status ==
             ShipmentStatus.Shipped &&
             order.Status ==
@@ -300,10 +426,6 @@ public sealed class ShipmentService(
                 "Shipment was not found.");
         }
 
-        /*
-         * Delivery is idempotent only when both sides of the lifecycle
-         * already agree.
-         */
         if (shipment.Status ==
             ShipmentStatus.Delivered &&
             order.Status ==

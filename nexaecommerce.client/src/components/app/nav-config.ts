@@ -1,6 +1,7 @@
 import {
     Activity,
-    Boxes, ArrowLeftRight,
+    ArrowLeftRight,
+    Boxes,
     Factory,
     FolderTree,
     Home,
@@ -12,6 +13,7 @@ import {
     Shield,
     ShoppingBag,
     Tags,
+    Truck,
     User,
     Users,
     Warehouse,
@@ -38,13 +40,6 @@ export type NavSection = {
     items: NavItem[];
 };
 
-/**
- * Authenticated application navigation.
- *
- * Keep storefront/account routes separate from administration routes.
- * Account routes are intentionally permission-free because every
- * authenticated customer should be able to access their own account.
- */
 export const NAV: NavSection[] = [
     {
         items: [
@@ -104,6 +99,12 @@ export const NAV: NavSection[] = [
                 to: '/admin/fulfillment',
                 icon: Package,
                 permission: PERM.ordersManage,
+            },
+            {
+                titleKey: 'nav.shippingMethods',
+                to: '/admin/shipping-methods',
+                icon: Truck,
+                permission: PERM.shippingRead,
             },
             {
                 titleKey: 'nav.categories',

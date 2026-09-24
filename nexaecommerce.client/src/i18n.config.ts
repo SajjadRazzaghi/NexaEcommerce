@@ -16,13 +16,15 @@ import warehouseFa from './locales/warehouse.fa';
 import inventoryEn from './locales/inventory.en';
 import inventoryFa from './locales/inventory.fa';
 
+import shippingEn from './locales/shipping.en';
+import shippingFa from './locales/shipping.fa';
+
 export type LanguageMeta = {
     code: string;
     name: string;
     dir: 'ltr' | 'rtl';
 };
 
-// Single source of truth for supported languages.
 export const LANGUAGES: LanguageMeta[] = [
     {
         code: 'fa',
@@ -63,7 +65,7 @@ export const LANGUAGES: LanguageMeta[] = [
 
 export const supportedLngs =
     LANGUAGES.map(
-        (language) =>
+        language =>
             language.code,
     );
 
@@ -72,7 +74,7 @@ export function directionOf(
 ): 'ltr' | 'rtl' {
     return (
         LANGUAGES.find(
-            (language) =>
+            language =>
                 language.code === code,
         )?.dir ?? 'ltr'
     );
@@ -91,6 +93,7 @@ i18n
                         ...en.nav,
                         ...warehouseEn.nav,
                         ...inventoryEn.nav,
+                        ...shippingEn.nav,
                     },
 
                     warehouses:
@@ -98,6 +101,9 @@ i18n
 
                     inventory:
                         inventoryEn.inventory,
+
+                    shipping:
+                        shippingEn.shipping,
                 },
             },
 
@@ -109,6 +115,7 @@ i18n
                         ...fa.nav,
                         ...warehouseFa.nav,
                         ...inventoryFa.nav,
+                        ...shippingFa.nav,
                     },
 
                     warehouses:
@@ -116,6 +123,9 @@ i18n
 
                     inventory:
                         inventoryFa.inventory,
+
+                    shipping:
+                        shippingFa.shipping,
                 },
             },
 
@@ -144,7 +154,8 @@ i18n
 
         supportedLngs,
 
-        nonExplicitSupportedLngs: true,
+        nonExplicitSupportedLngs:
+            true,
 
         interpolation: {
             escapeValue: false,

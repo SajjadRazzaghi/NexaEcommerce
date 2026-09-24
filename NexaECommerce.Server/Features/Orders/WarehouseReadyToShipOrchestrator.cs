@@ -9,6 +9,7 @@ public sealed class WarehouseReadyToShipOrchestrator(
     IOrderRepository orderRepository,
     IFulfillmentRepository fulfillmentRepository,
     IPackageRepository packageRepository,
+    IShipmentService shipmentService,
     IOrderUnitOfWork unitOfWork)
 {
     public async Task<FulfillmentDto> ExecuteAsync(
@@ -89,6 +90,17 @@ public sealed class WarehouseReadyToShipOrchestrator(
                 $"Package '{package.Id}' must be packed before the order becomes ready to ship.");
         }
 
+        /*
+         * Shipment is prepared from the shipping method selected
+         * during checkout. This also repairs an old/partial state
+         * where Fulfillment is already ReadyToShip but the shipment
+         * record is missing.
+         */
+        await shipmentService.PrepareAsync(
+            normalizedTenantId,
+            orderId,
+            cancellationToken);
+
         if (fulfillment.Status ==
             FulfillmentStatus.ReadyToShip)
         {
@@ -152,4 +164,3 @@ public sealed class WarehouseReadyToShipOrchestrator(
         }
     }
 }
-

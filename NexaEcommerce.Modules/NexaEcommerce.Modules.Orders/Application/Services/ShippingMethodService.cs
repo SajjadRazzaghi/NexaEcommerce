@@ -1,5 +1,4 @@
-﻿
-using NexaEcommerce.Modules.Orders.Application.DTOs;
+﻿using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 
@@ -15,7 +14,8 @@ public sealed class ShippingMethodService(
             string tenantId,
             CancellationToken cancellationToken = default)
     {
-        ValidateTenant(tenantId);
+        ValidateTenant(
+            tenantId);
 
         var methods =
             await repository.GetActiveAsync(
@@ -32,7 +32,8 @@ public sealed class ShippingMethodService(
             string tenantId,
             CancellationToken cancellationToken = default)
     {
-        ValidateTenant(tenantId);
+        ValidateTenant(
+            tenantId);
 
         var methods =
             await repository.GetAllAsync(
@@ -50,10 +51,13 @@ public sealed class ShippingMethodService(
             Guid id,
             CancellationToken cancellationToken = default)
     {
-        ValidateTenant(tenantId);
+        ValidateTenant(
+            tenantId);
 
         if (id == Guid.Empty)
+        {
             return null;
+        }
 
         var method =
             await repository.GetByIdAsync(
@@ -72,7 +76,8 @@ public sealed class ShippingMethodService(
             CreateShippingMethodRequest request,
             CancellationToken cancellationToken = default)
     {
-        ValidateTenant(tenantId);
+        ValidateTenant(
+            tenantId);
 
         var code =
             NormalizeCode(
@@ -116,7 +121,8 @@ public sealed class ShippingMethodService(
             UpdateShippingMethodRequest request,
             CancellationToken cancellationToken = default)
     {
-        ValidateTenant(tenantId);
+        ValidateTenant(
+            tenantId);
 
         var method =
             await repository.GetByIdAsync(
@@ -125,7 +131,9 @@ public sealed class ShippingMethodService(
                 cancellationToken);
 
         if (method is null)
+        {
             return null;
+        }
 
         method.Update(
             request.Name,
@@ -146,7 +154,8 @@ public sealed class ShippingMethodService(
             bool active,
             CancellationToken cancellationToken = default)
     {
-        ValidateTenant(tenantId);
+        ValidateTenant(
+            tenantId);
 
         var method =
             await repository.GetByIdAsync(
@@ -155,12 +164,18 @@ public sealed class ShippingMethodService(
                 cancellationToken);
 
         if (method is null)
+        {
             return false;
+        }
 
         if (active)
+        {
             method.Activate();
+        }
         else
+        {
             method.Deactivate();
+        }
 
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -174,7 +189,8 @@ public sealed class ShippingMethodService(
             Guid id,
             CancellationToken cancellationToken = default)
     {
-        ValidateTenant(tenantId);
+        ValidateTenant(
+            tenantId);
 
         var method =
             await repository.GetByIdAsync(
@@ -183,10 +199,17 @@ public sealed class ShippingMethodService(
                 cancellationToken);
 
         if (method is null)
+        {
             return false;
+        }
 
-        repository.Remove(
-            method);
+        /*
+         * Shipping methods are historical business data.
+         *
+         * Do not physically delete them because existing orders
+         * may reference them through ShippingMethodId.
+         */
+        method.Deactivate();
 
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -200,7 +223,8 @@ public sealed class ShippingMethodService(
             Guid shippingMethodId,
             CancellationToken cancellationToken = default)
     {
-        ValidateTenant(tenantId);
+        ValidateTenant(
+            tenantId);
 
         if (shippingMethodId == Guid.Empty)
         {

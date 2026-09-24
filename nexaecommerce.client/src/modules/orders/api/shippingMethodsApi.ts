@@ -71,9 +71,18 @@ export async function updateShippingMethod(
     id: string,
     request: UpdateShippingMethodRequest,
 ): Promise<ShippingMethod> {
+    const normalizedId =
+        id.trim();
+
+    if (!normalizedId) {
+        throw new Error(
+            'Shipping method id is required.',
+        );
+    }
+
     const { data } =
         await api.put<ShippingMethod>(
-            `/ shipping - methods /${ id }`,
+            `/shipping-methods/${normalizedId}`,
             request,
         );
 
@@ -84,10 +93,19 @@ export async function setShippingMethodActive(
     id: string,
     active: boolean,
 ): Promise<void> {
+    const normalizedId =
+        id.trim();
+
+    if (!normalizedId) {
+        throw new Error(
+            'Shipping method id is required.',
+        );
+    }
+
     await api.put(
-        `/ shipping - methods /${ id }/active`,
-{
-    active,
+        `/shipping-methods/${normalizedId}/active`,
+        {
+            active,
         },
     );
 }
@@ -95,17 +113,35 @@ export async function setShippingMethodActive(
 export async function deleteShippingMethod(
     id: string,
 ): Promise<void> {
+    const normalizedId =
+        id.trim();
+
+    if (!normalizedId) {
+        throw new Error(
+            'Shipping method id is required.',
+        );
+    }
+
     await api.delete(
-        `/shipping-methods/${id}`,
+        `/shipping-methods/${normalizedId}`,
     );
 }
 
 export async function getShippingQuote(
     id: string,
 ): Promise<ShippingQuote> {
+    const normalizedId =
+        id.trim();
+
+    if (!normalizedId) {
+        throw new Error(
+            'Shipping method id is required.',
+        );
+    }
+
     const { data } =
         await api.get<ShippingQuote>(
-            `/shipping-methods/${id}/quote`,
+            `/shipping-methods/${normalizedId}/quote`,
         );
 
     return data;

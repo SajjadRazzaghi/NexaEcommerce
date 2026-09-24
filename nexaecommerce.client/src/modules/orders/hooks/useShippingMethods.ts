@@ -1,11 +1,17 @@
-import { useQuery } from '@tanstack/react-query';
+import {
+    useQuery,
+} from '@tanstack/react-query';
 
 import {
+    getAdminShippingMethods,
     getShippingMethods,
 } from '../api/shippingMethodsApi';
 
 export const shippingMethodsQueryKey =
     ['shipping-methods'] as const;
+
+export const adminShippingMethodsQueryKey =
+    ['admin', 'shipping-methods'] as const;
 
 export function useShippingMethods() {
     return useQuery({
@@ -20,3 +26,15 @@ export function useShippingMethods() {
     });
 }
 
+export function useAdminShippingMethods() {
+    return useQuery({
+        queryKey:
+            adminShippingMethodsQueryKey,
+
+        queryFn:
+            getAdminShippingMethods,
+
+        staleTime:
+            30 * 1000,
+    });
+}

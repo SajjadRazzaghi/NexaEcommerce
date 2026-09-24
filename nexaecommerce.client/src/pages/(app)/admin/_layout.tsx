@@ -41,6 +41,7 @@ export default function AdminLayout() {
         hasAnyPermission(
             user?.permissions ?? [],
             [
+                PERM.shippingRead,
                 PERM.usersRead,
                 PERM.brandsRead,
                 PERM.manufacturersRead,
