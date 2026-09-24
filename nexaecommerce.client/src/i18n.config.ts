@@ -27,14 +27,14 @@ export type LanguageMeta = {
 
 export const LANGUAGES: LanguageMeta[] = [
     {
-        code: 'fa',
-        name: 'فارسی',
-        dir: 'rtl',
-    },
-    {
         code: 'en',
         name: 'English',
         dir: 'ltr',
+    },
+    {
+        code: 'fa',
+        name: 'فارسی',
+        dir: 'rtl',
     },
     {
         code: 'es',
@@ -150,7 +150,15 @@ i18n
             },
         },
 
-        fallbackLng: 'fa',
+        /*
+         * English is the store's default language.
+         *
+         * Persian is selected explicitly by the user
+         * through the language switcher.
+         */
+        lng: 'en',
+
+        fallbackLng: 'en',
 
         supportedLngs,
 

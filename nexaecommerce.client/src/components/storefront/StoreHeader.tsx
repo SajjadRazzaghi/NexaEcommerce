@@ -62,7 +62,7 @@ export default function StoreHeader() {
         user,
         isAuthenticated,
         isLoading:
-            authLoading,
+        authLoading,
     } = useAuth();
 
     const {
@@ -71,17 +71,20 @@ export default function StoreHeader() {
         queryKey: [
             'appearance',
         ],
+
         queryFn:
             appearanceApi.get,
+
         staleTime:
             5 * 60_000,
+
         retry: 1,
     });
 
     const {
         data: cart,
         isLoading:
-            cartLoading,
+        cartLoading,
     } = useCart();
 
     const storeName =
@@ -95,9 +98,11 @@ export default function StoreHeader() {
     const userName =
         user?.displayName?.trim() ||
         user?.email?.trim() ||
-        (isFa
-            ? 'حساب کاربری'
-            : 'My account');
+        (
+            isFa
+                ? 'حساب کاربری'
+                : 'My account'
+        );
 
     const userInitial =
         userName
@@ -142,7 +147,7 @@ export default function StoreHeader() {
         }
 
         navigate(
-            `/ products ? search = ${ encodeURIComponent(value) } `,
+            `/products?search=${encodeURIComponent(value)}`,
         );
     };
 
@@ -184,20 +189,20 @@ export default function StoreHeader() {
     const cartLabel =
         hasCartItems
             ? isFa
-                ? `سبد خرید با ${ cartItemCount } کالا`
-                : `Shopping cart with ${ cartItemCount } items`
+                ? `سبد خرید با ${cartItemCount} کالا`
+                : `Shopping cart with ${cartItemCount} items`
             : isFa
-              ? 'سبد خرید خالی است'
-              : 'Shopping cart is empty';
+                ? 'سبد خرید خالی است'
+                : 'Shopping cart is empty';
 
     const cartTitle =
         hasCartItems
             ? isFa
-                ? `سبد خرید(${ cartItemCount })`
-                : `Shopping cart(${ cartItemCount })`
+                ? `سبد خرید (${cartItemCount})`
+                : `Shopping cart (${cartItemCount})`
             : isFa
-              ? 'سبد خرید خالی است'
-              : 'Shopping cart is empty';
+                ? 'سبد خرید خالی است'
+                : 'Shopping cart is empty';
 
     return (
         <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
@@ -296,11 +301,10 @@ export default function StoreHeader() {
 
                 <Link
                     to="/cart"
-                    className={`relative flex size - 11 shrink - 0 items - center justify - center rounded - xl border transition - colors hover: bg - muted ${
-    hasCartItems
-        ? 'border-primary/50 bg-primary/5'
-        : 'text-muted-foreground'
-} `}
+                    className={`relative flex size-11 shrink-0 items-center justify-center rounded-xl border transition-colors hover:bg-muted ${hasCartItems
+                            ? 'border-primary/50 bg-primary/5'
+                            : 'text-muted-foreground'
+                        }`}
                     aria-label={
                         cartLabel
                     }
@@ -309,11 +313,10 @@ export default function StoreHeader() {
                     }
                 >
                     <ShoppingBag
-                        className={`size - 5 ${
-    hasCartItems
-        ? 'text-primary'
-        : ''
-} `}
+                        className={`size-5 ${hasCartItems
+                                ? 'text-primary'
+                                : ''
+                            }`}
                     />
 
                     {hasCartItems && (
@@ -322,7 +325,7 @@ export default function StoreHeader() {
                             aria-hidden="true"
                         >
                             {cartItemCount >
-                            99
+                                99
                                 ? '99+'
                                 : cartItemCount}
                         </span>
@@ -344,8 +347,8 @@ export default function StoreHeader() {
                         className="flex min-w-0 shrink-0 items-center gap-2 rounded-xl border px-2 py-2 transition-colors hover:bg-muted md:px-3"
                         aria-label={
                             isFa
-                                ? `باز کردن پروفایل ${ userName } `
-                                : `Open profile for ${ userName }`
+                                ? `باز کردن پروفایل ${userName}`
+                                : `Open profile for ${userName}`
                         }
                         title={
                             profileLabel
