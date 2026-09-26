@@ -1,6 +1,7 @@
 import {
     useEffect,
     useMemo,
+    useState,
 } from 'react';
 
 import {
@@ -21,11 +22,6 @@ import {
 } from 'lucide-react';
 
 import {
-    appearanceApi,
-    type Appearance,
-} from '@/lib/api/appearance';
-
-import {
     getAdminOrder,
 } from '@/modules/orders/api/adminOrdersApi';
 
@@ -34,8 +30,102 @@ import type {
 } from '@/modules/orders/types';
 
 interface ShippingLabelsData {
-    appearance: Appearance;
     orders: OrderDto[];
+}
+
+type LabelLayout =
+    | '2x1'
+    | '2x2'
+    | '2x3'
+    | '2x4'
+    | '2x5'
+    | '2x6';
+
+const LAYOUTS: Array<{
+    value: LabelLayout;
+    label: string;
+    rows: number;
+}> = [
+        {
+            value: '2x1',
+            label: '۲ × ۱ — ۲ لیبل در هر صفحه',
+            rows: 1,
+        },
+        {
+            value: '2x2',
+            label: '۲ × ۲ — ۴ لیبل در هر صفحه',
+            rows: 2,
+        },
+        {
+            value: '2x3',
+            label: '۲ × ۳ — ۶ لیبل در هر صفحه',
+            rows: 3,
+        },
+        {
+            value: '2x4',
+            label: '۲ × ۴ — ۸ لیبل در هر صفحه',
+            rows: 4,
+        },
+        {
+            value: '2x5',
+            label: '۲ × ۵ — ۱۰ لیبل در هر صفحه',
+            rows: 5,
+        },
+        {
+            value: '2x6',
+            label: '۲ × ۶ — ۱۲ لیبل در هر صفحه',
+            rows: 6,
+        },
+    ];
+
+function getSavedLayout(): LabelLayout {
+    if (typeof window === 'undefined') {
+        return '2x4';
+    }
+
+    const saved =
+        window.localStorage.getItem(
+            'nexa-shipping-label-layout',
+        ) as LabelLayout | null;
+
+    return LAYOUTS.some(
+        layout =>
+            layout.value === saved,
+    )
+        ? saved!
+        : '2x4';
+}
+
+function getReceiverAddress(
+    order: OrderDto,
+): string {
+    const city =
+        order.shippingCity?.trim() ?? '';
+
+    const address =
+        order.shippingAddress?.trim() ?? '';
+
+    if (!city) {
+        return address || '—';
+    }
+
+    if (!address) {
+        return city;
+    }
+
+    // اگر شهر قبلاً داخل آدرس آمده باشد،
+    // دوباره تکرارش نمی‌کنیم.
+    if (
+        address
+            .toLocaleLowerCase()
+            .includes(
+                city.toLocaleLowerCase(),
+            )
+    ) {
+        return address;
+    }
+
+    return `${city}، ${address}`;
 }
 
 export default function AdminOrderShippingLabelsPage() {
@@ -49,6 +139,11 @@ export default function AdminOrderShippingLabelsPage() {
         i18n.language
             .toLowerCase()
             .startsWith('fa');
+
+    const [layout, setLayout] =
+        useState<LabelLayout>(
+            getSavedLayout,
+        );
 
     const idsParam =
         searchParams.get('ids') ??
@@ -73,6 +168,16 @@ export default function AdminOrderShippingLabelsPage() {
             [idsParam],
         );
 
+    const selectedLayout =
+        LAYOUTS.find(
+            item =>
+                item.value === layout,
+        ) ??
+        LAYOUTS[3];
+
+    const labelsPerPage =
+        2 * selectedLayout.rows;
+
     const {
         data,
         isLoading,
@@ -89,9 +194,6 @@ export default function AdminOrderShippingLabelsPage() {
 
             queryFn:
                 async () => {
-                    const appearance =
-                        await appearanceApi.get();
-
                     const orders =
                         await Promise.all(
                             orderIds.map(
@@ -103,7 +205,6 @@ export default function AdminOrderShippingLabelsPage() {
                         );
 
                     return {
-                        appearance,
                         orders,
                     };
                 },
@@ -115,74 +216,82 @@ export default function AdminOrderShippingLabelsPage() {
                 60_000,
         });
 
+    const pages =
+        useMemo(
+            () => {
+                if (
+                    !data ||
+                    data.orders.length === 0
+                ) {
+                    return [];
+                }
+
+                const result: OrderDto[][] =
+                    [];
+
+                for (
+                    let index = 0;
+                    index <
+                    data.orders.length;
+                    index += labelsPerPage
+                ) {
+                    result.push(
+                        data.orders.slice(
+                            index,
+                            index +
+                            labelsPerPage,
+                        ),
+                    );
+                }
+
+                return result;
+            },
+            [
+                data,
+                labelsPerPage,
+            ],
+        );
+
     useEffect(
         () => {
             if (
-                !data ||
-                data.orders.length === 0
+                typeof window ===
+                'undefined'
             ) {
                 return;
             }
 
-            const timer =
-                window.setTimeout(
-                    () =>
-                        window.print(),
-                    150,
-                );
-
-            const handleAfterPrint =
-                () => {
-                    window.setTimeout(
-                        () =>
-                            window.close(),
-                        100,
-                    );
-                };
-
-            window.addEventListener(
-                'afterprint',
-                handleAfterPrint,
-                { once: true },
+            window.localStorage.setItem(
+                'nexa-shipping-label-layout',
+                layout,
             );
-
-            return () => {
-                window.clearTimeout(
-                    timer,
-                );
-
-                window.removeEventListener(
-                    'afterprint',
-                    handleAfterPrint,
-                );
-            };
         },
-        [data],
+        [layout],
     );
 
     const text =
         isFa
             ? {
                 loading:
-                    'ط¯ط± ط­ط§ظ„ ط¢ظ…ط§ط¯ظ‡â€Œط³ط§ط²غŒ ط¨ط±ع†ط³ط¨â€Œظ‡ط§...',
+                    'در حال آماده‌سازی لیبل‌ها...',
                 empty:
-                    'ط³ظپط§ط±ط´غŒ ط¨ط±ط§غŒ ع†ط§ظ¾ ط§ظ†طھط®ط§ط¨ ظ†ط´ط¯ظ‡ ط§ط³طھ.',
+                    'سفارشی برای چاپ انتخاب نشده است.',
                 error:
-                    'ط¯ط±غŒط§ظپطھ ط§ط·ظ„ط§ط¹ط§طھ ط³ظپط§ط±ط´â€Œظ‡ط§ ط¨ط±ط§غŒ ع†ط§ظ¾ ط¨ط§ ظ…ط´ع©ظ„ ظ…ظˆط§ط¬ظ‡ ط´ط¯.',
-                printAgain:
-                    'ع†ط§ظ¾ ط¯ظˆط¨ط§ط±ظ‡',
-                sender:
-                    'ظپط±ط³طھظ†ط¯ظ‡',
+                    'دریافت اطلاعات سفارش‌ها برای چاپ با مشکل مواجه شد.',
+                print:
+                    'چاپ لیبل‌ها',
+                layout:
+                    'چیدمان',
                 receiver:
-                    'ع¯غŒط±ظ†ط¯ظ‡',
-                city:
-                    'ط´ظ‡ط±',
-                postalCode:
-                    'ع©ط¯ ظ¾ط³طھغŒ',
+                    'گیرنده',
                 address:
-                    'ط¢ط¯ط±ط³',
+                    'آدرس گیرنده',
+                products:
+                    'محصول',
+                quantity:
+                    'تعداد',
                 order:
-                    'ط´ظ…ط§ط±ظ‡ ط³ظپط§ط±ط´',
+                    'سفارش',
             }
             : {
                 loading:
@@ -191,20 +300,20 @@ export default function AdminOrderShippingLabelsPage() {
                     'No orders were selected for printing.',
                 error:
                     'We could not load the orders for printing.',
-                printAgain:
-                    'Print again',
-                sender:
-                    'Sender',
+                print:
+                    'Print labels',
+                layout:
+                    'Layout',
                 receiver:
                     'Receiver',
-                city:
-                    'City',
-                postalCode:
-                    'Postal code',
                 address:
-                    'Address',
+                    'Receiver address',
+                products:
+                    'Products',
+                quantity:
+                    'Qty',
                 order:
-                    'Order number',
+                    'Order',
             };
 
     if (
@@ -240,6 +349,7 @@ export default function AdminOrderShippingLabelsPage() {
             >
                 <div className="flex items-center gap-3">
                     <LoaderCircle className="size-5 animate-spin" />
+
                     <span>
                         {text.loading}
                     </span>
@@ -265,7 +375,7 @@ export default function AdminOrderShippingLabelsPage() {
                     <p className="text-sm text-destructive">
                         {
                             error instanceof
-                            Error
+                                Error
                                 ? error.message
                                 : text.error
                         }
@@ -283,85 +393,225 @@ export default function AdminOrderShippingLabelsPage() {
                         min-height: 100vh;
                         background: #f3f4f6;
                         padding: 16px;
+                        box-sizing: border-box;
                     }
 
                     .shipping-label-screen-actions {
                         display: flex;
+                        flex-wrap: wrap;
+                        align-items: center;
                         justify-content: center;
-                        gap: 8px;
-                        margin: 0 auto 16px;
+                        gap: 10px;
+                        margin: 0 auto 18px;
+                    }
+
+                    .shipping-label-layout-control {
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 10px;
+                        padding: 9px 12px;
+                        border: 1px solid #d1d5db;
+                        border-radius: 8px;
+                        background: #fff;
+                        color: #111827;
+                        font-size: 13px;
+                    }
+
+                    .shipping-label-layout-control select {
+                        min-width: 260px;
+                        border: 0;
+                        outline: none;
+                        background: transparent;
+                        color: inherit;
+                        font: inherit;
+                        cursor: pointer;
+                    }
+
+                    .shipping-labels-document {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: center;
+                        gap: 18px;
+                    }
+
+                    .shipping-label-page {
+                        box-sizing: border-box;
+                        width: 200mm;
+                        height: 287mm;
+                        padding: 4mm;
+                        background: #fff;
+
+                        display: grid;
+
+                        grid-template-columns:
+                            repeat(
+                                2,
+                                minmax(0, 1fr)
+                            );
+
+                        grid-template-rows:
+                            repeat(
+                                var(--shipping-label-rows),
+                                minmax(0, 1fr)
+                            );
+
+                        gap: 4mm;
+
+                        overflow: hidden;
+
+                        box-shadow:
+                            0 2px 10px
+                                rgba(
+                                    0,
+                                    0,
+                                    0,
+                                    0.08
+                                );
                     }
 
                     .shipping-label {
                         box-sizing: border-box;
-                        width: 100mm;
-                        min-height: 150mm;
-                        margin: 0 auto 16px;
-                        padding: 7mm;
+
+                        min-width: 0;
+                        min-height: 0;
+
                         background: #fff;
                         color: #111;
-                        border: 1px solid #d1d5db;
+
+                        border:
+                            1px solid #9ca3af;
+
+                        border-radius: 3mm;
+
+                        padding: 4mm;
+
                         display: flex;
                         flex-direction: column;
-                        gap: 5mm;
-                        font-family: Tahoma, Arial, sans-serif;
+
+                        direction: rtl;
+
+                        font-family:
+                            Tahoma,
+                            Arial,
+                            sans-serif;
+
+                        overflow: hidden;
                     }
 
                     .shipping-label__order {
                         display: flex;
+                        align-items: center;
                         justify-content: space-between;
-                        gap: 8px;
-                        padding-bottom: 4mm;
-                        border-bottom: 1px solid #d1d5db;
-                        font-size: 10pt;
-                    }
 
-                    .shipping-label__section {
-                        border: 1px solid #9ca3af;
-                        border-radius: 4mm;
-                        padding: 5mm;
-                    }
+                        gap: 3mm;
 
-                    .shipping-label__section--receiver {
-                        flex: 1;
-                    }
-
-                    .shipping-label__heading {
+                        padding-bottom: 2.5mm;
                         margin-bottom: 3mm;
-                        font-size: 12pt;
-                        font-weight: 700;
+
+                        border-bottom:
+                            1px solid #d1d5db;
+
+                        font-size: 8.5pt;
                     }
 
-                    .shipping-label__name {
-                        font-size: 16pt;
+                    .shipping-label__receiver {
+                        font-size: 13pt;
                         font-weight: 700;
-                        line-height: 1.4;
+                        line-height: 1.45;
+
+                        overflow-wrap: anywhere;
+                        word-break: break-word;
                     }
 
                     .shipping-label__phone {
-                        margin-top: 2mm;
-                        font-size: 13pt;
+                        margin-top: 1.5mm;
+
+                        font-size: 10.5pt;
+                        font-weight: 700;
+
+                        direction: ltr;
+                        text-align: right;
+
+                        overflow-wrap: anywhere;
+                        word-break: break-word;
+                    }
+
+                    .shipping-label__address-title {
+                        margin-top: 3mm;
+
+                        font-size: 9pt;
                         font-weight: 700;
                     }
 
                     .shipping-label__address {
-                        margin-top: 4mm;
-                        font-size: 12pt;
-                        line-height: 1.8;
+                        margin-top: 1.2mm;
+
+                        font-size: 9pt;
+                        line-height: 1.55;
+
                         white-space: pre-wrap;
+
                         overflow-wrap: anywhere;
+                        word-break: break-word;
+
+                        max-height: 45%;
+                        overflow: hidden;
                     }
 
-                    .shipping-label__meta {
-                        margin-top: 3mm;
+                    .shipping-label__items {
+                        margin-top: auto;
+
+                        padding-top: 2.5mm;
+
+                        border-top:
+                            1px solid #d1d5db;
+
+                        overflow: hidden;
+                    }
+
+                    .shipping-label__items-title {
+                        margin-bottom: 1.5mm;
+
+                        font-size: 8.5pt;
+                        font-weight: 700;
+                    }
+
+                    .shipping-label__item {
                         display: grid;
+
+                        grid-template-columns:
+                            minmax(0, 1fr)
+                            auto;
+
                         gap: 2mm;
-                        font-size: 10.5pt;
+
+                        padding:
+                            1mm
+                            0;
+
+                        font-size: 8.5pt;
+                        line-height: 1.4;
+                    }
+
+                    .shipping-label__item-name {
+                        min-width: 0;
+
+                        overflow-wrap: anywhere;
+                        word-break: break-word;
+                    }
+
+                    .shipping-label__item-quantity {
+                        white-space: nowrap;
+                        font-weight: 700;
+                    }
+
+                    .shipping-label__empty {
+                        visibility: hidden;
                     }
 
                     @page {
-                        size: 100mm 150mm;
-                        margin: 0;
+                        size: A4 portrait;
+                        margin: 5mm;
                     }
 
                     @media print {
@@ -369,25 +619,23 @@ export default function AdminOrderShippingLabelsPage() {
                         body {
                             margin: 0 !important;
                             padding: 0 !important;
+
                             background: #fff !important;
                         }
 
-                        body * {
-                            visibility: hidden !important;
-                        }
-
-                        .shipping-labels-print,
-                        .shipping-labels-print * {
-                            visibility: visible !important;
+                        body {
+                            -webkit-print-color-adjust: exact;
+                            print-color-adjust: exact;
                         }
 
                         .shipping-labels-print {
-                            position: absolute !important;
-                            inset: 0 !important;
-                            width: 100% !important;
+                            width: 200mm !important;
+
                             min-height: 0 !important;
+
                             padding: 0 !important;
                             margin: 0 !important;
+
                             background: #fff !important;
                         }
 
@@ -395,20 +643,76 @@ export default function AdminOrderShippingLabelsPage() {
                             display: none !important;
                         }
 
-                        .shipping-label {
-                            width: 100mm !important;
-                            height: 150mm !important;
-                            min-height: 150mm !important;
-                            margin: 0 !important;
-                            border: 0 !important;
-                            border-radius: 0 !important;
-                            page-break-after: always !important;
-                            break-after: page !important;
+                        .shipping-labels-document {
+                            display: block !important;
                         }
 
-                        .shipping-label:last-child {
-                            page-break-after: auto !important;
-                            break-after: auto !important;
+                        .shipping-label-page {
+                            width: 200mm !important;
+                            height: 287mm !important;
+
+                            margin: 0 !important;
+                            padding: 4mm !important;
+
+                            display: grid !important;
+
+                            grid-template-columns:
+                                repeat(
+                                    2,
+                                    minmax(0, 1fr)
+                                ) !important;
+
+                            grid-template-rows:
+                                repeat(
+                                    var(
+                                        --shipping-label-rows
+                                    ),
+                                    minmax(0, 1fr)
+                                ) !important;
+
+                            gap: 4mm !important;
+
+                            box-shadow: none !important;
+
+                            overflow: hidden !important;
+
+                            page-break-after:
+                                always !important;
+
+                            break-after:
+                                page !important;
+
+                            page-break-inside:
+                                avoid !important;
+
+                            break-inside:
+                                avoid !important;
+                        }
+
+                        .shipping-label-page:last-child {
+                            page-break-after:
+                                auto !important;
+
+                            break-after:
+                                auto !important;
+                        }
+
+                        .shipping-label {
+                            width: auto !important;
+                            height: auto !important;
+
+                            min-width: 0 !important;
+                            min-height: 0 !important;
+
+                            margin: 0 !important;
+
+                            break-inside:
+                                avoid !important;
+
+                            page-break-inside:
+                                avoid !important;
+
+                            overflow: hidden !important;
                         }
                     }
                 `}
@@ -423,6 +727,39 @@ export default function AdminOrderShippingLabelsPage() {
                 }
             >
                 <div className="shipping-label-screen-actions">
+                    <label className="shipping-label-layout-control">
+                        <span>
+                            {text.layout}
+                        </span>
+
+                        <select
+                            value={layout}
+                            onChange={event =>
+                                setLayout(
+                                    event.target
+                                        .value as LabelLayout,
+                                )
+                            }
+                        >
+                            {LAYOUTS.map(
+                                item => (
+                                    <option
+                                        key={
+                                            item.value
+                                        }
+                                        value={
+                                            item.value
+                                        }
+                                    >
+                                        {
+                                            item.label
+                                        }
+                                    </option>
+                                ),
+                            )}
+                        </select>
+                    </label>
+
                     <button
                         type="button"
                         onClick={() =>
@@ -431,109 +768,154 @@ export default function AdminOrderShippingLabelsPage() {
                         className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground"
                     >
                         <Printer className="size-4" />
-                        {text.printAgain}
+
+                        {text.print}
                     </button>
                 </div>
 
-                {data.orders.map(
-                    order => (
-                        <article
-                            key={
-                                order.id
-                            }
-                            className="shipping-label"
-                        >
-                            <div className="shipping-label__order">
-                                <span>
-                                    {text.order}
-                                </span>
+                <div className="shipping-labels-document">
+                    {pages.map(
+                        (
+                            pageOrders,
+                            pageIndex,
+                        ) => {
+                            const emptyCount =
+                                labelsPerPage -
+                                pageOrders.length;
 
-                                <strong>
-                                    {
-                                        order.orderNumber
+                            return (
+                                <section
+                                    key={
+                                        pageIndex
                                     }
-                                </strong>
-                            </div>
-
-                            <section className="shipping-label__section">
-                                <div className="shipping-label__heading">
-                                    {text.sender}
-                                </div>
-
-                                <div className="shipping-label__name">
-                                    {
-                                        data.appearance.storeName ??
-                                        'â€”'
-                                    }
-                                </div>
-
-                                {data.appearance.contactPhone && (
-                                    <div className="shipping-label__phone">
+                                    className="shipping-label-page"
+                                    style={
                                         {
-                                            data.appearance.contactPhone
-                                        }
-                                    </div>
-                                )}
-
-                                <div className="shipping-label__address">
-                                    {
-                                        data.appearance.contactAddress ??
-                                        'â€”'
+                                            '--shipping-label-rows':
+                                                selectedLayout.rows,
+                                        } as Record<
+                                            string,
+                                            number
+                                        >
                                     }
-                                </div>
-                            </section>
+                                >
+                                    {pageOrders.map(
+                                        order => (
+                                            <article
+                                                key={
+                                                    order.id
+                                                }
+                                                className="shipping-label"
+                                            >
+                                                <div className="shipping-label__order">
+                                                    <span>
+                                                        {
+                                                            text.order
+                                                        }
+                                                    </span>
 
-                            <section className="shipping-label__section shipping-label__section--receiver">
-                                <div className="shipping-label__heading">
-                                    {text.receiver}
-                                </div>
+                                                    <strong>
+                                                        {
+                                                            order.orderNumber
+                                                        }
+                                                    </strong>
+                                                </div>
 
-                                <div className="shipping-label__name">
-                                    {
-                                        order.shippingFullName ||
-                                        'â€”'
-                                    }
-                                </div>
+                                                <div className="shipping-label__receiver">
+                                                    {
+                                                        order.shippingFullName ||
+                                                        '—'
+                                                    }
+                                                </div>
 
-                                <div className="shipping-label__phone">
-                                    {
-                                        order.shippingPhone ||
-                                        'â€”'
-                                    }
-                                </div>
+                                                <div className="shipping-label__phone">
+                                                    {
+                                                        order.shippingPhone ||
+                                                        '—'
+                                                    }
+                                                </div>
 
-                                <div className="shipping-label__address">
-                                    {
-                                        order.shippingAddress ||
-                                        'â€”'
-                                    }
-                                </div>
+                                                <div className="shipping-label__address-title">
+                                                    {
+                                                        text.address
+                                                    }
+                                                </div>
 
-                                <div className="shipping-label__meta">
-                                    <div>
-                                        <strong>
-                                            {text.city}:
-                                        </strong>{' '}
+                                                <div className="shipping-label__address">
+                                                    {
+                                                        getReceiverAddress(
+                                                            order,
+                                                        )
+                                                    }
+                                                </div>
+
+                                                {order.items.length >
+                                                    0 && (
+                                                        <div className="shipping-label__items">
+                                                            <div className="shipping-label__items-title">
+                                                                {
+                                                                    text.products
+                                                                }
+                                                            </div>
+
+                                                            {order.items.map(
+                                                                (
+                                                                    item,
+                                                                    itemIndex,
+                                                                ) => (
+                                                                    <div
+                                                                        key={
+                                                                            `${item.productVariantId}-${itemIndex}`
+                                                                        }
+                                                                        className="shipping-label__item"
+                                                                    >
+                                                                        <div className="shipping-label__item-name">
+                                                                            {
+                                                                                item.productName
+                                                                            }
+                                                                        </div>
+
+                                                                        <div className="shipping-label__item-quantity">
+                                                                            {
+                                                                                text.quantity
+                                                                            }
+                                                                            :{' '}
+                                                                            {
+                                                                                item.quantity
+                                                                            }
+                                                                        </div>
+                                                                    </div>
+                                                                ),
+                                                            )}
+                                                        </div>
+                                                    )}
+                                            </article>
+                                        ),
+                                    )}
+
+                                    {Array.from(
                                         {
-                                            order.shippingCity ||
-                                            'â€”'
-                                        }
-                                    </div>
-
-                                    <div>
-                                        <strong>
-                                            {text.postalCode}:
-                                        </strong>{' '}
-                                        {
-                                            order.shippingPostalCode ||
-                                            'â€”'
-                                        }
-                                    </div>
-                                </div>
-                            </section>
-                        </article>
-                    ),
-                )}
+                                            length:
+                                                emptyCount,
+                                        },
+                                        (
+                                            _,
+                                            emptyIndex,
+                                        ) => (
+                                            <div
+                                                key={
+                                                    `empty-${emptyIndex}`
+                                                }
+                                                className="shipping-label shipping-label__empty"
+                                                aria-hidden="true"
+                                            />
+                                        ),
+                                    )}
+                                </section>
+                            );
+                        },
+                    )}
+                </div>
             </main>
         </>
     );

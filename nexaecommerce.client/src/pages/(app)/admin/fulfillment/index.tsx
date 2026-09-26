@@ -4,6 +4,15 @@ import {
 } from 'react';
 
 import {
+    useQuery,
+} from '@tanstack/react-query';
+
+
+import {
+    warehousesApi,
+} from '@/modules/inventory/api/warehouses';
+
+import {
     useTranslation,
 } from 'react-i18next';
 
@@ -137,7 +146,23 @@ export default function AdminFulfillmentPage() {
             skip,
             PAGE_SIZE,
         );
+    const {
+        data: warehouseList,
+    } = useQuery({
+        queryKey: [
+            'admin',
+            'inventory',
+            'warehouses',
+        ],
 
+        queryFn: async () =>
+            warehousesApi.list(
+                true,
+            ),
+
+        staleTime:
+            60_000,
+    });
     const text = isFa
         ? {
             title:
@@ -443,20 +468,44 @@ export default function AdminFulfillmentPage() {
                                                 </td>
 
                                                 <td className="px-4 py-4">
-                                                    {item
-                                                        .fulfillment
-                                                        .warehouseId ? (
-                                                        <span className="font-mono text-xs">
-                                                            {item.fulfillment.warehouseId.slice(
-                                                                0,
-                                                                8,
-                                                            )}
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-xs text-muted-foreground">
-                                                            —
-                                                        </span>
-                                                    )}
+                                                    {(() => {
+                                                        const warehouse =
+                                                            warehouseList?.data.items.find(
+                                                                value =>
+                                                                    value.id ===
+                                                                    item.fulfillment.warehouseId,
+                                                            );
+
+                                                        if (!item.fulfillment.warehouseId) {
+                                                            return (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    —
+                                                                </span>
+                                                            );
+                                                        }
+
+                                                        if (!warehouse) {
+                                                            return (
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    در حال دریافت...
+                                                                </span>
+                                                            );
+                                                        }
+
+                                                        return (
+                                                            <div className="grid gap-0.5">
+                                                                <span className="font-medium">
+                                                                    {warehouse.name}
+                                                                </span>
+
+                                                                {warehouse.code && (
+                                                                    <span className="text-xs text-muted-foreground">
+                                                                        ({warehouse.code})
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </td>
 
                                                 <td className="px-4 py-4 text-end">

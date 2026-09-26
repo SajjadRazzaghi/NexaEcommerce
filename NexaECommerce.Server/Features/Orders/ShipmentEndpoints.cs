@@ -23,7 +23,10 @@ public sealed class ShipmentEndpoints
         group.MapGet(
             "/{orderId:guid}/shipment",
             GetShipment);
-
+        group.MapGet(
+        "/admin/{orderId:guid}/shipment",
+        GetAdminShipment)
+    .RequirePermission(OrderPermissions.Manage);
         group.MapPost(
             "/{orderId:guid}/shipment",
             CreateShipment)
@@ -44,7 +47,92 @@ public sealed class ShipmentEndpoints
             Deliver)
             .RequirePermission(OrderPermissions.UpdateStatus);
     }
+    private static async Task<IResult>
+    GetAdminShipment(
+        Guid orderId,
+        [FromServices]
+        IShipmentService shipments,
+        [FromServices]
+        IFulfillmentService fulfillments,
+        [FromServices]
+        ICurrentTenant tenant,
+        CancellationToken ct)
+    {
+        try
+        {
+            var fulfillment =
+                await fulfillments.GetByOrderAsync(
+                    tenant.Id,
+                    orderId,
+                    ct);
 
+            if (fulfillment is null)
+            {
+                return Results.NotFound(
+                    new
+                    {
+                        error =
+                            "Fulfillment was not found for this order."
+                    });
+            }
+
+            /*
+             * This endpoint is for administrators.
+             *
+             * ReadyToShip orders should already have a Shipment.
+             * If this is an older/partial record and the Shipment
+             * is missing, repair it here from the persisted shipping
+             * method selected during checkout.
+             */
+            var result =
+                await shipments.GetByOrderAsync(
+                    tenant.Id,
+                    orderId,
+                    null,
+                    ct);
+
+            if (result is null &&
+                string.Equals(
+                    fulfillment.Status,
+                    "ReadyToShip",
+                    StringComparison.Ordinal))
+            {
+                result =
+                    await shipments.PrepareAsync(
+                        tenant.Id,
+                        orderId,
+                        ct);
+            }
+
+            return result is null
+                ? Results.NotFound()
+                : Results.Ok(result);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+    }
     private static async Task<IResult>
         GetShipment(
             Guid orderId,

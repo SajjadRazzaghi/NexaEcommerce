@@ -7,6 +7,7 @@ import {
 import {
     createShipment,
     deliverOrder,
+    getAdminShipment,
     getShipment,
     shipOrder,
     updateShipmentTrackingNumber,
@@ -50,6 +51,36 @@ export function useShipment(
     });
 }
 
+export function useAdminShipment(
+    orderId?: string,
+) {
+    return useQuery({
+        queryKey: [
+            'admin',
+            'orders',
+            orderId,
+            'shipment',
+        ] as const,
+
+        queryFn: () =>
+            getAdminShipment(
+                orderId!,
+            ),
+
+        enabled:
+            Boolean(orderId),
+
+        refetchInterval:
+            15_000,
+
+        refetchOnWindowFocus:
+            true,
+
+        staleTime:
+            5_000,
+    });
+}
+
 export function useShipmentMutations(
     orderId: string,
 ) {
@@ -63,6 +94,15 @@ export function useShipmentMutations(
                     shipmentQueryKey(
                         orderId,
                     ),
+            }),
+
+            queryClient.invalidateQueries({
+                queryKey: [
+                    'admin',
+                    'orders',
+                    orderId,
+                    'shipment',
+                ],
             }),
 
             queryClient.invalidateQueries({
@@ -154,4 +194,3 @@ export function useShipmentMutations(
         deliver,
     };
 }
-

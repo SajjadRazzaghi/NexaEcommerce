@@ -51,7 +51,7 @@ export async function getFulfillmentQueue(
 ): Promise<FulfillmentQueueResponse> {
     const { data } =
         await api.get<FulfillmentQueueResponse>(
-            '/api/fulfillment/queue',
+            '/fulfillment/queue',
             {
                 params: {
                     skip,

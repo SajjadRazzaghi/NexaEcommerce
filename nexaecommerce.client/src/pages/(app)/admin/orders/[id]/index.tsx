@@ -28,7 +28,7 @@ import {
 } from '@/modules/orders/hooks/useAdminOrders';
 
 import {
-    useShipment,
+    useAdminShipment,
     useShipmentMutations,
 } from '@/modules/orders/hooks/useShipment';
 
@@ -91,10 +91,9 @@ export default function AdminOrderDetailsPage() {
         data: shipment,
         isLoading:
         shipmentLoading,
-    } =
-        useShipment(
-            id,
-        );
+    } = useAdminShipment(
+        id,
+    );
 
     const {
         data: fulfillment,
