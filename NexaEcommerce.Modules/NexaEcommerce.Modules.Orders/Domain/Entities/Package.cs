@@ -132,7 +132,58 @@ public sealed class Package : AggregateRoot
         PackedAt = utcNow;
         UpdatedAt = utcNow;
     }
+    public void RollbackToPacked(
+    DateTime utcNow)
+    {
+        EnsureStatus(
+            PackageStatus.Packed,
+            PackageStatus.LabelPrinted);
 
+        Status =
+            PackageStatus.Packed;
+
+        LabelPrintedAt = null;
+        TrackingNumber = null;
+
+        UpdatedAt =
+            utcNow;
+    }
+
+    public void RollbackToPacking(
+        DateTime utcNow)
+    {
+        EnsureStatus(
+            PackageStatus.Packed,
+            PackageStatus.LabelPrinted);
+
+        Status =
+            PackageStatus.Packing;
+
+        PackedAt = null;
+        LabelPrintedAt = null;
+        TrackingNumber = null;
+
+        UpdatedAt =
+            utcNow;
+    }
+
+    public void RollbackToDraft(
+        DateTime utcNow)
+    {
+        EnsureStatus(
+            PackageStatus.Packing);
+
+        Status =
+            PackageStatus.Draft;
+
+        PackingStartedAt = null;
+        PackedAt = null;
+        LabelPrintedAt = null;
+        TrackingNumber = null;
+
+        UpdatedAt =
+            utcNow;
+    }
     public void MarkLabelPrinted(DateTime utcNow)
     {
         EnsureStatus(

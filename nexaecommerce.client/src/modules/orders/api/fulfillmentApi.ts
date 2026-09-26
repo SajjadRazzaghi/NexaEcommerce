@@ -31,7 +31,8 @@ export interface FulfillmentDto {
 export async function getFulfillment(
     orderId: string,
 ): Promise<FulfillmentDto | null> {
-    const normalizedId = orderId.trim();
+    const normalizedId =
+        orderId.trim();
 
     if (!normalizedId) {
         throw new Error(
@@ -67,7 +68,8 @@ export async function getFulfillment(
 export async function startFulfillment(
     orderId: string,
 ): Promise<unknown> {
-    const normalizedId = orderId.trim();
+    const normalizedId =
+        orderId.trim();
 
     const { data } =
         await api.post(
@@ -80,7 +82,8 @@ export async function startFulfillment(
 export async function allocateWarehouse(
     orderId: string,
 ): Promise<unknown> {
-    const normalizedId = orderId.trim();
+    const normalizedId =
+        orderId.trim();
 
     const { data } =
         await api.post(
@@ -93,7 +96,8 @@ export async function allocateWarehouse(
 export async function reserveStock(
     orderId: string,
 ): Promise<unknown> {
-    const normalizedId = orderId.trim();
+    const normalizedId =
+        orderId.trim();
 
     const { data } =
         await api.post(
@@ -106,7 +110,8 @@ export async function reserveStock(
 export async function startPicking(
     orderId: string,
 ): Promise<unknown> {
-    const normalizedId = orderId.trim();
+    const normalizedId =
+        orderId.trim();
 
     const { data } =
         await api.post(
@@ -119,7 +124,8 @@ export async function startPicking(
 export async function markPicked(
     orderId: string,
 ): Promise<unknown> {
-    const normalizedId = orderId.trim();
+    const normalizedId =
+        orderId.trim();
 
     const { data } =
         await api.post(
@@ -132,7 +138,8 @@ export async function markPicked(
 export async function startPacking(
     orderId: string,
 ): Promise<unknown> {
-    const normalizedId = orderId.trim();
+    const normalizedId =
+        orderId.trim();
 
     const { data } =
         await api.post(
@@ -145,7 +152,8 @@ export async function startPacking(
 export async function markPacked(
     orderId: string,
 ): Promise<unknown> {
-    const normalizedId = orderId.trim();
+    const normalizedId =
+        orderId.trim();
 
     const { data } =
         await api.post(
@@ -158,11 +166,32 @@ export async function markPacked(
 export async function markReadyToShip(
     orderId: string,
 ): Promise<unknown> {
-    const normalizedId = orderId.trim();
+    const normalizedId =
+        orderId.trim();
 
     const { data } =
         await api.post(
             `/fulfillment/orders/${normalizedId}/ready-to-ship`,
+        );
+
+    return data;
+}
+
+export async function rollbackFulfillment(
+    orderId: string,
+): Promise<FulfillmentDto> {
+    const normalizedId =
+        orderId.trim();
+
+    if (!normalizedId) {
+        throw new Error(
+            'Order id is required.',
+        );
+    }
+
+    const { data } =
+        await api.post<FulfillmentDto>(
+            `/fulfillment/orders/${normalizedId}/rollback`,
         );
 
     return data;

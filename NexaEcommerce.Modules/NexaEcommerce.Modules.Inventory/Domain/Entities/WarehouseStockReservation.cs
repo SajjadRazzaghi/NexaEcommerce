@@ -204,4 +204,27 @@ public sealed class WarehouseStockReservation : BaseEntity
         UpdatedAt =
             DateTime.UtcNow;
     }
+    public void RestoreToReserved()
+    {
+        if (Status ==
+            WarehouseStockReservationStatus.Reserved)
+        {
+            return;
+        }
+
+        if (Status !=
+            WarehouseStockReservationStatus.Consumed)
+        {
+            throw new InvalidOperationException(
+                "Only consumed warehouse stock reservations can be restored.");
+        }
+
+        Status =
+            WarehouseStockReservationStatus.Reserved;
+
+        CompletedAt = null;
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
 }

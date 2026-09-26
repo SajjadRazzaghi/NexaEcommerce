@@ -21,42 +21,50 @@ public sealed class ShipmentEndpoints
                 .RequireAuthorization();
 
         group.MapGet(
+            "/admin/{orderId:guid}/shipment",
+            GetAdminShipment)
+            .RequirePermission(
+                OrderPermissions.Manage);
+
+        group.MapGet(
             "/{orderId:guid}/shipment",
             GetShipment);
-        group.MapGet(
-        "/admin/{orderId:guid}/shipment",
-        GetAdminShipment)
-    .RequirePermission(OrderPermissions.Manage);
+
         group.MapPost(
             "/{orderId:guid}/shipment",
             CreateShipment)
-            .RequirePermission(OrderPermissions.Manage);
+            .RequirePermission(
+                OrderPermissions.Manage);
 
         group.MapPut(
             "/{orderId:guid}/shipment/tracking",
             SetTrackingNumber)
-            .RequirePermission(OrderPermissions.Manage);
+            .RequirePermission(
+                OrderPermissions.Manage);
 
         group.MapPost(
             "/{orderId:guid}/shipment/ship",
             Ship)
-            .RequirePermission(OrderPermissions.UpdateStatus);
+            .RequirePermission(
+                OrderPermissions.UpdateStatus);
 
         group.MapPost(
             "/{orderId:guid}/shipment/deliver",
             Deliver)
-            .RequirePermission(OrderPermissions.UpdateStatus);
+            .RequirePermission(
+                OrderPermissions.UpdateStatus);
     }
+
     private static async Task<IResult>
-    GetAdminShipment(
-        Guid orderId,
-        [FromServices]
-        IShipmentService shipments,
-        [FromServices]
-        IFulfillmentService fulfillments,
-        [FromServices]
-        ICurrentTenant tenant,
-        CancellationToken ct)
+        GetAdminShipment(
+            Guid orderId,
+            [FromServices]
+            IShipmentService shipments,
+            [FromServices]
+            IFulfillmentService fulfillments,
+            [FromServices]
+            ICurrentTenant tenant,
+            CancellationToken ct)
     {
         try
         {
@@ -76,14 +84,6 @@ public sealed class ShipmentEndpoints
                     });
             }
 
-            /*
-             * This endpoint is for administrators.
-             *
-             * ReadyToShip orders should already have a Shipment.
-             * If this is an older/partial record and the Shipment
-             * is missing, repair it here from the persisted shipping
-             * method selected during checkout.
-             */
             var result =
                 await shipments.GetByOrderAsync(
                     tenant.Id,
@@ -91,6 +91,13 @@ public sealed class ShipmentEndpoints
                     null,
                     ct);
 
+            /*
+             * ReadyToShip orders should normally already
+             * have a Shipment.
+             *
+             * Repair older or partial records when the
+             * shipment is missing.
+             */
             if (result is null &&
                 string.Equals(
                     fulfillment.Status,
@@ -133,6 +140,7 @@ public sealed class ShipmentEndpoints
                 });
         }
     }
+
     private static async Task<IResult>
         GetShipment(
             Guid orderId,
@@ -147,7 +155,8 @@ public sealed class ShipmentEndpoints
             http.User.FindFirstValue(
                 ClaimTypes.NameIdentifier);
 
-        if (string.IsNullOrWhiteSpace(userId))
+        if (string.IsNullOrWhiteSpace(
+                userId))
         {
             return Results.Unauthorized();
         }
@@ -275,15 +284,14 @@ public sealed class ShipmentEndpoints
         }
     }
 
-
-private static async Task<IResult>
-    Ship(
-        Guid orderId,
-        [FromServices]
-        WarehouseShipmentOrchestrator orchestrator,
-        [FromServices]
-        ICurrentTenant tenant,
-        CancellationToken ct)
+    private static async Task<IResult>
+        Ship(
+            Guid orderId,
+            [FromServices]
+            WarehouseShipmentOrchestrator orchestrator,
+            [FromServices]
+            ICurrentTenant tenant,
+            CancellationToken ct)
     {
         try
         {
@@ -321,17 +329,14 @@ private static async Task<IResult>
         }
     }
 
-
-
-   
-private static async Task<IResult>
-    Deliver(
-        Guid orderId,
-        [FromServices]
-        WarehouseShipmentOrchestrator orchestrator,
-        [FromServices]
-        ICurrentTenant tenant,
-        CancellationToken ct)
+    private static async Task<IResult>
+        Deliver(
+            Guid orderId,
+            [FromServices]
+            WarehouseShipmentOrchestrator orchestrator,
+            [FromServices]
+            ICurrentTenant tenant,
+            CancellationToken ct)
     {
         try
         {
@@ -368,6 +373,4 @@ private static async Task<IResult>
                 });
         }
     }
-
-
 }

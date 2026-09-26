@@ -11,6 +11,7 @@ import {
     markPicked,
     markReadyToShip,
     reserveStock,
+    rollbackFulfillment,
     startFulfillment,
     startPacking,
     startPicking,
@@ -34,17 +35,14 @@ export function useFulfillment(
                 orderId ?? '',
             ),
 
+        queryFn: () =>
+            getFulfillment(
+                orderId!,
+            ),
 
-    queryFn: () =>
-        getFulfillment(
-            orderId!,
-        ),
-
-    enabled:
-        Boolean(orderId),
-});
-
-
+        enabled:
+            Boolean(orderId),
+    });
 }
 
 export function useFulfillmentMutations(
@@ -53,160 +51,178 @@ export function useFulfillmentMutations(
     const queryClient =
         useQueryClient();
 
-    
-const invalidate =
-    async () => {
-        await Promise.all([
-            queryClient.invalidateQueries({
-                queryKey:
-                    fulfillmentQueryKey(
+    const invalidate =
+        async () => {
+            await Promise.all([
+                queryClient.invalidateQueries({
+                    queryKey:
+                        fulfillmentQueryKey(
+                            orderId,
+                        ),
+                }),
+
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        'admin',
+                        'orders',
                         orderId,
-                    ),
-            }),
+                    ],
+                }),
 
-            queryClient.invalidateQueries({
-                queryKey: [
-                    'admin',
-                    'orders',
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        'admin',
+                        'orders',
+                    ],
+                }),
+
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        'order',
+                        orderId,
+                    ],
+                }),
+
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        'orders',
+                    ],
+                }),
+
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        'shipment',
+                        orderId,
+                    ],
+                }),
+
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        'orders',
+                        orderId,
+                        'shipment',
+                    ],
+                }),
+
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        'admin',
+                        'orders',
+                        orderId,
+                        'shipment',
+                    ],
+                }),
+            ]);
+        };
+
+    const start =
+        useMutation({
+            mutationFn: () =>
+                startFulfillment(
                     orderId,
-                ],
-            }),
+                ),
 
-            queryClient.invalidateQueries({
-                queryKey: [
-                    'admin',
-                    'orders',
-                ],
-            }),
+            onSuccess:
+                invalidate,
+        });
 
-            queryClient.invalidateQueries({
-                queryKey: [
-                    'order',
+    const allocate =
+        useMutation({
+            mutationFn: () =>
+                allocateWarehouse(
                     orderId,
-                ],
-            }),
+                ),
 
-            queryClient.invalidateQueries({
-                queryKey: [
-                    'orders',
-                ],
-            }),
+            onSuccess:
+                invalidate,
+        });
 
-            queryClient.invalidateQueries({
-                queryKey: [
-                    'shipment',
+    const reserve =
+        useMutation({
+            mutationFn: () =>
+                reserveStock(
                     orderId,
-                ],
-            }),
+                ),
 
-            queryClient.invalidateQueries({
-                queryKey: [
-                    'orders',
+            onSuccess:
+                invalidate,
+        });
+
+    const picking =
+        useMutation({
+            mutationFn: () =>
+                startPicking(
                     orderId,
-                    'shipment',
-                ],
-            }),
-        ]);
+                ),
+
+            onSuccess:
+                invalidate,
+        });
+
+    const picked =
+        useMutation({
+            mutationFn: () =>
+                markPicked(
+                    orderId,
+                ),
+
+            onSuccess:
+                invalidate,
+        });
+
+    const packing =
+        useMutation({
+            mutationFn: () =>
+                startPacking(
+                    orderId,
+                ),
+
+            onSuccess:
+                invalidate,
+        });
+
+    const packed =
+        useMutation({
+            mutationFn: () =>
+                markPacked(
+                    orderId,
+                ),
+
+            onSuccess:
+                invalidate,
+        });
+
+    const readyToShip =
+        useMutation({
+            mutationFn: () =>
+                markReadyToShip(
+                    orderId,
+                ),
+
+            onSuccess:
+                invalidate,
+        });
+
+    const rollback =
+        useMutation({
+            mutationFn: () =>
+                rollbackFulfillment(
+                    orderId,
+                ),
+
+            onSuccess:
+                invalidate,
+        });
+
+    return {
+        start,
+        allocate,
+        reserve,
+        picking,
+        picked,
+        packing,
+        packed,
+        readyToShip,
+        rollback,
     };
-
-const start =
-    useMutation({
-        mutationFn: () =>
-            startFulfillment(
-                orderId,
-            ),
-
-        onSuccess:
-            invalidate,
-    });
-
-const allocate =
-    useMutation({
-        mutationFn: () =>
-            allocateWarehouse(
-                orderId,
-            ),
-
-        onSuccess:
-            invalidate,
-    });
-
-const reserve =
-    useMutation({
-        mutationFn: () =>
-            reserveStock(
-                orderId,
-            ),
-
-        onSuccess:
-            invalidate,
-    });
-
-const picking =
-    useMutation({
-        mutationFn: () =>
-            startPicking(
-                orderId,
-            ),
-
-        onSuccess:
-            invalidate,
-    });
-
-const picked =
-    useMutation({
-        mutationFn: () =>
-            markPicked(
-                orderId,
-            ),
-
-        onSuccess:
-            invalidate,
-    });
-
-const packing =
-    useMutation({
-        mutationFn: () =>
-            startPacking(
-                orderId,
-            ),
-
-        onSuccess:
-            invalidate,
-    });
-
-const packed =
-    useMutation({
-        mutationFn: () =>
-            markPacked(
-                orderId,
-            ),
-
-        onSuccess:
-            invalidate,
-    });
-
-const readyToShip =
-    useMutation({
-        mutationFn: () =>
-            markReadyToShip(
-                orderId,
-            ),
-
-        onSuccess:
-            invalidate,
-    });
-
-return {
-    start,
-    allocate,
-    reserve,
-    picking,
-    picked,
-    packing,
-    packed,
-    readyToShip,
-};
-
-
 }

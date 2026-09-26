@@ -171,7 +171,27 @@ public sealed class Shipment : BaseEntity
         UpdatedAt =
             DateTime.UtcNow;
     }
+    public void ResetForFulfillmentRollback()
+    {
+        if (Status == ShipmentStatus.Shipped ||
+            Status == ShipmentStatus.Delivered)
+        {
+            throw new InvalidOperationException(
+                "A shipped or delivered shipment cannot be reset.");
+        }
 
+        Status =
+            ShipmentStatus.Pending;
+
+        TrackingNumber = null;
+
+        ShippedAt = null;
+
+        DeliveredAt = null;
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
     public void Cancel()
     {
         if (Status is

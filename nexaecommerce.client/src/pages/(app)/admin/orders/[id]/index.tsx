@@ -3,7 +3,7 @@ import {
     ExternalLink,
     Package,
     Truck,
-} from 'lucide-react';
+   } from 'lucide-react';
 import {
     useQuery,
 } from '@tanstack/react-query';
@@ -157,14 +157,14 @@ export default function AdminOrderDetailsPage() {
         });
 
     const allocatedWarehouse =
-        warehouseList?.items.find(
+        warehouseList?.items?.find(
             warehouse =>
                 warehouse.id ===
                 fulfillment?.warehouseId,
         );
 
     const pickingLocation =
-        warehouseLocations?.items.find(
+        warehouseLocations?.items?.find(
             location =>
                 location.id ===
                 fulfillment?.pickingLocationId,
@@ -195,6 +195,8 @@ export default function AdminOrderDetailsPage() {
         packedMutation,
         readyToShip:
         readyToShipMutation,
+        rollback:
+        rollbackMutation,
     } =
         useFulfillmentMutations(
             id ?? '',
@@ -290,6 +292,30 @@ export default function AdminOrderDetailsPage() {
                 'بسته‌بندی شد',
             ready:
                 'آماده ارسال',
+            rollback:
+                'بازگشت به مرحله قبل',
+            rollbackTitle:
+                'بازگشت مرحله',
+            rollbackReadyToShip:
+                'بازگشت از «آماده ارسال» به «بسته‌بندی شده»',
+            rollbackPacked:
+                'بازگشت از «بسته‌بندی شده» به «در حال بسته‌بندی»',
+            rollbackPacking:
+                'بازگشت از «در حال بسته‌بندی» به «جمع‌آوری شده»',
+            rollbackPicked:
+                'بازگشت از «جمع‌آوری شده» به «در حال جمع‌آوری»',
+            rollbackPicking:
+                'بازگشت از «در حال جمع‌آوری» به «در انتظار عملیات»',
+            rollbackConfirm:
+                'آیا از بازگشت سفارش به مرحله قبل مطمئن هستید؟',
+            cancel:
+                'انصراف',
+            confirm:
+                'تأیید بازگشت',
+            rollingBack:
+                'در حال بازگردانی...',
+            rollbackDescription:
+                'این عملیات وضعیت مراحل انبار را یک مرحله به عقب برمی‌گرداند و اطلاعات مرتبط را نیز هماهنگ می‌کند.',
            
         }
         : {
@@ -365,7 +391,30 @@ export default function AdminOrderDetailsPage() {
                 'Mark packed',
             ready:
                 'Ready to ship',
-          
+            rollback:
+                'Rollback to previous stage',
+            rollbackTitle:
+                'Rollback stage',
+            rollbackReadyToShip:
+                'Rollback from "Ready to ship" to "Packed"',
+            rollbackPacked:
+                'Rollback from "Packed" to "Packing"',
+            rollbackPacking:
+                'Rollback from "Packing" to "Picked"',
+            rollbackPicked:
+                'Rollback from "Picked" to "Picking"',
+            rollbackPicking:
+                'Rollback from "Picking" to "Pending"',
+            rollbackConfirm:
+                'Are you sure you want to roll the order back to the previous stage?',
+            cancel:
+                'Cancel',
+            confirm:
+                'Confirm rollback',
+            rollingBack:
+                'Rolling back...',
+            rollbackDescription:
+                'This operation moves the warehouse workflow back by one stage and synchronizes the related data.',
         };
 
     const isFulfillmentBusy =
@@ -376,7 +425,8 @@ export default function AdminOrderDetailsPage() {
         pickedMutation.isPending ||
         packingMutation.isPending ||
         packedMutation.isPending ||
-        readyToShipMutation.isPending;
+        readyToShipMutation.isPending ||
+        rollbackMutation.isPending;
 
     const currentTracking =
         trackingOverride ??

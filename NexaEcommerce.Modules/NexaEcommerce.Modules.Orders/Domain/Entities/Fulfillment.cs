@@ -189,7 +189,75 @@ public sealed class Fulfillment : BaseEntity
 
         UpdatedAt = DateTime.UtcNow;
     }
+    public void RollbackToPacked()
+    {
+        EnsureStatus(
+            FulfillmentStatus.ReadyToShip);
 
+        Status =
+            FulfillmentStatus.Packed;
+
+        ReadyToShipAt = null;
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
+
+    public void RollbackToPacking()
+    {
+        EnsureStatus(
+            FulfillmentStatus.Packed);
+
+        Status =
+            FulfillmentStatus.Packing;
+
+        PackedAt = null;
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
+
+    public void RollbackToPicked()
+    {
+        EnsureStatus(
+            FulfillmentStatus.Packing);
+
+        Status =
+            FulfillmentStatus.Picked;
+
+        PackingStartedAt = null;
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
+
+    public void RollbackToPicking()
+    {
+        EnsureStatus(
+            FulfillmentStatus.Picked);
+
+        Status =
+            FulfillmentStatus.Picking;
+
+        PickedAt = null;
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
+
+    public void RollbackToPending()
+    {
+        EnsureStatus(
+            FulfillmentStatus.Picking);
+
+        Status =
+            FulfillmentStatus.Pending;
+
+        PickingStartedAt = null;
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
     public void Cancel()
     {
         if (Status is

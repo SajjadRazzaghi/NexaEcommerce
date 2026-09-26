@@ -255,7 +255,25 @@ public sealed class WarehouseStock : BaseEntity
 
         Touch();
     }
+    public void RestoreConsumed(
+    int quantity)
+    {
+        ValidatePositive(quantity);
 
+        checked
+        {
+            OnHandQuantity += quantity;
+            ReservedQuantity += quantity;
+        }
+
+        if (ReservedQuantity > OnHandQuantity)
+        {
+            throw new InvalidOperationException(
+                "Reserved quantity cannot exceed on-hand quantity.");
+        }
+
+        Touch();
+    }
     public void AddIncoming(int quantity)
     {
         ValidatePositive(quantity);

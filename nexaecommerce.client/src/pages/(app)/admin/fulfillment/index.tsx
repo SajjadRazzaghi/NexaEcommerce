@@ -7,11 +7,6 @@ import {
     useQuery,
 } from '@tanstack/react-query';
 
-
-import {
-    warehousesApi,
-} from '@/modules/inventory/api/warehouses';
-
 import {
     useTranslation,
 } from 'react-i18next';
@@ -27,6 +22,10 @@ import {
     Package,
     RefreshCw,
 } from 'lucide-react';
+
+import {
+    warehousesApi,
+} from '@/modules/inventory/api/warehouses';
 
 import {
     useFulfillmentQueue,
@@ -146,23 +145,49 @@ export default function AdminFulfillmentPage() {
             skip,
             PAGE_SIZE,
         );
+
     const {
-        data: warehouseList,
-    } = useQuery({
-        queryKey: [
-            'admin',
-            'inventory',
-            'warehouses',
-        ],
+        data: warehouses = [],
+        isLoading:
+        warehousesLoading,
+    } =
+        useQuery({
+            queryKey: [
+                'admin',
+                'inventory',
+                'warehouses',
+            ],
 
-        queryFn: async () =>
-            warehousesApi.list(
-                true,
-            ),
+            queryFn: async () => {
+                const response =
+                    await warehousesApi.list(
+                        true,
+                    );
 
-        staleTime:
-            60_000,
-    });
+                return response.items ?? [];
+            },
+
+            staleTime:
+                60_000,
+        });
+
+    const warehouseMap =
+        useMemo(
+            () =>
+                new Map(
+                    warehouses.map(
+                        warehouse => [
+                            warehouse.id,
+                            warehouse,
+                        ],
+                    ),
+                ),
+            [warehouses],
+        );
+
+    const fulfillmentItems =
+        data?.items ?? [];
+
     const text = isFa
         ? {
             title:
@@ -205,6 +230,10 @@ export default function AdminFulfillmentPage() {
                 'بعدی',
             updated:
                 'به‌روزرسانی خودکار هر ۵ ثانیه',
+            warehouseLoading:
+                'در حال دریافت...',
+            warehouseNotFound:
+                'انبار یافت نشد',
         }
         : {
             title:
@@ -247,6 +276,10 @@ export default function AdminFulfillmentPage() {
                 'Next',
             updated:
                 'Auto-refresh every 5 seconds',
+            warehouseLoading:
+                'Loading...',
+            warehouseNotFound:
+                'Warehouse not found',
         };
 
     return (
@@ -337,7 +370,7 @@ export default function AdminFulfillmentPage() {
 
             {!isLoading &&
                 !isError &&
-                data?.items.length ===
+                fulfillmentItems.length ===
                 0 && (
                     <div className="rounded-xl border border-dashed p-12 text-center">
                         <Package className="mx-auto size-10 text-muted-foreground" />
@@ -350,8 +383,7 @@ export default function AdminFulfillmentPage() {
 
             {!isLoading &&
                 !isError &&
-                data &&
-                data.items.length > 0 && (
+                fulfillmentItems.length > 0 && (
                     <>
                         <div className="overflow-x-auto rounded-xl border">
                             <table className="w-full min-w-[1100px] text-sm">
@@ -392,136 +424,156 @@ export default function AdminFulfillmentPage() {
                                 </thead>
 
                                 <tbody>
-                                    {data.items.map(
-                                        item => (
-                                            <tr
-                                                key={
-                                                    item.fulfillment.id
-                                                }
-                                                className="border-b last:border-b-0"
-                                            >
-                                                <td className="px-4 py-4">
-                                                    <Link
-                                                        to={`/admin/orders/${item.orderId}`}
-                                                        className="font-medium underline-offset-4 hover:underline"
-                                                    >
-                                                        {
-                                                            item.orderNumber
-                                                        }
-                                                    </Link>
-                                                </td>
+                                    {fulfillmentItems.map(
+                                        item => {
+                                            const warehouseId =
+                                                item.fulfillment
+                                                    .warehouseId;
 
-                                                <td className="px-4 py-4">
-                                                    <div className="font-medium">
-                                                        {
-                                                            item.shippingFullName
-                                                        }
-                                                    </div>
+                                            const warehouse =
+                                                warehouseId
+                                                    ? warehouseMap.get(
+                                                        warehouseId,
+                                                    )
+                                                    : undefined;
 
-                                                    <div className="mt-1 text-xs text-muted-foreground">
-                                                        {
-                                                            item.shippingPhone
-                                                        }
-                                                    </div>
-                                                </td>
+                                            return (
+                                                <tr
+                                                    key={
+                                                        item
+                                                            .fulfillment
+                                                            .id
+                                                    }
+                                                    className="border-b last:border-b-0"
+                                                >
+                                                    <td className="px-4 py-4">
+                                                        <Link
+                                                            to={`/admin/orders/${item.orderId}`}
+                                                            className="font-medium underline-offset-4 hover:underline"
+                                                        >
+                                                            {
+                                                                item.orderNumber
+                                                            }
+                                                        </Link>
+                                                    </td>
 
-                                                <td className="px-4 py-4">
-                                                    <span
-                                                        className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass(
-                                                            item
-                                                                .fulfillment
-                                                                .status,
-                                                        )}`}
-                                                    >
-                                                        {
-                                                            statusLabel(
+                                                    <td className="px-4 py-4">
+                                                        <div className="font-medium">
+                                                            {
+                                                                item.shippingFullName
+                                                            }
+                                                        </div>
+
+                                                        <div className="mt-1 text-xs text-muted-foreground">
+                                                            {
+                                                                item.shippingPhone
+                                                            }
+                                                        </div>
+                                                    </td>
+
+                                                    <td className="px-4 py-4">
+                                                        <span
+                                                            className={`rounded-full border px-2.5 py-1 text-xs font-medium ${statusClass(
                                                                 item
                                                                     .fulfillment
                                                                     .status,
-                                                                isFa,
-                                                            )
+                                                            )}`}
+                                                        >
+                                                            {
+                                                                statusLabel(
+                                                                    item
+                                                                        .fulfillment
+                                                                        .status,
+                                                                    isFa,
+                                                                )
+                                                            }
+                                                        </span>
+                                                    </td>
+
+                                                    <td className="px-4 py-4">
+                                                        {
+                                                            item.itemCount
                                                         }
-                                                    </span>
-                                                </td>
+                                                    </td>
 
-                                                <td className="px-4 py-4">
-                                                    {
-                                                        item.itemCount
-                                                    }
-                                                </td>
-
-                                                <td className="px-4 py-4 font-medium">
-                                                    {item.totalAmount.toLocaleString(
-                                                        isFa
-                                                            ? 'fa-IR'
-                                                            : undefined,
-                                                    )}{' '}
-                                                    {
-                                                        item.currency
-                                                    }
-                                                </td>
-
-                                                <td className="px-4 py-4">
-                                                    {
-                                                        item.shippingCity
-                                                    }
-                                                </td>
-
-                                                <td className="px-4 py-4">
-                                                    {(() => {
-                                                        const warehouse =
-                                                            warehouseList?.data.items.find(
-                                                                value =>
-                                                                    value.id ===
-                                                                    item.fulfillment.warehouseId,
-                                                            );
-
-                                                        if (!item.fulfillment.warehouseId) {
-                                                            return (
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    —
-                                                                </span>
-                                                            );
+                                                    <td className="px-4 py-4 font-medium">
+                                                        {item.totalAmount.toLocaleString(
+                                                            isFa
+                                                                ? 'fa-IR'
+                                                                : undefined,
+                                                        )}{' '}
+                                                        {
+                                                            item.currency
                                                         }
+                                                    </td>
 
-                                                        if (!warehouse) {
-                                                            return (
-                                                                <span className="text-xs text-muted-foreground">
-                                                                    در حال دریافت...
-                                                                </span>
-                                                            );
+                                                    <td className="px-4 py-4">
+                                                        {
+                                                            item.shippingCity
                                                         }
+                                                    </td>
 
-                                                        return (
+                                                    <td className="px-4 py-4">
+                                                        {!warehouseId ? (
+                                                            <span className="text-xs text-muted-foreground">
+                                                                —
+                                                            </span>
+                                                        ) : warehousesLoading ? (
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {
+                                                                    text.warehouseLoading
+                                                                }
+                                                            </span>
+                                                        ) : warehouse ? (
                                                             <div className="grid gap-0.5">
                                                                 <span className="font-medium">
-                                                                    {warehouse.name}
+                                                                    {
+                                                                        warehouse.name
+                                                                    }
                                                                 </span>
 
                                                                 {warehouse.code && (
                                                                     <span className="text-xs text-muted-foreground">
-                                                                        ({warehouse.code})
+                                                                        (
+                                                                        {
+                                                                            warehouse.code
+                                                                        }
+                                                                        )
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                        );
-                                                    })()}
-                                                </td>
+                                                        ) : (
+                                                            <div className="grid gap-0.5">
+                                                                <span className="font-mono text-xs">
+                                                                    {
+                                                                        warehouseId
+                                                                    }
+                                                                </span>
 
-                                                <td className="px-4 py-4 text-end">
-                                                    <Link
-                                                        to={`/admin/orders/${item.orderId}`}
-                                                        className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium"
-                                                    >
-                                                        <ExternalLink className="size-3.5" />
+                                                                <span className="text-xs text-muted-foreground">
+                                                                    {
+                                                                        text.warehouseNotFound
+                                                                    }
+                                                                </span>
+                                                            </div>
+                                                        )}
+                                                    </td>
 
-                                                        {
-                                                            text.open
-                                                        }
-                                                    </Link>
-                                                </td>
-                                            </tr>
-                                        ),
+                                                    <td className="px-4 py-4 text-end">
+                                                        <Link
+                                                            to={`/admin/orders/${item.orderId}`}
+                                                            className="inline-flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium"
+                                                        >
+                                                            <ExternalLink className="size-3.5" />
+
+                                                            {
+                                                                text.open
+                                                            }
+                                                        </Link>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        },
                                     )}
                                 </tbody>
                             </table>
@@ -561,7 +613,7 @@ export default function AdminFulfillmentPage() {
                                 <button
                                     type="button"
                                     disabled={
-                                        data.items.length <
+                                        fulfillmentItems.length <
                                         PAGE_SIZE
                                     }
                                     onClick={() =>
