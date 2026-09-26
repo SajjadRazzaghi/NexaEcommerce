@@ -24,17 +24,21 @@ public sealed class CategoryService : ICategoryService
     // =========================================================
 
     public async Task<IReadOnlyList<CategoryDto>> GetAllAsync(
-        CancellationToken cancellationToken = default)
+       CancellationToken cancellationToken = default)
     {
         var categories =
             await _categoryRepository.GetAllAsync(
                 cancellationToken);
 
+        var productCounts =
+            await GetProductCountsAsync(
+                categories.Select(x => x.Id),
+                cancellationToken);
+
         return categories
-            .Select(Map)
+            .Select(x => Map(x, productCounts))
             .ToList();
     }
-
     // =========================================================
     // Get Root Categories
     // =========================================================
@@ -47,11 +51,24 @@ public sealed class CategoryService : ICategoryService
             await _categoryRepository.GetRootCategoriesAsync(
                 cancellationToken);
 
+        var categoryIds =
+            categories
+                .SelectMany(
+                    x => new[]
+                    {
+                    x
+                    }.Concat(x.SubCategories))
+                .Select(x => x.Id);
+
+        var productCounts =
+            await GetProductCountsAsync(
+                categoryIds,
+                cancellationToken);
+
         return categories
-            .Select(Map)
+            .Select(x => Map(x, productCounts))
             .ToList();
     }
-
     // =========================================================
     // Get Sub Categories
     // =========================================================
@@ -66,18 +83,22 @@ public sealed class CategoryService : ICategoryService
                 parentCategoryId,
                 cancellationToken);
 
+        var productCounts =
+            await GetProductCountsAsync(
+                categories.Select(x => x.Id),
+                cancellationToken);
+
         return categories
-            .Select(Map)
+            .Select(x => Map(x, productCounts))
             .ToList();
     }
-
     // =========================================================
     // Get By Id
     // =========================================================
 
     public async Task<CategoryDto?> GetByIdAsync(
-        Guid id,
-        CancellationToken cancellationToken = default)
+      Guid id,
+      CancellationToken cancellationToken = default)
     {
         if (id == Guid.Empty)
             return null;
@@ -87,11 +108,21 @@ public sealed class CategoryService : ICategoryService
                 id,
                 cancellationToken);
 
-        return category is null
-            ? null
-            : Map(category);
-    }
+        if (category is null)
+            return null;
 
+        var productCounts =
+            await GetProductCountsAsync(
+                new[]
+                {
+                category.Id
+                },
+                cancellationToken);
+
+        return Map(
+            category,
+            productCounts);
+    }
     // =========================================================
     // Get By Slug
     // =========================================================
@@ -108,11 +139,62 @@ public sealed class CategoryService : ICategoryService
                 slug.Trim(),
                 cancellationToken);
 
-        return category is null
-            ? null
-            : Map(category);
+        if (category is null)
+            return null;
+
+        var productCounts =
+            await GetProductCountsAsync(
+                new[]
+                {
+                category.Id
+                },
+                cancellationToken);
+
+        return Map(
+            category,
+            productCounts);
     }
 
+    private async Task<IReadOnlyDictionary<Guid, int>>
+    GetProductCountsAsync(
+        IEnumerable<Guid> categoryIds,
+        CancellationToken cancellationToken)
+    {
+        var ids =
+            categoryIds
+                .Where(x => x != Guid.Empty)
+                .Distinct()
+                .ToArray();
+
+        if (ids.Length == 0)
+        {
+            return new Dictionary<Guid, int>();
+        }
+
+        return await _context.ProductCategories
+            .Where(
+                pc =>
+                    ids.Contains(pc.CategoryId) &&
+                    pc.Product.IsActive &&
+                    pc.Product.IsPublished)
+            .GroupBy(
+                pc => pc.CategoryId)
+            .Select(
+                group => new
+                {
+                    CategoryId = group.Key,
+
+                    Count =
+                        group
+                            .Select(x => x.ProductId)
+                            .Distinct()
+                            .Count()
+                })
+            .ToDictionaryAsync(
+                x => x.CategoryId,
+                x => x.Count,
+                cancellationToken);
+    }
     // =========================================================
     // Create
     // =========================================================
@@ -192,7 +274,9 @@ public sealed class CategoryService : ICategoryService
         await _context.SaveChangesAsync(
             cancellationToken);
 
-        return Map(category);
+        return Map(
+     category,
+     new Dictionary<Guid, int>());
     }
 
     // =========================================================
@@ -412,7 +496,8 @@ public sealed class CategoryService : ICategoryService
     // =========================================================
 
     private static CategoryDto Map(
-        Category category)
+        Category category,
+        IReadOnlyDictionary<Guid, int> productCounts)
     {
         return new CategoryDto
         {
@@ -439,15 +524,21 @@ public sealed class CategoryService : ICategoryService
                 category.IsActive,
 
             ProductCount =
-                category.ProductCategories.Count,
+                productCounts.TryGetValue(
+                    category.Id,
+                    out var count)
+                        ? count
+                        : 0,
 
             SubCategories =
                 category.SubCategories
-                    .Select(Map)
+                    .Select(
+                        x => Map(
+                            x,
+                            productCounts))
                     .ToList()
         };
     }
-
     // =========================================================
     // Helpers
     // =========================================================

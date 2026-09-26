@@ -113,7 +113,13 @@ export default function ProductInventoryManager({
                     ?.variants,
             ],
         );
-
+    useEffect(() => {
+        setVariantId('');
+        setWarehouseId('');
+        setLocationId('');
+        setOnHand(0);
+        setReorderPoint(0);
+    }, [productId]);
     useEffect(() => {
         if (
             !variantId &&
@@ -914,7 +920,7 @@ export default function ProductInventoryManager({
                                         )}
                                     </AlertDescription>
                                 </Alert>
-                            ) : movementQuery.data.length === 0 ? (
+                                    ) : (movementQuery.data ?? []).length === 0 ? (
                                 <div className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
                                     {t(
                                         'inventory.noMovements',
@@ -958,7 +964,7 @@ export default function ProductInventoryManager({
                                         </thead>
 
                                         <tbody>
-                                            {movementQuery.data.map(
+                                                            {(movementQuery.data ?? []).map(
                                                 (
                                                     movement,
                                                 ) => (

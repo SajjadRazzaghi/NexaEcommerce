@@ -63,9 +63,9 @@ public sealed class CatalogProductVariantReader(
                 discountPercentage /
                 100m
             );
-
         return new ProductVariantSnapshot(
             variant.Id,
+            variant.Sku,
             price,
             Math.Max(0, stockQuantity),
             variant.Product.Name,

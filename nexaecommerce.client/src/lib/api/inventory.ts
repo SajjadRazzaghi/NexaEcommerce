@@ -278,7 +278,7 @@ export const warehousesApi = {
         body: SaveWarehouseLocationRequest,
     ) =>
         api.post<WarehouseLocation>(
-            `/inventory/warehouses/${body.warehouseId}/locations`,
+            '/inventory/warehouses/locations',
             body,
         ),
 
@@ -304,7 +304,6 @@ export const warehousesApi = {
             },
         ),
 };
-
 export const warehouseStockApi = {
     listByWarehouse: (
         warehouseId: string,

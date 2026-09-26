@@ -1,6 +1,6 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Link } from 'react-router';
+import { Link, useNavigate, useSearchParams } from 'react-router';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
@@ -11,9 +11,12 @@ import {
     Lock,
     MailCheck,
 } from 'lucide-react';
+
 import { authApi } from '@/lib/api/auth';
+import { mergeGuestCart } from '@/modules/cart/api/cartApi';
 import { applyApiErrorToForm, type FormBannerState } from '@/lib/api/form-errors';
 import { useDocumentTitle } from '@/hooks/use-document-title';
+import { useSetCurrentUser } from '@/hooks/use-auth';
 import { usePublicConfig } from '@/hooks/use-public-config';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,7 +32,10 @@ export default function RegisterPage() {
   useDocumentTitle(meta.title);
   const [banner, setBanner] = useState<FormBannerState | null>(null);
   const { data: publicConfig } = usePublicConfig();
-
+    const navigate = useNavigate();
+    const [params] = useSearchParams();
+    const returnUrl = safeReturn(params.get('returnUrl'));
+    const setCurrentUser = useSetCurrentUser();
   const schema = useMemo(
     () =>
       z
@@ -50,12 +56,77 @@ export default function RegisterPage() {
     resolver: zodResolver(schema),
     defaultValues: { displayName: '', email: '', password: '', confirmPassword: '' },
   });
+    const register = useMutation({
+        mutationFn: async (values: {
+            email: string;
+            password: string;
+            displayName?: string;
+        }) => {
+            const registration = await authApi.register(values);
 
-  const register = useMutation({
-    mutationFn: authApi.register,
-    onError: (error) => setBanner(applyApiErrorToForm(error, form.setError, ['email', 'password'])),
-  });
+            // Future email-confirmation mode remains intact.
+            if (registration.requiresEmailConfirmation) {
+                return {
+                    registration,
+                    loginResult: null,
+                };
+            }
 
+            // Current mode: automatically sign in after registration.
+            const loginResult = await authApi.login({
+                email: values.email,
+                password: values.password,
+                rememberMe: true,
+            });
+
+            return {
+                registration,
+                loginResult,
+            };
+        },
+
+        onSuccess: async ({ registration, loginResult }) => {
+            // When email confirmation is enabled, keep the old flow.
+            if (registration.requiresEmailConfirmation || !loginResult?.user) {
+                return;
+            }
+
+            // Seed authenticated user immediately.
+            setCurrentUser(loginResult.user);
+
+            // Merge guest cart after automatic login.
+            try {
+                await mergeGuestCart();
+            } catch {
+                /*
+                 * Login succeeded.
+                 * Guest-cart merge is best-effort and must not prevent
+                 * redirecting the customer to the requested page.
+                 */
+            }
+
+            // Return to the page that originally required authentication.
+            navigate(returnUrl, {
+                replace: true,
+            });
+        },
+
+        onError: (error) =>
+            setBanner(
+                applyApiErrorToForm(
+                    error,
+                    form.setError,
+                    ['email', 'password'],
+                ),
+            ),
+    });
+    function safeReturn(value: string | null): string {
+        return value &&
+            value.startsWith('/') &&
+            !value.startsWith('//')
+            ? value
+            : '/';
+    }
   const onSubmit = form.handleSubmit((values) => {
     setBanner(null);
     register.mutate({ email: values.email, password: values.password, displayName: values.displayName || undefined });
@@ -78,7 +149,7 @@ export default function RegisterPage() {
 
     if (register.isSuccess) {
         const requiresEmailConfirmation =
-            register.data?.requiresEmailConfirmation ?? false;
+            register.data?.registration.requiresEmailConfirmation ?? false;
 
         return (
             <div className="grid gap-4 text-center">

@@ -13,18 +13,22 @@ public sealed record RemoveCartItemDto(
 
 public sealed record CartItemDto(
     Guid ProductVariantId,
+    string Sku,
     string ProductName,
     string? ImageUrl,
     int Quantity,
     decimal UnitPrice,
-    decimal LineTotal);
+    decimal LineTotal,
+    int AvailableStock);
 
 public sealed record CartDto(
     Guid Id,
     string TenantId,
     IReadOnlyList<CartItemDto> Items,
     int TotalQuantity,
-    decimal Subtotal)
+    decimal Subtotal,
+    string Currency,
+    decimal TotalAmount)
 {
     public static CartDto Empty(
         string tenantId)
@@ -34,6 +38,8 @@ public sealed record CartDto(
             tenantId,
             [],
             0,
+            0,
+            "IRR",
             0);
     }
 }

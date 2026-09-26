@@ -4,7 +4,12 @@ import {
     Package,
     Truck,
 } from 'lucide-react';
-
+import {
+    useQuery,
+} from '@tanstack/react-query';
+import {
+    warehousesApi,
+} from '@/modules/inventory/api/warehouses';
 import {
     useState,
 } from 'react';
@@ -99,7 +104,72 @@ export default function AdminOrderDetailsPage() {
         useFulfillment(
             id,
         );
+    const warehouseId =
+        fulfillment?.warehouseId ??
+        undefined;
 
+    const {
+        data: warehouseList,
+        isLoading:
+        warehouseListLoading,
+    } =
+        useQuery({
+            queryKey: [
+                'admin',
+                'inventory',
+                'warehouses',
+            ],
+            queryFn: async () =>
+                (
+                    await warehousesApi.list(
+                        true,
+                    )
+                ),
+            enabled:
+                Boolean(
+                    warehouseId,
+                ),
+        });
+
+    const {
+        data: warehouseLocations,
+        isLoading:
+        warehouseLocationsLoading,
+    } =
+        useQuery({
+            queryKey: [
+                'admin',
+                'inventory',
+                'warehouses',
+                warehouseId,
+                'locations',
+            ],
+            queryFn: async () =>
+                (
+                    await warehousesApi.getLocations(
+                        warehouseId!,
+                        true,
+                    )
+                ),
+            enabled:
+                Boolean(
+                    warehouseId,
+                ),
+        });
+
+    const allocatedWarehouse =
+        warehouseList?.items.find(
+            warehouse =>
+                warehouse.id ===
+                fulfillment?.warehouseId,
+        );
+
+    const pickingLocation =
+        warehouseLocations?.items.find(
+            location =>
+                location.id ===
+                fulfillment?.pickingLocationId,
+        );
     const {
         updateTracking,
         ship,
@@ -149,6 +219,16 @@ export default function AdminOrderDetailsPage() {
 
     const text = isFa
         ? {
+            warehouse:
+                'انبار',
+            pickingLocation:
+                'موقعیت برداشت',
+            loadingWarehouse:
+                'در حال دریافت نام انبار...',
+            loadingPickingLocation:
+                'در حال دریافت موقعیت برداشت...',
+            operationError:
+                'عملیات انجام نشد.',
             loading:
                 'در حال بارگذاری سفارش...',
             notFound:
@@ -211,14 +291,19 @@ export default function AdminOrderDetailsPage() {
                 'بسته‌بندی شد',
             ready:
                 'آماده ارسال',
-            warehouse:
-                'انبار',
-            pickingLocation:
-                'موقعیت برداشت',
-            operationError:
-                'عملیات انجام نشد.',
+           
         }
         : {
+            warehouse:
+                'Warehouse',
+            pickingLocation:
+                'Picking location',
+            loadingWarehouse:
+                'Loading warehouse name...',
+            loadingPickingLocation:
+                'Loading picking location...',
+            operationError:
+                'The operation failed.',
             loading:
                 'Loading order...',
             notFound:
@@ -281,12 +366,7 @@ export default function AdminOrderDetailsPage() {
                 'Mark packed',
             ready:
                 'Ready to ship',
-            warehouse:
-                'Warehouse',
-            pickingLocation:
-                'Picking location',
-            operationError:
-                'The operation failed.',
+          
         };
 
     const isFulfillmentBusy =
@@ -500,7 +580,11 @@ export default function AdminOrderDetailsPage() {
                             </div>
                         )}
 
-                        {!fulfillment && (
+                        {(!fulfillment ||
+                            (fulfillment.status ===
+                                'Pending' &&
+                                order.status ===
+                                'Paid')) && (
                             <div className="mt-5 grid gap-4">
                                 <p className="text-sm text-muted-foreground">
                                     {
@@ -552,8 +636,14 @@ export default function AdminOrderDetailsPage() {
                                             text.warehouse
                                         }
                                         value={
-                                            fulfillment.warehouseId ??
-                                            '—'
+                                            warehouseListLoading
+                                                ? text.loadingWarehouse
+                                                : allocatedWarehouse
+                                                    ? `${allocatedWarehouse.name}${allocatedWarehouse.code
+                                                        ? ` (${allocatedWarehouse.code})`
+                                                        : ''
+                                                    }`
+                                                    : '—'
                                         }
                                     />
 
@@ -562,8 +652,14 @@ export default function AdminOrderDetailsPage() {
                                             text.pickingLocation
                                         }
                                         value={
-                                            fulfillment.pickingLocationId ??
-                                            '—'
+                                            warehouseLocationsLoading
+                                                ? text.loadingPickingLocation
+                                                : pickingLocation
+                                                    ? `${pickingLocation.name}${pickingLocation.code
+                                                        ? ` (${pickingLocation.code})`
+                                                        : ''
+                                                    }`
+                                                    : '—'
                                         }
                                     />
                                 </div>

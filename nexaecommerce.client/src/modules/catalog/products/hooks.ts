@@ -56,6 +56,9 @@ export const useCreateProduct = () => {
             (await productsApi.create(data)),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY] });
+            queryClient.invalidateQueries({
+                queryKey: ['categories'],
+            });
         },
     });
 };
@@ -70,6 +73,9 @@ export const useUpdateProduct = () => {
         onSuccess: (_, variables) => {
             queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY] });
             queryClient.invalidateQueries({ queryKey: [PRODUCTS_KEY, variables.id] });
+            queryClient.invalidateQueries({
+                queryKey: ['categories'],
+            });
         },
     });
 };

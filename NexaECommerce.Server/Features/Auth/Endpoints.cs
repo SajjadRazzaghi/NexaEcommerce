@@ -472,8 +472,8 @@ public sealed class AuthEndpoints : IFeatureEndpoints
     // ============================================================
 
     private static async Task<IResult> ConfirmEmail(
-        ConfirmEmailRequest req,
-        [FromServices] UserManager<AppUser> users)
+       ConfirmEmailRequest req,
+       [FromServices] UserManager<AppUser> users)
     {
         var user =
             await users.FindByIdAsync(req.UserId);
@@ -481,18 +481,7 @@ public sealed class AuthEndpoints : IFeatureEndpoints
         if (user is null)
             throw new BadRequestException(
                 "Invalid confirmation link.");
-        var requireEmailConfirmation =
-    await settings.GetAsync<bool>(
-        AccountSettings.RequireEmailConfirmation,
-        ct);
 
-        if (requireEmailConfirmation &&
-            !user.EmailConfirmed)
-        {
-            throw new UnauthorizedException(
-                "Confirm your email before signing in.",
-                "EMAIL_NOT_CONFIRMED");
-        }
         // Idempotent by design.
         if (user.EmailConfirmed)
         {
@@ -520,7 +509,6 @@ public sealed class AuthEndpoints : IFeatureEndpoints
                 "Email confirmed. You can now sign in."
         });
     }
-
     private static async Task<IResult> ResendConfirmation(
         ResendConfirmationRequest req,
         [FromServices] UserManager<AppUser> users,
@@ -584,7 +572,18 @@ public sealed class AuthEndpoints : IFeatureEndpoints
                 "Invalid email or password.",
                 "INVALID_CREDENTIALS");
         }
+        var requireEmailConfirmation =
+    await settings.GetAsync<bool>(
+        AccountSettings.RequireEmailConfirmation,
+        ct);
 
+        if (requireEmailConfirmation &&
+            !user.EmailConfirmed)
+        {
+            throw new UnauthorizedException(
+                "Confirm your email before signing in.",
+                "EMAIL_NOT_CONFIRMED");
+        }
         var result =
             await signIn.PasswordSignInAsync(
                 user,

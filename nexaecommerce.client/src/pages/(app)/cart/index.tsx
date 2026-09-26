@@ -262,8 +262,8 @@ export default function CartPage() {
                             item,
                         ) => {
                             const canIncrease =
-                                item.quantity <
-                                item.availableStock;
+                                item.availableStock == null ||
+                                item.quantity < item.availableStock;
 
                             const isUpdating =
                                 setQuantity.isPending;
@@ -328,30 +328,23 @@ export default function CartPage() {
                                                             aria-label="Decrease quantity"
                                                             className="p-2"
                                                             disabled={
-                                                                item.quantity <=
-                                                                    1 ||
+                                                                item.quantity <= 1 ||
                                                                 isUpdating
                                                             }
                                                             onClick={() =>
-                                                                setQuantity.mutate(
-                                                                    {
-                                                                        productVariantId:
-                                                                            item.productVariantId,
-
-                                                                        quantity:
-                                                                            item.quantity -
-                                                                            1,
-                                                                    },
-                                                                )
+                                                                setQuantity.mutate({
+                                                                    productVariantId:
+                                                                        item.productVariantId,
+                                                                    quantity:
+                                                                        item.quantity - 1,
+                                                                })
                                                             }
                                                         >
                                                             <Minus className="size-4" />
                                                         </button>
 
                                                         <span className="min-w-10 text-center font-medium">
-                                                            {
-                                                                item.quantity
-                                                            }
+                                                            {item.quantity}
                                                         </span>
 
                                                         <button
@@ -363,30 +356,24 @@ export default function CartPage() {
                                                                 isUpdating
                                                             }
                                                             onClick={() =>
-                                                                setQuantity.mutate(
-                                                                    {
-                                                                        productVariantId:
-                                                                            item.productVariantId,
-
-                                                                        quantity:
-                                                                            item.quantity +
-                                                                            1,
-                                                                    },
-                                                                )
+                                                                setQuantity.mutate({
+                                                                    productVariantId:
+                                                                        item.productVariantId,
+                                                                    quantity:
+                                                                        item.quantity + 1,
+                                                                })
                                                             }
                                                         >
                                                             <Plus className="size-4" />
                                                         </button>
                                                     </div>
 
-                                                    <span className="text-xs text-muted-foreground">
-                                                        Available:{' '}
-                                                        {
-                                                            item.availableStock
-                                                        }
-                                                    </span>
+                                                    {item.availableStock != null && (
+                                                        <span className="text-xs text-muted-foreground">
+                                                            Available: {item.availableStock}
+                                                        </span>
+                                                    )}
                                                 </div>
-
 
                                                 <button
                                                     type="button"

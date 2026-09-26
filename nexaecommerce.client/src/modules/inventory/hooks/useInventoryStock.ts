@@ -183,15 +183,16 @@ export function useWarehouseStockMovements(
                 return [] as WarehouseStockMovement[];
             }
 
-            return (
+            const response =
                 await warehouseStockApi.movements(
                     warehouseId,
                     locationId,
                     productVariantId,
                     0,
                     take,
-                )
-            ).items;
+                );
+
+            return response.items ?? [];
         },
 
         enabled:
@@ -202,7 +203,6 @@ export function useWarehouseStockMovements(
             ),
     });
 }
-
 export function useSetWarehouseStock() {
     const queryClient =
         useQueryClient();

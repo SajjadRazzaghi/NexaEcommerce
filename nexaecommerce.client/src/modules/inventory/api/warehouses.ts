@@ -17,7 +17,24 @@ export interface WarehouseDto {
 export interface WarehouseListResponse {
     items: WarehouseDto[];
 }
+export interface WarehouseLocationDto {
+    id: string;
+    warehouseId: string;
+    code: string;
+    name: string;
+    zone?: string | null;
+    rack?: string | null;
+    shelf?: string | null;
+    bin?: string | null;
+    isActive: boolean;
+    createdAt: string;
+    updatedAt?: string | null;
+}
 
+export interface WarehouseLocationsResponse {
+    warehouseId: string;
+    items: WarehouseLocationDto[];
+}
 export interface CreateWarehouseRequest {
     code: string;
     name: string;
@@ -89,5 +106,19 @@ export const warehousesApi = {
     ) =>
         api.post<WarehouseDto>(
             `/inventory/warehouses/${id}/set-default`,
+        ),
+    getLocations: (
+        warehouseId: string,
+        includeInactive = true,
+        signal?: AbortSignal,
+    ) =>
+        api.get<WarehouseLocationsResponse>(
+            `/inventory/warehouses/${warehouseId}/locations`,
+            {
+                params: {
+                    includeInactive,
+                },
+                signal,
+            },
         ),
 };

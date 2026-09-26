@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { Boxes, Package, Search, Warehouse as WarehouseIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
@@ -25,7 +25,28 @@ export default function InventoryPage() {
     const query = useAdminProducts({ page: 1, pageSize: 100, search, sortBy: 'newest' });
     const products = useMemo(() => query.data?.items ?? [], [query.data]);
     const selectedProduct = products.find((product) => product.id === selectedProductId);
+    useEffect(() => {
+        if (!selectedProductId || !selectedProduct || !canManage) {
+            return;
+        }
 
+        const timer = window.setTimeout(() => {
+            document
+                .getElementById('warehouse-inventory')
+                ?.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'start',
+                });
+        }, 0);
+
+        return () => {
+            window.clearTimeout(timer);
+        };
+    }, [
+        selectedProductId,
+        selectedProduct,
+        canManage,
+    ]);
     return (
         <div className="space-y-6">
             <PageHeader
@@ -125,8 +146,14 @@ export default function InventoryPage() {
             </Card>
 
             {selectedProductId && selectedProduct && canManage && (
-                <ProductInventoryManager productId={selectedProductId} />
+                <div
+                    id="warehouse-inventory"
+                    className="scroll-mt-24"
+                >
+                    <ProductInventoryManager productId={selectedProductId} />
+                </div>
             )}
+           
 
             {selectedProductId && !canManage && (
                 <Card>

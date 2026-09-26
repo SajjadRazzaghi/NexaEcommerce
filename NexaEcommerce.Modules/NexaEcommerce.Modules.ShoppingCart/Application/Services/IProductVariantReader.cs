@@ -9,6 +9,7 @@ public interface IProductVariantReader
 
 public sealed record ProductVariantSnapshot(
     Guid Id,
+    string Sku,
     decimal Price,
     int StockQuantity,
     string ProductName,

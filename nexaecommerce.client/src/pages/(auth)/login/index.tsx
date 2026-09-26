@@ -30,8 +30,15 @@ export default function LoginPage() {
   useDocumentTitle(meta.title);
   const navigate = useNavigate();
   const [params] = useSearchParams();
-  const returnUrl = safeReturn(params.get('returnUrl'));
-  const setCurrentUser = useSetCurrentUser();
+    const returnUrl = safeReturn(params.get('returnUrl'));
+
+    const registerUrl =
+        returnUrl === '/'
+            ? '/register'
+            : `/register?returnUrl=${encodeURIComponent(returnUrl)}`;
+
+    const setCurrentUser = useSetCurrentUser();
+ 
 
   const schema = useMemo(
     () =>
@@ -212,9 +219,13 @@ export default function LoginPage() {
       {publicConfig?.allowRegistration !== false && (
         <p className="text-muted-foreground text-center text-sm">
           {t('auth.login.noAccount')}{' '}
-          <Link to="/register" className="text-foreground font-medium hover:underline">
-            {t('auth.login.createOne')}
-          </Link>
+                  <Link
+                      to={registerUrl}
+                      className="text-foreground font-medium hover:underline"
+                  >
+                      {t('auth.login.createOne')}
+                  </Link>
+         
         </p>
       )}
     </div>

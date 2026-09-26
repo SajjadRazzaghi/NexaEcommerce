@@ -568,185 +568,122 @@ export default function AdminShippingMethodsPage() {
                                 }
                             </h2>
                         </div>
+                    <div className="mt-5 grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
+                        <label className="grid min-w-0 grid-rows-[auto_auto_1.25rem] gap-2">
+                            <span className="text-sm font-medium">
+                                {text.code}
+                            </span>
 
-                        <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-5">
-                            <label className="grid gap-2">
-                                <span className="text-sm font-medium">
-                                    {
-                                        text.code
-                                    }
-                                </span>
+                            <input
+                                value={form.code}
+                                onChange={event =>
+                                    setForm(current => ({
+                                        ...current,
+                                        code: event.target.value,
+                                    }))
+                                }
+                                disabled={Boolean(editingId) || saving}
+                                maxLength={64}
+                                placeholder="STANDARD"
+                                className="block min-w-0 w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring disabled:opacity-60"
+                            />
 
-                                <input
-                                    value={
-                                        form.code
-                                    }
-                                    onChange={
-                                        event =>
-                                            setForm(
-                                                current => ({
-                                                    ...current,
-                                                    code:
-                                                        event
-                                                            .target
-                                                            .value,
-                                                }),
-                                            )
-                                    }
-                                    disabled={
-                                        Boolean(
-                                            editingId,
-                                        ) ||
-                                        saving
-                                    }
-                                    maxLength={
-                                        64
-                                    }
-                                    placeholder="STANDARD"
-                                    className="rounded-lg border bg-background px-3 py-2.5 text-sm disabled:opacity-60"
-                                />
+                            <span className="text-xs text-muted-foreground">
+                                {text.codeHint}
+                            </span>
+                        </label>
 
-                                <span className="text-xs text-muted-foreground">
-                                    {
-                                        text.codeHint
-                                    }
-                                </span>
-                            </label>
+                        <label className="grid min-w-0 grid-rows-[auto_auto_1.25rem] gap-2">
+                            <span className="text-sm font-medium">
+                                {text.name}
+                            </span>
 
-                            <label className="grid gap-2">
-                                <span className="text-sm font-medium">
-                                    {
-                                        text.name
-                                    }
-                                </span>
+                            <input
+                                value={form.name}
+                                onChange={event =>
+                                    setForm(current => ({
+                                        ...current,
+                                        name: event.target.value,
+                                    }))
+                                }
+                                disabled={saving}
+                                maxLength={100}
+                                placeholder="Standard delivery"
+                                className="block min-w-0 w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring disabled:opacity-60"
+                            />
 
-                                <input
-                                    value={
-                                        form.name
-                                    }
-                                    onChange={
-                                        event =>
-                                            setForm(
-                                                current => ({
-                                                    ...current,
-                                                    name:
-                                                        event
-                                                            .target
-                                                            .value,
-                                                }),
-                                            )
-                                    }
-                                    disabled={
-                                        saving
-                                    }
-                                    maxLength={
-                                        100
-                                    }
-                                    placeholder="Standard delivery"
-                                    className="rounded-lg border bg-background px-3 py-2.5 text-sm"
-                                />
-                            </label>
+                            <span />
+                        </label>
 
-                            <label className="grid gap-2">
-                                <span className="text-sm font-medium">
-                                    {
-                                        text.carrier
-                                    }
-                                </span>
+                        <label className="grid min-w-0 grid-rows-[auto_auto_1.25rem] gap-2">
+                            <span className="text-sm font-medium">
+                                {text.carrier}
+                            </span>
 
-                                <input
-                                    value={
-                                        form.carrier
-                                    }
-                                    onChange={
-                                        event =>
-                                            setForm(
-                                                current => ({
-                                                    ...current,
-                                                    carrier:
-                                                        event
-                                                            .target
-                                                            .value,
-                                                }),
-                                            )
-                                    }
-                                    disabled={
-                                        saving
-                                    }
-                                    maxLength={
-                                        100
-                                    }
-                                    placeholder="Postal service"
-                                    className="rounded-lg border bg-background px-3 py-2.5 text-sm"
-                                />
-                            </label>
+                            <input
+                                value={form.carrier}
+                                onChange={event =>
+                                    setForm(current => ({
+                                        ...current,
+                                        carrier: event.target.value,
+                                    }))
+                                }
+                                disabled={saving}
+                                maxLength={100}
+                                placeholder="Postal service"
+                                className="block min-w-0 w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring disabled:opacity-60"
+                            />
 
-                            <label className="grid gap-2">
-                                <span className="text-sm font-medium">
-                                    {
-                                        text.price
-                                    }
-                                </span>
+                            <span />
+                        </label>
 
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={
-                                        form.price
-                                    }
-                                    onChange={
-                                        event =>
-                                            setForm(
-                                                current => ({
-                                                    ...current,
-                                                    price:
-                                                        event
-                                                            .target
-                                                            .value,
-                                                }),
-                                            )
-                                    }
-                                    disabled={
-                                        saving
-                                    }
-                                    className="rounded-lg border bg-background px-3 py-2.5 text-sm"
-                                />
-                            </label>
+                        <label className="grid min-w-0 grid-rows-[auto_auto_1.25rem] gap-2">
+                            <span className="text-sm font-medium">
+                                {text.price}
+                            </span>
 
-                            <label className="grid gap-2">
-                                <span className="text-sm font-medium">
-                                    {
-                                        text.sortOrder
-                                    }
-                                </span>
+                            <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={form.price}
+                                onChange={event =>
+                                    setForm(current => ({
+                                        ...current,
+                                        price: event.target.value,
+                                    }))
+                                }
+                                disabled={saving}
+                                className="block min-w-0 w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring disabled:opacity-60"
+                            />
 
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="1"
-                                    value={
-                                        form.sortOrder
-                                    }
-                                    onChange={
-                                        event =>
-                                            setForm(
-                                                current => ({
-                                                    ...current,
-                                                    sortOrder:
-                                                        event
-                                                            .target
-                                                            .value,
-                                                }),
-                                            )
-                                    }
-                                    disabled={
-                                        saving
-                                    }
-                                    className="rounded-lg border bg-background px-3 py-2.5 text-sm"
-                                />
-                            </label>
-                        </div>
+                            <span />
+                        </label>
+
+                        <label className="grid min-w-0 grid-rows-[auto_auto_1.25rem] gap-2">
+                            <span className="text-sm font-medium">
+                                {text.sortOrder}
+                            </span>
+
+                            <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={form.sortOrder}
+                                onChange={event =>
+                                    setForm(current => ({
+                                        ...current,
+                                        sortOrder: event.target.value,
+                                    }))
+                                }
+                                disabled={saving}
+                                className="block min-w-0 w-full rounded-lg border bg-background px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-ring disabled:opacity-60"
+                            />
+
+                            <span />
+                        </label>
+                    </div>
+                 
 
                         <p className="mt-4 text-xs text-muted-foreground">
                             {

@@ -30,7 +30,9 @@ public sealed class CartService(
 
         return cart is null
             ? CartDto.Empty(tenantId)
-            : Map(cart);
+            : await Map(
+                cart,
+                cancellationToken);
     }
 
     public async Task<CartDto> AddItemAsync(
@@ -91,9 +93,8 @@ public sealed class CartService(
         /*
          * این مسیر فقط Cart را بدون Items می‌خواند.
          *
-         * دلیل:
-         * برای INSERT جدید اصلاً نمی‌خواهیم Navigation Graph مربوط
-         * به CartItem وارد ChangeTracker شود.
+         * برای INSERT جدید اصلاً نمی‌خواهیم Navigation Graph
+         * مربوط به CartItem وارد ChangeTracker شود.
          */
         repository.ClearTracking();
 
@@ -103,6 +104,12 @@ public sealed class CartService(
                 userId,
                 guestToken,
                 cancellationToken);
+
+        if (cart is null)
+        {
+            throw new InvalidOperationException(
+                "Cart could not be loaded.");
+        }
 
         /*
          * Existing Item را مستقیماً از جدول CartItems پیدا می‌کنیم.
@@ -124,15 +131,9 @@ public sealed class CartService(
                 throw new InvalidOperationException(
                     "Requested quantity exceeds available stock.");
             }
-
-            existingItem.SetQuantity(
-                requestedTotal,
-                variant.Price,
-                variant.ProductName,
-                variant.ImageUrl);
-
             /*
-             * Cart را نیز تغییر می‌دهیم تا UpdatedAt به‌روزرسانی شود.
+             * Cart را از Tracking خارج می‌کنیم تا Item قدیمی
+             * در Graph قبلی با Item جدید تداخل نداشته باشد.
              */
             repository.ClearTracking();
 
@@ -150,8 +151,7 @@ public sealed class CartService(
             }
 
             /*
-             * چون بعد از ClearTracking، existingItem دیگر tracked نیست،
-             * آن را به‌صورت صریح دوباره به Context معرفی می‌کنیم.
+             * Item جدید را از Context فعلی دوباره می‌گیریم.
              */
             var freshExistingItem =
                 await repository.GetItemAsync(
@@ -202,14 +202,15 @@ public sealed class CartService(
 
             return updatedCart is null
                 ? CartDto.Empty(tenantId)
-                : Map(updatedCart);
+                : await Map(
+                    updatedCart,
+                    cancellationToken);
         }
 
         /*
          * INSERT جدید:
          *
-         * دیگر Cart.AddItem() را صدا نمی‌زنیم.
-         * مستقیماً DbSet<CartItem>.AddAsync() انجام می‌شود.
+         * مستقیماً CartItem را به DbSet اضافه می‌کنیم.
          */
         repository.ClearTracking();
 
@@ -227,7 +228,7 @@ public sealed class CartService(
         }
 
         /*
-         * یک بررسی نهایی برای race condition.
+         * بررسی نهایی برای جلوگیری از Race Condition.
          */
         var raceExistingItem =
             await repository.GetItemAsync(
@@ -267,12 +268,13 @@ public sealed class CartService(
 
             return raceCart is null
                 ? CartDto.Empty(tenantId)
-                : Map(raceCart);
+                : await Map(
+                    raceCart,
+                    cancellationToken);
         }
 
         /*
-         * این متد فقط یک CartItem جدید می‌سازد و مستقیماً آن را
-         * در DbSet به State=Added می‌برد.
+         * CartItem جدید را مستقیماً به DbSet اضافه می‌کنیم.
          */
         await repository.AddItemAsync(
             cart.Id,
@@ -297,7 +299,9 @@ public sealed class CartService(
 
         return freshCartAfterInsert is null
             ? CartDto.Empty(tenantId)
-            : Map(freshCartAfterInsert);
+            : await Map(
+                freshCartAfterInsert,
+                cancellationToken);
     }
 
     public async Task<CartDto> SetQuantityAsync(
@@ -337,7 +341,9 @@ public sealed class CartService(
             await unitOfWork.SaveChangesAsync(
                 cancellationToken);
 
-            return Map(cart);
+            return await Map(
+                cart,
+                cancellationToken);
         }
 
         var variant =
@@ -386,7 +392,20 @@ public sealed class CartService(
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
 
-        return Map(cart);
+        repository.ClearTracking();
+
+        var updatedCart =
+            await FindAsync(
+                tenantId,
+                userId,
+                guestToken,
+                cancellationToken);
+
+        return updatedCart is null
+            ? CartDto.Empty(tenantId)
+            : await Map(
+                updatedCart,
+                cancellationToken);
     }
 
     public async Task<CartDto> RemoveItemAsync(
@@ -424,7 +443,20 @@ public sealed class CartService(
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
 
-        return Map(cart);
+        repository.ClearTracking();
+
+        var updatedCart =
+            await FindAsync(
+                tenantId,
+                userId,
+                guestToken,
+                cancellationToken);
+
+        return updatedCart is null
+            ? CartDto.Empty(tenantId)
+            : await Map(
+                updatedCart,
+                cancellationToken);
     }
 
     public async Task<CartDto> ClearAsync(
@@ -453,7 +485,20 @@ public sealed class CartService(
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
 
-        return Map(cart);
+        repository.ClearTracking();
+
+        var updatedCart =
+            await FindAsync(
+                tenantId,
+                userId,
+                guestToken,
+                cancellationToken);
+
+        return updatedCart is null
+            ? CartDto.Empty(tenantId)
+            : await Map(
+                updatedCart,
+                cancellationToken);
     }
 
     public async Task<CartDto> MergeGuestCartAsync(
@@ -511,7 +556,9 @@ public sealed class CartService(
             return userCart is null
                 ? CartDto.Empty(
                     normalizedTenantId)
-                : Map(userCart);
+                : await Map(
+                    userCart,
+                    cancellationToken);
         }
 
         if (userCart is null)
@@ -560,7 +607,19 @@ public sealed class CartService(
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
 
-        return Map(userCart);
+        repository.ClearTracking();
+
+        var mergedCart =
+            await repository.GetByUserAsync(
+                normalizedTenantId,
+                normalizedUserId,
+                cancellationToken);
+
+        return mergedCart is null
+            ? CartDto.Empty(normalizedTenantId)
+            : await Map(
+                mergedCart,
+                cancellationToken);
     }
 
     private async Task<Cart?> FindAsync(
@@ -690,22 +749,39 @@ public sealed class CartService(
         return null;
     }
 
-    private static CartDto Map(
-        Cart cart)
+    private async Task<CartDto> Map(
+        Cart cart,
+        CancellationToken cancellationToken)
     {
         var items =
-            cart.Items
-                .Where(item => !item.IsDeleted)
-                .Select(
-                    item =>
-                        new CartItemDto(
-                            item.ProductVariantId,
-                            item.ProductName,
-                            item.ImageUrl,
-                            item.Quantity,
-                            item.UnitPrice,
-                            item.LineTotal))
-                .ToList();
+            new List<CartItemDto>();
+
+        foreach (
+            var item in cart.Items
+                .Where(x => !x.IsDeleted))
+        {
+            var variant =
+                await productVariantReader
+                    .GetSellableVariantAsync(
+                        item.ProductVariantId,
+                        cancellationToken);
+
+            items.Add(
+                new CartItemDto(
+                    item.ProductVariantId,
+                    variant?.Sku ?? string.Empty,
+                    item.ProductName,
+                    item.ImageUrl,
+                    item.Quantity,
+                    item.UnitPrice,
+                    item.LineTotal,
+                    variant?.StockQuantity ?? 0));
+        }
+
+        var subtotal =
+            items.Sum(
+                item =>
+                    item.LineTotal);
 
         return new CartDto(
             cart.Id,
@@ -714,8 +790,8 @@ public sealed class CartService(
             items.Sum(
                 item =>
                     item.Quantity),
-            items.Sum(
-                item =>
-                    item.LineTotal));
+            subtotal,
+            "IRR",
+            subtotal);
     }
 }

@@ -72,7 +72,7 @@ export default function AppLayout() {
 
         return (
             <Navigate
-                to={`/ login ? returnUrl = ${ encodeURIComponent(returnUrl) }`}
+                to={`/login?returnUrl=${encodeURIComponent(returnUrl)}`}
                 replace
             />
         );
