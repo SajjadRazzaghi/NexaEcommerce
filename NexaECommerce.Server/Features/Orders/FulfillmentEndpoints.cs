@@ -90,12 +90,12 @@ public sealed class FulfillmentEndpoints : IFeatureEndpoints
                 MarkReadyToShip)
             .RequirePermission(
                 OrderPermissions.Manage);
-   
-    group.MapPost(
-        "/orders/{orderId:guid}/rollback",
-        Rollback)
-    .RequirePermission(
-        OrderPermissions.Manage); }
+        group.MapPost(
+             "/orders/{orderId:guid}/rollback",
+             Rollback)
+         .RequirePermission(
+             OrderPermissions.Manage);
+         }
     // ============================================================
     // Queue
     // ============================================================
@@ -137,58 +137,6 @@ public sealed class FulfillmentEndpoints : IFeatureEndpoints
     // ============================================================
     // Get fulfillment by order
     // ============================================================
-    private static async Task<IResult> Rollback(
-    Guid orderId,
-    [FromBody]
-    FulfillmentRollbackRequest request,
-    [FromServices]
-    WarehouseFulfillmentRollbackOrchestrator orchestrator,
-    [FromServices]
-    ICurrentTenant tenant,
-    CancellationToken ct)
-    {
-        try
-        {
-            var result =
-               await orchestrator.ExecuteAsync(
-    tenant.Id,
-    orderId,
-    ct);
-
-            return Results.Ok(
-                result);
-        }
-        catch (ArgumentException ex)
-        {
-            return Results.BadRequest(
-                new
-                {
-                    error =
-                        ex.Message
-                });
-        }
-        catch (KeyNotFoundException ex)
-        {
-            return Results.NotFound(
-                new
-                {
-                    error =
-                        ex.Message
-                });
-        }
-        catch (InvalidOperationException ex)
-        {
-            return Results.Conflict(
-                new
-                {
-                    error =
-                        ex.Message
-                });
-        }
-    }
-
-    public sealed record FulfillmentRollbackRequest(
-        string? Reason);
     private static async Task<IResult> GetByOrder(
         Guid orderId,
         [FromServices] IFulfillmentService service,
@@ -635,7 +583,50 @@ private static async Task<IResult> MarkReadyToShip(
     // ============================================================
     // Generic service transition
     // ============================================================
+    private static async Task<IResult> Rollback(
+    Guid orderId,
+    [FromServices]
+    WarehouseFulfillmentRollbackOrchestrator orchestrator,
+    [FromServices]
+    ICurrentTenant tenant,
+    CancellationToken ct)
+    {
+        try
+        {
+            var result =
+                await orchestrator.ExecuteAsync(
+                    tenant.Id,
+                    orderId,
+                    ct);
 
+            return Results.Ok(
+                result);
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+    }
     private static async Task<IResult> Transition(
         Func<Task<FulfillmentDto>> action)
     {

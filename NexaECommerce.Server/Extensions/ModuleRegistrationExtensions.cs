@@ -159,7 +159,8 @@ public static class ModuleRegistrationExtensions
 
         services.AddScoped<
             WarehouseAllocationOrchestrator>();
-
+        services.AddScoped<
+    WarehouseFulfillmentRollbackOrchestrator>();
         return services;
     }
 

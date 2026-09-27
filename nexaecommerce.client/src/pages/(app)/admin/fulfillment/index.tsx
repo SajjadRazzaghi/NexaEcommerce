@@ -3,9 +3,6 @@ import {
     useState,
 } from 'react';
 
-import {
-    useQuery,
-} from '@tanstack/react-query';
 
 import {
     useTranslation,
@@ -24,8 +21,8 @@ import {
 } from 'lucide-react';
 
 import {
-    warehousesApi,
-} from '@/modules/inventory/api/warehouses';
+    useWarehouses,
+} from '@/modules/inventory/hooks/useWarehouses';
 
 import {
     useFulfillmentQueue,
@@ -148,28 +145,8 @@ export default function AdminFulfillmentPage() {
 
     const {
         data: warehouses = [],
-        isLoading:
-        warehousesLoading,
-    } =
-        useQuery({
-            queryKey: [
-                'admin',
-                'inventory',
-                'warehouses',
-            ],
-
-            queryFn: async () => {
-                const response =
-                    await warehousesApi.list(
-                        true,
-                    );
-
-                return response.items ?? [];
-            },
-
-            staleTime:
-                60_000,
-        });
+        isLoading: warehousesLoading,
+    } = useWarehouses(true);
 
     const warehouseMap =
         useMemo(
