@@ -198,6 +198,8 @@ public sealed class Fulfillment : BaseEntity
             FulfillmentStatus.Packed;
 
         ReadyToShipAt = null;
+        ShippedAt = null;
+        DeliveredAt = null;
 
         UpdatedAt =
             DateTime.UtcNow;
@@ -212,6 +214,9 @@ public sealed class Fulfillment : BaseEntity
             FulfillmentStatus.Packing;
 
         PackedAt = null;
+        ReadyToShipAt = null;
+        ShippedAt = null;
+        DeliveredAt = null;
 
         UpdatedAt =
             DateTime.UtcNow;
@@ -226,6 +231,10 @@ public sealed class Fulfillment : BaseEntity
             FulfillmentStatus.Picked;
 
         PackingStartedAt = null;
+        PackedAt = null;
+        ReadyToShipAt = null;
+        ShippedAt = null;
+        DeliveredAt = null;
 
         UpdatedAt =
             DateTime.UtcNow;
@@ -240,6 +249,11 @@ public sealed class Fulfillment : BaseEntity
             FulfillmentStatus.Picking;
 
         PickedAt = null;
+        PackingStartedAt = null;
+        PackedAt = null;
+        ReadyToShipAt = null;
+        ShippedAt = null;
+        DeliveredAt = null;
 
         UpdatedAt =
             DateTime.UtcNow;
@@ -254,6 +268,12 @@ public sealed class Fulfillment : BaseEntity
             FulfillmentStatus.Pending;
 
         PickingStartedAt = null;
+        PickedAt = null;
+        PackingStartedAt = null;
+        PackedAt = null;
+        ReadyToShipAt = null;
+        ShippedAt = null;
+        DeliveredAt = null;
 
         UpdatedAt =
             DateTime.UtcNow;

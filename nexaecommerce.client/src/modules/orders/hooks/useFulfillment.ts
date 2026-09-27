@@ -112,6 +112,19 @@ export function useFulfillmentMutations(
                         'shipment',
                     ],
                 }),
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        'fulfillment',
+                        'queue',
+                    ],
+                }),
+
+                queryClient.invalidateQueries({
+                    queryKey: [
+                        'admin',
+                        'inventory',
+                    ],
+                }),
             ]);
         };
 

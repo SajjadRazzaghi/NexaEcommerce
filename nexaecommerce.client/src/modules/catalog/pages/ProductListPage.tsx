@@ -144,103 +144,104 @@ export default function ProductListPage() {
             .toLowerCase()
             .startsWith('fa');
 
-    const text = isFa
-        ? {
-            title:
-                'محصولات',
-            subtitle:
-                'محصولات فروشگاه را جستجو و فیلتر کنید.',
-            search:
-                'جستجوی محصول...',
-            sort:
-                'مرتب‌سازی',
-            newest:
-                'جدیدترین',
-            priceAsc:
-                'ارزان‌ترین',
-            priceDesc:
-                'گران‌ترین',
-            name:
-                'نام',
-            popular:
-                'محبوب‌ترین',
-            category:
-                'دسته‌بندی',
-            allCategories:
-                'همه دسته‌بندی‌ها',
-            minPrice:
-                'حداقل قیمت',
-            maxPrice:
-                'حداکثر قیمت',
-            inStock:
-                'فقط کالاهای موجود',
-            reset:
-                'حذف فیلترها',
-            all:
-                'همه محصولات',
-            featured:
-                'پیشنهاد ویژه',
-            updating:
-                'در حال بروزرسانی محصولات...',
-            loading:
-                'در حال بارگذاری محصولات...',
-            categoryLoading:
-                'در حال بارگذاری دسته‌بندی‌ها...',
-            error:
-                'خطا در دریافت محصولات.',
-            emptyTitle:
-                'محصولی پیدا نشد',
-            emptyText:
-                'فیلترها یا عبارت جستجو را تغییر دهید.',
-        }
-        : {
-            title:
-                'Products',
-            subtitle:
-                'Search and filter the products available in the store.',
-            search:
-                'Search products...',
-            sort:
-                'Sort by',
-            newest:
-                'Newest',
-            priceAsc:
-                'Lowest price',
-            priceDesc:
-                'Highest price',
-            name:
-                'Name',
-            popular:
-                'Most popular',
-            category:
-                'Category',
-            allCategories:
-                'All categories',
-            minPrice:
-                'Minimum price',
-            maxPrice:
-                'Maximum price',
-            inStock:
-                'In-stock only',
-            reset:
-                'Clear filters',
-            all:
-                'All products',
-            featured:
-                'Featured',
-            updating:
-                'Updating products...',
-            loading:
-                'Loading products...',
-            categoryLoading:
-                'Loading categories...',
-            error:
-                'Failed to load products.',
-            emptyTitle:
-                'No products found',
-            emptyText:
-                'Try changing your search or filters.',
-        };
+    const {
+        t,
+    } = useTranslation();
+
+    const text = {
+        title: t(
+            'storefront.products.title',
+        ),
+
+        subtitle: t(
+            'storefront.products.subtitle',
+        ),
+
+        search: t(
+            'storefront.products.search',
+        ),
+
+        sort: t(
+            'storefront.products.sort',
+        ),
+
+        newest: t(
+            'storefront.products.newest',
+        ),
+
+        priceAsc: t(
+            'storefront.products.priceAsc',
+        ),
+
+        priceDesc: t(
+            'storefront.products.priceDesc',
+        ),
+
+        name: t(
+            'storefront.products.name',
+        ),
+
+        popular: t(
+            'storefront.products.popular',
+        ),
+
+        category: t(
+            'storefront.products.category',
+        ),
+
+        allCategories: t(
+            'storefront.products.allCategories',
+        ),
+
+        minPrice: t(
+            'storefront.products.minPrice',
+        ),
+
+        maxPrice: t(
+            'storefront.products.maxPrice',
+        ),
+
+        inStock: t(
+            'storefront.products.inStockOnly',
+        ),
+
+        reset: t(
+            'storefront.products.clearFilters',
+        ),
+
+        all: t(
+            'storefront.products.allProducts',
+        ),
+
+        featured: t(
+            'storefront.products.featured',
+        ),
+
+        updating: t(
+            'storefront.products.updating',
+        ),
+
+        loading: t(
+            'storefront.products.loading',
+        ),
+
+        categoryLoading: t(
+            'storefront.products.loadingCategories',
+        ),
+
+        error: t(
+            'storefront.products.error',
+        ),
+
+        emptyTitle: t(
+            'storefront.products.emptyTitle',
+        ),
+
+        emptyText: t(
+            'storefront.products.emptyDescription',
+        ),
+    };
+       
 
     const activeTabRaw =
         Number(

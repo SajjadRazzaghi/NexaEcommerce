@@ -123,9 +123,7 @@ function AddressOption({
 
                         {address.isDefault && (
                             <span className="rounded-full border px-2 py-0.5 text-[11px] font-medium">
-                                {isFa
-                                    ? 'پیش‌فرض'
-                                    : 'Default'}
+                                {t('storefront.checkout.default')}
                             </span>
                         )}
                     </div>

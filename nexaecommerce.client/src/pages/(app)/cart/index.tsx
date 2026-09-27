@@ -6,7 +6,9 @@ import {
     RefreshCw,
     AlertCircle,
 } from 'lucide-react';
-
+import {
+    useTranslation,
+} from 'react-i18next';
 import {
     Link,
 } from 'react-router-dom';
@@ -38,17 +40,23 @@ function formatMoney(
 
 function getErrorMessage(
     error: unknown,
+    t: (
+        key: string,
+        options?: Record<string, unknown>,
+    ) => string,
 ): string {
-    if (
-        error instanceof Error
-    ) {
+    if (error instanceof Error) {
         return error.message;
     }
 
-    return 'Something went wrong. Please try again.';
+    return t(
+        'common.technicalDetails',
+        {
+            defaultValue:
+                'Something went wrong. Please try again.',
+        },
+    );
 }
-
-
 function LoadingCart() {
     return (
         <div className="mx-auto max-w-6xl space-y-4 p-6">
@@ -84,6 +92,10 @@ function LoadingCart() {
 
 export default function CartPage() {
     const {
+        t,
+    } = useTranslation();
+
+    const {
         data: cart,
         isLoading,
         isError,
@@ -92,14 +104,11 @@ export default function CartPage() {
         isFetching,
     } = useCart();
 
-
     const {
         setQuantity,
         remove,
         clear,
-    } =
-        useCartMutations();
-
+    } = useCartMutations();
 
     if (
         isLoading
@@ -202,56 +211,60 @@ export default function CartPage() {
         >
             <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                    <h1 className="text-3xl font-bold">
-                        Shopping Cart
-                    </h1>
+                 
+                        <h1 className="text-3xl font-bold">
+                            {t('storefront.cart.title')}
+                        </h1>
 
-                    <p className="mt-1 text-muted-foreground">
-                        {cart.items.length}{' '}
-                        item(s)
-                        {' · '}
-                        {cart.items.reduce(
-                            (
-                                total,
-                                item,
-                            ) =>
-                                total +
-                                item.quantity,
-                            0,
-                        )}{' '}
-                        unit(s)
-                    </p>
+                        <p className="mt-1 text-muted-foreground">
+                            {t(
+                                'storefront.cart.itemCount',
+                                {
+                                    count: cart.items.length,
+                                },
+                            )}
+                            {' · '}
+                            {t(
+                                'storefront.cart.unitCount',
+                                {
+                                    count: cart.items.reduce(
+                                        (
+                                            total,
+                                            item,
+                                        ) =>
+                                            total +
+                                            item.quantity,
+                                        0,
+                                    ),
+                                },
+                            )}
+                        </p>
                 </div>
-
+               
                 <button
                     type="button"
                     onClick={() => {
-                        if (
-                            cart.items.length ===
-                            0
-                        ) {
+                        if (cart.items.length === 0) {
                             return;
                         }
 
-                        const confirmed =
-                            window.confirm(
-                                'Are you sure you want to clear your cart?',
-                            );
+                        const confirmed = window.confirm(
+                            t('storefront.cart.clearConfirm'),
+                        );
 
-                        if (
-                            confirmed
-                        ) {
+                        if (confirmed) {
                             clear.mutate();
                         }
                     }}
-                    disabled={
-                        mutationPending
-                    }
+                    disabled={mutationPending}
                     className="inline-flex items-center justify-center gap-2 rounded-xl border px-4 py-2 font-medium disabled:cursor-not-allowed disabled:opacity-50"
                 >
                     <Trash2 className="size-4" />
-                    Clear cart
+
+                    {t('storefront.cart.clear')}
                 </button>
+                
+
             </div>
 
 
@@ -325,7 +338,9 @@ export default function CartPage() {
                                                     <div className="flex items-center rounded-xl border">
                                                         <button
                                                             type="button"
-                                                            aria-label="Decrease quantity"
+                                                            aria-label={t(
+                                                                'storefront.cart.decreaseQuantity',
+                                                            )}
                                                             className="p-2"
                                                             disabled={
                                                                 item.quantity <= 1 ||
@@ -349,7 +364,9 @@ export default function CartPage() {
 
                                                         <button
                                                             type="button"
-                                                            aria-label="Increase quantity"
+                                                            aria-label={t(
+                                                                'storefront.cart.increaseQuantity',
+                                                            )}
                                                             className="p-2"
                                                             disabled={
                                                                 !canIncrease ||
@@ -370,7 +387,12 @@ export default function CartPage() {
 
                                                     {item.availableStock != null && (
                                                         <span className="text-xs text-muted-foreground">
-                                                            Available: {item.availableStock}
+                                                            {t(
+                                                                'storefront.cart.available',
+                                                                {
+                                                                    count: item.availableStock,
+                                                                },
+                                                            )} 
                                                         </span>
                                                     )}
                                                 </div>
@@ -388,7 +410,7 @@ export default function CartPage() {
                                                     }
                                                 >
                                                     <Trash2 className="size-4" />
-                                                    Remove
+                                                    {t('storefront.cart.remove')}
                                                 </button>
                                             </div>
                                         </div>
@@ -410,14 +432,17 @@ export default function CartPage() {
 
                 <aside className="h-fit rounded-2xl border bg-background p-6 lg:sticky lg:top-6">
                     <h2 className="text-xl font-semibold">
-                        Order Summary
+                        {t('storefront.cart.orderSummary')}
                     </h2>
+
+                  
 
                     <div className="mt-6 space-y-3">
                         <div className="flex justify-between">
                             <span>
-                                Subtotal
+                                {t('storefront.cart.subtotal')}
                             </span>
+
 
                             <span>
                                 {formatMoney(
@@ -428,12 +453,14 @@ export default function CartPage() {
                         </div>
 
                         <div className="flex justify-between text-sm text-muted-foreground">
-                            <span>
-                                Shipping
-                            </span>
 
                             <span>
-                                Calculated at checkout
+                                {t('storefront.cart.shipping')}
+                            </span>
+
+
+                            <span>
+                                {t('storefront.cart.shippingAtCheckout')}
                             </span>
                         </div>
                     </div>
@@ -443,8 +470,11 @@ export default function CartPage() {
 
 
                     <div className="flex justify-between text-lg font-bold">
+
+                       
+
                         <span>
-                            Total
+                            {t('storefront.cart.total')}
                         </span>
 
                         <span>
@@ -494,16 +524,19 @@ export default function CartPage() {
                                 : 'border text-muted-foreground'
                             }`}
                     >
-                        {canCheckout
-                            ? 'Proceed to checkout'
-                            : 'Continue shopping'}
+                        {
+                            canCheckout
+                            ? t('storefront.cart.proceedCheckout')
+                                : t('storefront.cart.continueShopping')}
                     </Link>
                     
                     <Link
                         to="/products"
                         className="mt-3 flex w-full items-center justify-center rounded-xl border px-5 py-3 font-medium"
                     >
-                        Continue shopping
+                        <span>
+                            {t('storefront.cart.shippingAtCheckout')}
+                        </span>
                     </Link>
                 </aside>
             </div>

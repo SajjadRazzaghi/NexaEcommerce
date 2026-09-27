@@ -26,15 +26,16 @@ export type LanguageMeta = {
 };
 
 export const LANGUAGES: LanguageMeta[] = [
-    {
-        code: 'en',
-        name: 'English',
-        dir: 'ltr',
-    },
+
     {
         code: 'fa',
         name: 'فارسی',
         dir: 'rtl',
+    },
+    {
+        code: 'en',
+        name: 'English',
+        dir: 'ltr',
     },
     {
         code: 'es',
@@ -156,9 +157,9 @@ i18n
          * Persian is selected explicitly by the user
          * through the language switcher.
          */
-        lng: 'en',
+        lng: 'fa',
 
-        fallbackLng: 'en',
+        fallbackLng: 'fa',
 
         supportedLngs,
 

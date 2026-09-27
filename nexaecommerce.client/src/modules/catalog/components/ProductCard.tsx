@@ -1,14 +1,8 @@
-import {
-    useState,
-} from 'react';
+import { useState } from 'react';
 
-import {
-    Link,
-} from 'react-router-dom';
+import { Link } from 'react-router-dom';
 
-import {
-    useTranslation,
-} from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 
 import {
     Box,
@@ -37,77 +31,62 @@ import {
 
 import ProductVariantPickerDialog from './ProductVariantPickerDialog';
 
-import {
-    useCartMutations,
-} from '@/modules/cart/hooks/useCartMutations';
+import { useCartMutations } from '@/modules/cart/hooks/useCartMutations';
 
 interface ProductCardProps {
     product: ProductListItem;
 }
 
-function getProductUrl(
-    slug: string,
-): string {
-    return `/products/${
-    encodeURIComponent(
-        slug.trim(),
-    )
-}`;
+function getProductUrl(slug: string): string {
+    return `/ products / ${ encodeURIComponent(slug.trim()) } `;
 }
 
 export default function ProductCard({
     product,
 }: ProductCardProps) {
-    const {
-        i18n,
-    } = useTranslation();
+    const { i18n, t } = useTranslation();
 
     const isFa =
-        i18n.language
-            .toLowerCase()
-            .startsWith('fa');
+        i18n.language?.startsWith('fa') ?? false;
 
-    const [
-        favorite,
-        setFavorite,
-    ] = useState(false);
+    const stockLabel = product.isInStock
+        ? t('storefront.product.inStock')
+        : t('storefront.product.outOfStock');
 
-    const [
-        added,
-        setAdded,
-    ] = useState(false);
+    const addLabel =
+        t('storefront.product.addToCart');
 
-    const [
-        errorMessage,
-        setErrorMessage,
-    ] = useState<string | null>(
-        null,
-    );
+    const addingLabel =
+        t('storefront.product.adding');
 
-    const [
-        variantDialogOpen,
-        setVariantDialogOpen,
-    ] = useState(false);
+    const viewLabel =
+        t('storefront.product.view');
 
-    const [
-        variantProduct,
-        setVariantProduct,
-    ] = useState<Product | null>(
-        null,
-    );
+    const addedLabel =
+        t('storefront.product.viewCart');
 
-    const [
-        variantLoading,
-        setVariantLoading,
-    ] = useState(false);
+    const [favorite, setFavorite] =
+        useState(false);
 
-    const {
-        add,
-    } = useCartMutations();
+    const [added, setAdded] =
+        useState(false);
+
+    const [errorMessage, setErrorMessage] =
+        useState<string | null>(null);
+
+    const [variantDialogOpen, setVariantDialogOpen] =
+        useState(false);
+
+    const [variantProduct, setVariantProduct] =
+        useState<Product | null>(null);
+
+    const [variantLoading, setVariantLoading] =
+        useState(false);
+
+    const { add } = useCartMutations();
 
     const price =
-        typeof product.finalPrice ===
-            'number'
+        typeof product.finalPrice === 'number'
             ? product.finalPrice
             : product.price;
 
@@ -117,217 +96,140 @@ export default function ProductCard({
 
     const discountPercentage =
         product.discountPercentage > 0
-            ? Math.round(
-                product.discountPercentage,
-            )
+            ? Math.round(product.discountPercentage)
             : hasDiscount &&
-                product.comparePrice
-                ? Math.round(
-                    (
-                        (
-                            product.comparePrice -
-                            price
-                        ) /
-                        product.comparePrice
-                    ) *
-                    100,
+                product.comparePrice != null
+              ? Math.round(
+                    ((product.comparePrice - price) /
+                        product.comparePrice) *
+                        100,
                 )
-                : 0;
+              : 0;
 
     const image =
         product.mainImage?.trim() ||
         '/placeholder.jpg';
 
-    const formatPrice = (
-        value: number,
-    ) =>
+    const formatPrice = (value: number) =>
         new Intl.NumberFormat(
-            isFa
-                ? 'fa-IR'
-                : undefined,
+            isFa ? 'fa-IR' : undefined,
             {
                 maximumFractionDigits: 0,
             },
         ).format(value);
 
-    const closeVariantDialog =
-        () => {
-            setVariantDialogOpen(
-                false,
-            );
+    const closeVariantDialog = () => {
+        setVariantDialogOpen(false);
+        setVariantProduct(null);
+        setVariantLoading(false);
+    };
 
-            setVariantProduct(
-                null,
-            );
+    const handleAddToCart = async () => {
+        if (
+            !product.isInStock ||
+            add.isPending ||
+            variantLoading
+        ) {
+            return;
+        }
 
-            setVariantLoading(
-                false,
-            );
-        };
+        setErrorMessage(null);
+        setVariantLoading(true);
 
-    const handleAddToCart =
-        async () => {
-            if (
-                !product.isInStock ||
-                add.isPending ||
-                variantLoading
-            ) {
-                return;
-            }
-
-            setErrorMessage(
-                null,
-            );
-
-            setVariantLoading(
-                true,
-            );
-
-            try {
-                /*
-                 * ProductListItem intentionally does not
-                 * contain the complete variant collection.
-                 * Load the canonical product by slug.
-                 */
-                const fullProduct =
-                    await productsApi.getBySlug(
-                        product.slug,
-                    );
-
-                const sellableVariants =
-                    fullProduct.variants.filter(
-                        variant =>
-                            variant.isActive &&
-                            variant.stockQuantity > 0,
-                    );
-
-                if (
-                    sellableVariants.length === 0
-                ) {
-                    setErrorMessage(
-                        isFa
-                            ? 'این محصول در حال حاضر موجود نیست.'
-                            : 'This product is currently out of stock.',
-                    );
-
-                    return;
-                }
-
-                if (
-                    sellableVariants.length === 1
-                ) {
-                    await add.mutateAsync({
-                        productVariantId:
-                            sellableVariants[0]
-                                .id,
-                        quantity: 1,
-                    });
-
-                    setAdded(
-                        true,
-                    );
-
-                    return;
-                }
-
-                /*
-                 * Multiple sellable variants:
-                 * customer must select the exact variant.
-                 */
-                setVariantProduct(
-                    fullProduct,
+        try {
+            /*
+             * ProductListItem intentionally does not
+             * contain the complete variant collection.
+             * Load the canonical product by slug.
+             */
+            const fullProduct =
+                await productsApi.getBySlug(
+                    product.slug,
                 );
 
-                setVariantDialogOpen(
-                    true,
+            const sellableVariants =
+                fullProduct.variants.filter(
+                    (variant) =>
+                        variant.isActive &&
+                        variant.stockQuantity > 0,
                 );
-            } catch {
+
+            if (sellableVariants.length === 0) {
                 setErrorMessage(
                     isFa
-                        ? 'افزودن محصول به سبد خرید انجام نشد.'
-                        : 'The product could not be added to the cart.',
+                        ? 'این محصول در حال حاضر موجود نیست.'
+                        : 'This product is currently out of stock.',
                 );
-            } finally {
-                setVariantLoading(
-                    false,
-                );
-            }
-        };
 
-    const handleVariantConfirm =
-        async (
-            variant: ProductVariant,
-        ) => {
-            if (
-                !variant.isActive ||
-                variant.stockQuantity <= 0 ||
-                add.isPending
-            ) {
                 return;
             }
 
-            setErrorMessage(
-                null,
-            );
-
-            try {
+            /*
+             * If there is exactly one sellable variant,
+             * add it directly without showing the picker.
+             */
+            if (sellableVariants.length === 1) {
                 await add.mutateAsync({
                     productVariantId:
-                        variant.id,
+                        sellableVariants[0].id,
                     quantity: 1,
                 });
 
-                setAdded(
-                    true,
-                );
+                setAdded(true);
 
-                closeVariantDialog();
-            } catch {
-                setErrorMessage(
-                    isFa
-                        ? 'افزودن محصول به سبد خرید انجام نشد.'
-                        : 'The product could not be added to the cart.',
-                );
+                return;
             }
-        };
 
-    const productUrl =
-        getProductUrl(
-            product.slug,
-        );
-
-    const stockLabel =
-        product.isInStock
-            ? (
+            /*
+             * Multiple sellable variants:
+             * customer must select the exact variant.
+             */
+            setVariantProduct(fullProduct);
+            setVariantDialogOpen(true);
+        } catch {
+            setErrorMessage(
                 isFa
-                    ? 'موجود'
-                    : 'In stock'
-            )
-            : (
-                isFa
-                    ? 'ناموجود'
-                    : 'Out of stock'
+                    ? 'افزودن محصول به سبد خرید انجام نشد.'
+                    : 'The product could not be added to the cart.',
             );
+        } finally {
+            setVariantLoading(false);
+        }
+    };
 
-    const addedLabel =
-        isFa
-            ? 'مشاهده سبد'
-            : 'View cart';
+    const handleVariantConfirm = async (
+        variant: ProductVariant,
+    ) => {
+        if (
+            !variant.isActive ||
+            variant.stockQuantity <= 0 ||
+            add.isPending
+        ) {
+            return;
+        }
 
-    const addLabel =
-        isFa
-            ? 'افزودن به سبد'
-            : 'Add to cart';
+        setErrorMessage(null);
 
-    const addingLabel =
-        isFa
-            ? 'در حال افزودن...'
-            : 'Adding...';
+        try {
+            await add.mutateAsync({
+                productVariantId: variant.id,
+                quantity: 1,
+            });
 
-    const viewLabel =
-        isFa
-            ? 'مشاهده'
-            : 'View';
+            setAdded(true);
+            closeVariantDialog();
+        } catch {
+            setErrorMessage(
+                isFa
+                    ? 'افزودن محصول به سبد خرید انجام نشد.'
+                    : 'The product could not be added to the cart.',
+            );
+        }
+    };
+
+    const productUrl = getProductUrl(
+        product.slug,
+    );
 
     return (
         <>
@@ -340,31 +242,29 @@ export default function ProductCard({
                     overflow: 'hidden',
                     borderRadius: 3,
                     border: '1px solid',
-                    borderColor:
-                        'divider',
-                    backgroundColor:
-                        'background.paper',
+                    borderColor: 'divider',
+                    backgroundColor: 'background.paper',
                     transition:
                         'transform .2s ease, box-shadow .2s ease',
                     '&:hover': {
-                        transform:
-                            'translateY(-4px)',
+                        transform: 'translateY(-4px)',
                         boxShadow: 6,
                     },
                 }}
             >
                 {discountPercentage > 0 && (
                     <Chip
-                        label={
-                            isFa
-                                ? `${ discountPercentage }٪ تخفیف`
-                                : `${ discountPercentage }% OFF`
-                        }
+                        label={t(
+                            'storefront.product.discount',
+                            {
+                                percent:
+                                    discountPercentage,
+                            },
+                        )}
                         color="error"
                         size="small"
                         sx={{
-                            position:
-                                'absolute',
+                            position: 'absolute',
                             top: 12,
                             right: 12,
                             zIndex: 3,
@@ -376,41 +276,32 @@ export default function ProductCard({
                 <IconButton
                     aria-label={
                         favorite
-                            ? (
-                                isFa
-                                    ? 'حذف از علاقه‌مندی‌ها'
-                                    : 'Remove from favorites'
-                            )
-                            : (
-                                isFa
-                                    ? 'افزودن به علاقه‌مندی‌ها'
-                                    : 'Add to favorites'
-                            )
+                            ? t(
+                                  'storefront.product.removeFavorite',
+                              )
+                            : t(
+                                  'storefront.product.addFavorite',
+                              )
                     }
                     onClick={() =>
                         setFavorite(
-                            value =>
-                                !value,
+                            (value) => !value,
                         )
                     }
                     sx={{
-                        position:
-                            'absolute',
+                        position: 'absolute',
                         top: 8,
                         left: 8,
                         zIndex: 3,
                         backgroundColor:
                             'rgba(255,255,255,.92)',
                         '&:hover': {
-                            backgroundColor:
-                                '#fff',
+                            backgroundColor: '#fff',
                         },
                     }}
                 >
                     {favorite ? (
-                        <Favorite
-                            color="error"
-                        />
+                        <Favorite color="error" />
                     ) : (
                         <FavoriteBorder />
                     )}
@@ -420,50 +311,38 @@ export default function ProductCard({
                     component={Link}
                     to={productUrl}
                     sx={{
-                        display:
-                            'block',
-                        overflow:
-                            'hidden',
-                        backgroundColor:
-                            '#f7f7f7',
-                        textDecoration:
-                            'none',
+                        display: 'block',
+                        overflow: 'hidden',
+                        backgroundColor: '#f7f7f7',
+                        textDecoration: 'none',
                     }}
                 >
                     <Box
                         component="img"
                         src={image}
-                        alt={
-                            product.name
-                        }
+                        alt={product.name}
                         loading="lazy"
                         sx={{
-                            display:
-                                'block',
-                            width:
-                                '100%',
+                            display: 'block',
+                            width: '100%',
                             height: {
                                 xs: 220,
                                 sm: 230,
                                 md: 240,
                             },
-                            objectFit:
-                                'cover',
+                            objectFit: 'cover',
                             transition:
                                 'transform .4s ease',
-                            '.MuiCard-root:hover &':
-                                {
-                                    transform:
-                                        'scale(1.05)',
-                                },
+                            '.MuiCard-root:hover &': {
+                                transform:
+                                    'scale(1.05)',
+                            },
                         }}
-                        onError={event => {
+                        onError={(event) => {
                             if (
-                                event
-                                    .currentTarget
-                                    .src.endsWith(
-                                        '/placeholder.jpg',
-                                    )
+                                event.currentTarget.src.endsWith(
+                                    '/placeholder.jpg',
+                                )
                             ) {
                                 return;
                             }
@@ -476,21 +355,17 @@ export default function ProductCard({
 
                 <CardContent
                     sx={{
-                        display:
-                            'flex',
-                        flexDirection:
-                            'column',
+                        display: 'flex',
+                        flexDirection: 'column',
                         flexGrow: 1,
                         p: 2,
                         gap: 1,
-                        textAlign:
-                            isFa
-                                ? 'right'
-                                : 'left',
-                        direction:
-                            isFa
-                                ? 'rtl'
-                                : 'ltr',
+                        textAlign: isFa
+                            ? 'right'
+                            : 'left',
+                        direction: isFa
+                            ? 'rtl'
+                            : 'ltr',
                     }}
                 >
                     {product.brandName && (
@@ -498,13 +373,10 @@ export default function ProductCard({
                             variant="caption"
                             color="text.secondary"
                             sx={{
-                                fontWeight:
-                                    600,
+                                fontWeight: 600,
                             }}
                         >
-                            {
-                                product.brandName
-                            }
+                            {product.brandName}
                         </Typography>
                     )}
 
@@ -513,45 +385,33 @@ export default function ProductCard({
                         to={productUrl}
                         variant="subtitle1"
                         sx={{
-                            color:
-                                'text.primary',
-                            textDecoration:
-                                'none',
-                            fontWeight:
-                                700,
-                            lineHeight:
-                                1.7,
-                            minHeight:
-                                56,
+                            color: 'text.primary',
+                            textDecoration: 'none',
+                            fontWeight: 700,
+                            lineHeight: 1.7,
+                            minHeight: 56,
                             display:
                                 '-webkit-box',
-                            WebkitLineClamp:
-                                2,
+                            WebkitLineClamp: 2,
                             WebkitBoxOrient:
                                 'vertical',
-                            overflow:
-                                'hidden',
+                            overflow: 'hidden',
                             '&:hover': {
-                                color:
-                                    'primary.main',
+                                color: 'primary.main',
                             },
                         }}
                     >
-                        {
-                            product.name
-                        }
+                        {product.name}
                     </Typography>
 
                     <Box
                         sx={{
-                            flexGrow:
-                                1,
+                            flexGrow: 1,
                         }}
                     />
 
                     {hasDiscount &&
-                        product.comparePrice !=
-                            null && (
+                        product.comparePrice != null && (
                             <Typography
                                 variant="body2"
                                 color="text.secondary"
@@ -560,14 +420,10 @@ export default function ProductCard({
                                         'line-through',
                                 }}
                             >
-                                {
-                                    formatPrice(
-                                        product.comparePrice,
-                                    )
-                                }{' '}
-                                {
-                                    product.currency
-                                }
+                                {formatPrice(
+                                    product.comparePrice,
+                                )}{' '}
+                                {product.currency}
                             </Typography>
                         )}
 
@@ -575,31 +431,21 @@ export default function ProductCard({
                         variant="h6"
                         color="primary"
                         sx={{
-                            fontWeight:
-                                900,
-                            fontSize:
-                                '1.15rem',
+                            fontWeight: 900,
+                            fontSize: '1.15rem',
                         }}
                     >
-                        {
-                            formatPrice(
-                                price,
-                            )
-                        }{' '}
-                        {
-                            product.currency
-                        }
+                        {formatPrice(price)}{' '}
+                        {product.currency}
                     </Typography>
 
                     <Typography
                         variant="caption"
                         sx={{
-                            color:
-                                product.isInStock
-                                    ? 'success.main'
-                                    : 'error.main',
-                            fontWeight:
-                                700,
+                            color: product.isInStock
+                                ? 'success.main'
+                                : 'error.main',
+                            fontWeight: 700,
                         }}
                     >
                         • {stockLabel}
@@ -610,75 +456,106 @@ export default function ProductCard({
                             variant="caption"
                             color="error"
                             sx={{
-                                fontWeight:
-                                    600,
-                                lineHeight:
-                                    1.6,
+                                fontWeight: 600,
+                                lineHeight: 1.6,
                             }}
                         >
-                            {
-                                errorMessage
-                            }
+                            {errorMessage}
                         </Typography>
                     )}
 
                     <Stack
-                        direction="row"
+                        direction={{
+                            xs: 'column',
+                            sm: 'row',
+                        }}
                         spacing={1}
                         sx={{
                             mt: 1,
+                            width: '100%',
+                            minWidth: 0,
                         }}
                     >
                         <Button
-                            component={
-                                Link
-                            }
-                            to={
-                                productUrl
-                            }
+                            component={Link}
+                            to={productUrl}
                             variant="outlined"
                             sx={{
-                                minWidth:
-                                    48,
-                                borderRadius:
-                                    2,
-                                flex: 1,
-                                fontWeight:
-                                    700,
-                                minHeight:
-                                    46,
+                                width: {
+                                    xs: '100%',
+                                    sm: 'auto',
+                                },
+                                minWidth: 0,
+                                flex: {
+                                    xs: 'none',
+                                    sm: 1,
+                                },
+                                borderRadius: 2,
+                                fontWeight: 700,
+                                minHeight: 46,
+                                px: {
+                                    xs: 1.5,
+                                    sm: 2,
+                                },
+                                fontSize: {
+                                    xs: '0.78rem',
+                                    sm: '0.875rem',
+                                },
+                                lineHeight: 1.3,
+                                whiteSpace: 'normal',
+                                overflow: 'hidden',
                             }}
                         >
-                            {
-                                viewLabel
-                            }
+                            {viewLabel}
                         </Button>
 
                         {added ? (
                             <Button
-                                component={
-                                    Link
-                                }
+                                component={Link}
                                 to="/cart"
                                 variant="contained"
                                 startIcon={
-                                    <CheckCircleOutlined />
+                                    <CheckCircleOutlined
+                                        sx={{
+                                            display: {
+                                                xs: 'none',
+                                                sm: 'inline-flex',
+                                            },
+                                        }}
+                                    />
                                 }
                                 sx={{
-                                    borderRadius:
-                                        2,
-                                    flex: 1.5,
-                                    fontWeight:
-                                        800,
-                                    minHeight:
-                                        46,
-                                    whiteSpace:
-                                        'nowrap',
+                                    width: {
+                                        xs: '100%',
+                                        sm: 'auto',
+                                    },
+                                    minWidth: 0,
+                                    flex: {
+                                        xs: 'none',
+                                        sm: 1.5,
+                                    },
+                                    borderRadius: 2,
+                                    fontWeight: 800,
+                                    minHeight: 46,
+                                    px: {
+                                        xs: 1.5,
+                                        sm: 2,
+                                    },
+                                    fontSize: {
+                                        xs: '0.78rem',
+                                        sm: '0.875rem',
+                                    },
+                                    lineHeight: 1.3,
+                                    whiteSpace: 'normal',
+                                    overflow: 'hidden',
+                                    '& .MuiButton-startIcon':
+                                        {
+                                            marginInlineEnd:
+                                                0.5,
+                                        },
                                 }}
                             >
-                                {
-                                    addedLabel
-                                }
+                                {addedLabel}
                             </Button>
                         ) : (
                             <Button
@@ -690,28 +567,47 @@ export default function ProductCard({
                                     variantLoading
                                 }
                                 startIcon={
-                                    add.isPending ||
-                                    variantLoading
-                                        ? (
-                                            <ShoppingCartOutlined />
-                                        )
-                                        : (
-                                            <ShoppingCartOutlined />
-                                        )
+                                    <ShoppingCartOutlined
+                                        sx={{
+                                            display: {
+                                                xs: 'none',
+                                                sm: 'inline-flex',
+                                            },
+                                        }}
+                                    />
                                 }
                                 onClick={
                                     handleAddToCart
                                 }
                                 sx={{
-                                    borderRadius:
-                                        2,
-                                    flex: 1.5,
-                                    fontWeight:
-                                        800,
-                                    minHeight:
-                                        46,
-                                    whiteSpace:
-                                        'nowrap',
+                                    width: {
+                                        xs: '100%',
+                                        sm: 'auto',
+                                    },
+                                    minWidth: 0,
+                                    flex: {
+                                        xs: 'none',
+                                        sm: 1.5,
+                                    },
+                                    borderRadius: 2,
+                                    fontWeight: 800,
+                                    minHeight: 46,
+                                    px: {
+                                        xs: 1.5,
+                                        sm: 2,
+                                    },
+                                    fontSize: {
+                                        xs: '0.78rem',
+                                        sm: '0.875rem',
+                                    },
+                                    lineHeight: 1.3,
+                                    whiteSpace: 'normal',
+                                    overflow: 'hidden',
+                                    '& .MuiButton-startIcon':
+                                        {
+                                            marginInlineEnd:
+                                                0.5,
+                                        },
                                 }}
                             >
                                 {add.isPending ||
@@ -725,12 +621,8 @@ export default function ProductCard({
             </Card>
 
             <ProductVariantPickerDialog
-                open={
-                    variantDialogOpen
-                }
-                product={
-                    variantProduct
-                }
+                open={variantDialogOpen}
+                product={variantProduct}
                 loading={
                     variantLoading ||
                     add.isPending
@@ -745,3 +637,4 @@ export default function ProductCard({
         </>
     );
 }
+

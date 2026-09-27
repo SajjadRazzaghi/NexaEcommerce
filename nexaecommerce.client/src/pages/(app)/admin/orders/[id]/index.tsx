@@ -3,13 +3,21 @@ import {
     ExternalLink,
     Package,
     Truck,
-   } from 'lucide-react';
+    Undo2,
+} from 'lucide-react';
+
+import {
+    ConfirmDialog,
+} from '@/components/confirm-dialog';
+
 import {
     useQuery,
 } from '@tanstack/react-query';
+
 import {
     warehousesApi,
 } from '@/modules/inventory/api/warehouses';
+
 import {
     useState,
 } from 'react';
@@ -37,6 +45,7 @@ import {
     useFulfillmentMutations,
 } from '@/modules/orders/hooks/useFulfillment';
 
+
 function getErrorMessage(
     error: unknown,
 ): string {
@@ -59,8 +68,11 @@ function getErrorMessage(
     );
 }
 
+
 export default function AdminOrderDetailsPage() {
-    const { id } =
+    const {
+        id,
+    } =
         useParams();
 
     const navigate =
@@ -76,6 +88,333 @@ export default function AdminOrderDetailsPage() {
             .toLowerCase()
             .startsWith('fa');
 
+
+    const [
+        rollbackOpen,
+        setRollbackOpen,
+    ] =
+        useState(false);
+
+
+    const [
+        trackingOverride,
+        setTrackingOverride,
+    ] =
+        useState<string | null>(
+            null,
+        );
+
+
+    const [
+        operationError,
+        setOperationError,
+    ] =
+        useState<string | null>(
+            null,
+        );
+
+
+    // =========================================================
+    // Text
+    // =========================================================
+
+    const text = isFa
+        ? {
+            warehouse:
+                'انبار',
+
+            pickingLocation:
+                'موقعیت برداشت',
+
+            loadingWarehouse:
+                'در حال دریافت نام انبار...',
+
+            loadingPickingLocation:
+                'در حال دریافت موقعیت برداشت...',
+
+            operationError:
+                'عملیات انجام نشد.',
+
+            loading:
+                'در حال بارگذاری سفارش...',
+
+            notFound:
+                'سفارش پیدا نشد.',
+
+            back:
+                'بازگشت',
+
+            status:
+                'وضعیت',
+
+            order:
+                'سفارش',
+
+            customer:
+                'مشتری',
+
+            items:
+                'اقلام',
+
+            shipping:
+                'ارسال',
+
+            method:
+                'روش ارسال',
+
+            carrier:
+                'شرکت حمل',
+
+            tracking:
+                'کد رهگیری',
+
+            saveTracking:
+                'ذخیره کد رهگیری',
+
+            shipmentPending:
+                'مرسوله آماده است؛ کد رهگیری را ثبت کنید.',
+
+            shipmentAuto:
+                'مرسوله به‌صورت خودکار از روش ارسال انتخاب‌شده در checkout ساخته می‌شود.',
+
+            shipmentMissing:
+                'پس از آماده‌شدن سفارش، مرسوله باید به‌صورت خودکار ساخته شود.',
+
+            ship:
+                'ارسال سفارش',
+
+            deliver:
+                'ثبت تحویل',
+
+            shippingNow:
+                'در حال ارسال...',
+
+            delivering:
+                'در حال ثبت تحویل...',
+
+            shipmentConfig:
+                'مدیریت روش‌های ارسال',
+
+            total:
+                'مبلغ کل',
+
+            fulfillment:
+                'فرآیند آماده‌سازی سفارش',
+
+            fulfillmentNotStarted:
+                'فرآیند آماده‌سازی هنوز شروع نشده است.',
+
+            startFulfillment:
+                'شروع پردازش سفارش',
+
+            allocate:
+                'تخصیص انبار',
+
+            reserve:
+                'رزرو موجودی',
+
+            startPicking:
+                'شروع جمع‌آوری',
+
+            picked:
+                'جمع‌آوری شد',
+
+            startPacking:
+                'شروع بسته‌بندی',
+
+            packed:
+                'بسته‌بندی شد',
+
+            ready:
+                'آماده ارسال',
+
+            rollback:
+                'بازگشت به مرحله قبل',
+
+            rollbackTitle:
+                'بازگشت مرحله',
+
+            rollbackReadyToShip:
+                'بازگشت از «آماده ارسال» به «بسته‌بندی شده»',
+
+            rollbackPacked:
+                'بازگشت از «بسته‌بندی شده» به «در حال بسته‌بندی»',
+
+            rollbackPacking:
+                'بازگشت از «در حال بسته‌بندی» به «جمع‌آوری شده»',
+
+            rollbackPicked:
+                'بازگشت از «جمع‌آوری شده» به «در حال جمع‌آوری»',
+
+            rollbackPicking:
+                'بازگشت از «در حال جمع‌آوری» به «در انتظار عملیات»',
+
+            rollbackConfirm:
+                'آیا از بازگشت سفارش به مرحله قبل مطمئن هستید؟',
+
+            cancel:
+                'انصراف',
+
+            confirm:
+                'تأیید بازگشت',
+
+            rollingBack:
+                'در حال بازگردانی...',
+
+            rollbackDescription:
+                'این عملیات وضعیت مراحل انبار را یک مرحله به عقب برمی‌گرداند و اطلاعات مرتبط را نیز هماهنگ می‌کند.',
+        }
+        : {
+            warehouse:
+                'Warehouse',
+
+            pickingLocation:
+                'Picking location',
+
+            loadingWarehouse:
+                'Loading warehouse name...',
+
+            loadingPickingLocation:
+                'Loading picking location...',
+
+            operationError:
+                'The operation failed.',
+
+            loading:
+                'Loading order...',
+
+            notFound:
+                'Order not found.',
+
+            back:
+                'Back',
+
+            status:
+                'Status',
+
+            order:
+                'Order',
+
+            customer:
+                'Customer',
+
+            items:
+                'Items',
+
+            shipping:
+                'Shipping',
+
+            method:
+                'Shipping method',
+
+            carrier:
+                'Carrier',
+
+            tracking:
+                'Tracking number',
+
+            saveTracking:
+                'Save tracking number',
+
+            shipmentPending:
+                'Shipment is ready. Enter the tracking number.',
+
+            shipmentAuto:
+                'The shipment is prepared automatically from the shipping method selected at checkout.',
+
+            shipmentMissing:
+                'The shipment should be created automatically once the order is ready to ship.',
+
+            ship:
+                'Ship order',
+
+            deliver:
+                'Mark delivered',
+
+            shippingNow:
+                'Shipping...',
+
+            delivering:
+                'Marking delivered...',
+
+            shipmentConfig:
+                'Manage shipping methods',
+
+            total:
+                'Total',
+
+            fulfillment:
+                'Order fulfillment',
+
+            fulfillmentNotStarted:
+                'Fulfillment has not started yet.',
+
+            startFulfillment:
+                'Start processing',
+
+            allocate:
+                'Allocate warehouse',
+
+            reserve:
+                'Reserve stock',
+
+            startPicking:
+                'Start picking',
+
+            picked:
+                'Mark picked',
+
+            startPacking:
+                'Start packing',
+
+            packed:
+                'Mark packed',
+
+            ready:
+                'Ready to ship',
+
+            rollback:
+                'Rollback to previous stage',
+
+            rollbackTitle:
+                'Rollback stage',
+
+            rollbackReadyToShip:
+                'Rollback from "Ready to ship" to "Packed"',
+
+            rollbackPacked:
+                'Rollback from "Packed" to "Packing"',
+
+            rollbackPacking:
+                'Rollback from "Packing" to "Picked"',
+
+            rollbackPicked:
+                'Rollback from "Picked" to "Picking"',
+
+            rollbackPicking:
+                'Rollback from "Picking" to "Pending"',
+
+            rollbackConfirm:
+                'Are you sure you want to roll the order back to the previous stage?',
+
+            cancel:
+                'Cancel',
+
+            confirm:
+                'Confirm rollback',
+
+            rollingBack:
+                'Rolling back...',
+
+            rollbackDescription:
+                'This operation moves the warehouse workflow back by one stage and synchronizes the related data.',
+        };
+
+
+    // =========================================================
+    // Queries
+    // =========================================================
+
     const {
         data: order,
         isLoading:
@@ -87,13 +426,16 @@ export default function AdminOrderDetailsPage() {
             id,
         );
 
+
     const {
         data: shipment,
         isLoading:
         shipmentLoading,
-    } = useAdminShipment(
-        id,
-    );
+    } =
+        useAdminShipment(
+            id,
+        );
+
 
     const {
         data: fulfillment,
@@ -103,9 +445,67 @@ export default function AdminOrderDetailsPage() {
         useFulfillment(
             id,
         );
+
+
+    // =========================================================
+    // Fulfillment mutations
+    // =========================================================
+
+    const {
+        start:
+        startFulfillmentMutation,
+
+        allocate:
+        allocateMutation,
+
+        reserve:
+        reserveMutation,
+
+        picking:
+        pickingMutation,
+
+        picked:
+        pickedMutation,
+
+        packing:
+        packingMutation,
+
+        packed:
+        packedMutation,
+
+        readyToShip:
+        readyToShipMutation,
+
+        rollback:
+        rollbackMutation,
+    } =
+        useFulfillmentMutations(
+            id ?? '',
+        );
+
+
+    // =========================================================
+    // Shipment mutations
+    // =========================================================
+
+    const {
+        updateTracking,
+        ship,
+        deliver,
+    } =
+        useShipmentMutations(
+            id ?? '',
+        );
+
+
+    // =========================================================
+    // Warehouse
+    // =========================================================
+
     const warehouseId =
         fulfillment?.warehouseId ??
         undefined;
+
 
     const {
         data: warehouseList,
@@ -118,17 +518,20 @@ export default function AdminOrderDetailsPage() {
                 'inventory',
                 'warehouses',
             ],
+
             queryFn: async () =>
-                (
-                    await warehousesApi.list(
-                        true,
-                    )
-                ),
+            (
+                await warehousesApi.list(
+                    true,
+                )
+            ),
+
             enabled:
                 Boolean(
                     warehouseId,
                 ),
         });
+
 
     const {
         data: warehouseLocations,
@@ -143,18 +546,21 @@ export default function AdminOrderDetailsPage() {
                 warehouseId,
                 'locations',
             ],
+
             queryFn: async () =>
-                (
-                    await warehousesApi.getLocations(
-                        warehouseId!,
-                        true,
-                    )
-                ),
+            (
+                await warehousesApi.getLocations(
+                    warehouseId!,
+                    true,
+                )
+            ),
+
             enabled:
                 Boolean(
                     warehouseId,
                 ),
         });
+
 
     const allocatedWarehouse =
         warehouseList?.items?.find(
@@ -163,259 +569,18 @@ export default function AdminOrderDetailsPage() {
                 fulfillment?.warehouseId,
         );
 
+
     const pickingLocation =
         warehouseLocations?.items?.find(
             location =>
                 location.id ===
                 fulfillment?.pickingLocationId,
         );
-    const {
-        updateTracking,
-        ship,
-        deliver,
-    } =
-        useShipmentMutations(
-            id ?? '',
-        );
 
-    const {
-        start:
-        startFulfillmentMutation,
-        allocate:
-        allocateMutation,
-        reserve:
-        reserveMutation,
-        picking:
-        pickingMutation,
-        picked:
-        pickedMutation,
-        packing:
-        packingMutation,
-        packed:
-        packedMutation,
-        readyToShip:
-        readyToShipMutation,
-        rollback:
-        rollbackMutation,
-    } =
-        useFulfillmentMutations(
-            id ?? '',
-        );
 
-    const [
-        trackingOverride,
-        setTrackingOverride,
-    ] =
-        useState<string | null>(
-            null,
-        );
-
-    const [
-        operationError,
-        setOperationError,
-    ] =
-        useState<string | null>(
-            null,
-        );
-
-    const text = isFa
-        ? {
-            warehouse:
-                'انبار',
-            pickingLocation:
-                'موقعیت برداشت',
-            loadingWarehouse:
-                'در حال دریافت نام انبار...',
-            loadingPickingLocation:
-                'در حال دریافت موقعیت برداشت...',
-            operationError:
-                'عملیات انجام نشد.',
-            loading:
-                'در حال بارگذاری سفارش...',
-            notFound:
-                'سفارش پیدا نشد.',
-            back:
-                'بازگشت',
-            status:
-                'وضعیت',
-            order:
-                'سفارش',
-            customer:
-                'مشتری',
-            items:
-                'اقلام',
-            shipping:
-                'ارسال',
-            method:
-                'روش ارسال',
-            carrier:
-                'شرکت حمل',
-            tracking:
-                'کد رهگیری',
-            saveTracking:
-                'ذخیره کد رهگیری',
-            shipmentPending:
-                'مرسوله آماده است؛ کد رهگیری را ثبت کنید.',
-            shipmentAuto:
-                'مرسوله به‌صورت خودکار از روش ارسال انتخاب‌شده در checkout ساخته می‌شود.',
-            shipmentMissing:
-                'پس از آماده‌شدن سفارش، مرسوله باید به‌صورت خودکار ساخته شود.',
-            ship:
-                'ارسال سفارش',
-            deliver:
-                'ثبت تحویل',
-            shippingNow:
-                'در حال ارسال...',
-            delivering:
-                'در حال ثبت تحویل...',
-            shipmentConfig:
-                'مدیریت روش‌های ارسال',
-            total:
-                'مبلغ کل',
-            fulfillment:
-                'فرآیند آماده‌سازی سفارش',
-            fulfillmentNotStarted:
-                'فرآیند آماده‌سازی هنوز شروع نشده است.',
-            startFulfillment:
-                'شروع پردازش سفارش',
-            allocate:
-                'تخصیص انبار',
-            reserve:
-                'رزرو موجودی',
-            startPicking:
-                'شروع جمع‌آوری',
-            picked:
-                'جمع‌آوری شد',
-            startPacking:
-                'شروع بسته‌بندی',
-            packed:
-                'بسته‌بندی شد',
-            ready:
-                'آماده ارسال',
-            rollback:
-                'بازگشت به مرحله قبل',
-            rollbackTitle:
-                'بازگشت مرحله',
-            rollbackReadyToShip:
-                'بازگشت از «آماده ارسال» به «بسته‌بندی شده»',
-            rollbackPacked:
-                'بازگشت از «بسته‌بندی شده» به «در حال بسته‌بندی»',
-            rollbackPacking:
-                'بازگشت از «در حال بسته‌بندی» به «جمع‌آوری شده»',
-            rollbackPicked:
-                'بازگشت از «جمع‌آوری شده» به «در حال جمع‌آوری»',
-            rollbackPicking:
-                'بازگشت از «در حال جمع‌آوری» به «در انتظار عملیات»',
-            rollbackConfirm:
-                'آیا از بازگشت سفارش به مرحله قبل مطمئن هستید؟',
-            cancel:
-                'انصراف',
-            confirm:
-                'تأیید بازگشت',
-            rollingBack:
-                'در حال بازگردانی...',
-            rollbackDescription:
-                'این عملیات وضعیت مراحل انبار را یک مرحله به عقب برمی‌گرداند و اطلاعات مرتبط را نیز هماهنگ می‌کند.',
-           
-        }
-        : {
-            warehouse:
-                'Warehouse',
-            pickingLocation:
-                'Picking location',
-            loadingWarehouse:
-                'Loading warehouse name...',
-            loadingPickingLocation:
-                'Loading picking location...',
-            operationError:
-                'The operation failed.',
-            loading:
-                'Loading order...',
-            notFound:
-                'Order not found.',
-            back:
-                'Back',
-            status:
-                'Status',
-            order:
-                'Order',
-            customer:
-                'Customer',
-            items:
-                'Items',
-            shipping:
-                'Shipping',
-            method:
-                'Shipping method',
-            carrier:
-                'Carrier',
-            tracking:
-                'Tracking number',
-            saveTracking:
-                'Save tracking number',
-            shipmentPending:
-                'Shipment is ready. Enter the tracking number.',
-            shipmentAuto:
-                'The shipment is prepared automatically from the shipping method selected at checkout.',
-            shipmentMissing:
-                'The shipment should be created automatically once the order is ready to ship.',
-            ship:
-                'Ship order',
-            deliver:
-                'Mark delivered',
-            shippingNow:
-                'Shipping...',
-            delivering:
-                'Marking delivered...',
-            shipmentConfig:
-                'Manage shipping methods',
-            total:
-                'Total',
-            fulfillment:
-                'Order fulfillment',
-            fulfillmentNotStarted:
-                'Fulfillment has not started yet.',
-            startFulfillment:
-                'Start processing',
-            allocate:
-                'Allocate warehouse',
-            reserve:
-                'Reserve stock',
-            startPicking:
-                'Start picking',
-            picked:
-                'Mark picked',
-            startPacking:
-                'Start packing',
-            packed:
-                'Mark packed',
-            ready:
-                'Ready to ship',
-            rollback:
-                'Rollback to previous stage',
-            rollbackTitle:
-                'Rollback stage',
-            rollbackReadyToShip:
-                'Rollback from "Ready to ship" to "Packed"',
-            rollbackPacked:
-                'Rollback from "Packed" to "Packing"',
-            rollbackPacking:
-                'Rollback from "Packing" to "Picked"',
-            rollbackPicked:
-                'Rollback from "Picked" to "Picking"',
-            rollbackPicking:
-                'Rollback from "Picking" to "Pending"',
-            rollbackConfirm:
-                'Are you sure you want to roll the order back to the previous stage?',
-            cancel:
-                'Cancel',
-            confirm:
-                'Confirm rollback',
-            rollingBack:
-                'Rolling back...',
-            rollbackDescription:
-                'This operation moves the warehouse workflow back by one stage and synchronizes the related data.',
-        };
+    // =========================================================
+    // Busy state
+    // =========================================================
 
     const isFulfillmentBusy =
         startFulfillmentMutation.isPending ||
@@ -428,10 +593,20 @@ export default function AdminOrderDetailsPage() {
         readyToShipMutation.isPending ||
         rollbackMutation.isPending;
 
+
+    // =========================================================
+    // Tracking
+    // =========================================================
+
     const currentTracking =
         trackingOverride ??
         shipment?.trackingNumber ??
         '';
+
+
+    // =========================================================
+    // Generic operation handler
+    // =========================================================
 
     const runOperation =
         async (
@@ -453,6 +628,11 @@ export default function AdminOrderDetailsPage() {
             }
         };
 
+
+    // =========================================================
+    // Loading
+    // =========================================================
+
     if (
         orderLoading ||
         shipmentLoading ||
@@ -469,13 +649,21 @@ export default function AdminOrderDetailsPage() {
             >
                 <div className="animate-pulse space-y-3">
                     <div className="h-8 w-56 rounded-lg bg-muted" />
+
                     <div className="h-4 w-72 rounded-lg bg-muted" />
+
                     <div className="h-32 rounded-xl bg-muted" />
+
                     <div className="h-72 rounded-xl bg-muted" />
                 </div>
             </div>
         );
     }
+
+
+    // =========================================================
+    // Not found
+    // =========================================================
 
     if (
         !order ||
@@ -500,11 +688,18 @@ export default function AdminOrderDetailsPage() {
         );
     }
 
+
+    // =========================================================
+    // IMPORTANT:
+    // Everything below this point is guaranteed to have `order`.
+    // =========================================================
+
     const canSetTracking =
         shipment?.status ===
         'Pending' &&
         fulfillment?.status ===
         'ReadyToShip';
+
 
     const canShip =
         shipment?.status ===
@@ -517,6 +712,7 @@ export default function AdminOrderDetailsPage() {
         order.status ===
         'Processing';
 
+
     const canDeliver =
         shipment?.status ===
         'Shipped' &&
@@ -524,6 +720,80 @@ export default function AdminOrderDetailsPage() {
         'Shipped' &&
         order.status ===
         'Shipped';
+
+
+    // =========================================================
+    // Rollback target
+    // =========================================================
+
+    const rollbackTargetText =
+        fulfillment?.status ===
+            'ReadyToShip'
+            ? text.rollbackReadyToShip
+
+            : fulfillment?.status ===
+                'Packed'
+                ? text.rollbackPacked
+
+                : fulfillment?.status ===
+                    'Packing'
+                    ? text.rollbackPacking
+
+                    : fulfillment?.status ===
+                        'Picked'
+                        ? text.rollbackPicked
+
+                        : fulfillment?.status ===
+                            'Picking'
+                            ? text.rollbackPicking
+
+                            : null;
+
+
+    const canRollback =
+        order.status ===
+        'Processing' &&
+        Boolean(
+            rollbackTargetText,
+        );
+
+
+    const rollbackDialogDescription =
+        rollbackTargetText
+            ? `${rollbackTargetText}. ${text.rollbackDescription}`
+            : text.rollbackDescription;
+
+
+    // =========================================================
+    // Rollback confirmation
+    // =========================================================
+
+    const confirmRollback =
+        async () => {
+            setOperationError(
+                null,
+            );
+
+            try {
+                await rollbackMutation.mutateAsync();
+
+                setRollbackOpen(
+                    false,
+                );
+            } catch (error) {
+                setOperationError(
+                    getErrorMessage(
+                        error,
+                    ) ||
+                    text.operationError,
+                );
+            }
+        };
+
+
+    // =========================================================
+    // Render
+    // =========================================================
 
     return (
         <div
@@ -534,12 +804,19 @@ export default function AdminOrderDetailsPage() {
                     : 'ltr'
             }
         >
+
+            {/* ================================================= */}
+            {/* Header */}
+            {/* ================================================= */}
+
             <header className="flex flex-wrap items-center justify-between gap-4">
+
                 <div>
                     <h1 className="text-2xl font-semibold">
                         {
                             text.order
                         }{' '}
+
                         {
                             order.orderNumber
                         }
@@ -556,7 +833,9 @@ export default function AdminOrderDetailsPage() {
                     </p>
                 </div>
 
+
                 <div className="flex flex-wrap gap-2">
+
                     <button
                         type="button"
                         onClick={() =>
@@ -570,6 +849,7 @@ export default function AdminOrderDetailsPage() {
                             text.back
                         }
                     </button>
+
 
                     <button
                         type="button"
@@ -586,13 +866,24 @@ export default function AdminOrderDetailsPage() {
                             text.shipmentConfig
                         }
                     </button>
+
                 </div>
+
             </header>
 
+
             <div className="grid gap-6 xl:grid-cols-[1fr_400px]">
+
                 <div className="grid gap-6">
+
+                    {/* ================================================= */}
+                    {/* Order status */}
+                    {/* ================================================= */}
+
                     <section className="rounded-xl border p-6">
+
                         <div className="flex items-center justify-between gap-4">
+
                             <h2 className="font-semibold">
                                 {
                                     text.status
@@ -604,11 +895,20 @@ export default function AdminOrderDetailsPage() {
                                     order.status
                                 }
                             </span>
+
                         </div>
+
                     </section>
 
+
+                    {/* ================================================= */}
+                    {/* Fulfillment */}
+                    {/* ================================================= */}
+
                     <section className="rounded-xl border p-6">
+
                         <div className="flex items-center gap-2">
+
                             <Package className="size-5" />
 
                             <h2 className="font-semibold">
@@ -616,7 +916,9 @@ export default function AdminOrderDetailsPage() {
                                     text.fulfillment
                                 }
                             </h2>
+
                         </div>
+
 
                         {operationError && (
                             <div
@@ -629,48 +931,70 @@ export default function AdminOrderDetailsPage() {
                             </div>
                         )}
 
-                        {(!fulfillment ||
-                            (fulfillment.status ===
+
+                        {(
+                            !fulfillment ||
+                            (
+                                fulfillment.status ===
                                 'Pending' &&
                                 order.status ===
-                                'Paid')) && (
-                            <div className="mt-5 grid gap-4">
-                                <p className="text-sm text-muted-foreground">
-                                    {
-                                        text.fulfillmentNotStarted
-                                    }
-                                </p>
+                                'Paid'
+                            )
+                        ) && (
 
-                                {order.status ===
-                                    'Paid' && (
-                                        <button
-                                            type="button"
-                                            disabled={
-                                                isFulfillmentBusy
-                                            }
-                                            onClick={() =>
-                                                void runOperation(
-                                                    () =>
-                                                        startFulfillmentMutation.mutateAsync(),
-                                                )
-                                            }
-                                            className="inline-flex w-fit items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
-                                        >
-                                            <Truck className="size-4" />
+                                <div className="mt-5 grid gap-4">
 
-                                            {
-                                                startFulfillmentMutation.isPending
-                                                    ? text.loading
-                                                    : text.startFulfillment
-                                            }
-                                        </button>
-                                    )}
-                            </div>
-                        )}
+                                    <p className="text-sm text-muted-foreground">
+                                        {
+                                            text.fulfillmentNotStarted
+                                        }
+                                    </p>
+
+
+                                    {order.status ===
+                                        'Paid' && (
+
+                                            <button
+                                                type="button"
+                                                disabled={
+                                                    isFulfillmentBusy
+                                                }
+                                                onClick={() =>
+                                                    void runOperation(
+                                                        () =>
+                                                            startFulfillmentMutation.mutateAsync(),
+                                                    )
+                                                }
+                                                className="inline-flex w-fit items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                                            >
+
+                                                <Truck className="size-4" />
+
+                                                {
+                                                    startFulfillmentMutation.isPending
+                                                        ? text.loading
+                                                        : text.startFulfillment
+                                                }
+
+                                            </button>
+
+                                        )}
+
+                                </div>
+
+                            )}
+
 
                         {fulfillment && (
+
                             <div className="mt-5 grid gap-5">
+
+                                {/* ================================================= */}
+                                {/* Fulfillment information */}
+                                {/* ================================================= */}
+
                                 <div className="grid gap-3 sm:grid-cols-2">
+
                                     <Info
                                         label={
                                             text.status
@@ -679,6 +1003,7 @@ export default function AdminOrderDetailsPage() {
                                             fulfillment.status
                                         }
                                     />
+
 
                                     <Info
                                         label={
@@ -696,6 +1021,7 @@ export default function AdminOrderDetailsPage() {
                                         }
                                     />
 
+
                                     <Info
                                         label={
                                             text.pickingLocation
@@ -711,14 +1037,22 @@ export default function AdminOrderDetailsPage() {
                                                     : '—'
                                         }
                                     />
+
                                 </div>
 
+
+                                {/* ================================================= */}
+                                {/* Fulfillment actions */}
+                                {/* ================================================= */}
+
                                 <div className="flex flex-wrap gap-2 border-t pt-4">
+
                                     {fulfillment.status ===
                                         'Pending' &&
                                         !fulfillment.warehouseId &&
                                         order.status ===
                                         'Processing' && (
+
                                             <button
                                                 type="button"
                                                 disabled={
@@ -738,13 +1072,16 @@ export default function AdminOrderDetailsPage() {
                                                         : text.allocate
                                                 }
                                             </button>
+
                                         )}
+
 
                                     {fulfillment.status ===
                                         'Pending' &&
                                         Boolean(
                                             fulfillment.warehouseId,
                                         ) && (
+
                                             <button
                                                 type="button"
                                                 disabled={
@@ -764,13 +1101,16 @@ export default function AdminOrderDetailsPage() {
                                                         : text.reserve
                                                 }
                                             </button>
+
                                         )}
+
 
                                     {fulfillment.status ===
                                         'Pending' &&
                                         Boolean(
                                             fulfillment.warehouseId,
                                         ) && (
+
                                             <button
                                                 type="button"
                                                 disabled={
@@ -790,10 +1130,13 @@ export default function AdminOrderDetailsPage() {
                                                         : text.startPicking
                                                 }
                                             </button>
+
                                         )}
+
 
                                     {fulfillment.status ===
                                         'Picking' && (
+
                                             <button
                                                 type="button"
                                                 disabled={
@@ -813,10 +1156,13 @@ export default function AdminOrderDetailsPage() {
                                                         : text.picked
                                                 }
                                             </button>
+
                                         )}
+
 
                                     {fulfillment.status ===
                                         'Picked' && (
+
                                             <button
                                                 type="button"
                                                 disabled={
@@ -836,10 +1182,13 @@ export default function AdminOrderDetailsPage() {
                                                         : text.startPacking
                                                 }
                                             </button>
+
                                         )}
+
 
                                     {fulfillment.status ===
                                         'Packing' && (
+
                                             <button
                                                 type="button"
                                                 disabled={
@@ -859,10 +1208,13 @@ export default function AdminOrderDetailsPage() {
                                                         : text.packed
                                                 }
                                             </button>
+
                                         )}
+
 
                                     {fulfillment.status ===
                                         'Packed' && (
+
                                             <button
                                                 type="button"
                                                 disabled={
@@ -884,36 +1236,83 @@ export default function AdminOrderDetailsPage() {
                                                         : text.ready
                                                 }
                                             </button>
+
                                         )}
+
+
+                                    {/* ================================================= */}
+                                    {/* Rollback */}
+                                    {/* ================================================= */}
+
+                                    {canRollback && (
+
+                                        <button
+                                            type="button"
+                                            disabled={
+                                                isFulfillmentBusy
+                                            }
+                                            onClick={() =>
+                                                setRollbackOpen(
+                                                    true,
+                                                )
+                                            }
+                                            className="inline-flex items-center gap-2 rounded-lg border border-destructive/40 px-4 py-2.5 text-sm font-medium text-destructive hover:bg-destructive/10 disabled:opacity-50"
+                                        >
+                                            <Undo2 className="size-4" />
+
+                                            {
+                                                text.rollback
+                                            }
+                                        </button>
+
+                                    )}
+
                                 </div>
+
                             </div>
+
                         )}
+
                     </section>
 
+
+                    {/* ================================================= */}
+                    {/* Items */}
+                    {/* ================================================= */}
+
                     <section className="rounded-xl border p-6">
+
                         <div className="flex items-center justify-between gap-4">
+
                             <h2 className="font-semibold">
                                 {
                                     text.items
                                 }
                             </h2>
+
                         </div>
 
+
                         <div className="mt-5 grid gap-3">
+
                             {order.items.map(
                                 item => (
+
                                     <div
                                         key={
                                             item.productVariantId
                                         }
                                         className="flex flex-wrap justify-between gap-4 rounded-lg border p-4"
                                     >
+
                                         <div>
+
                                             <div className="font-medium">
                                                 {
                                                     item.productName
                                                 }
                                             </div>
+
 
                                             <div className="mt-1 text-sm text-muted-foreground">
                                                 {
@@ -921,47 +1320,69 @@ export default function AdminOrderDetailsPage() {
                                                 }
                                             </div>
 
+
                                             <div className="mt-2 text-sm">
                                                 ×{' '}
                                                 {
                                                     item.quantity
                                                 }
                                             </div>
+
                                         </div>
 
+
                                         <div className="font-medium">
+
                                             {
                                                 item.lineTotal.toLocaleString()
                                             }{' '}
+
                                             {
                                                 order.currency
                                             }
+
                                         </div>
+
                                     </div>
+
                                 ),
                             )}
+
                         </div>
 
+
                         <div className="mt-5 flex justify-between border-t pt-4 font-bold">
+
                             <span>
                                 {
                                     text.total
                                 }
                             </span>
 
+
                             <span>
                                 {
                                     order.totalAmount.toLocaleString()
                                 }{' '}
+
                                 {
                                     order.currency
                                 }
                             </span>
+
                         </div>
+
                     </section>
 
+
+                    {/* ================================================= */}
+                    {/* Shipping */}
+                    {/* ================================================= */}
+
                     <section className="rounded-xl border p-6">
+
                         <div className="flex items-center gap-2">
+
                             <Truck className="size-5" />
 
                             <h2 className="font-semibold">
@@ -969,10 +1390,14 @@ export default function AdminOrderDetailsPage() {
                                     text.shipping
                                 }
                             </h2>
+
                         </div>
 
+
                         {!shipment && (
+
                             <div className="mt-5 rounded-xl border border-dashed p-5">
+
                                 <p className="text-sm text-muted-foreground">
                                     {
                                         fulfillment?.status ===
@@ -981,12 +1406,22 @@ export default function AdminOrderDetailsPage() {
                                             : text.shipmentAuto
                                     }
                                 </p>
+
                             </div>
+
                         )}
 
+
                         {shipment && (
+
                             <div className="mt-5 grid gap-5">
+
+                                {/* ================================================= */}
+                                {/* Shipment information */}
+                                {/* ================================================= */}
+
                                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+
                                     <Info
                                         label={
                                             text.method
@@ -995,6 +1430,7 @@ export default function AdminOrderDetailsPage() {
                                             shipment.shippingMethod
                                         }
                                     />
+
 
                                     <Info
                                         label={
@@ -1005,6 +1441,7 @@ export default function AdminOrderDetailsPage() {
                                         }
                                     />
 
+
                                     <Info
                                         label={
                                             text.status
@@ -1013,6 +1450,7 @@ export default function AdminOrderDetailsPage() {
                                             shipment.status
                                         }
                                     />
+
 
                                     <Info
                                         label={
@@ -1023,25 +1461,38 @@ export default function AdminOrderDetailsPage() {
                                             '—'
                                         }
                                     />
+
                                 </div>
 
+
+                                {/* ================================================= */}
+                                {/* Tracking */}
+                                {/* ================================================= */}
+
                                 {canSetTracking && (
+
                                     <div className="grid gap-3 rounded-xl border bg-muted/20 p-4">
+
                                         <div>
+
                                             <div className="font-medium">
                                                 {
                                                     text.shipmentPending
                                                 }
                                             </div>
 
+
                                             <div className="mt-1 text-sm text-muted-foreground">
                                                 {
                                                     text.shipmentAuto
                                                 }
                                             </div>
+
                                         </div>
 
+
                                         <div className="flex flex-col gap-2 sm:flex-row">
+
                                             <input
                                                 value={
                                                     currentTracking
@@ -1049,9 +1500,7 @@ export default function AdminOrderDetailsPage() {
                                                 onChange={
                                                     event =>
                                                         setTrackingOverride(
-                                                            event
-                                                                .target
-                                                                .value,
+                                                            event.target.value,
                                                         )
                                                 }
                                                 maxLength={
@@ -1063,6 +1512,7 @@ export default function AdminOrderDetailsPage() {
                                                 className="min-w-0 flex-1 rounded-lg border bg-background px-3 py-2.5 text-sm"
                                             />
 
+
                                             <button
                                                 type="button"
                                                 disabled={
@@ -1072,31 +1522,46 @@ export default function AdminOrderDetailsPage() {
                                                 onClick={() =>
                                                     void runOperation(
                                                         async () => {
+
                                                             await updateTracking.mutateAsync({
                                                                 trackingNumber:
                                                                     currentTracking.trim(),
                                                             });
 
+
                                                             setTrackingOverride(
                                                                 null,
                                                             );
+
                                                         },
                                                     )
                                                 }
                                                 className="rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
                                             >
+
                                                 {
                                                     updateTracking.isPending
                                                         ? text.loading
                                                         : text.saveTracking
                                                 }
+
                                             </button>
+
                                         </div>
+
                                     </div>
+
                                 )}
 
+
+                                {/* ================================================= */}
+                                {/* Shipping actions */}
+                                {/* ================================================= */}
+
                                 <div className="flex flex-wrap gap-2 border-t pt-4">
+
                                     {canShip && (
+
                                         <button
                                             type="button"
                                             disabled={
@@ -1110,6 +1575,7 @@ export default function AdminOrderDetailsPage() {
                                             }
                                             className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:opacity-50"
                                         >
+
                                             <Truck className="size-4" />
 
                                             {
@@ -1117,10 +1583,14 @@ export default function AdminOrderDetailsPage() {
                                                     ? text.shippingNow
                                                     : text.ship
                                             }
+
                                         </button>
+
                                     )}
 
+
                                     {canDeliver && (
+
                                         <button
                                             type="button"
                                             disabled={
@@ -1134,6 +1604,7 @@ export default function AdminOrderDetailsPage() {
                                             }
                                             className="inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium disabled:opacity-50"
                                         >
+
                                             <Check className="size-4" />
 
                                             {
@@ -1141,27 +1612,43 @@ export default function AdminOrderDetailsPage() {
                                                     ? text.delivering
                                                     : text.deliver
                                             }
+
                                         </button>
+
                                     )}
+
                                 </div>
+
                             </div>
+
                         )}
+
                     </section>
+
                 </div>
 
+
+                {/* ===================================================== */}
+                {/* Customer */}
+                {/* ===================================================== */}
+
                 <aside className="h-fit rounded-xl border p-6">
+
                     <h2 className="font-semibold">
                         {
                             text.customer
                         }
                     </h2>
 
+
                     <div className="mt-5 grid gap-2 text-sm">
+
                         <div>
                             {
                                 order.shippingFullName
                             }
                         </div>
+
 
                         <div className="text-muted-foreground">
                             {
@@ -1169,11 +1656,13 @@ export default function AdminOrderDetailsPage() {
                             }
                         </div>
 
+
                         <div className="leading-6 text-muted-foreground">
                             {
                                 order.shippingAddress
                             }
                         </div>
+
 
                         <div className="text-muted-foreground">
                             {
@@ -1181,19 +1670,68 @@ export default function AdminOrderDetailsPage() {
                             }
                         </div>
 
+
                         {order.shippingPostalCode && (
+
                             <div className="text-muted-foreground">
                                 {
                                     order.shippingPostalCode
                                 }
                             </div>
+
                         )}
+
                     </div>
+
                 </aside>
+
             </div>
+
+
+            {/* ========================================================= */}
+            {/* Rollback dialog */}
+            {/* ========================================================= */}
+
+            <ConfirmDialog
+                open={
+                    rollbackOpen
+                }
+
+                onOpenChange={
+                    setRollbackOpen
+                }
+
+                title={
+                    text.rollbackTitle
+                }
+
+                description={
+                    rollbackDialogDescription
+                }
+
+                confirmLabel={
+                    rollbackMutation.isPending
+                        ? text.rollingBack
+                        : text.confirm
+                }
+
+                pending={
+                    rollbackMutation.isPending
+                }
+
+                onConfirm={() =>
+                    void confirmRollback()
+                }
+            />
+
         </div>
     );
 }
+
+
+// =============================================================
+// Info component
+// =============================================================
 
 function Info({
     label,
@@ -1204,17 +1742,20 @@ function Info({
 }) {
     return (
         <div>
+
             <div className="text-xs text-muted-foreground">
                 {
                     label
                 }
             </div>
 
+
             <div className="mt-1 break-all font-medium">
                 {
                     value
                 }
             </div>
+
         </div>
     );
 }

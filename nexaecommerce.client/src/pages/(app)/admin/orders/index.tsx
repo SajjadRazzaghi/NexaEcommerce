@@ -47,54 +47,15 @@ const statuses: Array<
         'Delivered',
         'Cancelled',
     ];
-
 function statusLabel(
-    status: OrderStatus | '',
-    isFa: boolean,
+    status: OrderStatus,
+    t: (
+        key: string,
+    ) => string,
 ) {
-    if (!status) {
-        return isFa
-            ? 'همه وضعیت‌ها'
-            : 'All statuses';
-    }
-
-    const labels:
-        Record<
-            OrderStatus,
-            {
-                en: string;
-                fa: string;
-            }
-        > = {
-        PendingPayment: {
-            en: 'Pending payment',
-            fa: 'در انتظار پرداخت',
-        },
-        Paid: {
-            en: 'Paid',
-            fa: 'پرداخت شده',
-        },
-        Processing: {
-            en: 'Processing',
-            fa: 'در حال پردازش',
-        },
-        Shipped: {
-            en: 'Shipped',
-            fa: 'ارسال شده',
-        },
-        Delivered: {
-            en: 'Delivered',
-            fa: 'تحویل شده',
-        },
-        Cancelled: {
-            en: 'Cancelled',
-            fa: 'لغو شده',
-        },
-    };
-
-    return isFa
-        ? labels[status].fa
-        : labels[status].en;
+    return t(
+        `storefront.orders.statuses.${status}`,
+    );
 }
 function StatusIcon({
     status,
@@ -313,86 +274,67 @@ const query =
             );
         };
 
-    const text = isFa
-        ? {
-            title:
-                'مدیریت سفارش‌ها',
-            description:
-                'مدیریت سفارش‌ها، وضعیت پرداخت و فرایند ارسال.',
-            search:
-                'جستجوی سفارش...',
-            status:
-                'وضعیت',
-            loading:
-                'در حال بارگذاری سفارش‌ها...',
-            error:
-                'دریافت سفارش‌ها با مشکل مواجه شد.',
-            retry:
-                'تلاش دوباره',
-            empty:
-                'سفارشی پیدا نشد.',
-            order:
-                'سفارش',
-            customer:
-                'مشتری',
-            total:
-                'مبلغ',
-            date:
-                'تاریخ',
-            actions:
-                'عملیات',
-            view:
-                'مشاهده',
-            page:
-                'صفحه',
-            previous:
-                'قبلی',
-            next:
-                'بعدی',
-        }
-        : {
-            title:
-                'Order Management',
-            description:
-                'Manage orders, payment status and fulfillment.',
-            search:
-                'Search orders...',
-            status:
-                'Status',
-            loading:
-                'Loading orders...',
-            error:
-                'We could not load orders.',
-            retry:
-                'Try again',
-            empty:
-                'No orders found.',
-            order:
-                'Order',
-            customer:
-                'Customer',
-            total:
-                'Total',
-            date:
-                'Date',
-            actions:
-                'Actions',
-            view:
-                'View',
-            page:
-                'Page',
-            previous:
-                'Previous',
-            next:
-                'Next',
-            selected:
-                'selected',
-            printLabels:
-                'Print shipping labels',
-            selectAll:
-                'Select all',
-        };
+    const text = {
+        title: t(
+            'storefront.orders.title',
+        ),
 
+        subtitle: t(
+            'storefront.orders.subtitle',
+        ),
+
+        filter: t(
+            'storefront.orders.filter',
+        ),
+
+        all: t(
+            'storefront.orders.allStatuses',
+        ),
+
+        loading: t(
+            'storefront.orders.loading',
+        ),
+
+        error: t(
+            'storefront.orders.error',
+        ),
+
+        retry: t(
+            'storefront.orders.retry',
+        ),
+
+        empty: t(
+            'storefront.orders.empty',
+        ),
+
+        shop: t(
+            'storefront.orders.shop',
+        ),
+
+        items: t(
+            'storefront.orders.items',
+        ),
+
+        total: t(
+            'storefront.orders.total',
+        ),
+
+        view: t(
+            'storefront.orders.view',
+        ),
+
+        previous: t(
+            'storefront.orders.previous',
+        ),
+
+        next: t(
+            'storefront.orders.next',
+        ),
+
+        page: t(
+            'storefront.orders.page',
+        ),
+    };
     return (
         <div
             className="grid gap-5"
