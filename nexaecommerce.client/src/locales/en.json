@@ -1,4 +1,47 @@
 {
+  "checkout": {
+    "title": "Checkout",
+    "subtitle": "Review your delivery information and choose a shipping method.",
+    "savedAddresses": "Saved addresses",
+    "savedAddressesHint": "Choose a saved address or enter a different one below.",
+    "manualAddress": "Enter manually",
+    "shippingAddress": "Shipping address",
+    "shippingAddressHint": "Where should we deliver your order?",
+    "fullName": "Full name",
+    "phone": "Phone number",
+    "address": "Address",
+    "city": "City",
+    "postalCode": "Postal code",
+    "shippingMethod": "Shipping method",
+    "shippingMethodHint": "Choose how you want to receive your order.",
+    "noShippingMethods": "No shipping methods are currently available.",
+    "summary": "Order summary",
+    "itemCount": "Items",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "selectShipping": "Select a method",
+    "total": "Total",
+    "processing": "Processing...",
+    "placeOrder": "Place order",
+    "backToCart": "Back to cart",
+    "cartError": "Unable to load your cart.",
+    "cartErrorDescription": "Please try again before continuing to checkout.",
+    "emptyCart": "Your shopping cart is empty.",
+    "shippingError": "Shipping methods could not be loaded.",
+    "shippingErrorDescription": "Please try again before placing your order.",
+    "error": "Unable to create the order. Please check your information and try again.",
+    "validation": {
+      "fullName": "Full name is required.",
+      "fullNameShort": "Please enter a valid full name.",
+      "phone": "Phone number is required.",
+      "phoneInvalid": "Please enter a valid phone number.",
+      "address": "Address is required.",
+      "addressShort": "Please enter a complete shipping address.",
+      "city": "City is required.",
+      "shipping": "Please select a shipping method.",
+      "shippingInvalid": "The selected shipping method is no longer available. Please choose another one."
+    }
+  },
   "storefront": {
     "brand": {
       "onlineStore": "Online Store",
@@ -186,7 +229,10 @@
         "Processing": "Processing",
         "Shipped": "Shipped",
         "Delivered": "Delivered",
-        "Cancelled": "Cancelled"
+        "Cancelled": "Cancelled",
+        "Failed": "Payment failed",
+        "Refunded": "Refunded",
+        "Completed": "Completed"
       }
     },
 
@@ -232,6 +278,53 @@
       "total": "Total",
       "processing": "Processing...",
       "placeOrder": "Place order"
+    },
+    "payment": {
+      "orderNotFound": "Order not found",
+      "orderNotFoundDescription": "We could not load this order for payment.",
+      "backToOrders": "Back to orders",
+
+      "notAvailable": "Payment is not available",
+      "notAvailableDescription": "This order is no longer waiting for payment.",
+      "backToOrder": "Back to order",
+
+      "success": "Payment completed successfully.",
+      "successDescription": "Your payment was verified and your order has been completed.",
+
+      "alreadyPaid": "Order already paid",
+      "alreadyPaidDescription": "This order has already been paid successfully.",
+      "viewOrder": "View order",
+
+      "title": "Secure payment",
+      "subtitle": "Complete payment for your order.",
+
+      "failed": "Payment was not completed.",
+      "cancelled": "The payment was cancelled or rejected.",
+      "failedDescription": "We could not complete the payment. You can try again.",
+
+      "secureTitle": "Secure checkout",
+      "secureDescription": "Your payment is processed through the configured payment gateway.",
+
+      "gateway": "Payment gateway",
+      "starting": "Starting payment...",
+      "start": "Start payment",
+
+      "reference": "Payment reference",
+      "gatewayHint": "Confirming will verify the transaction and mark the order as paid.",
+
+      "processing": "Processing payment...",
+      "confirm": "Confirm payment",
+
+      "summary": "Order summary",
+      "orderNumber": "Order",
+      "status": "Status",
+      "amount": "Amount",
+
+      "missingReference": "The payment gateway did not return a payment reference.",
+      "startError": "Unable to start the payment. Please try again.",
+      "verifyError": "Payment verification failed.",
+      "completeError": "Payment verification succeeded, but the order could not be completed."
     }
   }
+  
 }

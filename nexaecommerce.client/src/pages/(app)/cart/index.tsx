@@ -12,7 +12,7 @@ import {
 import {
     Link,
 } from 'react-router-dom';
-
+import { formatMoney } from '@/lib/formatMoney';
 import {
     useCart,
 } from '@/modules/cart/hooks/useCart';
@@ -20,22 +20,8 @@ import {
 import {
     useCartMutations,
 } from '@/modules/cart/hooks/useCartMutations';
+import i18n from '../../../i18n.config';
 
-
-function formatMoney(
-    amount: number,
-    currency: string,
-) {
-    return (
-        new Intl.NumberFormat(
-            undefined,
-            {
-                maximumFractionDigits: 0,
-            },
-        ).format(amount) +
-        ` ${ currency }`
-    );
-}
 
 
 function getErrorMessage(
@@ -327,7 +313,7 @@ export default function CartPage() {
                                                 <div className="font-semibold">
                                                     {formatMoney(
                                                         item.unitPrice,
-                                                        cart.currency,
+                                                        cart.currency,i18n.language
                                                     )}
                                                 </div>
                                             </div>
@@ -419,7 +405,9 @@ export default function CartPage() {
                                         <div className="self-end text-lg font-bold sm:self-start">
                                             {formatMoney(
                                                 item.lineTotal,
-                                                cart.currency,
+                                                cart.currency, i18n.language
+
+
                                             )}
                                         </div>
                                     </div>
@@ -447,7 +435,7 @@ export default function CartPage() {
                             <span>
                                 {formatMoney(
                                     cart.subtotal,
-                                    cart.currency,
+                                    cart.currency,i18n.language
                                 )}
                             </span>
                         </div>
@@ -480,7 +468,7 @@ export default function CartPage() {
                         <span>
                             {formatMoney(
                                 cart.totalAmount,
-                                cart.currency,
+                                cart.currency,i18n.language
                             )}
                         </span>
                     </div>

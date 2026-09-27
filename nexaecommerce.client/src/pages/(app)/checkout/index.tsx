@@ -4,7 +4,7 @@ import {
     useRef,
     useState,
 } from 'react';
-
+import { formatMoney } from '@/lib/formatMoney';
 import {
     AlertCircle,
     Check,
@@ -50,23 +50,7 @@ import type {
     CheckoutRequest,
 } from '@/modules/orders/types';
 
-function formatMoney(
-    amount: number,
-    currency: string,
-    isFa: boolean,
-) {
-    return (
-        new Intl.NumberFormat(
-            isFa
-                ? 'fa-IR'
-                : undefined,
-            {
-                maximumFractionDigits: 0,
-            },
-        ).format(amount) +
-        ` ${currency}`
-    );
-}
+
 
 function getErrorMessage(
     error: unknown,
@@ -105,14 +89,17 @@ function AddressOption({
     onSelect: () => void;
     isFa: boolean;
 }) {
+    const { t } = useTranslation();
+
     return (
         <button
             type="button"
             onClick={onSelect}
-            className={`w-full rounded-xl border p-4 text-start transition ${selected
-                    ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                    : 'hover:border-foreground/30'
-                }`}
+            className={`w - full rounded - xl border p - 4 text - start transition ${
+    selected
+        ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
+        : 'hover:border-foreground/30'
+} `}
         >
             <div className="flex items-start justify-between gap-4">
                 <div className="min-w-0">
@@ -123,7 +110,9 @@ function AddressOption({
 
                         {address.isDefault && (
                             <span className="rounded-full border px-2 py-0.5 text-[11px] font-medium">
-                                {t('storefront.checkout.default')}
+                                {t(
+                                    'storefront.checkout.default',
+                                )}
                             </span>
                         )}
                     </div>
@@ -162,10 +151,11 @@ function AddressOption({
                 </div>
 
                 <div
-                    className={`mt-1 flex size-6 shrink-0 items-center justify-center rounded-full border ${selected
-                            ? 'border-primary bg-primary text-primary-foreground'
-                            : 'border-muted-foreground/40'
-                        }`}
+                    className={`mt - 1 flex size - 6 shrink - 0 items - center justify - center rounded - full border ${
+    selected
+        ? 'border-primary bg-primary text-primary-foreground'
+        : 'border-muted-foreground/40'
+} `}
                     aria-hidden="true"
                 >
                     {selected && (
@@ -176,6 +166,7 @@ function AddressOption({
         </button>
     );
 }
+
 
 export default function CheckoutPage() {
     const {
@@ -1382,9 +1373,7 @@ export default function CheckoutPage() {
                                                             {formatMoney(
                                                                 method.price,
                                                                 cart.currency,
-                                                                Boolean(
-                                                                    isFa,
-                                                                ),
+                                                                i18n.language
                                                             )}
                                                         </div>
                                                     </div>
@@ -1440,9 +1429,7 @@ export default function CheckoutPage() {
                                 {formatMoney(
                                     subtotal,
                                     cart.currency,
-                                    Boolean(
-                                        isFa,
-                                    ),
+                                    i18n.language
                                 )}
                             </span>
                         </div>
@@ -1460,9 +1447,7 @@ export default function CheckoutPage() {
                                     ? formatMoney(
                                         shippingAmount,
                                         cart.currency,
-                                        Boolean(
-                                            isFa,
-                                        ),
+                                        i18n.language
                                     )
                                     : getText(
                                         'checkout.selectShipping',
@@ -1484,9 +1469,7 @@ export default function CheckoutPage() {
                                     {formatMoney(
                                         estimatedTotal,
                                         cart.currency,
-                                        Boolean(
-                                            isFa,
-                                        ),
+                                        i18n.language
                                     )}
                                 </span>
                             </div>

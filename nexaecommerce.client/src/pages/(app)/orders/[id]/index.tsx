@@ -6,7 +6,7 @@ import {
     Package,
     Truck,
 } from 'lucide-react';
-
+import { formatMoney} from '@/lib/formatMoney';
 import {
     Link,
     useParams,
@@ -38,38 +38,38 @@ function statusLabel(
         {
             en: string;
             fa: string;
-        }
+       }
     > = {
         PendingPayment: {
             en: 'Pending payment',
             fa: 'در انتظار پرداخت',
-        },
+       },
 
         Paid: {
             en: 'Paid',
             fa: 'پرداخت شده',
-        },
+       },
 
         Processing: {
             en: 'Processing',
             fa: 'در حال پردازش',
-        },
+       },
 
         Shipped: {
             en: 'Shipped',
             fa: 'ارسال شده',
-        },
+       },
 
         Delivered: {
             en: 'Delivered',
             fa: 'تحویل شده',
-        },
+       },
 
         Cancelled: {
             en: 'Cancelled',
             fa: 'لغو شده',
-        },
-    };
+       },
+   };
 
     return isFa
         ? labels[status].fa
@@ -98,32 +98,15 @@ function statusClass(
         case 'PendingPayment':
         default:
             return 'border-border bg-muted/30 text-muted-foreground';
-    }
+   }
 }
 
-function formatMoney(
-    amount: number,
-    currency: string,
-    isFa: boolean,
-) {
-    return (
-        new Intl.NumberFormat(
-            isFa
-                ? 'fa-IR'
-                : undefined,
-            {
-                maximumFractionDigits: 0,
-            },
-        ).format(amount) +
-        ` ${ currency } `
-    );
-}
 
 export default function OrderDetailsPage() {
-    const { id } =
+    const { id} =
         useParams();
 
-    const { i18n } =
+    const { i18n} =
         useTranslation();
 
     const isFa =
@@ -137,7 +120,7 @@ export default function OrderDetailsPage() {
             orderLoading,
         isError:
             orderError,
-    } =
+   } =
         useOrder(id);
 
     const {
@@ -146,7 +129,7 @@ export default function OrderDetailsPage() {
             shipmentLoading,
         isError:
             shipmentError,
-    } =
+   } =
         useShipment(id);
 
     const text = isFa
@@ -207,7 +190,7 @@ export default function OrderDetailsPage() {
                 'این سفارش لغو شده است.',
             coupon:
                 'کد تخفیف',
-        }
+       }
         : {
             loading:
                 'Loading order...',
@@ -265,7 +248,7 @@ export default function OrderDetailsPage() {
                 'This order has been cancelled.',
             coupon:
                 'Coupon',
-        };
+       };
 
     if (
         orderLoading ||
@@ -278,20 +261,20 @@ export default function OrderDetailsPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-                }
+               }
             >
                 <div className="animate-pulse space-y-4">
-                    <div className="h-8 w-64 rounded-lg bg-muted" />
+                    <div className="h-8 w-64 rounded-lg bg-muted"/>
 
-                    <div className="h-5 w-40 rounded-lg bg-muted" />
+                    <div className="h-5 w-40 rounded-lg bg-muted"/>
 
-                    <div className="h-48 rounded-2xl bg-muted" />
+                    <div className="h-48 rounded-2xl bg-muted"/>
 
-                    <div className="h-64 rounded-2xl bg-muted" />
+                    <div className="h-64 rounded-2xl bg-muted"/>
                 </div>
             </div>
         );
-    }
+   }
 
     if (
         orderError ||
@@ -305,10 +288,10 @@ export default function OrderDetailsPage() {
                     isFa
                         ? 'rtl'
                         : 'ltr'
-                }
+               }
             >
                 <div className="rounded-2xl border border-destructive/30 p-10 text-center">
-                    <Package className="mx-auto size-10 text-destructive" />
+                    <Package className="mx-auto size-10 text-destructive"/>
 
                     <h1 className="mt-4 text-xl font-semibold">
                         {orderError
@@ -325,7 +308,7 @@ export default function OrderDetailsPage() {
                 </div>
             </div>
         );
-    }
+   }
 
     const showPayment =
         order.status ===
@@ -341,35 +324,35 @@ export default function OrderDetailsPage() {
         formatMoney(
             order.subtotal,
             order.currency,
-            isFa,
+            i18n.language
         );
 
     const formattedShipping =
         formatMoney(
             order.shippingAmount,
             order.currency,
-            isFa,
+            i18n.language
         );
 
     const formattedDiscount =
         formatMoney(
             order.discountAmount,
             order.currency,
-            isFa,
+            i18n.language
         );
 
     const formattedTax =
         formatMoney(
             order.taxAmount,
             order.currency,
-            isFa,
+            i18n.language
         );
 
     const formattedTotal =
         formatMoney(
             order.totalAmount,
             order.currency,
-            isFa,
+            i18n.language
         );
 
     return (
@@ -379,7 +362,7 @@ export default function OrderDetailsPage() {
                 isFa
                     ? 'rtl'
                     : 'ltr'
-            }
+           }
         >
             <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
                 <div>
@@ -394,7 +377,7 @@ export default function OrderDetailsPage() {
     statusClass(
         order.status,
     )
-} `}
+}`}
                         >
                             {statusLabel(
                                 order.status,
@@ -428,7 +411,7 @@ export default function OrderDetailsPage() {
 
                     <section className="rounded-2xl border bg-card p-6">
                         <div className="flex items-center gap-2">
-                            <Package className="size-5" />
+                            <Package className="size-5"/>
 
                             <h2 className="text-xl font-semibold">
                                 {text.items}
@@ -441,7 +424,7 @@ export default function OrderDetailsPage() {
                                     <div
                                         key={
                                             item.productVariantId
-                                        }
+                                       }
                                         className="rounded-xl border p-4"
                                     >
                                         <div className="flex flex-wrap items-start justify-between gap-4">
@@ -449,23 +432,23 @@ export default function OrderDetailsPage() {
                                                 <div className="font-semibold">
                                                     {
                                                         item.productName
-                                                    }
+                                                   }
                                                 </div>
 
                                                 <div className="mt-1 text-sm text-muted-foreground">
                                                     {
                                                         item.sku
-                                                    }
+                                                   }
                                                 </div>
 
                                                 <div className="mt-3 text-sm">
                                                     {
                                                         text.quantity
-                                                    }
+                                                   }
                                                     :{' '}
                                                     {
                                                         item.quantity
-                                                    }
+                                                   }
                                                 </div>
                                             </div>
 
@@ -474,7 +457,7 @@ export default function OrderDetailsPage() {
                                                     {formatMoney(
                                                         item.unitPrice,
                                                         order.currency,
-                                                        isFa,
+                                                        i18n.language
                                                     )}
                                                 </div>
 
@@ -482,7 +465,7 @@ export default function OrderDetailsPage() {
                                                     {formatMoney(
                                                         item.lineTotal,
                                                         order.currency,
-                                                        isFa,
+                                                        i18n.language
                                                     )}
                                                 </div>
                                             </div>
@@ -501,7 +484,7 @@ export default function OrderDetailsPage() {
                         'Cancelled' && (
                         <section className="rounded-2xl border bg-card p-6">
                             <div className="flex items-center gap-2">
-                                <Clock3 className="size-5" />
+                                <Clock3 className="size-5"/>
 
                                 <h2 className="text-xl font-semibold">
                                     {text.status}
@@ -511,10 +494,10 @@ export default function OrderDetailsPage() {
                             <OrderTimeline
                                 orderStatus={
                                     order.status
-                                }
+                               }
                                 shipmentStatus={
                                     shipment?.status
-                                }
+                               }
                                 labels={{
                                     orderPlaced:
                                         text.orderPlaced,
@@ -526,8 +509,8 @@ export default function OrderDetailsPage() {
                                         text.shipped,
                                     delivered:
                                         text.delivered,
-                                }}
-                            />
+                               }}
+                           />
                         </section>
                     )}
 
@@ -538,12 +521,12 @@ export default function OrderDetailsPage() {
                     {showTracking && (
                         <section className="rounded-2xl border bg-card p-6">
                             <div className="flex items-center gap-2">
-                                <Truck className="size-5" />
+                                <Truck className="size-5"/>
 
                                 <h2 className="text-xl font-semibold">
                                     {
                                         text.shipment
-                                    }
+                                   }
                                 </h2>
                             </div>
 
@@ -551,13 +534,13 @@ export default function OrderDetailsPage() {
                                 <div className="mt-5 rounded-xl border border-destructive/30 bg-destructive/5 p-5 text-sm text-destructive">
                                     {
                                         text.error
-                                    }
+                                   }
                                 </div>
                             ) : !shipment ? (
                                 <div className="mt-5 rounded-xl border border-dashed p-5 text-sm text-muted-foreground">
                                     {
                                         text.noShipment
-                                    }
+                                   }
                                 </div>
                             ) : (
                                 <div className="mt-6 grid gap-5">
@@ -565,39 +548,39 @@ export default function OrderDetailsPage() {
                                         <Info
                                             label={
                                                 text.method
-                                            }
+                                           }
                                             value={
                                                 shipment.shippingMethod
-                                            }
-                                        />
+                                           }
+                                       />
 
                                         <Info
                                             label={
                                                 text.carrier
-                                            }
+                                           }
                                             value={
                                                 shipment.carrier
-                                            }
-                                        />
+                                           }
+                                       />
 
                                         <Info
                                             label={
                                                 text.tracking
-                                            }
+                                           }
                                             value={
                                                 shipment.trackingNumber ||
                                                 '—'
-                                            }
-                                        />
+                                           }
+                                       />
 
                                         <Info
                                             label={
                                                 text.status
-                                            }
+                                           }
                                             value={
                                                 shipment.status
-                                            }
-                                        />
+                                           }
+                                       />
                                     </div>
 
                                     {shipment.trackingNumber && (
@@ -605,13 +588,13 @@ export default function OrderDetailsPage() {
                                             <div className="text-xs text-muted-foreground">
                                                 {
                                                     text.tracking
-                                                }
+                                               }
                                             </div>
 
                                             <div className="mt-2 break-all font-mono text-sm font-medium">
                                                 {
                                                     shipment.trackingNumber
-                                                }
+                                               }
                                             </div>
                                         </div>
                                     )}
@@ -627,12 +610,12 @@ export default function OrderDetailsPage() {
                     {showTracking && (
                         <section className="rounded-2xl border bg-card p-6">
                             <div className="flex items-center gap-2">
-                                <MapPin className="size-5" />
+                                <MapPin className="size-5"/>
 
                                 <h2 className="text-xl font-semibold">
                                     {
                                         text.shipping
-                                    }
+                                   }
                                 </h2>
                             </div>
 
@@ -640,32 +623,32 @@ export default function OrderDetailsPage() {
                                 <div className="font-medium">
                                     {
                                         order.shippingFullName
-                                    }
+                                   }
                                 </div>
 
                                 <div className="mt-1 text-sm text-muted-foreground">
                                     {
                                         order.shippingPhone
-                                    }
+                                   }
                                 </div>
 
                                 <div className="mt-3 text-sm leading-6 text-muted-foreground">
                                     {
                                         order.shippingAddress
-                                    }
+                                   }
                                 </div>
 
                                 <div className="text-sm text-muted-foreground">
                                     {
                                         order.shippingCity
-                                    }
+                                   }
                                 </div>
 
                                 {order.shippingPostalCode && (
                                     <div className="mt-1 text-sm text-muted-foreground">
                                         {
                                             order.shippingPostalCode
-                                        }
+                                       }
                                     </div>
                                 )}
                             </div>
@@ -687,13 +670,13 @@ export default function OrderDetailsPage() {
                             <span>
                                 {
                                     text.subtotal
-                                }
+                               }
                             </span>
 
                             <span className="font-medium">
                                 {
                                     formattedSubtotal
-                                }
+                               }
                             </span>
                         </div>
 
@@ -701,13 +684,13 @@ export default function OrderDetailsPage() {
                             <span>
                                 {
                                     text.shippingCost
-                                }
+                               }
                             </span>
 
                             <span className="font-medium">
                                 {
                                     formattedShipping
-                                }
+                               }
                             </span>
                         </div>
 
@@ -717,14 +700,14 @@ export default function OrderDetailsPage() {
                                 <span>
                                     {
                                         text.discount
-                                    }
+                                   }
                                 </span>
 
                                 <span className="font-medium">
                                     -
                                     {
                                         formattedDiscount
-                                    }
+                                   }
                                 </span>
                             </div>
                         )}
@@ -735,7 +718,7 @@ export default function OrderDetailsPage() {
                                 <span>
                                     {
                                         text.tax
-                                    }
+                                   }
                                     {order.taxRatePercent >
                                         0 && (
                                         <>
@@ -743,7 +726,7 @@ export default function OrderDetailsPage() {
                                             (
                                             {
                                                 order.taxRatePercent
-                                            }
+                                           }
                                             %)
                                         </>
                                     )}
@@ -752,7 +735,7 @@ export default function OrderDetailsPage() {
                                 <span className="font-medium">
                                     {
                                         formattedTax
-                                    }
+                                   }
                                 </span>
                             </div>
                         )}
@@ -762,13 +745,13 @@ export default function OrderDetailsPage() {
                                 <div className="text-xs text-muted-foreground">
                                     {
                                         text.coupon
-                                    }
+                                   }
                                 </div>
 
                                 <div className="mt-1 font-mono font-medium">
                                     {
                                         order.couponCode
-                                    }
+                                   }
                                 </div>
                             </div>
                         )}
@@ -778,27 +761,27 @@ export default function OrderDetailsPage() {
                                 <span>
                                     {
                                         text.total
-                                    }
+                                   }
                                 </span>
 
                                 <span>
                                     {
                                         formattedTotal
-                                    }
+                                   }
                                 </span>
                             </div>
                         </div>
 
                         {showPayment && (
                             <Link
-                                to={`/ orders / payment / ${ order.id } `}
+                                to={`/orders/payment/${order.id}`}
                                 className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground transition-opacity hover:opacity-90"
                             >
-                                <CreditCard className="size-4" />
+                                <CreditCard className="size-4"/>
 
                                 {
                                     text.payment
-                                }
+                               }
                             </Link>
                         )}
                     </div>
@@ -817,7 +800,7 @@ interface OrderTimelineProps {
         processing: string;
         shipped: string;
         delivered: string;
-    };
+   };
 }
 
 function OrderTimeline({
@@ -871,7 +854,7 @@ function OrderTimeline({
                 !isCancelled,
             icon:
                 Check,
-        },
+       },
         {
             label:
                 labels.paid,
@@ -879,7 +862,7 @@ function OrderTimeline({
                 isPaid,
             icon:
                 CreditCard,
-        },
+       },
         {
             label:
                 labels.processing,
@@ -887,7 +870,7 @@ function OrderTimeline({
                 isProcessing,
             icon:
                 Package,
-        },
+       },
         {
             label:
                 labels.shipped,
@@ -895,7 +878,7 @@ function OrderTimeline({
                 isShipped,
             icon:
                 Truck,
-        },
+       },
         {
             label:
                 labels.delivered,
@@ -903,7 +886,7 @@ function OrderTimeline({
                 isDelivered,
             icon:
                 Check,
-        },
+       },
     ];
 
     return (
@@ -918,7 +901,7 @@ function OrderTimeline({
                             <div
                                 key={
                                     step.label
-                                }
+                               }
                                 className="flex items-center gap-3"
                             >
                                 <span
@@ -926,9 +909,9 @@ function OrderTimeline({
     step.complete
         ? 'border-primary bg-primary text-primary-foreground'
         : 'border-border text-muted-foreground'
-} `}
+}`}
                                 >
-                                    <Icon className="size-4" />
+                                    <Icon className="size-4"/>
                                 </span>
 
                                 <span
@@ -936,15 +919,15 @@ function OrderTimeline({
                                         step.complete
                                             ? 'font-medium'
                                             : 'text-muted-foreground'
-                                    }
+                                   }
                                 >
                                     {
                                         step.label
-                                    }
+                                   }
                                 </span>
                             </div>
                         );
-                    },
+                   },
                 )}
             </div>
         </div>
