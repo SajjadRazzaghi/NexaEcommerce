@@ -154,10 +154,13 @@ export default function PaymentPage() {
                 crypto.randomUUID();
 
             try {
-                if (
+                const shouldAutoRetry =
                     paymentResult ===
-                    'failed'
-                ) {
+                    'failed' &&
+                    paymentReason ===
+                    'cancelled';
+
+                if (shouldAutoRetry) {
                     await retryPaymentMutation.mutateAsync({
                         orderId:
                             order.id,
@@ -221,14 +224,15 @@ export default function PaymentPage() {
                     status:
                         result.status,
                 });
-            } catch (mutationError) {
+            }
+            catch (err: any) {
                 setError(
-                    mutationError instanceof Error
-                        ? mutationError.message
-                        : getText(
-                            'storefront.payment.startError',
-                            'Unable to start the payment. Please try again.',
-                        ),
+                    err?.response?.data?.error ??
+                    err?.message ??
+                    getText(
+                        'storefront.payment.failedDescription',
+                        'We could not start the payment.',
+                    ),
                 );
             }
         };
@@ -566,10 +570,25 @@ export default function PaymentPage() {
                                         'storefront.payment.cancelled',
                                         'The payment was cancelled or rejected.',
                                     )
-                                    : getText(
-                                        'storefront.payment.failedDescription',
-                                        'We could not complete the payment. You can try again.',
-                                    )}
+                                    : paymentReason === 'inventory_unavailable'
+                                        ? getText(
+                                            'storefront.payment.inventoryUnavailable',
+                                            'The payment could not be completed because the inventory reservation was unavailable. Please do not create another payment until the order is checked.',
+                                        )
+                                        : paymentReason === 'order_expired'
+                                            ? getText(
+                                                'storefront.payment.orderExpired',
+                                                'This order has expired because it is too old and no active inventory reservation remains.',
+                                            )
+                                            : paymentReason === 'payment_completion_failed'
+                                                ? getText(
+                                                    'storefront.payment.completionFailed',
+                                                    'The payment callback was received, but the order could not be completed safely. Please check the order status before trying another payment.',
+                                                )
+                                                : getText(
+                                                    'storefront.payment.failedDescription',
+                                                    'We could not complete the payment.',
+                                                )}
                             </div>
                         </div>
                     </div>

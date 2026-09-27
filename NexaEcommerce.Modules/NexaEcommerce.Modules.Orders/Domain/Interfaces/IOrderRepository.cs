@@ -12,7 +12,12 @@ public interface IOrderRepository
         Guid id,
         string? userId = null,
         CancellationToken cancellationToken = default);
-
+    Task<IReadOnlyList<Order>>
+    GetPendingPaymentOrdersOlderThanAsync(
+        string tenantId,
+        DateTimeOffset cutoff,
+        int batchSize,
+        CancellationToken cancellationToken = default);
     Task<Order?> GetByOrderNumberAsync(
         string tenantId,
         string orderNumber,

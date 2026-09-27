@@ -4,6 +4,12 @@ namespace NexaEcommerce.Modules.Orders.Domain.Interfaces;
 
 public interface IPaymentAttemptRepository
 {
+    Task<PaymentAttempt?>
+    GetByOrderIdAndGatewayReferenceAsync(
+        string tenantId,
+        Guid orderId,
+        string gatewayReference,
+        CancellationToken cancellationToken = default);
     Task<PaymentAttempt?> GetByIdempotencyKeyAsync(
         string tenantId,
         string userId,

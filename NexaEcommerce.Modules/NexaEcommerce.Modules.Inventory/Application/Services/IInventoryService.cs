@@ -32,7 +32,11 @@ public interface IInventoryService
         string tenantId,
         string reservationKey,
         CancellationToken cancellationToken = default);
-
+    Task<StockReservationDto> ExtendReservationAsync(
+    string tenantId,
+    string reservationKey,
+    DateTimeOffset expiresAt,
+    CancellationToken cancellationToken = default);
     Task<StockReservationDto> ReserveAsync(
         string tenantId,
         Guid productVariantId,

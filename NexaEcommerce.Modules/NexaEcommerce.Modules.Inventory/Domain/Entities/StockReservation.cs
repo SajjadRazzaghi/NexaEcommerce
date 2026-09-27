@@ -85,7 +85,37 @@ public sealed class StockReservation : BaseEntity
     public bool IsExpired =>
         IsActive &&
         ExpiresAt <= DateTimeOffset.UtcNow;
+    public void ExtendTo(
+    DateTimeOffset expiresAt)
+    {
+        if (!IsActive)
+        {
+            throw new InvalidOperationException(
+                "Only active reservations can be extended.");
+        }
 
+        if (IsExpired)
+        {
+            throw new InvalidOperationException(
+                "Expired reservation cannot be extended.");
+        }
+
+        if (expiresAt <=
+            DateTimeOffset.UtcNow)
+        {
+            throw new ArgumentException(
+                "Reservation expiration must be in the future.",
+                nameof(expiresAt));
+        }
+
+        if (expiresAt <= ExpiresAt)
+        {
+            return;
+        }
+
+        ExpiresAt =
+            expiresAt;
+    }
     public void MarkReleased()
     {
         if (!IsActive)

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using NexaEcommerce.Modules.Orders.Application.Payments;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -8,7 +9,8 @@ namespace NexaEcommerce.Modules.Orders.Infrastructure.Payments;
 
 public sealed class ZarinPalPaymentGateway(
     HttpClient httpClient,
-    IConfiguration configuration)
+    IConfiguration configuration,
+    ILogger<ZarinPalPaymentGateway> logger)
     : IPaymentGateway
 {
     public const string GatewayName = "ZarinPal";
@@ -82,6 +84,13 @@ public sealed class ZarinPalPaymentGateway(
                     $"NexaECommerce order {request.MerchantOrderId}",
             };
 
+        logger.LogInformation(
+            "Starting ZarinPal payment request. MerchantOrderId={MerchantOrderId}, Amount={Amount}, Currency={Currency}, Sandbox={Sandbox}",
+            request.MerchantOrderId,
+            amount,
+            request.Currency,
+            IsSandbox());
+
         try
         {
             using var response =
@@ -94,6 +103,11 @@ public sealed class ZarinPalPaymentGateway(
                 await response.Content.ReadAsStringAsync(
                     cancellationToken);
 
+            logger.LogInformation(
+                "ZarinPal payment request response. HttpStatus={HttpStatus}, Body={Body}",
+                (int)response.StatusCode,
+                body);
+
             ZarinPalResponse? result;
 
             try
@@ -103,8 +117,12 @@ public sealed class ZarinPalPaymentGateway(
                         body,
                         JsonSerializerOptions.Web);
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
+                logger.LogError(
+                    ex,
+                    "ZarinPal returned an invalid create-payment JSON response.");
+
                 return new PaymentGatewayCreateResult(
                     false,
                     null,
@@ -115,19 +133,35 @@ public sealed class ZarinPalPaymentGateway(
 
             if (result?.Data is null)
             {
+                var errorCode =
+                    GetErrorCode(result);
+
+                var errorMessage =
+                    GetErrorMessage(
+                        result,
+                        response.ReasonPhrase ??
+                        "ZarinPal payment request failed.");
+
+                logger.LogWarning(
+                    "ZarinPal payment request failed. ErrorCode={ErrorCode}, ErrorMessage={ErrorMessage}",
+                    errorCode,
+                    errorMessage);
+
                 return new PaymentGatewayCreateResult(
                     false,
                     null,
                     null,
-                    GetErrorCode(result),
-                    GetErrorMessage(
-                        result,
-                        response.ReasonPhrase ??
-                        "ZarinPal payment request failed."));
+                    errorCode,
+                    errorMessage);
             }
 
             if (result.Data.Code != 100)
             {
+                logger.LogWarning(
+                    "ZarinPal payment request was rejected. Code={Code}, Message={Message}",
+                    result.Data.Code,
+                    result.Data.Message);
+
                 return new PaymentGatewayCreateResult(
                     false,
                     null,
@@ -140,6 +174,9 @@ public sealed class ZarinPalPaymentGateway(
             if (string.IsNullOrWhiteSpace(
                     result.Data.Authority))
             {
+                logger.LogError(
+                    "ZarinPal payment request succeeded but returned no authority.");
+
                 return new PaymentGatewayCreateResult(
                     false,
                     null,
@@ -155,6 +192,11 @@ public sealed class ZarinPalPaymentGateway(
                 GetPaymentBaseUrl() +
                 authority;
 
+            logger.LogInformation(
+                "ZarinPal payment created successfully. MerchantOrderId={MerchantOrderId}, Authority={Authority}",
+                request.MerchantOrderId,
+                MaskReference(authority));
+
             return new PaymentGatewayCreateResult(
                 true,
                 paymentUrl,
@@ -164,6 +206,10 @@ public sealed class ZarinPalPaymentGateway(
         }
         catch (HttpRequestException ex)
         {
+            logger.LogError(
+                ex,
+                "HTTP error while creating ZarinPal payment.");
+
             return new PaymentGatewayCreateResult(
                 false,
                 null,
@@ -174,6 +220,9 @@ public sealed class ZarinPalPaymentGateway(
         catch (TaskCanceledException) when (
             !cancellationToken.IsCancellationRequested)
         {
+            logger.LogError(
+                "ZarinPal payment request timed out.");
+
             return new PaymentGatewayCreateResult(
                 false,
                 null,
@@ -247,6 +296,13 @@ public sealed class ZarinPalPaymentGateway(
                 authority,
             };
 
+        logger.LogInformation(
+            "Starting ZarinPal verification. MerchantOrderId={MerchantOrderId}, Amount={Amount}, Authority={Authority}, Sandbox={Sandbox}",
+            request.MerchantOrderId,
+            amount,
+            MaskReference(authority),
+            IsSandbox());
+
         try
         {
             using var response =
@@ -259,6 +315,12 @@ public sealed class ZarinPalPaymentGateway(
                 await response.Content.ReadAsStringAsync(
                     cancellationToken);
 
+            logger.LogInformation(
+                "ZarinPal verification response. MerchantOrderId={MerchantOrderId}, HttpStatus={HttpStatus}, Body={Body}",
+                request.MerchantOrderId,
+                (int)response.StatusCode,
+                body);
+
             ZarinPalResponse? result;
 
             try
@@ -268,8 +330,13 @@ public sealed class ZarinPalPaymentGateway(
                         body,
                         JsonSerializerOptions.Web);
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
+                logger.LogError(
+                    ex,
+                    "ZarinPal returned an invalid verification JSON response. MerchantOrderId={MerchantOrderId}",
+                    request.MerchantOrderId);
+
                 return new PaymentGatewayVerifyResult(
                     false,
                     null,
@@ -279,33 +346,79 @@ public sealed class ZarinPalPaymentGateway(
 
             if (result?.Data is null)
             {
-                return new PaymentGatewayVerifyResult(
-                    false,
-                    null,
-                    GetErrorCode(result),
+                var errorCode =
+                    GetErrorCode(result);
+
+                var errorMessage =
                     GetErrorMessage(
                         result,
                         response.ReasonPhrase ??
-                        "ZarinPal payment verification failed."));
-            }
+                        "ZarinPal payment verification failed.");
 
-            if (result.Data.Code != 100 &&
-                result.Data.Code != 101)
-            {
+                logger.LogWarning(
+                    "ZarinPal verification failed without data section. MerchantOrderId={MerchantOrderId}, ErrorCode={ErrorCode}, ErrorMessage={ErrorMessage}",
+                    request.MerchantOrderId,
+                    errorCode,
+                    errorMessage);
+
                 return new PaymentGatewayVerifyResult(
                     false,
                     null,
-                    result.Data.Code.ToString(),
+                    errorCode,
+                    errorMessage);
+            }
+
+            logger.LogInformation(
+                "ZarinPal verification parsed. MerchantOrderId={MerchantOrderId}, Code={Code}, Message={Message}, RefId={RefId}",
+                request.MerchantOrderId,
+                result.Data.Code,
+                result.Data.Message,
+                result.Data.RefId);
+
+            /*
+             * 100 = successful verification
+             * 101 = transaction was already verified
+             *
+             * Both are valid successful states for our flow.
+             */
+            if (result.Data.Code != 100 &&
+                result.Data.Code != 101)
+            {
+                var errorCode =
+                    result.Data.Code.ToString();
+
+                var errorMessage =
                     result.Data.Message ??
-                    "ZarinPal payment verification failed.");
+                    "ZarinPal payment verification failed.";
+
+                logger.LogWarning(
+                    "ZarinPal verification was rejected. MerchantOrderId={MerchantOrderId}, Code={Code}, Message={Message}, Amount={Amount}, Authority={Authority}",
+                    request.MerchantOrderId,
+                    result.Data.Code,
+                    errorMessage,
+                    amount,
+                    MaskReference(authority));
+
+                return new PaymentGatewayVerifyResult(
+                    false,
+                    null,
+                    errorCode,
+                    errorMessage);
             }
 
             /*
-             * GatewayReference stays equal to Authority.
-             * RefId is currently not part of the generic PaymentGateway
-             * contract and therefore is intentionally not used as the
-             * reference here.
+             * The generic payment contract uses Authority
+             * as GatewayReference.
+             *
+             * RefId is deliberately not substituted here.
              */
+            logger.LogInformation(
+                "ZarinPal verification succeeded. MerchantOrderId={MerchantOrderId}, Code={Code}, RefId={RefId}, Authority={Authority}",
+                request.MerchantOrderId,
+                result.Data.Code,
+                result.Data.RefId,
+                MaskReference(authority));
+
             return new PaymentGatewayVerifyResult(
                 true,
                 authority,
@@ -314,6 +427,13 @@ public sealed class ZarinPalPaymentGateway(
         }
         catch (HttpRequestException ex)
         {
+            logger.LogError(
+                ex,
+                "HTTP error while verifying ZarinPal payment. MerchantOrderId={MerchantOrderId}, Amount={Amount}, Authority={Authority}",
+                request.MerchantOrderId,
+                amount,
+                MaskReference(authority));
+
             return new PaymentGatewayVerifyResult(
                 false,
                 null,
@@ -323,6 +443,11 @@ public sealed class ZarinPalPaymentGateway(
         catch (TaskCanceledException) when (
             !cancellationToken.IsCancellationRequested)
         {
+            logger.LogError(
+                "ZarinPal verification request timed out. MerchantOrderId={MerchantOrderId}, Authority={Authority}",
+                request.MerchantOrderId,
+                MaskReference(authority));
+
             return new PaymentGatewayVerifyResult(
                 false,
                 null,
@@ -344,6 +469,10 @@ public sealed class ZarinPalPaymentGateway(
         var value =
             configuration["ZarinPal:Sandbox"];
 
+        /*
+         * Fail-safe for development:
+         * if the value is missing or invalid, Sandbox is used.
+         */
         return !bool.TryParse(
             value,
             out var sandbox)
@@ -422,6 +551,28 @@ public sealed class ZarinPalPaymentGateway(
         }
 
         return fallback;
+    }
+
+    private static string MaskReference(
+        string value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "***";
+        }
+
+        var normalized =
+            value.Trim();
+
+        if (normalized.Length <= 8)
+        {
+            return "***";
+        }
+
+        return
+            normalized[..4] +
+            "..." +
+            normalized[^4..];
     }
 
     private sealed class ZarinPalResponse

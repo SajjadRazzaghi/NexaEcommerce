@@ -138,7 +138,8 @@ public static class ModuleRegistrationExtensions
 
         services.AddScoped<
             PaymentCompletionOrchestrator>();
-
+        services.AddScoped<
+    PaymentReservationOrchestrator>();
         services.AddScoped<
             OrderCancellationOrchestrator>();
 

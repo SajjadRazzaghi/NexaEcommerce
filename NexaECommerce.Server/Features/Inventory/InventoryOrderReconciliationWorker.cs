@@ -119,13 +119,17 @@ public sealed class InventoryOrderReconciliationWorker(
                 BatchSize,
                 cancellationToken);
 
-        if (result.ReservationsChecked == 0)
+        if (result.ReservationsChecked == 0 &&
+    result.StaleOrdersCancelled == 0)
+        {
             return;
+        }
 
         logger.LogInformation(
-            "Inventory/order reconciliation checked {ReservationsChecked} reservations and repaired {ReservationsRepaired}; discrepancies: {Discrepancies}.",
+            "Inventory/order reconciliation checked {ReservationsChecked} reservations and repaired {ReservationsRepaired}; discrepancies: {Discrepancies}; stale orders cancelled: {StaleOrdersCancelled}.",
             result.ReservationsChecked,
             result.ReservationsRepaired,
-            result.Discrepancies);
+            result.Discrepancies,
+            result.StaleOrdersCancelled);
     }
 }

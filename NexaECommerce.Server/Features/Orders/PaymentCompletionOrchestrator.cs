@@ -3,6 +3,7 @@ using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 using NexaEcommerce.Modules.Inventory.Application.Services;
+
 namespace NexaECommerce.Server.Features.Orders;
 
 public sealed class PaymentCompletionOrchestrator(
@@ -10,7 +11,8 @@ public sealed class PaymentCompletionOrchestrator(
     IOrderRepository orderRepository,
     IOrderUnitOfWork unitOfWork,
     IInventoryService inventory,
-    PaymentGatewayService gateways)
+    PaymentGatewayService gateways,
+    PaymentReservationOrchestrator paymentReservations)
 {
     public async Task<PaymentCompletionResult> CompleteAsync(
         string tenantId,
@@ -27,10 +29,22 @@ public sealed class PaymentCompletionOrchestrator(
             gatewayName,
             gatewayReference);
 
+        var normalizedTenantId =
+            tenantId.Trim();
+
+        var normalizedUserId =
+            userId.Trim();
+
+        var normalizedGatewayName =
+            gatewayName.Trim();
+
+        var normalizedGatewayReference =
+            gatewayReference.Trim();
+
         var paymentAttempt =
             await paymentAttemptRepository.GetByIdAsync(
-                tenantId,
-                userId,
+                normalizedTenantId,
+                normalizedUserId,
                 paymentAttemptId,
                 cancellationToken);
 
@@ -42,9 +56,9 @@ public sealed class PaymentCompletionOrchestrator(
 
         var order =
             await orderRepository.GetByIdAsync(
-                tenantId,
+                normalizedTenantId,
                 paymentAttempt.OrderId,
-                userId,
+                normalizedUserId,
                 cancellationToken);
 
         if (order is null)
@@ -54,9 +68,9 @@ public sealed class PaymentCompletionOrchestrator(
         }
 
         if (paymentAttempt.Status ==
-            PaymentAttemptStatus.Succeeded &&
+                PaymentAttemptStatus.Succeeded &&
             order.Status ==
-            OrderStatus.Paid)
+                OrderStatus.Paid)
         {
             return new PaymentCompletionResult(
                 paymentAttempt.Id,
@@ -88,28 +102,20 @@ public sealed class PaymentCompletionOrchestrator(
                 "The order is already in a post-payment lifecycle state.");
         }
 
+        /*
+         * IMPORTANT:
+         *
+         * A Paid order must NOT cause a different pending payment
+         * attempt to become successful.
+         *
+         * This prevents payment attempt B from being marked succeeded
+         * merely because payment attempt A already paid the order.
+         */
         if (order.Status ==
             OrderStatus.Paid)
         {
-            if (paymentAttempt.Status !=
-                PaymentAttemptStatus.Pending)
-            {
-                throw new InvalidOperationException(
-                    "Payment attempt is not in a recoverable state.");
-            }
-
-            paymentAttempt.MarkSucceeded(
-                gatewayName.Trim(),
-                gatewayReference.Trim());
-
-            await unitOfWork.SaveChangesAsync(
-                cancellationToken);
-
-            return new PaymentCompletionResult(
-                paymentAttempt.Id,
-                paymentAttempt.OrderId,
-                "Succeeded",
-                true);
+            throw new InvalidOperationException(
+                "The order has already been paid by another payment attempt.");
         }
 
         if (order.Status !=
@@ -119,55 +125,58 @@ public sealed class PaymentCompletionOrchestrator(
                 "The order is not in a valid state for payment completion.");
         }
 
-        if (order.InventoryReservations.Count == 0)
+        /*
+         * Always validate the persisted payment attempt before
+         * touching inventory.
+         */
+        if (string.IsNullOrWhiteSpace(
+                paymentAttempt.GatewayName))
         {
             throw new InvalidOperationException(
-                "The order does not contain inventory reservations.");
+                "Payment gateway has not been initialized for this payment attempt.");
         }
 
-        if (!order.HasActiveInventoryReservations &&
-            !order.HasCommittedInventoryReservations)
+        if (!string.Equals(
+                paymentAttempt.GatewayName,
+                normalizedGatewayName,
+                StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
-                "The order has no active inventory reservation.");
+                "Gateway name does not match the payment attempt.");
         }
 
-        var normalizedGatewayName =
-            gatewayName.Trim();
+        if (string.IsNullOrWhiteSpace(
+                paymentAttempt.GatewayReference))
+        {
+            throw new InvalidOperationException(
+                "Payment attempt does not contain a gateway reference.");
+        }
 
-        var normalizedGatewayReference =
-            gatewayReference.Trim();
+        if (!string.Equals(
+                paymentAttempt.GatewayReference.Trim(),
+                normalizedGatewayReference,
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Gateway reference does not match the payment attempt.");
+        }
+
+        /*
+         * The checkout reservation may have expired before the user
+         * returns from the gateway.
+         *
+         * Recover/recreate the reservation before completing payment.
+         */
+        await paymentReservations.EnsureForCompletionAsync(
+            normalizedTenantId,
+            normalizedUserId,
+            paymentAttempt.OrderId,
+            paymentAttempt.Id,
+            cancellationToken);
 
         if (paymentAttempt.Status ==
             PaymentAttemptStatus.Pending)
         {
-            if (string.IsNullOrWhiteSpace(
-                    paymentAttempt.GatewayName))
-            {
-                throw new InvalidOperationException(
-                    "Payment gateway has not been initialized for this payment attempt.");
-            }
-
-            if (!string.Equals(
-                    paymentAttempt.GatewayName,
-                    normalizedGatewayName,
-                    StringComparison.OrdinalIgnoreCase))
-            {
-                throw new InvalidOperationException(
-                    "Gateway name does not match the payment attempt.");
-            }
-
-            if (!string.IsNullOrWhiteSpace(
-                    paymentAttempt.GatewayReference) &&
-                !string.Equals(
-                    paymentAttempt.GatewayReference,
-                    normalizedGatewayReference,
-                    StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException(
-                    "Gateway reference does not match the payment attempt.");
-            }
-
             var gateway =
                 gateways.Get(
                     paymentAttempt.GatewayName);
@@ -182,9 +191,10 @@ public sealed class PaymentCompletionOrchestrator(
 
             if (!verification.Succeeded)
             {
-                throw new InvalidOperationException(
+                throw new PaymentVerificationException(
                     verification.ErrorMessage ??
-                    "Payment gateway verification failed.");
+                    "Payment gateway verification failed.",
+                    verification.ErrorCode);
             }
 
             var verifiedReference =
@@ -202,16 +212,9 @@ public sealed class PaymentCompletionOrchestrator(
                     "The gateway verification reference does not match the requested payment reference.");
             }
 
-            if (string.IsNullOrWhiteSpace(
-                    paymentAttempt.GatewayReference))
-            {
-                paymentAttempt.MarkGatewayCreated(
-                    gateway.Name,
-                    verifiedReference);
-
-                await unitOfWork.SaveChangesAsync(
-                    cancellationToken);
-            }
+            paymentAttempt.MarkSucceeded(
+                gateway.Name,
+                verifiedReference);
         }
         else if (paymentAttempt.Status !=
                  PaymentAttemptStatus.Succeeded)
@@ -221,21 +224,10 @@ public sealed class PaymentCompletionOrchestrator(
         }
 
         /*
-         * IMPORTANT:
+         * Global inventory was reserved during checkout/payment recovery.
          *
-         * Physical stock has already been reserved in WarehouseStock
-         * during checkout.
-         *
-         * Payment does NOT reserve or commit physical stock again.
-         *
-         * It only commits the logical order reservations.
+         * Payment commits those reservations.
          */
-        /*
-    * Global inventory was reserved during checkout.
-    *
-    * Payment commits the global StockItem reservation.
-    * Physical WarehouseStock remains reserved until fulfillment.
-    */
         foreach (var orderReservation in
                  order.InventoryReservations
                      .Where(
@@ -249,22 +241,20 @@ public sealed class PaymentCompletionOrchestrator(
             cancellationToken.ThrowIfCancellationRequested();
 
             await inventory.CommitAsync(
-                tenantId,
+                normalizedTenantId,
                 orderReservation.ReservationKey,
                 cancellationToken);
         }
 
         order.MarkInventoryReservationsCommitted();
 
-        paymentAttempt.MarkSucceeded(
-            string.IsNullOrWhiteSpace(
-                paymentAttempt.GatewayName)
-                ? normalizedGatewayName
-                : paymentAttempt.GatewayName,
-            string.IsNullOrWhiteSpace(
-                paymentAttempt.GatewayReference)
-                ? normalizedGatewayReference
-                : paymentAttempt.GatewayReference);
+        if (paymentAttempt.Status !=
+            PaymentAttemptStatus.Succeeded)
+        {
+            paymentAttempt.MarkSucceeded(
+                normalizedGatewayName,
+                normalizedGatewayReference);
+        }
 
         order.MarkPaid();
 
@@ -285,14 +275,16 @@ public sealed class PaymentCompletionOrchestrator(
         string gatewayName,
         string gatewayReference)
     {
-        if (string.IsNullOrWhiteSpace(tenantId))
+        if (string.IsNullOrWhiteSpace(
+                tenantId))
         {
             throw new ArgumentException(
                 "Tenant id is required.",
                 nameof(tenantId));
         }
 
-        if (string.IsNullOrWhiteSpace(userId))
+        if (string.IsNullOrWhiteSpace(
+                userId))
         {
             throw new ArgumentException(
                 "User id is required.",
@@ -306,19 +298,38 @@ public sealed class PaymentCompletionOrchestrator(
                 nameof(paymentAttemptId));
         }
 
-        if (string.IsNullOrWhiteSpace(gatewayName))
+        if (string.IsNullOrWhiteSpace(
+                gatewayName))
         {
             throw new ArgumentException(
                 "Gateway name is required.",
                 nameof(gatewayName));
         }
 
-        if (string.IsNullOrWhiteSpace(gatewayReference))
+        if (string.IsNullOrWhiteSpace(
+                gatewayReference))
         {
             throw new ArgumentException(
                 "Gateway reference is required.",
                 nameof(gatewayReference));
         }
+    }
+}
+
+public sealed class PaymentVerificationException
+    : InvalidOperationException
+{
+    public PaymentVerificationException(
+        string message,
+        string? errorCode = null)
+        : base(message)
+    {
+        ErrorCode = errorCode;
+    }
+
+    public string? ErrorCode
+    {
+        get;
     }
 }
 

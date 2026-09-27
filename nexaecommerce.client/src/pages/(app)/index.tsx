@@ -458,10 +458,7 @@ export default function StorefrontHomePage() {
         i18n,t
     } = useTranslation();
   
-    const isFa =
-        i18n.language
-            ?.toLowerCase()
-            .startsWith('fa');
+    
     const {
         data: appearance,
     } = useQuery({

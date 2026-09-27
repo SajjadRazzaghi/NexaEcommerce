@@ -1,17 +1,18 @@
-using Microsoft.AspNetCore.Mvc;
 using NexaEcommerce.Modules.Inventory.Application.DTOs;
 using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
+using NexaECommerce.Server.Features.Orders;
 
 namespace NexaECommerce.Server.Features.Inventory;
 
 public sealed class InventoryOrderReconciliationService(
     IOrderRepository orderRepository,
     IOrderUnitOfWork orderUnitOfWork,
-    [FromServices] IInventoryService inventory,
+    IInventoryService inventory,
+    PaymentReservationOrchestrator paymentReservations,
     ILogger<InventoryOrderReconciliationService> logger)
 {
     public async Task<InventoryReconciliationResult>
@@ -34,14 +35,7 @@ public sealed class InventoryOrderReconciliationService(
                     batchSize,
                     cancellationToken);
 
-        if (orders.Count == 0)
-        {
-            return new InventoryReconciliationResult(
-                0,
-                0,
-                0,
-                0);
-        }
+     
 
         var checkedReservations = 0;
         var repairedReservations = 0;
@@ -112,18 +106,25 @@ public sealed class InventoryOrderReconciliationService(
                 }
             }
         }
-
-        if (repairedReservations > 0)
+        var staleOrdersCancelled =
+    await paymentReservations
+        .CancelStalePendingOrdersAsync(
+            tenantId,
+            batchSize,
+            cancellationToken);
+        if (repairedReservations > 0 &&
+     staleOrdersCancelled == 0)
         {
             await orderUnitOfWork.SaveChangesAsync(
                 cancellationToken);
         }
 
         return new InventoryReconciliationResult(
-            orders.Count,
-            checkedReservations,
-            repairedReservations,
-            discrepancies);
+      orders.Count,
+      checkedReservations,
+      repairedReservations,
+      discrepancies,
+      staleOrdersCancelled);
     }
 
     private async Task<ReconciliationAction>
@@ -283,7 +284,8 @@ public sealed record InventoryReconciliationResult(
     int OrdersChecked,
     int ReservationsChecked,
     int ReservationsRepaired,
-    int Discrepancies);
+    int Discrepancies,
+    int StaleOrdersCancelled);
 
 internal enum ReconciliationAction
 {

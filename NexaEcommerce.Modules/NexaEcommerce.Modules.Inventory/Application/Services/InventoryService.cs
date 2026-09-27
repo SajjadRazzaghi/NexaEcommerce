@@ -123,7 +123,68 @@ public async Task<IReadOnlyList<InventoryMovementDto>> GetMovementsAsync(
             ? null
             : Map(reservation);
     }
+    public async Task<StockReservationDto>
+    ExtendReservationAsync(
+        string tenantId,
+        string reservationKey,
+        DateTimeOffset expiresAt,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateTenant(
+            tenantId);
 
+        if (string.IsNullOrWhiteSpace(
+                reservationKey))
+        {
+            throw new ArgumentException(
+                "Reservation key is required.",
+                nameof(reservationKey));
+        }
+
+        if (expiresAt <=
+            DateTimeOffset.UtcNow)
+        {
+            throw new ArgumentException(
+                "Reservation expiration must be in the future.",
+                nameof(expiresAt));
+        }
+
+        var normalizedKey =
+            reservationKey.Trim();
+
+        var reservation =
+            await repository.GetReservationAsync(
+                tenantId,
+                normalizedKey,
+                cancellationToken);
+
+        if (reservation is null)
+        {
+            throw new KeyNotFoundException(
+                "Reservation was not found.");
+        }
+
+        if (!reservation.IsActive)
+        {
+            throw new InvalidOperationException(
+                "Only active reservations can be extended.");
+        }
+
+        if (reservation.IsExpired)
+        {
+            throw new InvalidOperationException(
+                "Expired reservation cannot be extended.");
+        }
+
+        reservation.ExtendTo(
+            expiresAt);
+
+        await unitOfWork.SaveChangesAsync(
+            cancellationToken);
+
+        return Map(
+            reservation);
+    }
     public async Task<StockDto> SetStockAsync(
         string tenantId,
         Guid productVariantId,

@@ -100,7 +100,39 @@ public sealed class OrderInventoryReservation
             quantity,
             expiresAt);
     }
+    public void ExtendTo(
+    DateTimeOffset expiresAt)
+    {
+        if (Status !=
+            InventoryReservationStatus.Reserved)
+        {
+            throw new InvalidOperationException(
+                "Only reserved inventory can be extended.");
+        }
 
+        if (ExpiresAt <=
+            DateTimeOffset.UtcNow)
+        {
+            throw new InvalidOperationException(
+                "An expired order reservation cannot be extended.");
+        }
+
+        if (expiresAt <=
+            DateTimeOffset.UtcNow)
+        {
+            throw new ArgumentException(
+                "Reservation expiration must be in the future.",
+                nameof(expiresAt));
+        }
+
+        if (expiresAt <= ExpiresAt)
+        {
+            return;
+        }
+
+        ExpiresAt =
+            expiresAt;
+    }
     public void MarkCommitted()
     {
         if (Status == InventoryReservationStatus.Committed)

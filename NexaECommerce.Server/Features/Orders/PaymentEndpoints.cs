@@ -59,10 +59,11 @@ public sealed class PaymentEndpoints
         CreatePaymentAttempt(
             [FromBody]
             CreatePaymentAttemptRequest request,
-
+            [FromServices]
+PaymentReservationOrchestrator paymentReservations,
             [FromServices]
             IPaymentAttemptService paymentAttempts,
-
+           
             [FromServices]
             ICurrentTenant tenant,
 
@@ -113,6 +114,12 @@ public sealed class PaymentEndpoints
 
         try
         {
+            await paymentReservations.EnsureForStartAsync(
+    tenant.Id,
+    userId,
+    request.OrderId,
+    idempotencyKey,
+    ct);
             var result =
                 await paymentAttempts.CreateAsync(
                     tenant.Id,
@@ -142,19 +149,22 @@ public sealed class PaymentEndpoints
     }
 
     private static async Task<IResult>
-        StartPayment(
-            [FromBody]
-            StartPaymentRequest request,
+    StartPayment(
+        [FromBody]
+        StartPaymentRequest request,
 
-            [FromServices]
-            IPaymentService payments,
+        [FromServices]
+        IPaymentService payments,
 
-            [FromServices]
-            ICurrentTenant tenant,
+        [FromServices]
+        PaymentReservationOrchestrator paymentReservations,
 
-            HttpContext http,
+        [FromServices]
+        ICurrentTenant tenant,
 
-            CancellationToken ct)
+        HttpContext http,
+
+        CancellationToken ct)
     {
         var userId =
             GetUserId(http);
@@ -209,11 +219,11 @@ public sealed class PaymentEndpoints
         }
 
         /*
-  * The callback URL is fully owned by the server.
-  *
-  * Never accept a redirect/callback destination from the browser.
-  * Generate the trusted callback URL from the current server request.
-  */
+         * The callback URL is fully owned by the server.
+         *
+         * Never accept a redirect/callback destination from the browser.
+         * Generate the trusted callback URL from the current server request.
+         */
         var trustedCallbackUrl =
             BuildZarinPalCallbackUrl(
                 http,
@@ -221,6 +231,25 @@ public sealed class PaymentEndpoints
 
         try
         {
+            /*
+             * Before creating/starting the payment:
+             *
+             * 1. Reuse an existing active reservation and extend it to
+             *    the payment window when possible.
+             *
+             * 2. Recover an expired checkout reservation by creating a
+             *    new payment reservation when necessary.
+             *
+             * 3. Reject stale orders according to the payment reservation
+             *    policy.
+             */
+            await paymentReservations.EnsureForStartAsync(
+                tenant.Id,
+                userId,
+                request.OrderId,
+                idempotencyKey,
+                ct);
+
             var result =
                 await payments.CreatePaymentAsync(
                     tenant.Id,
@@ -239,6 +268,19 @@ public sealed class PaymentEndpoints
                 new
                 {
                     error = ex.Message
+                });
+        }
+        catch (PaymentReservationException ex)
+        {
+            return Results.Conflict(
+                new
+                {
+                    error = ex.Message,
+                    code =
+                        ex.Kind ==
+                        PaymentReservationFailureKind.OrderExpired
+                            ? "order_expired"
+                            : "inventory_unavailable"
                 });
         }
         catch (ArgumentException ex)

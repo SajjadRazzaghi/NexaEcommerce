@@ -10,6 +10,37 @@ public sealed class PaymentAttemptRepository(
     : IPaymentAttemptRepository
 {
     public async Task<PaymentAttempt?>
+    GetByOrderIdAndGatewayReferenceAsync(
+        string tenantId,
+        Guid orderId,
+        string gatewayReference,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(
+                tenantId) ||
+            orderId == Guid.Empty ||
+            string.IsNullOrWhiteSpace(
+                gatewayReference))
+        {
+            return null;
+        }
+
+        var normalizedReference =
+            gatewayReference.Trim();
+
+        return await context.PaymentAttempts
+            .Where(
+                x =>
+                    x.TenantId == tenantId &&
+                    x.OrderId == orderId &&
+                    x.GatewayReference ==
+                    normalizedReference)
+            .OrderByDescending(
+                x => x.CreatedAt)
+            .FirstOrDefaultAsync(
+                cancellationToken);
+    }
+    public async Task<PaymentAttempt?>
         GetByIdempotencyKeyAsync(
             string tenantId,
             string userId,

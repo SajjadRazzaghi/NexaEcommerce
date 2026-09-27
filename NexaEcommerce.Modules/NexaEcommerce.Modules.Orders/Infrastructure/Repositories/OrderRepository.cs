@@ -119,7 +119,42 @@ public sealed class OrderRepository(
                             normalizedKey),
                 cancellationToken);
     }
+    public async Task<IReadOnlyList<Order>>
+    GetPendingPaymentOrdersOlderThanAsync(
+        string tenantId,
+        DateTimeOffset cutoff,
+        int batchSize,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(
+                tenantId))
+        {
+            return [];
+        }
 
+        batchSize =
+            Math.Clamp(
+                batchSize,
+                1,
+                500);
+
+        return await context.Orders
+            .AsSplitQuery()
+            .Include(x => x.Items)
+            .Include(x => x.InventoryReservations)
+            .Where(
+                x =>
+                    x.TenantId == tenantId &&
+                    x.Status ==
+                    OrderStatus.PendingPayment &&
+                    x.CreatedAt < cutoff)
+            .OrderBy(
+                x => x.CreatedAt)
+            .Take(
+                batchSize)
+            .ToListAsync(
+                cancellationToken);
+    }
     public async Task<IReadOnlyList<Order>>
         GetOrdersForInventoryReconciliationAsync(
             string tenantId,

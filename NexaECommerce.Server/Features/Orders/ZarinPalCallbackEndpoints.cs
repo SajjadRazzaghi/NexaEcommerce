@@ -90,7 +90,21 @@ public sealed class ZarinPalCallbackEndpoints
                 "order_not_found");
         }
 
-        var paymentAttempt =
+        PaymentAttempt? paymentAttempt = null;
+
+        if (!string.IsNullOrWhiteSpace(
+                authority))
+        {
+            paymentAttempt =
+                await paymentAttemptRepository
+                    .GetByOrderIdAndGatewayReferenceAsync(
+                        tenant.Id,
+                        orderId,
+                        authority.Trim(),
+                        cancellationToken);
+        }
+
+        paymentAttempt ??=
             await paymentAttemptRepository.GetByOrderIdAsync(
                 tenant.Id,
                 orderId,
@@ -249,6 +263,22 @@ public sealed class ZarinPalCallbackEndpoints
                 false,
                 "payment_not_found");
         }
+        catch (PaymentVerificationException ex)
+        {
+            logger.LogError(
+                ex,
+                "ZarinPal gateway verification failed. PaymentAttemptId={PaymentAttemptId}, OrderId={OrderId}, ErrorCode={ErrorCode}.",
+                paymentAttempt.Id,
+                orderId,
+                ex.ErrorCode);
+
+            return RedirectToPaymentResult(
+                configuration,
+                orderId,
+                false,
+                "verification_failed");
+        }
+    
         catch (ArgumentException ex)
         {
             logger.LogWarning(
