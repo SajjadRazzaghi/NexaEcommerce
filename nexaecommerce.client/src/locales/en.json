@@ -1,4 +1,6 @@
 {
+  "seoCategoryDesc": "Optimize how this category appears in search engines.",
+  "seoKeywordsCategoryPlaceholder": "maternity clothing, maternity sets, women's loungewear, patlet",
   "fileUpload": {
     "placeholder": "Upload or drop a file here.",
     "images": "Images",
@@ -107,6 +109,33 @@
   },
 
   "catalogForms": {
+    "basicInfoCategory": "Define the category name, hierarchy and display order.",
+    "parentCategory": "Parent category",
+    "noParent": "No parent category",
+    "image": "Category image",
+    "uploadImage": "Upload category image",
+    "dropImage": "Drop an image here or choose a file.",
+    "categoryPublishingDesc": "Control whether the category is active, published and featured.",
+    "inactiveHintCategory": "Inactive categories are hidden from active catalog operations.",
+    "publishedHintCategory": "Published categories can appear on the storefront.",
+    "featuredHintCategory": "Featured categories can be highlighted in merchandising.",
+    "categoryCreated": "Category created successfully.",
+    "categoryUpdated": "Category updated successfully.",
+
+    "basicInfoManufacturer": "Define the manufacturer identity and core catalog information.",
+    "manufacturerImages": "Manufacturer images",
+    "uploadCover": "Cover image",
+    "manufacturerCreated": "Manufacturer created successfully.",
+    "manufacturerUpdated": "Manufacturer updated successfully.",
+    "seoManufacturerDesc": "Optimize how this manufacturer appears in search engines.",
+    "seoKeywordsManufacturerPlaceholder": "e.g. clothing manufacturer, maternity wear, patlet",
+    "manufacturerPublishingDesc": "Control whether the manufacturer is active, published and featured.",
+    "inactiveHintManufacturer": "Active manufacturers can be used across the catalog.",
+    "publishedHintManufacturer": "Published manufacturers can appear on the storefront.",
+    "featuredHintManufacturer": "Featured manufacturers can be highlighted in merchandising.",
+    "createManufacturer": "Create manufacturer",
+    "updateManufacturer": "Update manufacturer",
+    "updateCategory": "Update Category",
     "basicInfo": "Basic information",
     "basicInfoBrand": "Define the brand identity and core catalog information.",
     "nameRequired": "Name",
@@ -120,10 +149,10 @@
     "brandImages": "Brand images",
     "brandImagesDescription": "Add a logo and cover image for this brand.",
     "dropLogo": "Drop the logo here or choose a file.",
-    "dropCover": "Drop the cover image here or choose a file.", 
+    "dropCover": "Drop the cover image here or choose a file.",
     "uploadLogo": "Logo",
     "coverImage": "Cover image",
- 
+
 
     "seo": "SEO",
     "seoBrandDesc": "Optimize how this brand appears in search engines.",

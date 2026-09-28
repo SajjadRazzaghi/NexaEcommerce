@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
 
@@ -11,9 +12,11 @@ using NexaEcommerce.Modules.Catalog.Infrastructure;
 namespace NexaEcommerce.Modules.Catalog.Migrations.Catalog
 {
     [DbContext(typeof(CatalogDbContext))]
-    partial class CatalogDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260928110523_AddCategorySeoMetadata")]
+    partial class AddCategorySeoMetadata
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -360,12 +363,6 @@ namespace NexaEcommerce.Modules.Catalog.Migrations.Catalog
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("bit");
 
-                    b.Property<bool>("IsFeatured")
-                        .HasColumnType("bit");
-
-                    b.Property<bool>("IsPublished")
-                        .HasColumnType("bit");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -375,16 +372,13 @@ namespace NexaEcommerce.Modules.Catalog.Migrations.Catalog
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("SeoDescription")
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SeoKeywords")
-                        .HasMaxLength(1000)
-                        .HasColumnType("nvarchar(1000)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("SeoTitle")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Slug")
                         .IsRequired()
@@ -402,10 +396,6 @@ namespace NexaEcommerce.Modules.Catalog.Migrations.Catalog
 
                     b.HasIndex("Slug")
                         .IsUnique();
-
-                    b.HasIndex("DisplayOrder", "Name");
-
-                    b.HasIndex("IsActive", "IsPublished", "IsFeatured");
 
                     b.ToTable("Categories", "Catalog");
                 });

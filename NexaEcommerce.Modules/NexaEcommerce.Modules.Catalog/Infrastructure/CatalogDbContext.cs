@@ -126,7 +126,7 @@ public sealed class CatalogDbContext : DbContext
     // =========================================================
 
     private static void ConfigureProduct(
-        ModelBuilder modelBuilder)
+     ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Product>(entity =>
         {
@@ -227,7 +227,8 @@ public sealed class CatalogDbContext : DbContext
             // Soft Delete
             // -------------------------------------------------
 
-            entity.HasQueryFilter(x => !x.IsDeleted);
+            entity.HasQueryFilter(
+                x => !x.IsDeleted);
         });
     }
 
@@ -244,6 +245,10 @@ public sealed class CatalogDbContext : DbContext
 
             entity.HasKey(x => x.Id);
 
+            // -------------------------------------------------
+            // Basic
+            // -------------------------------------------------
+
             entity.Property(x => x.Name)
                 .IsRequired()
                 .HasMaxLength(150);
@@ -258,13 +263,56 @@ public sealed class CatalogDbContext : DbContext
             entity.Property(x => x.ImageUrl)
                 .HasMaxLength(1000);
 
+            // -------------------------------------------------
+            // SEO
+            // -------------------------------------------------
+
+            entity.Property(x => x.SeoTitle)
+                .HasMaxLength(200);
+
+            entity.Property(x => x.SeoDescription)
+                .HasMaxLength(500);
+
+            entity.Property(x => x.SeoKeywords)
+                .HasMaxLength(1000);
+
+            // -------------------------------------------------
+            // Display / Status
+            // -------------------------------------------------
+
+            entity.Property(x => x.DisplayOrder)
+                .IsRequired();
+
             entity.Property(x => x.IsActive)
                 .IsRequired();
+
+            entity.Property(x => x.IsPublished)
+                .IsRequired();
+
+            entity.Property(x => x.IsFeatured)
+                .IsRequired();
+
+            // -------------------------------------------------
+            // Indexes
+            // -------------------------------------------------
 
             entity.HasIndex(x => x.Slug)
                 .IsUnique();
 
             entity.HasIndex(x => x.Name);
+
+            entity.HasIndex(x => new
+            {
+                x.IsActive,
+                x.IsPublished,
+                x.IsFeatured
+            });
+
+            entity.HasIndex(x => new
+            {
+                x.DisplayOrder,
+                x.Name
+            });
 
             // -------------------------------------------------
             // Parent / Child
@@ -283,7 +331,6 @@ public sealed class CatalogDbContext : DbContext
                 x => !x.IsDeleted);
         });
     }
-
     // =========================================================
     // Brand
     // =========================================================
@@ -831,6 +878,7 @@ private static void ConfigureVariantAttributeValue(
 
             entity.HasQueryFilter(
                 x => !x.IsDeleted);
+
         });
     }
 

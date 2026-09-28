@@ -24,7 +24,7 @@ public sealed class CategoryService : ICategoryService
     // =========================================================
 
     public async Task<IReadOnlyList<CategoryDto>> GetAllAsync(
-       CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default)
     {
         var categories =
             await _categoryRepository.GetAllAsync(
@@ -39,13 +39,13 @@ public sealed class CategoryService : ICategoryService
             .Select(x => Map(x, productCounts))
             .ToList();
     }
+
     // =========================================================
     // Get Root Categories
     // =========================================================
 
-    public async Task<IReadOnlyList<CategoryDto>>
-        GetRootCategoriesAsync(
-            CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<CategoryDto>> GetRootCategoriesAsync(
+        CancellationToken cancellationToken = default)
     {
         var categories =
             await _categoryRepository.GetRootCategoriesAsync(
@@ -56,7 +56,7 @@ public sealed class CategoryService : ICategoryService
                 .SelectMany(
                     x => new[]
                     {
-                    x
+                        x
                     }.Concat(x.SubCategories))
                 .Select(x => x.Id);
 
@@ -69,14 +69,14 @@ public sealed class CategoryService : ICategoryService
             .Select(x => Map(x, productCounts))
             .ToList();
     }
+
     // =========================================================
     // Get Sub Categories
     // =========================================================
 
-    public async Task<IReadOnlyList<CategoryDto>>
-        GetSubCategoriesAsync(
-            Guid parentCategoryId,
-            CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<CategoryDto>> GetSubCategoriesAsync(
+        Guid parentCategoryId,
+        CancellationToken cancellationToken = default)
     {
         var categories =
             await _categoryRepository.GetSubCategoriesAsync(
@@ -92,13 +92,14 @@ public sealed class CategoryService : ICategoryService
             .Select(x => Map(x, productCounts))
             .ToList();
     }
+
     // =========================================================
     // Get By Id
     // =========================================================
 
     public async Task<CategoryDto?> GetByIdAsync(
-      Guid id,
-      CancellationToken cancellationToken = default)
+        Guid id,
+        CancellationToken cancellationToken = default)
     {
         if (id == Guid.Empty)
             return null;
@@ -115,7 +116,7 @@ public sealed class CategoryService : ICategoryService
             await GetProductCountsAsync(
                 new[]
                 {
-                category.Id
+                    category.Id
                 },
                 cancellationToken);
 
@@ -123,6 +124,7 @@ public sealed class CategoryService : ICategoryService
             category,
             productCounts);
     }
+
     // =========================================================
     // Get By Slug
     // =========================================================
@@ -146,7 +148,7 @@ public sealed class CategoryService : ICategoryService
             await GetProductCountsAsync(
                 new[]
                 {
-                category.Id
+                    category.Id
                 },
                 cancellationToken);
 
@@ -155,10 +157,14 @@ public sealed class CategoryService : ICategoryService
             productCounts);
     }
 
+    // =========================================================
+    // Product Counts
+    // =========================================================
+
     private async Task<IReadOnlyDictionary<Guid, int>>
-    GetProductCountsAsync(
-        IEnumerable<Guid> categoryIds,
-        CancellationToken cancellationToken)
+        GetProductCountsAsync(
+            IEnumerable<Guid> categoryIds,
+            CancellationToken cancellationToken)
     {
         var ids =
             categoryIds
@@ -195,6 +201,7 @@ public sealed class CategoryService : ICategoryService
                 x => x.Count,
                 cancellationToken);
     }
+
     // =========================================================
     // Create
     // =========================================================
@@ -227,19 +234,19 @@ public sealed class CategoryService : ICategoryService
 
             if (parent is null)
             {
-                throw new KeyNotFoundException(
+                throw new InvalidOperationException(
                     "دسته‌بندی والد یافت نشد.");
             }
         }
 
         // -----------------------------------------------------
-        // Create
+        // Create Entity
         // -----------------------------------------------------
 
         var category =
             new Category(
                 dto.Name.Trim(),
-                null,
+                NormalizeNullable(dto.Slug),
                 NormalizeNullable(dto.Description));
 
         // -----------------------------------------------------
@@ -248,6 +255,43 @@ public sealed class CategoryService : ICategoryService
 
         category.SetImage(
             NormalizeNullable(dto.ImageUrl));
+
+        // -----------------------------------------------------
+        // Display Order
+        // -----------------------------------------------------
+
+        category.SetDisplayOrder(
+            dto.DisplayOrder);
+
+        // -----------------------------------------------------
+        // SEO
+        // -----------------------------------------------------
+
+        category.ChangeSeo(
+            dto.SeoTitle,
+            dto.SeoDescription,
+            dto.SeoKeywords);
+
+        // -----------------------------------------------------
+        // Status
+        // -----------------------------------------------------
+
+        if (!dto.IsActive)
+        {
+            category.Deactivate();
+        }
+        else
+        {
+            if (dto.IsPublished)
+            {
+                category.Publish();
+            }
+
+            if (dto.IsFeatured)
+            {
+                category.SetFeatured(true);
+            }
+        }
 
         // -----------------------------------------------------
         // Parent
@@ -275,8 +319,8 @@ public sealed class CategoryService : ICategoryService
             cancellationToken);
 
         return Map(
-     category,
-     new Dictionary<Guid, int>());
+            category,
+            new Dictionary<Guid, int>());
     }
 
     // =========================================================
@@ -326,13 +370,9 @@ public sealed class CategoryService : ICategoryService
 
             if (parent is null)
             {
-                throw new KeyNotFoundException(
+                throw new InvalidOperationException(
                     "دسته‌بندی والد یافت نشد.");
             }
-
-            // -------------------------------------------------
-            // Cycle Detection
-            // -------------------------------------------------
 
             await EnsureNoCycleAsync(
                 id,
@@ -341,20 +381,62 @@ public sealed class CategoryService : ICategoryService
         }
 
         // -----------------------------------------------------
-        // Update Basic Information
+        // Update Basic + SEO
         // -----------------------------------------------------
 
         category.Update(
             dto.Name,
+            dto.Slug,
             dto.Description,
             dto.ImageUrl,
+            dto.SeoTitle,
+            dto.SeoDescription,
+            dto.SeoKeywords,
             dto.IsActive);
+
+        // -----------------------------------------------------
+        // Display Order
+        // -----------------------------------------------------
+
+        category.SetDisplayOrder(
+            dto.DisplayOrder);
+
+        // -----------------------------------------------------
+        // Publishing / Featured
+        // -----------------------------------------------------
+
+        if (!dto.IsActive)
+        {
+            // Deactivate() also clears Published/Featured.
+            category.Deactivate();
+        }
+        else
+        {
+            if (dto.IsPublished)
+            {
+                category.Publish();
+            }
+            else
+            {
+                category.Unpublish();
+            }
+
+            if (dto.IsFeatured)
+            {
+                category.SetFeatured(true);
+            }
+            else
+            {
+                category.SetFeatured(false);
+            }
+        }
 
         // -----------------------------------------------------
         // Parent
         // -----------------------------------------------------
 
-        category.SetParentCategory(parent);
+        category.SetParentCategory(
+            parent);
 
         // -----------------------------------------------------
         // Save
@@ -392,7 +474,8 @@ public sealed class CategoryService : ICategoryService
         var hasChildren =
             await _context.Categories
                 .AnyAsync(
-                    x => x.ParentCategoryId == id,
+                    x =>
+                        x.ParentCategoryId == id,
                     cancellationToken);
 
         if (hasChildren)
@@ -408,7 +491,8 @@ public sealed class CategoryService : ICategoryService
         var hasProducts =
             await _context.ProductCategories
                 .AnyAsync(
-                    x => x.CategoryId == id,
+                    x =>
+                        x.CategoryId == id,
                     cancellationToken);
 
         if (hasProducts)
@@ -421,14 +505,7 @@ public sealed class CategoryService : ICategoryService
         // Soft Delete
         // -----------------------------------------------------
 
-        category.IsDeleted = true;
-
-        category.DeletedAt =
-            DateTime.UtcNow;
-
-        // اینجا مستقیماً IsActive را تغییر نمی‌دهیم
-        // چون setter آن private است.
-        category.Deactivate();
+        category.Delete();
 
         // -----------------------------------------------------
         // Save
@@ -454,7 +531,7 @@ public sealed class CategoryService : ICategoryService
         while (true)
         {
             // -------------------------------------------------
-            // Current parent is the category itself
+            // Current Parent Is Category Itself
             // -------------------------------------------------
 
             if (current.Id == categoryId)
@@ -464,7 +541,7 @@ public sealed class CategoryService : ICategoryService
             }
 
             // -------------------------------------------------
-            // No more parents
+            // No More Parents
             // -------------------------------------------------
 
             if (!current.ParentCategoryId.HasValue)
@@ -473,7 +550,7 @@ public sealed class CategoryService : ICategoryService
             }
 
             // -------------------------------------------------
-            // Load next parent
+            // Load Next Parent
             // -------------------------------------------------
 
             var next =
@@ -481,7 +558,6 @@ public sealed class CategoryService : ICategoryService
                     current.ParentCategoryId.Value,
                     cancellationToken);
 
-            // اگر والد بعدی پیدا نشد، مسیر تمام شده است.
             if (next is null)
             {
                 break;
@@ -501,9 +577,11 @@ public sealed class CategoryService : ICategoryService
     {
         return new CategoryDto
         {
-            Id = category.Id,
+            Id =
+                category.Id,
 
-            Name = category.Name,
+            Name =
+                category.Name,
 
             Slug =
                 category.Slug ?? string.Empty,
@@ -514,14 +592,32 @@ public sealed class CategoryService : ICategoryService
             ImageUrl =
                 category.ImageUrl,
 
+            SeoTitle =
+                category.SeoTitle,
+
+            SeoDescription =
+                category.SeoDescription,
+
+            SeoKeywords =
+                category.SeoKeywords,
+
             ParentCategoryId =
                 category.ParentCategoryId,
 
             ParentCategoryName =
                 category.ParentCategory?.Name,
 
+            DisplayOrder =
+                category.DisplayOrder,
+
             IsActive =
                 category.IsActive,
+
+            IsPublished =
+                category.IsPublished,
+
+            IsFeatured =
+                category.IsFeatured,
 
             ProductCount =
                 productCounts.TryGetValue(
@@ -533,12 +629,14 @@ public sealed class CategoryService : ICategoryService
             SubCategories =
                 category.SubCategories
                     .Select(
-                        x => Map(
-                            x,
-                            productCounts))
+                        x =>
+                            Map(
+                                x,
+                                productCounts))
                     .ToList()
         };
     }
+
     // =========================================================
     // Helpers
     // =========================================================

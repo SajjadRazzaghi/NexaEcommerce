@@ -1,4 +1,6 @@
 {
+  "seoCategoryDesc": "نحوه نمایش این دسته‌بندی در موتورهای جستجو را بهینه کنید.",
+  "seoKeywordsCategoryPlaceholder": " لباس بارداری، ست زایمان، لباس راحتی زنانه، پاتلت",
   "fileUpload": {
     "placeholder": "فایل را بارگذاری یا اینجا رها کنید.",
     "images": "تصاویر",
@@ -107,6 +109,33 @@
   },
 
   "catalogForms": {
+    "basicInfoCategory": "نام، ساختار و ترتیب نمایش دسته‌بندی را مشخص کنید.",
+    "parentCategory": "دسته‌بندی والد",
+    "noParent": "بدون دسته‌بندی والد",
+    "image": "تصویر دسته‌بندی",
+    "uploadImage": "بارگذاری تصویر دسته‌بندی",
+    "dropImage": "تصویر را اینجا رها کنید یا یک فایل انتخاب کنید.",
+    "categoryPublishingDesc": "وضعیت فعال بودن، انتشار و ویژه بودن دسته‌بندی را کنترل کنید.",
+    "inactiveHintCategory": "دسته‌بندی‌های غیرفعال در عملیات فعال کاتالوگ استفاده نمی‌شوند.",
+    "publishedHintCategory": "دسته‌بندی‌های منتشرشده می‌توانند در فروشگاه نمایش داده شوند.",
+    "featuredHintCategory": "دسته‌بندی‌های ویژه می‌توانند در بخش‌های تجاری و ویترین فروشگاه برجسته شوند.",
+    "categoryCreated": "دسته‌بندی با موفقیت ایجاد شد.",
+    "categoryUpdated": "دسته‌بندی با موفقیت به‌روزرسانی شد.",
+
+    "basicInfoManufacturer": "هویت تولیدکننده و اطلاعات اصلی کاتالوگ را تعریف کنید.",
+    "manufacturerImages": "تصاویر تولیدکننده",
+    "uploadCover": "تصویر کاور",
+    "manufacturerCreated": "تولیدکننده با موفقیت ایجاد شد.",
+    "manufacturerUpdated": "تولیدکننده با موفقیت به‌روزرسانی شد.",
+    "seoManufacturerDesc": "نحوه نمایش تولیدکننده در موتورهای جستجو را بهینه کنید.",
+    "seoKeywordsManufacturerPlaceholder": "مثلاً تولیدکننده لباس زنانه، لباس بارداری، پاتلت",
+    "updateCategory": "بروزرسانی دسته بندی",
+    "manufacturerPublishingDesc": "فعال بودن، انتشار و ویژه بودن تولیدکننده را کنترل کنید.",
+    "inactiveHintManufacturer": "تولیدکنندگان فعال می‌توانند در کاتالوگ استفاده شوند.",
+    "publishedHintManufacturer": "تولیدکنندگان منتشرشده می‌توانند در فروشگاه نمایش داده شوند.",
+    "featuredHintManufacturer": "تولیدکنندگان ویژه می‌توانند در بخش‌های تجاری و ویترین فروشگاه برجسته شوند.",
+    "createManufacturer": "ایجاد تولیدکننده",
+    "updateManufacturer": "به‌روزرسانی تولیدکننده",
     "basicInfo": "اطلاعات پایه",
     "basicInfoBrand": "هویت برند و اطلاعات اصلی کاتالوگ را تعریف کنید.",
     "nameRequired": "نام",
@@ -123,7 +152,7 @@
     "dropCover": "تصویر کاور را اینجا رها کنید یا یک فایل انتخاب کنید.",
     "uploadLogo": "لوگو",
     "coverImage": "تصویر کاور",
-    
+
     "seo": "SEO",
     "seoBrandDesc": "نحوه نمایش برند در موتورهای جستجو را بهینه کنید.",
     "seoTitle": "عنوان SEO",
