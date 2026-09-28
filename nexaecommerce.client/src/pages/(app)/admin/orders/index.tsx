@@ -48,11 +48,17 @@ const statuses: Array<
         'Cancelled',
     ];
 function statusLabel(
-    status: OrderStatus,
+    status: OrderStatus | '',
     t: (
         key: string,
     ) => string,
 ) {
+    if (!status) {
+        return t(
+            'storefront.orders.allStatuses',
+        );
+    }
+
     return t(
         `storefront.orders.statuses.${status}`,
     );
@@ -136,8 +142,10 @@ function statusClass(
 }
 
 export default function AdminOrdersPage() {
-    const { i18n } =
-        useTranslation();
+    const {
+        i18n,
+        t,
+    } = useTranslation();
 
     const isFa =
         i18n.language
@@ -283,8 +291,16 @@ const query =
             'storefront.orders.subtitle',
         ),
 
+        description: t(
+            'storefront.orders.description',
+        ),
+
         filter: t(
             'storefront.orders.filter',
+        ),
+
+        search: t(
+            'storefront.orders.search',
         ),
 
         all: t(
@@ -333,6 +349,38 @@ const query =
 
         page: t(
             'storefront.orders.page',
+        ),
+
+        selected: t(
+            'storefront.orders.selected',
+        ),
+
+        printLabels: t(
+            'storefront.orders.printLabels',
+        ),
+
+        selectAll: t(
+            'storefront.orders.selectAll',
+        ),
+
+        order: t(
+            'storefront.orders.order',
+        ),
+
+        customer: t(
+            'storefront.orders.customer',
+        ),
+
+        status: t(
+            'storefront.orders.status',
+        ),
+
+        date: t(
+            'storefront.orders.date',
+        ),
+
+        actions: t(
+            'storefront.orders.actions',
         ),
     };
     return (
@@ -420,7 +468,7 @@ const query =
                                     >
                                         {statusLabel(
                                             value,
-                                            isFa,
+                                            t,
                                         )}
                                     </option>
                                 ),
@@ -624,7 +672,7 @@ const query =
 
                                                             {statusLabel(
                                                                 order.status,
-                                                                isFa,
+                                                                t,
                                                             )}
                                                         </span>
                                                     </div>
@@ -650,7 +698,7 @@ const query =
 
                                                         {statusLabel(
                                                             order.status,
-                                                            isFa,
+                                                            t,
                                                         )}
                                                     </span>
                                                 </td>

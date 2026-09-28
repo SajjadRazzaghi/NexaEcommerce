@@ -12,7 +12,18 @@ public sealed class Order : AggregateRoot
     private Order()
     {
     }
-
+    public bool AreAllOrderItemsCoveredByCommittedInventoryReservations =>
+    _items.Count > 0 &&
+    _items.All(
+        item =>
+            _inventoryReservations.Any(
+                reservation =>
+                    reservation.ProductVariantId ==
+                    item.ProductVariantId &&
+                    reservation.Quantity ==
+                    item.Quantity &&
+                    reservation.Status ==
+                    InventoryReservationStatus.Committed));
     private Order(
         string tenantId,
         string userId,

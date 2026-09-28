@@ -83,10 +83,10 @@ IOrderUnitOfWork unitOfWork,
                 "The order has no inventory reservations and cannot enter fulfillment.");
         }
 
-        if (!order.AreAllInventoryReservationsCommitted)
+        if (!order.AreAllOrderItemsCoveredByCommittedInventoryReservations)
         {
             throw new InvalidOperationException(
-                "All inventory reservations must be committed before fulfillment can start.");
+                "All order items must have committed inventory reservations before fulfillment can start.");
         }
 
         order.StartProcessing();

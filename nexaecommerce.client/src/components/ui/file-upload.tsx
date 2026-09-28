@@ -338,7 +338,7 @@ export function FileUpload({
                             src={getImageUrl(
                                 preview,
                             )}
-                            alt="Preview"
+                                alt={t('fileUpload.preview')}
                             className="mx-auto max-h-48 w-auto rounded-lg object-contain"
                             onError={event => {
                                 console.error(
@@ -372,7 +372,7 @@ export function FileUpload({
                                 handleRemove();
                             }}
                             className="absolute -right-2 -top-2 rounded-full bg-red-500 p-1 text-white transition-colors hover:bg-red-600"
-                            aria-label="Remove file"
+                                aria-label={t('fileUpload.removeFile')}
                         >
                             <X className="h-4 w-4" />
                         </button>

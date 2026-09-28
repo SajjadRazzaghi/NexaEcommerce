@@ -8,14 +8,11 @@ import { PasswordSection } from '@/components/profile/password-section';
 
 import { CustomerAddressesSection } from '@/modules/customers/components/CustomerAddressesSection';
 
-import { meta } from './meta';
-
 export default function ProfilePage() {
-    const { t } =
-        useTranslation();
+    const { t } = useTranslation();
 
     useDocumentTitle(
-        meta.title,
+        t('profile.title'),
     );
 
     return (
@@ -26,9 +23,7 @@ export default function ProfilePage() {
                 </h1>
 
                 <p className="text-muted-foreground mt-1">
-                    {t(
-                        'profile.subtitle',
-                    )}
+                    {t('profile.subtitle')}
                 </p>
             </header>
 
@@ -46,8 +41,9 @@ export default function ProfilePage() {
                     },
                     {
                         id: 'addresses',
-                        label:
-                            'Addresses',
+                        label: t(
+                            'profile.sections.addresses',
+                        ),
                         content: (
                             <CustomerAddressesSection />
                         ),

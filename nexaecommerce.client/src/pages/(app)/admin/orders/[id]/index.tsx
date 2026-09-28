@@ -46,28 +46,84 @@ import {
 } from '@/modules/orders/hooks/useFulfillment';
 
 
-function getErrorMessage(
-    error: unknown,
+function statusLabel(
+    status: string,
+    t: (
+        key: string,
+        options?: Record<string, unknown>,
+    ) => string,
 ): string {
-    const value =
-        error as {
-            response?: {
-                data?: {
-                    error?: string;
-                    message?: string;
-                };
-            };
-            message?: string;
-        };
-
-    return (
-        value.response?.data?.error ??
-        value.response?.data?.message ??
-        value.message ??
-        ''
+    return t(
+        `storefront.orders.statuses.${status}`,
+        {
+            defaultValue:
+                status,
+        },
     );
 }
 
+function fulfillmentStatusLabel(
+    status: string,
+    t: (
+        key: string,
+        options?: Record<string, unknown>,
+    ) => string,
+): string {
+    return t(
+        `storefront.fulfillment.statuses.${status}`,
+        {
+            defaultValue:
+                status,
+        },
+    );
+}
+
+function shipmentStatusLabel(
+    status: string,
+    t: (
+        key: string,
+        options?: Record<string, unknown>,
+    ) => string,
+): string {
+    return t(
+        `storefront.shipment.statuses.${status}`,
+        {
+            defaultValue:
+                status,
+        },
+    );
+}
+function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    if (typeof error === 'string') {
+        return error;
+    }
+
+    if (typeof error === 'object' && error !== null) {
+        const value = error as {
+            message?: unknown;
+            detail?: unknown;
+            error?: unknown;
+        };
+
+        if (typeof value.message === 'string') {
+            return value.message;
+        }
+
+        if (typeof value.detail === 'string') {
+            return value.detail;
+        }
+
+        if (typeof value.error === 'string') {
+            return value.error;
+        }
+    }
+
+    return '';
+}
 
 export default function AdminOrderDetailsPage() {
     const {
@@ -80,6 +136,7 @@ export default function AdminOrderDetailsPage() {
 
     const {
         i18n,
+        t,
     } =
         useTranslation();
 
@@ -891,9 +948,10 @@ export default function AdminOrderDetailsPage() {
                             </h2>
 
                             <span className="rounded-full border px-3 py-1 text-sm">
-                                {
-                                    order.status
-                                }
+                                {statusLabel(
+                                    order.status,
+                                    t,
+                                )}
                             </span>
 
                         </div>
@@ -1000,7 +1058,10 @@ export default function AdminOrderDetailsPage() {
                                             text.status
                                         }
                                         value={
-                                            fulfillment.status
+                                            fulfillmentStatusLabel(
+                                                fulfillment.status,
+                                                t,
+                                            )
                                         }
                                     />
 
@@ -1447,10 +1508,12 @@ export default function AdminOrderDetailsPage() {
                                             text.status
                                         }
                                         value={
-                                            shipment.status
+                                            shipmentStatusLabel(
+                                                shipment.status,
+                                                t,
+                                            )
                                         }
                                     />
-
 
                                     <Info
                                         label={

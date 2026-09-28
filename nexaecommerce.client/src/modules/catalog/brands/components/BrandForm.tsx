@@ -1,40 +1,164 @@
-// src/modules/catalog/brands/components/BrandForm.tsx
-import { useEffect } from 'react';
+import {
+    useEffect,
+} from 'react';
 import { useTranslation } from 'react-i18next';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useForm } from 'react-hook-form';
+import {
+    useForm,
+} from 'react-hook-form';
 import { z } from 'zod';
-import { Loader2, Save } from 'lucide-react';
+import {
+    Loader2,
+    Save,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { FileUpload } from '@/components/ui/file-upload';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
-import { FormGrid } from '@/components/forms/form-grid';
-import { FormBanner } from '@/components/auth/form-banner';
-import { useSubmitForm } from '@/components/forms/use-submit-form';
-import type { BrandDetails, CreateBrandDto, UpdateBrandDto } from '@/modules/catalog/api/brands';
+import {
+    Textarea,
+} from '@/components/ui/textarea';
+import {
+    Switch,
+} from '@/components/ui/switch';
+import {
+    FileUpload,
+} from '@/components/ui/file-upload';
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+} from '@/components/ui/form';
+import {
+    FormGrid,
+} from '@/components/forms/form-grid';
+import {
+    FormBanner,
+} from '@/components/auth/form-banner';
+import {
+    useSubmitForm,
+} from '@/components/forms/use-submit-form';
+
+import type {
+    BrandDetails,
+    CreateBrandDto,
+    UpdateBrandDto,
+} from '@/modules/catalog/api/brands';
 
 const schema = z.object({
-    name: z.string().trim().min(2, 'Brand name must contain at least 2 characters.').max(150),
-    slug: z.string().trim().max(200).optional(),
-    description: z.string().max(5000).optional(),
-    website: z.string().url('Enter a valid URL.').or(z.literal('')).optional(),
-    logoUrl: z.string().optional(),
-    coverImageUrl: z.string().optional(),
-    seoTitle: z.string().max(200).optional(),
-    seoDescription: z.string().max(500).optional(),
-    seoKeywords: z.string().max(1000).optional(),
-    isActive: z.boolean(),
-    isPublished: z.boolean(),
-    isFeatured: z.boolean(),
-    displayOrder: z.number().int().min(0).max(2147483647),
+    name: z
+        .string()
+        .trim()
+        .min(
+            2,
+            'Brand name must contain at least 2 characters.',
+        )
+        .max(
+            150,
+            'Brand name cannot exceed 150 characters.',
+        ),
+
+    slug: z
+        .string()
+        .trim()
+        .max(
+            200,
+            'Slug cannot exceed 200 characters.',
+        ),
+
+    description: z
+        .string()
+        .max(
+            5000,
+            'Description cannot exceed 5000 characters.',
+        ),
+
+    website: z
+        .string()
+        .refine(
+            value => {
+                const trimmed =
+                    value.trim();
+
+                if (
+                    trimmed === ''
+                ) {
+                    return true;
+                }
+
+                try {
+                    new URL(trimmed);
+                    return true;
+                } catch {
+                    return false;
+                }
+            },
+            {
+                message:
+                    'Enter a valid URL.',
+            },
+        ),
+
+    logoUrl:
+        z.string(),
+
+    coverImageUrl:
+        z.string(),
+
+    seoTitle: z
+        .string()
+        .max(
+            200,
+            'SEO title cannot exceed 200 characters.',
+        ),
+
+    seoDescription: z
+        .string()
+        .max(
+            500,
+            'SEO description cannot exceed 500 characters.',
+        ),
+
+    seoKeywords: z
+        .string()
+        .max(
+            1000,
+            'SEO keywords cannot exceed 1000 characters.',
+        ),
+
+    isActive:
+        z.boolean(),
+
+    isPublished:
+        z.boolean(),
+
+    isFeatured:
+        z.boolean(),
+
+    displayOrder: z
+        .number()
+        .int()
+        .min(
+            0,
+            'Display order cannot be negative.',
+        )
+        .max(
+            2147483647,
+            'Display order is too large.',
+        ),
 });
 
-type FormValues = z.infer<typeof schema>;
+type FormValues =
+    z.infer<typeof schema>;
 
 const emptyValues: FormValues = {
     name: '',
@@ -52,22 +176,64 @@ const emptyValues: FormValues = {
     displayOrder: 0,
 };
 
-function toValues(brand?: BrandDetails): FormValues {
-    if (!brand) return emptyValues;
+function toValues(
+    brand?: BrandDetails,
+): FormValues {
+    if (!brand) {
+        return {
+            ...emptyValues,
+        };
+    }
+
     return {
-        name: brand.name ?? '',
-        slug: brand.slug ?? '',
-        description: brand.description ?? '',
-        website: brand.website ?? '',
-        logoUrl: brand.logoUrl ?? '',
-        coverImageUrl: brand.coverImageUrl ?? '',
-        seoTitle: brand.seoTitle ?? '',
-        seoDescription: brand.seoDescription ?? '',
-        seoKeywords: brand.seoKeywords ?? '',
-        isActive: brand.isActive,
-        isPublished: brand.isPublished,
-        isFeatured: brand.isFeatured,
-        displayOrder: brand.displayOrder ?? 0,
+        name:
+            brand.name ??
+            '',
+
+        slug:
+            brand.slug ??
+            '',
+
+        description:
+            brand.description ??
+            '',
+
+        website:
+            brand.website ??
+            '',
+
+        logoUrl:
+            brand.logoUrl ??
+            '',
+
+        coverImageUrl:
+            brand.coverImageUrl ??
+            '',
+
+        seoTitle:
+            brand.seoTitle ??
+            '',
+
+        seoDescription:
+            brand.seoDescription ??
+            '',
+
+        seoKeywords:
+            brand.seoKeywords ??
+            '',
+
+        isActive:
+            brand.isActive,
+
+        isPublished:
+            brand.isPublished,
+
+        isFeatured:
+            brand.isFeatured,
+
+        displayOrder:
+            brand.displayOrder ??
+            0,
     };
 }
 
@@ -81,91 +247,240 @@ export function BrandForm({
     brand?: BrandDetails;
     mode: 'create' | 'edit';
     pending?: boolean;
-    onSubmit: (body: CreateBrandDto | UpdateBrandDto) => Promise<unknown>;
+    onSubmit: (
+        body:
+            | CreateBrandDto
+            | UpdateBrandDto,
+    ) => Promise<unknown>;
     onCancel: () => void;
 }) {
-    const { t } = useTranslation();
+    const { t } =
+        useTranslation();
 
-    const form = useForm<FormValues>({
-        resolver: zodResolver(schema),
-        defaultValues: toValues(brand),
-        mode: 'onBlur',
-    });
+    const form =
+        useForm<FormValues>({
+            resolver:
+                zodResolver(schema),
+
+            defaultValues:
+                toValues(brand),
+
+            mode:
+                'onBlur',
+        });
 
     useEffect(() => {
-        form.reset(toValues(brand));
+        form.reset(
+            toValues(brand),
+        );
     }, [brand?.id]);
 
-    const submitFlow = useSubmitForm<FormValues, CreateBrandDto | UpdateBrandDto, unknown>({
-        form,
-        mutationFn: onSubmit,
-        // ✅ اصلاح: اضافه کردن as (keyof FormValues)[]
-        fields: Object.keys(emptyValues) as (keyof FormValues)[],
-        successMessage: mode === 'create' ? 'Brand created successfully.' : 'Brand updated successfully.',
-        onSuccess: () => onCancel(),
-        transform: (values) => {
-            const common = {
-                name: values.name.trim(),
-                description: values.description?.trim() || null,
-                website: values.website?.trim() || null,
-                logoUrl: values.logoUrl?.trim() || null,
-                coverImageUrl: values.coverImageUrl?.trim() || null,
-                seoTitle: values.seoTitle?.trim() || null,
-                seoDescription: values.seoDescription?.trim() || null,
-                seoKeywords: values.seoKeywords?.trim() || null,
-            };
-            if (mode === 'create') {
-                return common as CreateBrandDto;
-            }
-            return {
-                ...common,
-                slug: values.slug?.trim() || null,
-                isActive: values.isActive,
-                isPublished: values.isPublished,
-                isFeatured: values.isFeatured,
-                displayOrder: Number(values.displayOrder) || 0,
-            } as UpdateBrandDto;
-        },
-    });
+    const submitFlow =
+        useSubmitForm<
+            FormValues,
+            CreateBrandDto | UpdateBrandDto,
+            unknown
+        >({
+            form,
+
+            mutationFn:
+                onSubmit,
+
+            fields:
+                Object.keys(
+                    emptyValues,
+                ) as (keyof FormValues)[],
+
+            successMessage:
+                mode === 'create'
+                    ? t(
+                        'catalogForms.success.created',
+                        {
+                            defaultValue:
+                                'Brand created successfully.',
+                        },
+                    )
+                    : t(
+                        'catalogForms.success.updated',
+                        {
+                            defaultValue:
+                                'Brand updated successfully.',
+                        },
+                    ),
+
+            onSuccess:
+                () => {
+                    onCancel();
+                },
+
+            transform:
+                values => {
+                    const common = {
+                        name:
+                            values.name.trim(),
+
+                        description:
+                            values.description.trim() ||
+                            null,
+
+                        website:
+                            values.website.trim() ||
+                            null,
+
+                        logoUrl:
+                            values.logoUrl.trim() ||
+                            null,
+
+                        coverImageUrl:
+                            values.coverImageUrl.trim() ||
+                            null,
+
+                        seoTitle:
+                            values.seoTitle.trim() ||
+                            null,
+
+                        seoDescription:
+                            values.seoDescription.trim() ||
+                            null,
+
+                        seoKeywords:
+                            values.seoKeywords.trim() ||
+                            null,
+                    };
+
+                    if (
+                        mode === 'create'
+                    ) {
+                        return {
+                            ...common,
+                            slug:
+                                values.slug.trim() ||
+                                null,
+                        } as CreateBrandDto;
+                    }
+
+                    return {
+                        ...common,
+
+                        slug:
+                            values.slug.trim() ||
+                            null,
+
+                        isActive:
+                            values.isActive,
+
+                        isPublished:
+                            values.isPublished,
+
+                        isFeatured:
+                            values.isFeatured,
+
+                        displayOrder:
+                            Number(
+                                values.displayOrder,
+                            ) || 0,
+                    } as UpdateBrandDto;
+                },
+        });
 
     return (
         <Form {...form}>
-            <form onSubmit={submitFlow.submit} className="space-y-6" noValidate>
-                {submitFlow.banner && <FormBanner state={submitFlow.banner} />}
+            <form
+                onSubmit={
+                    submitFlow.submit
+                }
+                className="space-y-6"
+                noValidate
+            >
+                {submitFlow.banner && (
+                    <FormBanner
+                        state={
+                            submitFlow.banner
+                        }
+                    />
+                )}
 
                 <Card>
                     <CardHeader>
-                        <CardTitle>{t('catalogForms.basicInfo')}</CardTitle>
-                        <CardDescription>{t('catalogForms.basicInfoBrand')}</CardDescription>
+                        <CardTitle>
+                            {t(
+                                'catalogForms.basicInfo',
+                            )}
+                        </CardTitle>
+
+                        <CardDescription>
+                            {t(
+                                'catalogForms.basicInfoBrand',
+                            )}
+                        </CardDescription>
                     </CardHeader>
+
                     <CardContent className="space-y-4">
                         <FormGrid columns={2}>
                             <FormField
-                                control={form.control}
+                                control={
+                                    form.control
+                                }
                                 name="name"
-                                render={({ field }) => (
+                                render={({
+                                    field,
+                                }) => (
                                     <FormItem>
-                                        <FormLabel>{t('catalogForms.nameRequired')}</FormLabel>
+                                        <FormLabel>
+                                            {t(
+                                                'catalogForms.nameRequired',
+                                            )}
+                                        </FormLabel>
+
                                         <FormControl>
-                                            <Input {...field} autoFocus />
+                                            <Input
+                                                {...field}
+                                                autoFocus
+                                            />
                                         </FormControl>
+
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
+
                             <FormField
-                                control={form.control}
+                                control={
+                                    form.control
+                                }
                                 name="slug"
-                                render={({ field }) => (
+                                render={({
+                                    field,
+                                }) => (
                                     <FormItem>
-                                        <FormLabel>Slug</FormLabel>
+                                        <FormLabel>
+                                            {t(
+                                                'catalogForms.slug',
+                                                {
+                                                    defaultValue:
+                                                        'Slug',
+                                                },
+                                            )}
+                                        </FormLabel>
+
                                         <FormControl>
                                             <Input
                                                 {...field}
-                                                placeholder={mode === 'create' ? t('catalogForms.autoSlug') : undefined}
-                                                disabled={mode === 'create'}
+                                                placeholder={
+                                                    mode ===
+                                                        'create'
+                                                        ? t(
+                                                            'catalogForms.autoSlug',
+                                                        )
+                                                        : undefined
+                                                }
+                                                disabled={
+                                                    mode ===
+                                                    'create'
+                                                }
                                             />
                                         </FormControl>
+
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -173,14 +488,30 @@ export function BrandForm({
                         </FormGrid>
 
                         <FormField
-                            control={form.control}
+                            control={
+                                form.control
+                            }
                             name="description"
-                            render={({ field }) => (
+                            render={({
+                                field,
+                            }) => (
                                 <FormItem>
-                                    <FormLabel>{t('catalogForms.description')}</FormLabel>
+                                    <FormLabel>
+                                        {t(
+                                            'catalogForms.description',
+                                        )}
+                                    </FormLabel>
+
                                     <FormControl>
-                                        <Textarea {...field} value={field.value ?? ''} rows={5} />
+                                        <Textarea
+                                            {...field}
+                                            value={
+                                                field.value
+                                            }
+                                            rows={5}
+                                        />
                                     </FormControl>
+
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -188,32 +519,74 @@ export function BrandForm({
 
                         <FormGrid columns={2}>
                             <FormField
-                                control={form.control}
+                                control={
+                                    form.control
+                                }
                                 name="website"
-                                render={({ field }) => (
+                                render={({
+                                    field,
+                                }) => (
                                     <FormItem>
-                                        <FormLabel>{t('catalogForms.website')}</FormLabel>
+                                        <FormLabel>
+                                            {t(
+                                                'catalogForms.website',
+                                            )}
+                                        </FormLabel>
+
                                         <FormControl>
-                                            <Input {...field} value={field.value ?? ''} placeholder="https://example.com" />
+                                            <Input
+                                                {...field}
+                                                value={
+                                                    field.value
+                                                }
+                                                placeholder="https://example.com"
+                                            />
                                         </FormControl>
+
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
+
                             <FormField
-                                control={form.control}
+                                control={
+                                    form.control
+                                }
                                 name="displayOrder"
-                                render={({ field }) => (
+                                render={({
+                                    field,
+                                }) => (
                                     <FormItem>
-                                        <FormLabel>{t('catalogForms.displayOrder')}</FormLabel>
+                                        <FormLabel>
+                                            {t(
+                                                'catalogForms.displayOrder',
+                                            )}
+                                        </FormLabel>
+
                                         <FormControl>
                                             <Input
                                                 {...field}
                                                 type="number"
                                                 min={0}
-                                                onChange={(event) => field.onChange(event.target.valueAsNumber || 0)}
+                                                onChange={
+                                                    event => {
+                                                        const value =
+                                                            event
+                                                                .target
+                                                                .valueAsNumber;
+
+                                                        field.onChange(
+                                                            Number.isNaN(
+                                                                value,
+                                                            )
+                                                                ? 0
+                                                                : value,
+                                                        );
+                                                    }
+                                                }
                                             />
                                         </FormControl>
+
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -222,50 +595,100 @@ export function BrandForm({
                     </CardContent>
                 </Card>
 
-                {/* Images Upload Section */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>{t('catalogForms.brandImages')}</CardTitle>
-                        <CardDescription>{t('catalogForms.dropLogo')}</CardDescription>
+                        <CardTitle>
+                            {t(
+                                'catalogForms.brandImages',
+                            )}
+                        </CardTitle>
+
+                        <CardDescription>
+                            {t(
+                                'catalogForms.dropLogo',
+                            )}
+                        </CardDescription>
                     </CardHeader>
+
                     <CardContent>
                         <FormGrid columns={2}>
                             <FormField
-                                control={form.control}
+                                control={
+                                    form.control
+                                }
                                 name="logoUrl"
-                                render={({ field }) => (
+                                render={({
+                                    field,
+                                }) => (
                                     <FormItem>
-                                        <FormLabel>{t('catalogForms.uploadLogo')}</FormLabel>
+                                        <FormLabel>
+                                            {t(
+                                                'catalogForms.uploadLogo',
+                                            )}
+                                        </FormLabel>
+
                                         <FormControl>
                                             <FileUpload
-                                                value={field.value || ''}
-                                                onChange={field.onChange}
-                                                onRemove={() => field.onChange('')}
+                                                value={
+                                                    field.value
+                                                }
+                                                onChange={
+                                                    field.onChange
+                                                }
+                                                onRemove={() =>
+                                                    field.onChange(
+                                                        '',
+                                                    )
+                                                }
                                                 accept="image/*"
                                                 maxSize={5}
-                                                placeholder={t('catalogForms.dropLogo')}
+                                                placeholder={t(
+                                                    'catalogForms.dropLogo',
+                                                )}
                                             />
                                         </FormControl>
+
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
+
                             <FormField
-                                control={form.control}
+                                control={
+                                    form.control
+                                }
                                 name="coverImageUrl"
-                                render={({ field }) => (
+                                render={({
+                                    field,
+                                }) => (
                                     <FormItem>
-                                        <FormLabel>{t('catalogForms.coverImage')}</FormLabel>
+                                        <FormLabel>
+                                            {t(
+                                                'catalogForms.coverImage',
+                                            )}
+                                        </FormLabel>
+
                                         <FormControl>
                                             <FileUpload
-                                                value={field.value || ''}
-                                                onChange={field.onChange}
-                                                onRemove={() => field.onChange('')}
+                                                value={
+                                                    field.value
+                                                }
+                                                onChange={
+                                                    field.onChange
+                                                }
+                                                onRemove={() =>
+                                                    field.onChange(
+                                                        '',
+                                                    )
+                                                }
                                                 accept="image/*"
                                                 maxSize={5}
-                                                placeholder={t('catalogForms.dropCover')}
+                                                placeholder={t(
+                                                    'catalogForms.dropCover',
+                                                )}
                                             />
                                         </FormControl>
+
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -274,52 +697,108 @@ export function BrandForm({
                     </CardContent>
                 </Card>
 
-                {/* SEO Section */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>SEO</CardTitle>
-                        <CardDescription>{t('catalogForms.seoBrandDesc')}</CardDescription>
+                        <CardTitle>
+                            {t(
+                                'catalogForms.seo',
+                            )}
+                        </CardTitle>
+
+                        <CardDescription>
+                            {t(
+                                'catalogForms.seoBrandDesc',
+                            )}
+                        </CardDescription>
                     </CardHeader>
+
                     <CardContent className="space-y-4">
                         <FormField
-                            control={form.control}
+                            control={
+                                form.control
+                            }
                             name="seoTitle"
-                            render={({ field }) => (
+                            render={({
+                                field,
+                            }) => (
                                 <FormItem>
-                                    <FormLabel>{t('catalogForms.seoTitle')}</FormLabel>
-                                    <FormControl>
-                                        <Input {...field} value={field.value ?? ''} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="seoDescription"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{t('catalogForms.seoDescription')}</FormLabel>
-                                    <FormControl>
-                                        <Textarea {...field} value={field.value ?? ''} rows={3} />
-                                    </FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
-                        <FormField
-                            control={form.control}
-                            name="seoKeywords"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>{t('catalogForms.seoKeywords')}</FormLabel>
+                                    <FormLabel>
+                                        {t(
+                                            'catalogForms.seoTitle',
+                                        )}
+                                    </FormLabel>
+
                                     <FormControl>
                                         <Input
                                             {...field}
-                                            value={field.value ?? ''}
-                                            placeholder={t('catalogForms.seoKeywordsBrandPlaceholder')}
+                                            value={
+                                                field.value
+                                            }
                                         />
                                     </FormControl>
+
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={
+                                form.control
+                            }
+                            name="seoDescription"
+                            render={({
+                                field,
+                            }) => (
+                                <FormItem>
+                                    <FormLabel>
+                                        {t(
+                                            'catalogForms.seoDescription',
+                                        )}
+                                    </FormLabel>
+
+                                    <FormControl>
+                                        <Textarea
+                                            {...field}
+                                            value={
+                                                field.value
+                                            }
+                                            rows={3}
+                                        />
+                                    </FormControl>
+
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <FormField
+                            control={
+                                form.control
+                            }
+                            name="seoKeywords"
+                            render={({
+                                field,
+                            }) => (
+                                <FormItem>
+                                    <FormLabel>
+                                        {t(
+                                            'catalogForms.seoKeywords',
+                                        )}
+                                    </FormLabel>
+
+                                    <FormControl>
+                                        <Input
+                                            {...field}
+                                            value={
+                                                field.value
+                                            }
+                                            placeholder={t(
+                                                'catalogForms.seoKeywordsBrandPlaceholder',
+                                            )}
+                                        />
+                                    </FormControl>
+
                                     <FormMessage />
                                 </FormItem>
                             )}
@@ -327,51 +806,141 @@ export function BrandForm({
                     </CardContent>
                 </Card>
 
-                {/* Publishing Status */}
                 <Card>
                     <CardHeader>
-                        <CardTitle>{t('catalogForms.publishing')}</CardTitle>
-                        <CardDescription>{t('catalogForms.brandPublishingDesc')}</CardDescription>
+                        <CardTitle>
+                            {t(
+                                'catalogForms.publishing',
+                            )}
+                        </CardTitle>
+
+                        <CardDescription>
+                            {t(
+                                'catalogForms.brandPublishingDesc',
+                            )}
+                        </CardDescription>
                     </CardHeader>
+
                     <CardContent className="grid gap-4 sm:grid-cols-3">
-                        {([
-                            ['isActive', t('catalogForms.active'), t('catalogForms.inactiveHintBrand')],
-                            ['isPublished', t('catalogForms.published'), t('catalogForms.publishedHintBrand')],
-                            ['isFeatured', t('catalogForms.featured'), t('catalogForms.featuredHintBrand')],
-                        ] as const).map(([name, label, description]) => (
-                            <FormField
-                                key={name}
-                                control={form.control}
-                                name={name}
-                                render={({ field }) => (
-                                    <FormItem className="flex items-center justify-between rounded-lg border p-4">
-                                        <div className="space-y-1">
-                                            <FormLabel>{label}</FormLabel>
-                                            <p className="text-muted-foreground text-xs">{description}</p>
-                                        </div>
-                                        <FormControl>
-                                            <Switch checked={field.value} onCheckedChange={field.onChange} />
-                                        </FormControl>
-                                    </FormItem>
-                                )}
-                            />
-                        ))}
+                        {(
+                            [
+                                [
+                                    'isActive',
+                                    t(
+                                        'catalogForms.active',
+                                    ),
+                                    t(
+                                        'catalogForms.inactiveHintBrand',
+                                    ),
+                                ],
+                                [
+                                    'isPublished',
+                                    t(
+                                        'catalogForms.published',
+                                    ),
+                                    t(
+                                        'catalogForms.publishedHintBrand',
+                                    ),
+                                ],
+                                [
+                                    'isFeatured',
+                                    t(
+                                        'catalogForms.featured',
+                                    ),
+                                    t(
+                                        'catalogForms.featuredHintBrand',
+                                    ),
+                                ],
+                            ] as const
+                        ).map(
+                            ([
+                                name,
+                                label,
+                                description,
+                            ]) => (
+                                <FormField
+                                    key={
+                                        name
+                                    }
+                                    control={
+                                        form.control
+                                    }
+                                    name={
+                                        name
+                                    }
+                                    render={({
+                                        field,
+                                    }) => (
+                                        <FormItem className="flex items-center justify-between rounded-lg border p-4">
+                                            <div className="space-y-1">
+                                                <FormLabel>
+                                                    {
+                                                        label
+                                                    }
+                                                </FormLabel>
+
+                                                <p className="text-xs text-muted-foreground">
+                                                    {
+                                                        description
+                                                    }
+                                                </p>
+                                            </div>
+
+                                            <FormControl>
+                                                <Switch
+                                                    checked={
+                                                        field.value
+                                                    }
+                                                    onCheckedChange={
+                                                        field.onChange
+                                                    }
+                                                />
+                                            </FormControl>
+                                        </FormItem>
+                                    )}
+                                />
+                            ),
+                        )}
                     </CardContent>
                 </Card>
 
-                {/* Actions */}
                 <div className="flex flex-wrap justify-end gap-2">
                     <Button
                         type="button"
                         variant="outline"
-                        onClick={onCancel}
-                        disabled={pending || submitFlow.isPending}
+                        onClick={
+                            onCancel
+                        }
+                        disabled={
+                            pending ||
+                            submitFlow.isPending
+                        }
                     >
-                        {t('catalogForms.cancel')}
+                        {t(
+                            'catalogForms.cancel',
+                        )}
                     </Button>
-                    <Button type="submit" disabled={pending || submitFlow.isPending}>
-                        {submitFlow.isPending ? <Loader2 className="animate-spin" /> : <Save />}
-                        {mode === 'create' ? t('catalogForms.createBrand') : t('catalogForms.updateBrand')}
+
+                    <Button
+                        type="submit"
+                        disabled={
+                            pending ||
+                            submitFlow.isPending
+                        }
+                    >
+                        {submitFlow.isPending ? (
+                            <Loader2 className="animate-spin" />
+                        ) : (
+                            <Save />
+                        )}
+
+                        {mode === 'create'
+                            ? t(
+                                'catalogForms.createBrand',
+                            )
+                            : t(
+                                'catalogForms.updateBrand',
+                            )}
                     </Button>
                 </div>
             </form>

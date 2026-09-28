@@ -455,7 +455,7 @@ function ProductSkeleton() {
 
 export default function StorefrontHomePage() {
     const {
-        i18n,t
+        t
     } = useTranslation();
   
     

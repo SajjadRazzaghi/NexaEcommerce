@@ -53,92 +53,21 @@ const emptyForm: AddressFormState = {
 };
 
 export function CustomerAddressesSection() {
-    const { i18n } = useTranslation();
+    const {
+        t,
+        i18n,
+    } = useTranslation();
 
-    const isFa =
-        i18n.language
-            .toLowerCase()
-            .startsWith('fa');
+    const language =
+        (
+            i18n.resolvedLanguage ??
+            i18n.language ??
+            'fa'
+        ).toLowerCase();
 
-    const text = isFa
-        ? {
-            title: 'آدرس‌های من',
-            description:
-                'آدرس‌های ارسال خود را مدیریت کنید.',
-            add: 'افزودن آدرس',
-            edit: 'ویرایش',
-            delete: 'حذف',
-            default: 'پیش‌فرض',
-            makeDefault:
-                'انتخاب به عنوان پیش‌فرض',
-            cancel: 'انصراف',
-            save: 'ذخیره',
-            update: 'به‌روزرسانی',
-            empty:
-                'هنوز آدرسی ثبت نکرده‌اید.',
-            titleField: 'عنوان',
-            recipient:
-                'نام گیرنده',
-            phone: 'شماره تلفن',
-            country: 'کشور',
-            province: 'استان',
-            city: 'شهر',
-            address:
-                'آدرس کامل',
-            postalCode:
-                'کد پستی',
-            defaultAddress:
-                'این آدرس پیش‌فرض باشد',
-            loading:
-                'در حال دریافت آدرس‌ها...',
-            saving:
-                'در حال ذخیره...',
-            deleting:
-                'در حال حذف...',
-            deleteConfirm:
-                'آیا از حذف این آدرس مطمئن هستید؟',
-            error:
-                'عملیات با خطا مواجه شد.',
-        }
-        : {
-            title: 'My addresses',
-            description:
-                'Manage your saved shipping addresses.',
-            add: 'Add address',
-            edit: 'Edit',
-            delete: 'Delete',
-            default: 'Default',
-            makeDefault:
-                'Make default',
-            cancel: 'Cancel',
-            save: 'Save',
-            update: 'Update',
-            empty:
-                'You have no saved addresses yet.',
-            titleField: 'Title',
-            recipient:
-                'Recipient name',
-            phone: 'Phone number',
-            country: 'Country',
-            province: 'Province',
-            city: 'City',
-            address:
-                'Full address',
-            postalCode:
-                'Postal code',
-            defaultAddress:
-                'Set as default address',
-            loading:
-                'Loading addresses...',
-            saving:
-                'Saving...',
-            deleting:
-                'Deleting...',
-            deleteConfirm:
-                'Are you sure you want to delete this address?',
-            error:
-                'The operation failed.',
-        };
+    const isRtl =
+        language.startsWith('fa') ||
+        language.startsWith('ar');
 
     const {
         data: addresses,
@@ -218,7 +147,8 @@ export function CustomerAddressesSection() {
         setEditingAddress(address);
 
         setForm({
-            title: address.title,
+            title:
+                address.title,
             recipientName:
                 address.recipientName,
             phoneNumber:
@@ -286,15 +216,15 @@ export function CustomerAddressesSection() {
                 form.isDefault,
         };
 
-        if (
-            editingAddress
-        ) {
+        if (editingAddress) {
             await update.mutateAsync({
-                id: editingAddress.id,
+                id:
+                    editingAddress.id,
                 request,
             });
 
             closeForm();
+
             return;
         }
 
@@ -310,13 +240,17 @@ export function CustomerAddressesSection() {
     ) {
         if (
             !window.confirm(
-                text.deleteConfirm,
+                t(
+                    'profile.addresses.deleteConfirm',
+                ),
             )
         ) {
             return;
         }
 
-        await remove.mutateAsync(id);
+        await remove.mutateAsync(
+            id,
+        );
     }
 
     const mutationError =
@@ -329,7 +263,7 @@ export function CustomerAddressesSection() {
         <section
             className="grid gap-5"
             dir={
-                isFa
+                isRtl
                     ? 'rtl'
                     : 'ltr'
             }
@@ -337,11 +271,15 @@ export function CustomerAddressesSection() {
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                     <h2 className="text-lg font-semibold">
-                        {text.title}
+                        {t(
+                            'profile.addresses.title',
+                        )}
                     </h2>
 
                     <p className="text-muted-foreground mt-1 text-sm">
-                        {text.description}
+                        {t(
+                            'profile.addresses.description',
+                        )}
                     </p>
                 </div>
 
@@ -351,29 +289,37 @@ export function CustomerAddressesSection() {
                     className="bg-primary text-primary-foreground inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium"
                 >
                     <Plus className="size-4" />
-                    {text.add}
+
+                    {t(
+                        'profile.addresses.add',
+                    )}
                 </button>
             </div>
 
             {isLoading && (
                 <div className="rounded-xl border p-5 text-sm">
-                    {text.loading}
+                    {t(
+                        'profile.addresses.loading',
+                    )}
                 </div>
             )}
 
             {isError && (
                 <div className="rounded-xl border border-destructive/40 p-5 text-sm text-destructive">
-                    {text.error}
+                    {t(
+                        'profile.addresses.error',
+                    )}
                 </div>
             )}
 
             {!isLoading &&
                 !isError &&
-                sortedAddresses.length ===
-                0 && (
+                sortedAddresses.length === 0 && (
                     <div className="rounded-xl border border-dashed p-8 text-center">
                         <p className="text-muted-foreground text-sm">
-                            {text.empty}
+                            {t(
+                                'profile.addresses.empty',
+                            )}
                         </p>
 
                         <button
@@ -383,154 +329,166 @@ export function CustomerAddressesSection() {
                             }
                             className="mt-4 rounded-lg border px-4 py-2 text-sm font-medium"
                         >
-                            {text.add}
+                            {t(
+                                'profile.addresses.add',
+                            )}
                         </button>
                     </div>
                 )}
 
-            {sortedAddresses.length >
-                0 && (
-                    <div className="grid gap-4">
-                        {sortedAddresses.map(
-                            address => (
-                                <article
-                                    key={
-                                        address.id
-                                    }
-                                    className={`rounded-xl border p-5 ${address.isDefault
-                                            ? 'border-primary/50'
-                                            : ''
-                                        }`}
-                                >
-                                    <div className="flex flex-wrap items-start justify-between gap-4">
-                                        <div className="min-w-0">
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <h3 className="font-semibold">
-                                                    {
-                                                        address.title
-                                                    }
-                                                </h3>
-
-                                                {address.isDefault && (
-                                                    <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs">
-                                                        <Star className="size-3 fill-current" />
-                                                        {
-                                                            text.default
-                                                        }
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            <p className="mt-3 font-medium">
+            {sortedAddresses.length > 0 && (
+                <div className="grid gap-4">
+                    {sortedAddresses.map(
+                        address => (
+                            <article
+                                key={
+                                    address.id
+                                }
+                                className={`rounded-xl border p-5 ${address.isDefault
+                                        ? 'border-primary/50'
+                                        : ''
+                                    }`}
+                            >
+                                <div className="flex flex-wrap items-start justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h3 className="font-semibold">
                                                 {
-                                                    address.recipientName
+                                                    address.title
                                                 }
-                                            </p>
+                                            </h3>
 
-                                            <p className="text-muted-foreground mt-1 text-sm">
-                                                {
-                                                    address.phoneNumber
-                                                }
-                                            </p>
+                                            {address.isDefault && (
+                                                <span className="inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs">
+                                                    <Star className="size-3 fill-current" />
 
-                                            <p className="text-muted-foreground mt-3 text-sm leading-6">
-                                                {
-                                                    address.addressLine
-                                                }
-                                            </p>
-
-                                            <p className="text-muted-foreground text-sm">
-                                                {[
-                                                    address.city,
-                                                    address.province,
-                                                    address.country,
-                                                ]
-                                                    .filter(
-                                                        Boolean,
-                                                    )
-                                                    .join(
-                                                        '، ',
+                                                    {t(
+                                                        'profile.addresses.default',
                                                     )}
-                                            </p>
-
-                                            {address.postalCode && (
-                                                <p className="text-muted-foreground mt-1 text-sm">
-                                                    {
-                                                        address.postalCode
-                                                    }
-                                                </p>
+                                                </span>
                                             )}
                                         </div>
 
-                                        <div className="flex flex-wrap gap-2">
-                                            {!address.isDefault && (
-                                                <button
-                                                    type="button"
-                                                    disabled={
-                                                        setDefault.isPending
-                                                    }
-                                                    onClick={() =>
-                                                        setDefault.mutate(
-                                                            address.id,
-                                                        )
-                                                    }
-                                                    className="rounded-lg border px-3 py-2 text-xs font-medium"
-                                                >
-                                                    {
-                                                        text.makeDefault
-                                                    }
-                                                </button>
-                                            )}
+                                        <p className="mt-3 font-medium">
+                                            {
+                                                address.recipientName
+                                            }
+                                        </p>
 
-                                            <button
-                                                type="button"
-                                                onClick={() =>
-                                                    openEdit(
-                                                        address,
-                                                    )
-                                                }
-                                                className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-medium"
-                                            >
-                                                <Pencil className="size-3.5" />
+                                        <p className="text-muted-foreground mt-1 text-sm">
+                                            {
+                                                address.phoneNumber
+                                            }
+                                        </p>
+
+                                        <p className="text-muted-foreground mt-3 text-sm leading-6">
+                                            {
+                                                address.addressLine
+                                            }
+                                        </p>
+
+                                        <p className="text-muted-foreground text-sm">
+                                            {[
+                                                address.city,
+                                                address.province,
+                                                address.country,
+                                            ]
+                                                .filter(
+                                                    Boolean,
+                                                )
+                                                .join(
+                                                    isRtl
+                                                        ? '، '
+                                                        : ', ',
+                                                )}
+                                        </p>
+
+                                        {address.postalCode && (
+                                            <p className="text-muted-foreground mt-1 text-sm">
                                                 {
-                                                    text.edit
+                                                    address.postalCode
                                                 }
-                                            </button>
+                                            </p>
+                                        )}
+                                    </div>
 
+                                    <div className="flex flex-wrap gap-2">
+                                        {!address.isDefault && (
                                             <button
                                                 type="button"
                                                 disabled={
-                                                    remove.isPending
+                                                    setDefault.isPending
                                                 }
                                                 onClick={() =>
-                                                    void handleDelete(
+                                                    setDefault.mutate(
                                                         address.id,
                                                     )
                                                 }
-                                                className="text-destructive inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-medium"
+                                                className="rounded-lg border px-3 py-2 text-xs font-medium"
                                             >
-                                                <Trash2 className="size-3.5" />
-                                                {
-                                                    remove.isPending
-                                                        ? text.deleting
-                                                        : text.delete
-                                                }
+                                                {t(
+                                                    'profile.addresses.makeDefault',
+                                                )}
                                             </button>
-                                        </div>
+                                        )}
+
+                                        <button
+                                            type="button"
+                                            onClick={() =>
+                                                openEdit(
+                                                    address,
+                                                )
+                                            }
+                                            className="inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-medium"
+                                        >
+                                            <Pencil className="size-3.5" />
+
+                                            {t(
+                                                'profile.addresses.edit',
+                                            )}
+                                        </button>
+
+                                        <button
+                                            type="button"
+                                            disabled={
+                                                remove.isPending
+                                            }
+                                            onClick={() =>
+                                                void handleDelete(
+                                                    address.id,
+                                                )
+                                            }
+                                            className="text-destructive inline-flex items-center gap-1 rounded-lg border px-3 py-2 text-xs font-medium"
+                                        >
+                                            <Trash2 className="size-3.5" />
+
+                                            {remove.isPending
+                                                ? t(
+                                                    'profile.addresses.deleting',
+                                                )
+                                                : t(
+                                                    'profile.addresses.delete',
+                                                )}
+                                        </button>
                                     </div>
-                                </article>
-                            ),
-                        )}
-                    </div>
-                )}
+                                </div>
+                            </article>
+                        ),
+                    )}
+                </div>
+            )}
 
             {formOpen && (
                 <div className="rounded-xl border bg-card p-5">
                     <div className="mb-5">
                         <h3 className="font-semibold">
                             {editingAddress
-                                ? text.edit
-                                : text.add}
+                                ? t(
+                                    'profile.addresses.edit',
+                                )
+                                : t(
+                                    'profile.addresses.add',
+                                )}
                         </h3>
                     </div>
 
@@ -542,9 +500,9 @@ export function CustomerAddressesSection() {
                     >
                         <div className="grid gap-4 md:grid-cols-2">
                             <Field
-                                label={
-                                    text.titleField
-                                }
+                                label={t(
+                                    'profile.addresses.titleField',
+                                )}
                                 value={
                                     form.title
                                 }
@@ -558,9 +516,9 @@ export function CustomerAddressesSection() {
                             />
 
                             <Field
-                                label={
-                                    text.recipient
-                                }
+                                label={t(
+                                    'profile.addresses.recipient',
+                                )}
                                 value={
                                     form.recipientName
                                 }
@@ -574,9 +532,9 @@ export function CustomerAddressesSection() {
                             />
 
                             <Field
-                                label={
-                                    text.phone
-                                }
+                                label={t(
+                                    'profile.addresses.phone',
+                                )}
                                 value={
                                     form.phoneNumber
                                 }
@@ -591,9 +549,9 @@ export function CustomerAddressesSection() {
                             />
 
                             <Field
-                                label={
-                                    text.country
-                                }
+                                label={t(
+                                    'profile.addresses.country',
+                                )}
                                 value={
                                     form.country
                                 }
@@ -607,9 +565,9 @@ export function CustomerAddressesSection() {
                             />
 
                             <Field
-                                label={
-                                    text.province
-                                }
+                                label={t(
+                                    'profile.addresses.province',
+                                )}
                                 value={
                                     form.province
                                 }
@@ -623,9 +581,9 @@ export function CustomerAddressesSection() {
                             />
 
                             <Field
-                                label={
-                                    text.city
-                                }
+                                label={t(
+                                    'profile.addresses.city',
+                                )}
                                 value={
                                     form.city
                                 }
@@ -639,9 +597,9 @@ export function CustomerAddressesSection() {
                             />
 
                             <Field
-                                label={
-                                    text.postalCode
-                                }
+                                label={t(
+                                    'profile.addresses.postalCode',
+                                )}
                                 value={
                                     form.postalCode
                                 }
@@ -656,9 +614,9 @@ export function CustomerAddressesSection() {
 
                         <label className="grid gap-2">
                             <span className="text-sm font-medium">
-                                {
-                                    text.address
-                                }
+                                {t(
+                                    'profile.addresses.address',
+                                )}
                             </span>
 
                             <textarea
@@ -695,14 +653,16 @@ export function CustomerAddressesSection() {
                                 }
                             />
 
-                            {
-                                text.defaultAddress
-                            }
+                            {t(
+                                'profile.addresses.defaultAddress',
+                            )}
                         </label>
 
                         {mutationError && (
                             <div className="rounded-lg border border-destructive/40 p-3 text-sm text-destructive">
-                                {text.error}
+                                {t(
+                                    'profile.addresses.error',
+                                )}
                             </div>
                         )}
 
@@ -714,9 +674,9 @@ export function CustomerAddressesSection() {
                                 }
                                 className="rounded-lg border px-4 py-2 text-sm font-medium"
                             >
-                                {
-                                    text.cancel
-                                }
+                                {t(
+                                    'profile.addresses.cancel',
+                                )}
                             </button>
 
                             <button
@@ -729,10 +689,16 @@ export function CustomerAddressesSection() {
                             >
                                 {create.isPending ||
                                     update.isPending
-                                    ? text.saving
+                                    ? t(
+                                        'profile.addresses.saving',
+                                    )
                                     : editingAddress
-                                        ? text.update
-                                        : text.save}
+                                        ? t(
+                                            'profile.addresses.update',
+                                        )
+                                        : t(
+                                            'profile.addresses.save',
+                                        )}
                             </button>
                         </div>
                     </form>

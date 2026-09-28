@@ -1,38 +1,302 @@
 {
+  "fileUpload": {
+    "placeholder": "Upload or drop a file here.",
+    "images": "Images",
+    "maxSizeHint": "Maximum {{maxSize}} MB",
+    "chooseFile": "Choose file",
+    "uploading": "Uploading...",
+    "maxSize": "The file size must not exceed {{maxSize}} MB.",
+    "imageOnly": "Only image files are allowed.",
+    "uploadError": "File upload failed (HTTP {{status}}).",
+    "invalidResponse": "The upload response was invalid.",
+    "uploadFailed": "File upload failed.",
+    "preview": "Preview",
+    "removeFile": "Remove file"
+  },
+  "catalogBrands": {
+    "title": "Brands",
+    "description": "Manage catalog brands, publishing state, merchandising and SEO.",
+    "newTitle": "New brand",
+    "newDescription": "Create a new catalog brand.",
+    "editTitle": "Edit {{name}}",
+    "editTitleFallback": "Edit Brand",
+    "editDescription": "Update brand information, SEO and publishing state.",
+    "detailsTitle": "Brand",
+    "backToBrands": "Back to brands",
+    "back": "Back",
+    "search": "Search brands...",
+    "loadError": "We couldn't load brands.",
+    "actionFailed": "Action failed.",
+    "newBrand": "New Brand",
+    "filters": {
+      "all": "All",
+      "active": "Active",
+      "inactive": "Inactive",
+      "published": "Published",
+      "featured": "Featured"
+    },
+
+    "empty": {
+      "title": "No brands found",
+      "searchDescription": "Try a different search.",
+      "description": "Create your first brand to start building the catalog."
+    },
+
+    "table": {
+      "brand": "Brand",
+      "slug": "Slug",
+      "status": "Status",
+      "publishing": "Publishing",
+      "featured": "Featured",
+      "actions": "Actions",
+      "order": "Display order: {{order}}"
+    },
+
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "published": "Published",
+      "draft": "Draft",
+      "featured": "Featured",
+      "normal": "Normal"
+    },
+
+    "actions": {
+      "menu": "Brand actions",
+      "view": "View",
+      "edit": "Edit",
+      "activate": "Activate",
+      "deactivate": "Deactivate",
+      "publish": "Publish",
+      "unpublish": "Unpublish",
+      "feature": "Feature",
+      "unfeature": "Unfeature",
+      "delete": "Delete"
+    },
+
+    "toast": {
+      "activated": "Brand activated.",
+      "deactivated": "Brand deactivated.",
+      "published": "Brand published.",
+      "unpublished": "Brand unpublished.",
+      "featured": "Brand featured.",
+      "unfeatured": "Brand unfeatured.",
+      "deleted": "Brand deleted."
+    },
+
+    "pagination": {
+      "summary": "{{total}} total · Page {{page}} of {{pages}}",
+      "previous": "Previous",
+      "next": "Next"
+    },
+
+    "delete": {
+      "title": "Delete {{name}}?",
+      "description": "The brand will be soft-deleted. It can be restored later by an authorized administrator.",
+      "confirm": "Delete brand"
+    },
+
+    "details": {
+      "information": "Brand information",
+      "informationDescription": "Current catalog and SEO data.",
+      "created": "Created",
+      "updated": "Updated",
+      "noDescription": "No description.",
+      "actions": "Actions"
+    }
+  },
+
+  "catalogForms": {
+    "basicInfo": "Basic information",
+    "basicInfoBrand": "Define the brand identity and core catalog information.",
+    "nameRequired": "Name",
+    "name": "Name",
+    "slug": "Slug",
+    "autoSlug": "Generated automatically",
+    "description": "Description",
+    "website": "Website",
+    "displayOrder": "Display order",
+
+    "brandImages": "Brand images",
+    "brandImagesDescription": "Add a logo and cover image for this brand.",
+    "dropLogo": "Drop the logo here or choose a file.",
+    "dropCover": "Drop the cover image here or choose a file.", 
+    "uploadLogo": "Logo",
+    "coverImage": "Cover image",
  
-    "nav": {
-      "home": "Home",
-      "products": "Products",
-      "catalog": "Catalog",
-      "dashboard": "Dashboard",
-      "orders": "Orders",
-      "shipping": "Shipping & Fulfillment",
-      "shippingMethods": "Shipping Methods",
-      "categories": "Categories",
-      "brands": "Brands",
-      "manufacturers": "Manufacturers",
-      "inventory": "Inventory",
-      "inventoryManagement": "Inventory",
-      "inventoryTransfers": "Inventory Transfers",
-      "warehouses": "Warehouses",
-      "administration": "Administration",
-      "users": "Users",
-      "roles": "Roles",
-      "permissions": "Permissions",
-      "appearance": "Appearance",
-      "settings": "Settings",
-      "health": "System Health"
+
+    "seo": "SEO",
+    "seoBrandDesc": "Optimize how this brand appears in search engines.",
+    "seoTitle": "SEO title",
+    "seoDescription": "SEO description",
+    "seoKeywords": "SEO keywords",
+    "seoKeywordsBrandPlaceholder": "e.g. women's clothing, maternity wear, patlet",
+
+    "publishing": "Publishing",
+    "brandPublishingDesc": "Control whether the brand is active, published and featured.",
+    "active": "Active",
+    "inactiveHintBrand": "Active brands can be used across the catalog.",
+    "published": "Published",
+    "publishedHintBrand": "Published brands can appear on the storefront.",
+    "featured": "Featured",
+    "featuredHintBrand": "Featured brands can be highlighted in merchandising.",
+
+    "cancel": "Cancel",
+    "createBrand": "Create brand",
+    "updateBrand": "Update brand",
+
+    "success": {
+      "created": "Brand created successfully.",
+      "updated": "Brand updated successfully."
     },
 
-    "account": {
-      "profile": "Profile"
+    "validation": {
+      "nameMin": "Brand name must contain at least 2 characters.",
+      "nameMax": "Brand name cannot exceed 150 characters.",
+      "slugMax": "Slug cannot exceed 200 characters.",
+      "descriptionMax": "Description cannot exceed 5000 characters.",
+      "website": "Enter a valid URL.",
+      "seoTitleMax": "SEO title cannot exceed 200 characters.",
+      "seoDescriptionMax": "SEO description cannot exceed 500 characters.",
+      "seoKeywordsMax": "SEO keywords cannot exceed 1000 characters.",
+      "displayOrderInteger": "Display order must be a whole number.",
+      "displayOrderMin": "Display order cannot be negative.",
+      "displayOrderMax": "Display order is too large."
+    }
+  },
+  "common": {
+    "saveChanges": "Save changes",
+    "loading": "Loading..."
+  },
+
+  "language": {
+    "label": "Language"
+  },
+
+  "theme": {
+    "toggle": "Toggle theme",
+    "light": "Light",
+    "dark": "Dark",
+    "system": "System"
+  },
+
+  "account": {
+    "menuLabel": "Account",
+    "profile": "Profile",
+    "administration": "Administration",
+    "signOut": "Sign out"
+  },
+
+  "fields": {
+    "orders": "My Orders"
+  },
+
+  "profile": {
+    "title": "Profile",
+    "subtitle": "Manage your account information, addresses, preferences and password.",
+
+    "sections": {
+      "profile": "Profile",
+      "addresses": "Addresses",
+      "preferences": "Preferences",
+      "password": "Password"
     },
 
-    "fields": {
-      "orders": "My Orders"
+    "info": {
+      "desc": "Update the information associated with your account.",
+      "verified": "Verified",
+      "unverified": "Unverified",
+      "emailIdentity": "Your email address is the primary identity for your account.",
+      "displayName": "Display name",
+      "namePlaceholder": "Enter your display name",
+      "updated": "Your profile was updated successfully."
     },
 
-   
+    "addresses": {
+      "title": "My addresses",
+      "description": "Manage your saved shipping addresses.",
+      "add": "Add address",
+      "edit": "Edit",
+      "delete": "Delete",
+      "default": "Default",
+      "makeDefault": "Make default",
+      "cancel": "Cancel",
+      "save": "Save",
+      "update": "Update",
+      "empty": "You have no saved addresses yet.",
+      "titleField": "Title",
+      "recipient": "Recipient name",
+      "phone": "Phone number",
+      "country": "Country",
+      "province": "Province",
+      "city": "City",
+      "address": "Full address",
+      "postalCode": "Postal code",
+      "defaultAddress": "Set as default address",
+      "loading": "Loading addresses...",
+      "saving": "Saving...",
+      "deleting": "Deleting...",
+      "deleteConfirm": "Are you sure you want to delete this address?",
+      "error": "The operation failed."
+    },
+
+    "preferences": {
+      "desc": "Choose your language and time zone preferences.",
+      "timezone": "Time zone",
+      "savedToast": "Preferences saved successfully.",
+      "saveError": "Could not save your preferences."
+    },
+
+    "password": {
+      "min": "Password must be at least 8 characters.",
+      "confirmRequired": "Please confirm your new password.",
+      "mismatch": "The passwords do not match.",
+      "changed": "Your password was changed successfully.",
+      "set": "Your password was set successfully.",
+      "enterCurrent": "Please enter your current password.",
+      "changeDesc": "Change your account password.",
+      "setDesc": "Set a password for your account.",
+      "current": "Current password",
+      "new": "New password",
+      "confirm": "Confirm new password",
+      "update": "Change password",
+      "setBtn": "Set password"
+    }
+  },
+
+  "nav": {
+    "home": "Home",
+    "products": "Products",
+    "catalog": "Catalog",
+    "dashboard": "Dashboard",
+    "orders": "Orders",
+    "shipping": "Shipping & Fulfillment",
+    "shippingMethods": "Shipping Methods",
+    "categories": "Categories",
+    "brands": "Brands",
+    "manufacturers": "Manufacturers",
+    "inventory": "Inventory",
+    "inventoryManagement": "Inventory",
+    "inventoryTransfers": "Inventory Transfers",
+    "warehouses": "Warehouses",
+    "administration": "Administration",
+    "users": "Users",
+    "roles": "Roles",
+    "permissions": "Permissions",
+    "appearance": "Appearance",
+    "settings": "Settings",
+    "health": "System Health"
+  },
+
+  "account": {
+    "profile": "Profile"
+  },
+
+  "fields": {
+    "orders": "My Orders"
+  },
+
+
   "checkout": {
     "title": "Checkout",
     "subtitle": "Review your delivery information and choose a shipping method.",
@@ -83,7 +347,27 @@
       "signIn": "Sign in",
       "products": "Products"
     },
-
+    "fulfillment": {
+      "statuses": {
+        "Pending": "Pending",
+        "Picking": "Picking",
+        "Picked": "Picked",
+        "Packing": "Packing",
+        "Packed": "Packed",
+        "ReadyToShip": "Ready to ship",
+        "Shipped": "Shipped",
+        "Delivered": "Delivered",
+        "Cancelled": "Cancelled"
+      }
+    },
+    "shipment": {
+      "statuses": {
+        "Pending": "Pending",
+        "Shipped": "Shipped",
+        "Delivered": "Delivered",
+        "Cancelled": "Cancelled"
+      }
+    },
     "header": {
       "search": "Search",
       "searchProducts": "Search products...",
@@ -244,19 +528,34 @@
     "orders": {
       "title": "My Orders",
       "subtitle": "View your order history and fulfillment status.",
+      "description": "View, filter and manage your orders and fulfillment status.",
       "filter": "Filter by status",
+      "search": "Search orders...",
       "allStatuses": "All statuses",
+
       "loading": "Loading your orders...",
       "error": "We could not load your orders.",
       "retry": "Try again",
       "empty": "You have not placed any orders yet.",
       "shop": "Start shopping",
-      "items": "items",
+
+      "selected": "selected",
+      "printLabels": "Print shipping labels",
+      "selectAll": "Select all orders",
+
+      "order": "Order",
+      "customer": "Customer",
+      "status": "Status",
       "total": "Total",
+      "date": "Date",
+      "actions": "Actions",
+
+      "items": "items",
       "view": "View order",
       "previous": "Previous",
       "next": "Next",
       "page": "Page",
+
       "statuses": {
         "PendingPayment": "Pending payment",
         "Paid": "Paid",
