@@ -47,9 +47,10 @@ public static class OrdersModule
         // ========================================================
         // Orders
         // ========================================================
+
         services.AddScoped<
-    IFulfillmentRepository,
-    FulfillmentRepository>();
+            IFulfillmentRepository,
+            FulfillmentRepository>();
 
         services.AddScoped<
             IFulfillmentService,
@@ -66,15 +67,22 @@ public static class OrdersModule
         services.AddScoped<
             IOrderUnitOfWork,
             OrderUnitOfWork>();
-   
-services.AddScoped<
-    IPackageRepository,
-    PackageRepository>();
+
+        /*
+         * Serializes operations belonging to the same
+         * Tenant + OrderId.
+         */
+        services.AddScoped<
+            IOrderConcurrencyService,
+            OrderConcurrencyService>();
+
+        services.AddScoped<
+            IPackageRepository,
+            PackageRepository>();
 
         services.AddScoped<
             IPackageService,
             PackageService>();
-
 
         // ========================================================
         // Pricing

@@ -1,5 +1,37 @@
 {
-    "checkout": {
+  "nav": {
+    "home": "خانه",
+    "products": "محصولات",
+    "catalog": "فروشگاه",
+    "dashboard": "داشبورد",
+    "orders": "سفارش‌ها",
+    "shipping": "ارسال و تحویل",
+    "shippingMethods": "روش‌های ارسال",
+    "categories": "دسته‌بندی‌ها",
+    "brands": "برندها",
+    "manufacturers": "تولیدکنندگان",
+    "inventory": "انبار",
+    "inventoryManagement": "موجودی",
+    "inventoryTransfers": "انتقالات انبار",
+    "warehouses": "انبارها",
+    "administration": "مدیریت",
+    "users": "کاربران",
+    "roles": "نقش‌ها",
+    "permissions": "مجوزها",
+    "appearance": "ظاهر",
+    "settings": "تنظیمات",
+    "health": "سلامت سیستم"
+  },
+
+  "account": {
+    "profile": "پروفایل"
+  },
+
+  "fields": {
+    "orders": "سفارش‌های من"
+  },
+
+  "checkout": {
     "default": "پیش‌فرض",
 
     "cartError": "بارگذاری سبد خرید انجام نشد.",
@@ -250,6 +282,10 @@
         "Completed": "تکمیل شده"
       }
     },
+
+
+
+
     "checkout": {
       "default": "پیش‌فرض",
       "cartError": "بارگذاری سبد خرید انجام نشد.",

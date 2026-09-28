@@ -12,6 +12,7 @@ public sealed class InventoryOrderReconciliationService(
     IOrderRepository orderRepository,
     IOrderUnitOfWork orderUnitOfWork,
     IInventoryService inventory,
+    IOrderConcurrencyService orderConcurrency,
     PaymentReservationOrchestrator paymentReservations,
     ILogger<InventoryOrderReconciliationService> logger)
 {
@@ -28,103 +29,155 @@ public sealed class InventoryOrderReconciliationService(
                 nameof(tenantId));
         }
 
-        var orders =
+        tenantId =
+            tenantId.Trim();
+
+        var candidateOrders =
             await orderRepository
                 .GetOrdersForInventoryReconciliationAsync(
                     tenantId,
                     batchSize,
                     cancellationToken);
 
-     
+        var checkedReservations =
+            0;
 
-        var checkedReservations = 0;
-        var repairedReservations = 0;
-        var discrepancies = 0;
+        var repairedReservations =
+            0;
 
-        foreach (var order in orders)
+        var discrepancies =
+            0;
+
+        /*
+         * ------------------------------------------------------------
+         * Process every order independently under the same order lock
+         * used by payment.
+         * ------------------------------------------------------------
+         */
+        foreach (var candidate in candidateOrders)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            foreach (var orderReservation in
-                     order.InventoryReservations)
-            {
-                cancellationToken.ThrowIfCancellationRequested();
-
-                checkedReservations++;
-
-                var inventoryReservation =
-                    await inventory.GetReservationAsync(
-                        tenantId,
-                        orderReservation.ReservationKey,
-                        cancellationToken);
-
-                if (inventoryReservation is null)
+            await orderConcurrency.ExecuteAsync(
+                tenantId,
+                candidate.Id,
+                async ct =>
                 {
-                    discrepancies++;
+                    /*
+                     * IMPORTANT:
+                     *
+                     * candidate was loaded before the lock and may
+                     * already be stale.
+                     *
+                     * Reload the order after acquiring the lock.
+                     */
+                    var order =
+                        await orderRepository.GetByIdAsync(
+                            tenantId,
+                            candidate.Id,
+                            null,
+                            ct);
 
-                    logger.LogWarning(
-                        "Inventory reservation {ReservationKey} referenced by order {OrderId} was not found.",
-                        orderReservation.ReservationKey,
-                        order.Id);
+                    if (order is null)
+                    {
+                        return;
+                    }
 
-                    continue;
-                }
+                    var orderChanged =
+                        false;
 
-                if (!Enum.TryParse<
-                        StockReservationStatus>(
-                        inventoryReservation.Status,
-                        true,
-                        out var inventoryStatus))
-                {
-                    discrepancies++;
+                    foreach (
+                        var orderReservation
+                        in order.InventoryReservations)
+                    {
+                        ct.ThrowIfCancellationRequested();
 
-                    logger.LogError(
-                        "Unknown inventory reservation status {Status} for reservation {ReservationKey}.",
-                        inventoryReservation.Status,
-                        inventoryReservation.ReservationKey);
+                        checkedReservations++;
 
-                    continue;
-                }
+                        var inventoryReservation =
+                            await inventory.GetReservationAsync(
+                                tenantId,
+                                orderReservation.ReservationKey,
+                                ct);
 
-                var action =
-                    await ReconcileReservationAsync(
-                        tenantId,
-                        orderReservation,
-                        inventoryReservation,
-                        inventoryStatus,
-                        cancellationToken);
+                        if (inventoryReservation is null)
+                        {
+                            discrepancies++;
 
-                switch (action)
-                {
-                    case ReconciliationAction.Repaired:
-                        repairedReservations++;
-                        break;
+                            logger.LogWarning(
+                                "Inventory reservation {ReservationKey} referenced by order {OrderId} was not found.",
+                                orderReservation.ReservationKey,
+                                order.Id);
 
-                    case ReconciliationAction.Discrepancy:
-                        discrepancies++;
-                        break;
-                }
-            }
-        }
-        var staleOrdersCancelled =
-    await paymentReservations
-        .CancelStalePendingOrdersAsync(
-            tenantId,
-            batchSize,
-            cancellationToken);
-        if (repairedReservations > 0 &&
-     staleOrdersCancelled == 0)
-        {
-            await orderUnitOfWork.SaveChangesAsync(
+                            continue;
+                        }
+
+                        if (!Enum.TryParse<
+                                StockReservationStatus>(
+                                inventoryReservation.Status,
+                                true,
+                                out var inventoryStatus))
+                        {
+                            discrepancies++;
+
+                            logger.LogError(
+                                "Unknown inventory reservation status {Status} for reservation {ReservationKey}.",
+                                inventoryReservation.Status,
+                                inventoryReservation.ReservationKey);
+
+                            continue;
+                        }
+
+                        var action =
+                            await ReconcileReservationAsync(
+                                tenantId,
+                                orderReservation,
+                                inventoryReservation,
+                                inventoryStatus,
+                                ct);
+
+                        switch (action)
+                        {
+                            case ReconciliationAction.Repaired:
+                                repairedReservations++;
+                                orderChanged = true;
+                                break;
+
+                            case ReconciliationAction.Discrepancy:
+                                discrepancies++;
+                                break;
+                        }
+                    }
+
+                    /*
+                     * Save while the same order lock is still held.
+                     */
+                    if (orderChanged)
+                    {
+                        await orderUnitOfWork.SaveChangesAsync(
+                            ct);
+                    }
+                },
                 cancellationToken);
         }
 
+        /*
+         * Stale-order cancellation already acquires the same order lock
+         * internally.
+         */
+        var staleOrdersCancelled =
+            await paymentReservations
+                .CancelStalePendingOrdersAsync(
+                    tenantId,
+                    batchSize,
+                    cancellationToken);
+
         return new InventoryReconciliationResult(
-      orders.Count,
-      checkedReservations,
-      repairedReservations,
-      discrepancies,
-      staleOrdersCancelled);
+            candidateOrders.Count,
+            checkedReservations,
+            repairedReservations,
+            discrepancies,
+            staleOrdersCancelled);
     }
 
     private async Task<ReconciliationAction>
@@ -293,4 +346,3 @@ internal enum ReconciliationAction
     Repaired = 1,
     Discrepancy = 2
 }
-

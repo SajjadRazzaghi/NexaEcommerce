@@ -1,11 +1,11 @@
-﻿using System.Security.Cryptography;
-using System.Text;
-
-using NexaEcommerce.Modules.Inventory.Application.Services;
+﻿using NexaEcommerce.Modules.Inventory.Application.Services;
 using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
+using NexaEcommerce.Modules.Orders.Infrastructure.Repositories;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace NexaECommerce.Server.Features.Orders;
 
@@ -14,6 +14,7 @@ public sealed class PaymentReservationOrchestrator(
     IOrderUnitOfWork orderUnitOfWork,
     IPaymentAttemptRepository paymentAttemptRepository,
     IInventoryService inventory,
+    IOrderConcurrencyService orderConcurrency,
     ILogger<PaymentReservationOrchestrator> logger)
 {
     private static readonly TimeSpan PaymentReservationLifetime =
@@ -34,16 +35,93 @@ public sealed class PaymentReservationOrchestrator(
             userId,
             idempotencyKey);
 
-        await EnsureAsync(
-            tenantId.Trim(),
-            userId.Trim(),
+        var normalizedTenantId =
+            tenantId.Trim();
+
+        var normalizedUserId =
+            userId.Trim();
+
+        var normalizedIdempotencyKey =
+            idempotencyKey.Trim();
+
+        await orderConcurrency.ExecuteAsync(
+            normalizedTenantId,
             orderId,
-            idempotencyKey.Trim(),
-            enforceStaleOrderPolicy: true,
+            ct =>
+                EnsureAsync(
+                    normalizedTenantId,
+                    normalizedUserId,
+                    orderId,
+                    normalizedIdempotencyKey,
+                    enforceStaleOrderPolicy: true,
+                    ct),
             cancellationToken);
     }
 
     public async Task EnsureForCompletionAsync(
+        string tenantId,
+        string userId,
+        Guid orderId,
+        Guid paymentAttemptId,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException(
+                "User id is required.",
+                nameof(userId));
+        }
+
+        if (orderId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Order id is required.",
+                nameof(orderId));
+        }
+
+        if (paymentAttemptId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Payment attempt id is required.",
+                nameof(paymentAttemptId));
+        }
+
+        var normalizedTenantId =
+            tenantId.Trim();
+
+        var normalizedUserId =
+            userId.Trim();
+
+        await orderConcurrency.ExecuteAsync(
+            normalizedTenantId,
+            orderId,
+            ct =>
+                EnsureAsync(
+                    normalizedTenantId,
+                    normalizedUserId,
+                    orderId,
+                    $"attempt:{paymentAttemptId:N}",
+                    enforceStaleOrderPolicy: false,
+                    ct),
+            cancellationToken);
+    }
+
+    /*
+     * Used by PaymentCompletionOrchestrator when the order lock
+     * has already been acquired there.
+     *
+     * IMPORTANT:
+     * Do not call EnsureForCompletionAsync from inside another
+     * order lock because sp_getapplock is already held.
+     */
+    internal async Task EnsureForCompletionUnderLockAsync(
         string tenantId,
         string userId,
         Guid orderId,
@@ -129,48 +207,88 @@ public sealed class PaymentReservationOrchestrator(
 
         var cancelled = 0;
 
-        foreach (var order in orders)
+        foreach (var candidate in orders)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var hasRecoverableReservation =
-                await HasRecoverableReservationForStaleOrderAsync(
+            var didCancel =
+                await orderConcurrency.ExecuteAsync(
                     normalizedTenantId,
-                    order,
-                    now,
+                    candidate.Id,
+                    async ct =>
+                    {
+                        /*
+                         * OrderConcurrencyService clears the EF
+                         * ChangeTracker immediately after acquiring
+                         * the lock, so this query gets a fresh order.
+                         */
+                        var order =
+                            await orderRepository.GetByIdAsync(
+                                normalizedTenantId,
+                                candidate.Id,
+                                null,
+                                ct);
+
+                        if (order is null)
+                        {
+                            return false;
+                        }
+
+                        if (order.Status !=
+                            OrderStatus.PendingPayment)
+                        {
+                            return false;
+                        }
+
+                        if (order.CreatedAt >= cutoff)
+                        {
+                            return false;
+                        }
+
+                        var hasRecoverableReservation =
+                            await HasRecoverableReservationForStaleOrderAsync(
+                                normalizedTenantId,
+                                order,
+                                now,
+                                ct);
+
+                        if (hasRecoverableReservation)
+                        {
+                            return false;
+                        }
+
+                        try
+                        {
+                            order.Cancel();
+
+                            await orderUnitOfWork.SaveChangesAsync(
+                                ct);
+
+                            logger.LogInformation(
+                                "Stale pending-payment order {OrderId} ({OrderNumber}) was cancelled because it is older than {LifetimeHours} hours and has no recoverable inventory reservation.",
+                                order.Id,
+                                order.OrderNumber,
+                                StaleOrderLifetime.TotalHours);
+
+                            return true;
+                        }
+                        catch (InvalidOperationException ex)
+                        {
+                            logger.LogError(
+                                ex,
+                                "Failed to cancel stale pending-payment order {OrderId} ({OrderNumber}).",
+                                order.Id,
+                                order.OrderNumber);
+
+                            return false;
+                        }
+                    },
                     cancellationToken);
 
-            if (hasRecoverableReservation)
+            if (didCancel)
             {
-                continue;
-            }
-
-            try
-            {
-                order.Cancel();
-
                 cancelled++;
-
-                logger.LogInformation(
-                    "Stale pending-payment order {OrderId} ({OrderNumber}) was cancelled because it is older than {LifetimeHours} hours and has no recoverable inventory reservation.",
-                    order.Id,
-                    order.OrderNumber,
-                    StaleOrderLifetime.TotalHours);
             }
-            catch (InvalidOperationException ex)
-            {
-                logger.LogError(
-                    ex,
-                    "Failed to cancel stale pending-payment order {OrderId} ({OrderNumber}).",
-                    order.Id,
-                    order.OrderNumber);
-            }
-        }
-
-        if (cancelled > 0)
-        {
-            await orderUnitOfWork.SaveChangesAsync(
-                cancellationToken);
         }
 
         return cancelled;
@@ -286,9 +404,6 @@ public sealed class PaymentReservationOrchestrator(
         /*
          * Orders older than the revivable window are not allowed to
          * create fresh payment reservations.
-         *
-         * If there is at least one recoverable reservation we leave
-         * the order alive for the reconciliation process to resolve.
          */
         if (enforceStaleOrderPolicy &&
             now - order.CreatedAt > StaleOrderLifetime &&
@@ -345,9 +460,21 @@ public sealed class PaymentReservationOrchestrator(
         }
         catch
         {
+            /*
+             * DO NOT call SaveChangesAsync again here.
+             *
+             * The previous SaveChanges may already have failed because
+             * an entity was changed/deleted by another actor.
+             *
+             * We compensate the physical inventory reservation only.
+             * The reconciliation process can repair the durable order
+             * state later.
+             */
             foreach (
                 var reservationKey
-                in createdReservationKeys.AsEnumerable().Reverse())
+                in createdReservationKeys
+                    .AsEnumerable()
+                    .Reverse())
             {
                 try
                 {
@@ -365,36 +492,6 @@ public sealed class PaymentReservationOrchestrator(
                 }
             }
 
-            foreach (var reservation
-                     in order.InventoryReservations)
-            {
-                if (!createdReservationKeys.Contains(
-                        reservation.ReservationKey,
-                        StringComparer.Ordinal))
-                {
-                    continue;
-                }
-
-                if (reservation.Status ==
-                    InventoryReservationStatus.Reserved)
-                {
-                    reservation.MarkReleased();
-                }
-            }
-
-            try
-            {
-                await orderUnitOfWork.SaveChangesAsync(
-                    cancellationToken);
-            }
-            catch (Exception ex)
-            {
-                logger.LogWarning(
-                    ex,
-                    "Failed to persist payment reservation compensation for order {OrderId}.",
-                    order.Id);
-            }
-
             throw;
         }
     }
@@ -408,9 +505,6 @@ public sealed class PaymentReservationOrchestrator(
             DateTimeOffset now,
             CancellationToken cancellationToken)
     {
-        /*
-         * A committed reservation is already sufficient for the order.
-         */
         var committed =
             order.InventoryReservations
                 .FirstOrDefault(
@@ -625,7 +719,42 @@ public sealed class PaymentReservationOrchestrator(
 
         return false;
     }
+    private async Task<OrderInventoryReservation>
+  AddOrderReservationAsync(
+      Order order,
+      string reservationKey,
+      Guid productVariantId,
+      int quantity,
+      DateTimeOffset expiresAt,
+      CancellationToken cancellationToken)
+    {
+        var normalizedKey =
+            reservationKey.Trim();
 
+        var existed =
+            order.InventoryReservations.Any(
+                x =>
+                    string.Equals(
+                        x.ReservationKey,
+                        normalizedKey,
+                        StringComparison.Ordinal));
+
+        var reservation =
+            order.AddInventoryReservation(
+                normalizedKey,
+                productVariantId,
+                quantity,
+                expiresAt);
+
+        if (!existed)
+        {
+            await orderRepository.AddInventoryReservationAsync(
+                reservation,
+                cancellationToken);
+        }
+
+        return reservation;
+    }
     private async Task
         CreateAndAttachReservationAsync(
             string tenantId,
@@ -744,11 +873,13 @@ public sealed class PaymentReservationOrchestrator(
                                      StockReservationStatus.Committed)
                             {
                                 var committedReservation =
-                                    order.AddInventoryReservation(
-                                        baseKey,
-                                        item.ProductVariantId,
-                                        item.Quantity,
-                                        refreshed.ExpiresAt);
+      await AddOrderReservationAsync(
+          order,
+          baseKey,
+          item.ProductVariantId,
+          item.Quantity,
+          refreshed.ExpiresAt,
+          cancellationToken);
 
                                 if (committedReservation.Status ==
                                     InventoryReservationStatus.Reserved)
@@ -771,11 +902,13 @@ public sealed class PaymentReservationOrchestrator(
                 if (reservationKey ==
                     baseKey)
                 {
-                    order.AddInventoryReservation(
-                        baseKey,
-                        item.ProductVariantId,
-                        item.Quantity,
-                        effectiveExpiration);
+                    await AddOrderReservationAsync(
+      order,
+      baseKey,
+      item.ProductVariantId,
+      item.Quantity,
+      effectiveExpiration,
+      cancellationToken);
 
                     return;
                 }
@@ -784,11 +917,13 @@ public sealed class PaymentReservationOrchestrator(
                      StockReservationStatus.Committed)
             {
                 var committedReservation =
-                    order.AddInventoryReservation(
-                        baseKey,
-                        item.ProductVariantId,
-                        item.Quantity,
-                        existing.ExpiresAt);
+     await AddOrderReservationAsync(
+         order,
+         baseKey,
+         item.ProductVariantId,
+         item.Quantity,
+         existing.ExpiresAt,
+         cancellationToken);
 
                 if (committedReservation.Status ==
                     InventoryReservationStatus.Reserved)
@@ -831,11 +966,13 @@ public sealed class PaymentReservationOrchestrator(
                 "Inventory reservation could not be created in an active state.");
         }
 
-        order.AddInventoryReservation(
-            reservationKey,
-            item.ProductVariantId,
-            item.Quantity,
-            reservation.ExpiresAt);
+        await AddOrderReservationAsync(
+    order,
+    reservationKey,
+    item.ProductVariantId,
+    item.Quantity,
+    reservation.ExpiresAt,
+    cancellationToken);
 
         createdReservationKeys.Add(
             reservationKey);
@@ -854,12 +991,20 @@ public sealed class PaymentReservationOrchestrator(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            /*
+             * اگر سمت Order قبلاً Commit شده باشد،
+             * این Reservation برای ما قابل بازیابی است.
+             */
             if (orderReservation.Status ==
                 InventoryReservationStatus.Committed)
             {
                 return true;
             }
 
+            /*
+             * فقط Reservationهای Reserved را
+             * با Inventory تطبیق می‌دهیم.
+             */
             if (orderReservation.Status !=
                 InventoryReservationStatus.Reserved)
             {
@@ -872,19 +1017,30 @@ public sealed class PaymentReservationOrchestrator(
                     orderReservation.ReservationKey,
                     cancellationToken);
 
+            /*
+             * Reservation در Inventory دیگر وجود ندارد.
+             * چون Order آن را Reserved می‌دانسته،
+             * وضعیت Order را Expired می‌کنیم.
+             *
+             * این موجودیت از قبل در DbContext لود شده،
+             * بنابراین اینجا AddAsync لازم نیست.
+             */
             if (inventoryReservation is null)
             {
                 orderReservation.MarkExpired();
                 continue;
             }
 
-            StockReservationStatus inventoryStatus;
-
             if (!Enum.TryParse<StockReservationStatus>(
                     inventoryReservation.Status,
                     true,
-                    out inventoryStatus))
+                    out var inventoryStatus))
             {
+                /*
+                 * وضعیت نامعتبر است.
+                 * در این حالت Order را Cancel نمی‌کنیم،
+                 * چون وضعیت Inventory نامشخص است.
+                 */
                 logger.LogError(
                     "Unknown inventory reservation status {Status} for {ReservationKey}.",
                     inventoryReservation.Status,
@@ -896,63 +1052,101 @@ public sealed class PaymentReservationOrchestrator(
             switch (inventoryStatus)
             {
                 case StockReservationStatus.Active:
-
-                    if (inventoryReservation.ExpiresAt >
-                        now)
                     {
+                        /*
+                         * Reservation هنوز فعال و قابل استفاده است.
+                         */
+                        if (inventoryReservation.ExpiresAt > now)
+                        {
+                            return true;
+                        }
+
+                        /*
+                         * Reservation در Inventory منقضی شده،
+                         * بنابراین ابتدا تلاش می‌کنیم آن را Release کنیم.
+                         */
+                        try
+                        {
+                            await inventory.ReleaseAsync(
+                                tenantId,
+                                orderReservation.ReservationKey,
+                                cancellationToken);
+
+                            orderReservation.MarkExpired();
+                        }
+                        catch (Exception ex)
+                        {
+                            /*
+                             * اگر نتوانستیم وضعیت Inventory را قطعی کنیم،
+                             * Order را Cancel نمی‌کنیم.
+                             */
+                            logger.LogWarning(
+                                ex,
+                                "Could not release expired reservation {ReservationKey} while evaluating stale order {OrderId}.",
+                                orderReservation.ReservationKey,
+                                order.Id);
+
+                            return true;
+                        }
+
+                        break;
+                    }
+
+                case StockReservationStatus.Committed:
+                    {
+                        /*
+                         * Inventory Commit شده ولی Order هنوز Reserved است.
+                         * Order را با Inventory هماهنگ می‌کنیم.
+                         */
+                        orderReservation.MarkCommitted();
+
                         return true;
                     }
 
-                    try
-                    {
-                        await inventory.ReleaseAsync(
-                            tenantId,
-                            orderReservation.ReservationKey,
-                            cancellationToken);
-
-                        orderReservation.MarkExpired();
-                    }
-                    catch (Exception ex)
+                case StockReservationStatus.Released:
                     {
                         /*
-                         * Never cancel a stale order while the inventory
-                         * state is unresolved.
+                         * Inventory Release شده،
+                         * پس Reservation سمت Order نیز باید Release شود.
                          */
-                        logger.LogWarning(
-                            ex,
-                            "Could not release expired reservation {ReservationKey} while evaluating stale order {OrderId}.",
-                            orderReservation.ReservationKey,
+                        orderReservation.MarkReleased();
+
+                        break;
+                    }
+
+                case StockReservationStatus.Expired:
+                    {
+                        /*
+                         * Inventory Expired شده،
+                         * پس Order را نیز Expired می‌کنیم.
+                         */
+                        orderReservation.MarkExpired();
+
+                        break;
+                    }
+
+                default:
+                    {
+                        /*
+                         * وضعیت ناشناخته است.
+                         * Order را Cancel نمی‌کنیم چون وضعیت Inventory
+                         * قابل اعتماد نیست.
+                         */
+                        logger.LogError(
+                            "Unsupported inventory reservation status {Status} for reservation {ReservationKey} while evaluating stale order {OrderId}.",
+                            inventoryReservation.Status,
+                            inventoryReservation.ReservationKey,
                             order.Id);
 
                         return true;
                     }
-
-                    break;
-
-                case StockReservationStatus.Committed:
-
-                    orderReservation.MarkCommitted();
-
-                    return true;
-
-                case StockReservationStatus.Released:
-
-                    orderReservation.MarkReleased();
-
-                    break;
-
-                case StockReservationStatus.Expired:
-
-                    orderReservation.MarkExpired();
-
-                    break;
-
-                default:
-
-                    return true;
             }
         }
 
+        /*
+         * هیچ Reservation فعال یا قابل بازیابی باقی نمانده است.
+         * در این حالت Order stale می‌تواند Cancel شود.
+         */
         return false;
     }
 
@@ -1042,7 +1236,7 @@ public sealed class PaymentReservationException
     {
         Kind = kind;
     }
-
+  
     public PaymentReservationFailureKind Kind
     {
         get;

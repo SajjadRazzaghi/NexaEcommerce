@@ -15,6 +15,7 @@ public sealed class PaymentFailureOrchestrator(
     IOrderUnitOfWork orderUnitOfWork,
     IInventoryService inventory,
     IWarehouseReservationOrchestrator warehouseReservation,
+    IOrderConcurrencyService orderConcurrency,
     ILogger<PaymentFailureOrchestrator> logger)
 {
     public async Task<PaymentFailureResult> FailAsync(
@@ -30,9 +31,57 @@ public sealed class PaymentFailureOrchestrator(
             userId,
             paymentAttemptId);
 
-        tenantId = tenantId.Trim();
-        userId = userId.Trim();
+        var normalizedTenantId =
+            tenantId.Trim();
 
+        var normalizedUserId =
+            userId.Trim();
+
+        /*
+         * First load is only used to discover OrderId.
+         *
+         * After acquiring the order lock the ChangeTracker is cleared,
+         * and FailCoreAsync loads a completely fresh PaymentAttempt.
+         */
+        var initialPaymentAttempt =
+            await paymentAttemptRepository.GetByIdAsync(
+                normalizedTenantId,
+                normalizedUserId,
+                paymentAttemptId,
+                cancellationToken);
+
+        if (initialPaymentAttempt is null)
+        {
+            throw new KeyNotFoundException(
+                "Payment attempt was not found.");
+        }
+
+        return await orderConcurrency.ExecuteAsync(
+            normalizedTenantId,
+            initialPaymentAttempt.OrderId,
+            ct =>
+                FailCoreAsync(
+                    normalizedTenantId,
+                    normalizedUserId,
+                    paymentAttemptId,
+                    failureCode,
+                    failureMessage,
+                    ct),
+            cancellationToken);
+    }
+
+    private async Task<PaymentFailureResult>
+        FailCoreAsync(
+            string tenantId,
+            string userId,
+            Guid paymentAttemptId,
+            string? failureCode,
+            string? failureMessage,
+            CancellationToken cancellationToken)
+    {
+        /*
+         * Fresh PaymentAttempt AFTER acquiring the order lock.
+         */
         var paymentAttempt =
             await paymentAttemptRepository.GetByIdAsync(
                 tenantId,
@@ -86,23 +135,32 @@ public sealed class PaymentFailureOrchestrator(
                 "The order is no longer eligible for payment failure handling.");
         }
 
+        /*
+         * If another request already paid the order while this request
+         * was waiting for the lock, do not mark this payment attempt
+         * as failed as part of an unrelated lifecycle transition.
+         */
+        if (order.Status == OrderStatus.Paid)
+        {
+            throw new InvalidOperationException(
+                "The order has already been paid by another payment attempt.");
+        }
+
         var releasedCount = 0;
 
         /*
-         * Release the global inventory reservation immediately.
-         *
-         * The order reservation is the durable logical record.
-         * InventoryService owns the actual StockItem reservation.
+         * Release global inventory reservation immediately.
          */
-        foreach (var reservation in
-                 order.InventoryReservations
-                     .Where(
-                         x =>
-                             x.Status ==
-                             InventoryReservationStatus.Reserved)
-                     .OrderBy(
-                         x =>
-                             x.ReservationKey))
+        foreach (
+            var reservation
+            in order.InventoryReservations
+                .Where(
+                    x =>
+                        x.Status ==
+                        InventoryReservationStatus.Reserved)
+                .OrderBy(
+                    x =>
+                        x.ReservationKey))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -118,8 +176,6 @@ public sealed class PaymentFailureOrchestrator(
                 /*
                  * The inventory reservation may already have been
                  * released or expired independently.
-                 *
-                 * The order-level state is still reconciled below.
                  */
                 logger.LogWarning(
                     ex,
@@ -131,8 +187,8 @@ public sealed class PaymentFailureOrchestrator(
             {
                 /*
                  * Preserve payment failure processing. The inventory
-                 * reconciliation worker can repair an inconsistent
-                 * reservation state after the order is marked released.
+                 * reconciliation worker can repair any remaining
+                 * discrepancy.
                  */
                 logger.LogWarning(
                     ex,
@@ -147,11 +203,9 @@ public sealed class PaymentFailureOrchestrator(
         }
 
         /*
-         * Release any physical warehouse reservations.
+         * Release physical warehouse reservations.
          *
-         * This is deliberately best-effort because a failed payment
-         * must still be persisted as Failed even when a warehouse
-         * cleanup operation encounters a transient problem.
+         * This remains best-effort.
          */
         try
         {
@@ -177,6 +231,9 @@ public sealed class PaymentFailureOrchestrator(
                 paymentAttempt.OrderId);
         }
 
+        /*
+         * Mark the fresh tracked payment attempt as failed.
+         */
         await paymentAttempts.MarkFailedAsync(
             tenantId,
             userId,
@@ -230,4 +287,3 @@ public sealed record PaymentFailureResult(
     string Status,
     bool AlreadyCompleted,
     int ReleasedReservations);
-

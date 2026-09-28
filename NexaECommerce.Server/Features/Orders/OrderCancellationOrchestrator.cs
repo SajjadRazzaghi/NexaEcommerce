@@ -7,6 +7,7 @@ namespace NexaECommerce.Server.Features.Orders;
 public sealed class OrderCancellationOrchestrator(
     IOrderRepository orderRepository,
     IOrderUnitOfWork orderUnitOfWork,
+    IOrderConcurrencyService orderConcurrency,
     IWarehouseReservationOrchestrator warehouseReservation)
 {
     public async Task CancelAsync(
@@ -36,35 +37,57 @@ public sealed class OrderCancellationOrchestrator(
                 nameof(orderId));
         }
 
-        var order =
-            await orderRepository.GetByIdAsync(
-                tenantId,
-                orderId,
-                userId,
-                cancellationToken);
+        var normalizedTenantId =
+            tenantId.Trim();
 
-        if (order is null)
-        {
-            throw new KeyNotFoundException(
-                "Order was not found.");
-        }
+        var normalizedUserId =
+            userId.Trim();
 
-        if (order.Status is
-            OrderStatus.Shipped or
-            OrderStatus.Delivered)
-        {
-            throw new InvalidOperationException(
-                "Shipped or delivered orders cannot be cancelled.");
-        }
-
-        await warehouseReservation.ReleaseAsync(
-            tenantId,
+        await orderConcurrency.ExecuteAsync(
+            normalizedTenantId,
             orderId,
-            cancellationToken);
+            async ct =>
+            {
+                /*
+                 * Fresh load after the lock.
+                 */
+                var order =
+                    await orderRepository.GetByIdAsync(
+                        normalizedTenantId,
+                        orderId,
+                        normalizedUserId,
+                        ct);
 
-        order.Cancel();
+                if (order is null)
+                {
+                    throw new KeyNotFoundException(
+                        "Order was not found.");
+                }
 
-        await orderUnitOfWork.SaveChangesAsync(
+                if (order.Status is
+                    OrderStatus.Shipped or
+                    OrderStatus.Delivered)
+                {
+                    throw new InvalidOperationException(
+                        "Shipped or delivered orders cannot be cancelled.");
+                }
+
+                /*
+                 * Warehouse reservation release is intentionally
+                 * performed while the order lock is held so payment,
+                 * cancellation and reconciliation cannot manipulate
+                 * the same order simultaneously.
+                 */
+                await warehouseReservation.ReleaseAsync(
+                    normalizedTenantId,
+                    orderId,
+                    ct);
+
+                order.Cancel();
+
+                await orderUnitOfWork.SaveChangesAsync(
+                    ct);
+            },
             cancellationToken);
     }
 }

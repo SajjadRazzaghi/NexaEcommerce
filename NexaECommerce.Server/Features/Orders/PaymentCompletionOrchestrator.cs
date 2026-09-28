@@ -1,8 +1,8 @@
-﻿using NexaEcommerce.Modules.Orders.Application.Payments;
+﻿using NexaEcommerce.Modules.Inventory.Application.Services;
+using NexaEcommerce.Modules.Orders.Application.Payments;
 using NexaEcommerce.Modules.Orders.Application.Services;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
-using NexaEcommerce.Modules.Inventory.Application.Services;
 
 namespace NexaECommerce.Server.Features.Orders;
 
@@ -12,7 +12,8 @@ public sealed class PaymentCompletionOrchestrator(
     IOrderUnitOfWork unitOfWork,
     IInventoryService inventory,
     PaymentGatewayService gateways,
-    PaymentReservationOrchestrator paymentReservations)
+    PaymentReservationOrchestrator paymentReservations,
+    IOrderConcurrencyService orderConcurrency)
 {
     public async Task<PaymentCompletionResult> CompleteAsync(
         string tenantId,
@@ -41,10 +42,56 @@ public sealed class PaymentCompletionOrchestrator(
         var normalizedGatewayReference =
             gatewayReference.Trim();
 
-        var paymentAttempt =
+        /*
+         * We only need this first read to discover the OrderId.
+         *
+         * The OrderConcurrencyService clears the EF ChangeTracker
+         * after acquiring the lock, so this instance must NOT be
+         * trusted after that point.
+         */
+        var initialPaymentAttempt =
             await paymentAttemptRepository.GetByIdAsync(
                 normalizedTenantId,
                 normalizedUserId,
+                paymentAttemptId,
+                cancellationToken);
+
+        if (initialPaymentAttempt is null)
+        {
+            throw new KeyNotFoundException(
+                "Payment attempt was not found.");
+        }
+
+        return await orderConcurrency.ExecuteAsync(
+            normalizedTenantId,
+            initialPaymentAttempt.OrderId,
+            ct =>
+                CompleteCoreAsync(
+                    normalizedTenantId,
+                    normalizedUserId,
+                    paymentAttemptId,
+                    normalizedGatewayName,
+                    normalizedGatewayReference,
+                    ct),
+            cancellationToken);
+    }
+
+    private async Task<PaymentCompletionResult>
+        CompleteCoreAsync(
+            string tenantId,
+            string userId,
+            Guid paymentAttemptId,
+            string gatewayName,
+            string gatewayReference,
+            CancellationToken cancellationToken)
+    {
+        /*
+         * Fresh load AFTER acquiring the order lock.
+         */
+        var paymentAttempt =
+            await paymentAttemptRepository.GetByIdAsync(
+                tenantId,
+                userId,
                 paymentAttemptId,
                 cancellationToken);
 
@@ -56,9 +103,9 @@ public sealed class PaymentCompletionOrchestrator(
 
         var order =
             await orderRepository.GetByIdAsync(
-                normalizedTenantId,
+                tenantId,
                 paymentAttempt.OrderId,
-                normalizedUserId,
+                userId,
                 cancellationToken);
 
         if (order is null)
@@ -103,13 +150,8 @@ public sealed class PaymentCompletionOrchestrator(
         }
 
         /*
-         * IMPORTANT:
-         *
-         * A Paid order must NOT cause a different pending payment
-         * attempt to become successful.
-         *
-         * This prevents payment attempt B from being marked succeeded
-         * merely because payment attempt A already paid the order.
+         * Another payment attempt may already have completed the order
+         * while this request was waiting for the lock.
          */
         if (order.Status ==
             OrderStatus.Paid)
@@ -126,8 +168,8 @@ public sealed class PaymentCompletionOrchestrator(
         }
 
         /*
-         * Always validate the persisted payment attempt before
-         * touching inventory.
+         * Validate the persisted payment attempt before touching
+         * inventory.
          */
         if (string.IsNullOrWhiteSpace(
                 paymentAttempt.GatewayName))
@@ -138,7 +180,7 @@ public sealed class PaymentCompletionOrchestrator(
 
         if (!string.Equals(
                 paymentAttempt.GatewayName,
-                normalizedGatewayName,
+                gatewayName,
                 StringComparison.OrdinalIgnoreCase))
         {
             throw new InvalidOperationException(
@@ -154,7 +196,7 @@ public sealed class PaymentCompletionOrchestrator(
 
         if (!string.Equals(
                 paymentAttempt.GatewayReference.Trim(),
-                normalizedGatewayReference,
+                gatewayReference,
                 StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
@@ -162,14 +204,14 @@ public sealed class PaymentCompletionOrchestrator(
         }
 
         /*
-         * The checkout reservation may have expired before the user
-         * returns from the gateway.
+         * The order lock is already held.
          *
-         * Recover/recreate the reservation before completing payment.
+         * Therefore do NOT call EnsureForCompletionAsync here because
+         * that method would try to acquire the same lock again.
          */
-        await paymentReservations.EnsureForCompletionAsync(
-            normalizedTenantId,
-            normalizedUserId,
+        await paymentReservations.EnsureForCompletionUnderLockAsync(
+            tenantId,
+            userId,
             paymentAttempt.OrderId,
             paymentAttempt.Id,
             cancellationToken);
@@ -186,7 +228,7 @@ public sealed class PaymentCompletionOrchestrator(
                     new PaymentGatewayVerifyRequest(
                         order.OrderNumber,
                         paymentAttempt.Amount,
-                        normalizedGatewayReference),
+                        gatewayReference),
                     cancellationToken);
 
             if (!verification.Succeeded)
@@ -200,12 +242,12 @@ public sealed class PaymentCompletionOrchestrator(
             var verifiedReference =
                 string.IsNullOrWhiteSpace(
                     verification.GatewayReference)
-                    ? normalizedGatewayReference
+                    ? gatewayReference
                     : verification.GatewayReference.Trim();
 
             if (!string.Equals(
                     verifiedReference,
-                    normalizedGatewayReference,
+                    gatewayReference,
                     StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(
@@ -224,24 +266,24 @@ public sealed class PaymentCompletionOrchestrator(
         }
 
         /*
-         * Global inventory was reserved during checkout/payment recovery.
-         *
-         * Payment commits those reservations.
+         * Global inventory was reserved during checkout/payment
+         * recovery. Payment commits those reservations.
          */
-        foreach (var orderReservation in
-                 order.InventoryReservations
-                     .Where(
-                         x =>
-                             x.Status is
-                                 InventoryReservationStatus.Reserved or
-                                 InventoryReservationStatus.Committed)
-                     .OrderBy(
-                         x => x.ReservationKey))
+        foreach (
+            var orderReservation
+            in order.InventoryReservations
+                .Where(
+                    x =>
+                        x.Status is
+                            InventoryReservationStatus.Reserved or
+                            InventoryReservationStatus.Committed)
+                .OrderBy(
+                    x => x.ReservationKey))
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             await inventory.CommitAsync(
-                normalizedTenantId,
+                tenantId,
                 orderReservation.ReservationKey,
                 cancellationToken);
         }
@@ -252,8 +294,8 @@ public sealed class PaymentCompletionOrchestrator(
             PaymentAttemptStatus.Succeeded)
         {
             paymentAttempt.MarkSucceeded(
-                normalizedGatewayName,
-                normalizedGatewayReference);
+                gatewayName,
+                gatewayReference);
         }
 
         order.MarkPaid();

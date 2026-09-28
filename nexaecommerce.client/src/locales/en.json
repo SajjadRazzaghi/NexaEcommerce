@@ -1,4 +1,38 @@
 {
+ 
+    "nav": {
+      "home": "Home",
+      "products": "Products",
+      "catalog": "Catalog",
+      "dashboard": "Dashboard",
+      "orders": "Orders",
+      "shipping": "Shipping & Fulfillment",
+      "shippingMethods": "Shipping Methods",
+      "categories": "Categories",
+      "brands": "Brands",
+      "manufacturers": "Manufacturers",
+      "inventory": "Inventory",
+      "inventoryManagement": "Inventory",
+      "inventoryTransfers": "Inventory Transfers",
+      "warehouses": "Warehouses",
+      "administration": "Administration",
+      "users": "Users",
+      "roles": "Roles",
+      "permissions": "Permissions",
+      "appearance": "Appearance",
+      "settings": "Settings",
+      "health": "System Health"
+    },
+
+    "account": {
+      "profile": "Profile"
+    },
+
+    "fields": {
+      "orders": "My Orders"
+    },
+
+   
   "checkout": {
     "title": "Checkout",
     "subtitle": "Review your delivery information and choose a shipping method.",
@@ -326,5 +360,5 @@
       "completeError": "Payment verification succeeded, but the order could not be completed."
     }
   }
-  
+
 }

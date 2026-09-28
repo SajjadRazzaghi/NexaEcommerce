@@ -12,7 +12,8 @@ public sealed class OrderService(
     IShippingMethodService shippingMethods,
     IPricingCalculator pricingCalculator,
     ICouponService couponService,
-    ITaxRateService taxRateService)
+    ITaxRateService taxRateService,
+    IOrderConcurrencyService orderConcurrency)
     : IOrderService
 {
     public async Task<OrderDto> CreateFromCheckoutAsync(
@@ -326,10 +327,10 @@ request.ShippingMethodId);
     }
 
     public async Task<OrderStatusResultDto> UpdateStatusAsync(
-        string tenantId,
-        Guid orderId,
-        string status,
-        CancellationToken cancellationToken = default)
+      string tenantId,
+      Guid orderId,
+      string status,
+      CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(status))
         {
@@ -348,107 +349,130 @@ request.ShippingMethodId);
                 nameof(status));
         }
 
-        var order =
-            await repository.GetByIdAsync(
-                tenantId,
-                orderId,
-                null,
-                cancellationToken);
+        return await orderConcurrency.ExecuteAsync(
+            tenantId.Trim(),
+            orderId,
+            async ct =>
+            {
+                var order =
+                    await repository.GetByIdAsync(
+                        tenantId.Trim(),
+                        orderId,
+                        null,
+                        ct);
 
-        if (order is null)
-        {
-            throw new KeyNotFoundException(
-                "Order was not found.");
-        }
+                if (order is null)
+                {
+                    throw new KeyNotFoundException(
+                        "Order was not found.");
+                }
 
-        var previous =
-            order.Status;
+                var previous =
+                    order.Status;
 
-        if (previous == targetStatus)
-        {
-            return new OrderStatusResultDto(
-                order.Id,
-                order.OrderNumber,
-                previous.ToString(),
-                targetStatus.ToString());
-        }
+                if (previous == targetStatus)
+                {
+                    return new OrderStatusResultDto(
+                        order.Id,
+                        order.OrderNumber,
+                        previous.ToString(),
+                        targetStatus.ToString());
+                }
 
-        switch (targetStatus)
-        {
-            case OrderStatus.Processing:
-                order.StartProcessing();
-                break;
+                switch (targetStatus)
+                {
+                    case OrderStatus.Processing:
 
-            case OrderStatus.Cancelled:
-                order.Cancel();
-                break;
+                        order.StartProcessing();
 
-            case OrderStatus.Paid:
-                throw new InvalidOperationException(
-                    "Paid status can only be established by successful payment completion.");
+                        break;
 
-            case OrderStatus.Shipped:
-                throw new InvalidOperationException(
-                    "Shipped status can only be established by the shipment workflow.");
+                    case OrderStatus.Cancelled:
 
-            case OrderStatus.Delivered:
-                throw new InvalidOperationException(
-                    "Delivered status can only be established by the shipment workflow.");
+                        order.Cancel();
 
-            case OrderStatus.PendingPayment:
-                throw new InvalidOperationException(
-                    "An order cannot be moved back to PendingPayment.");
+                        break;
 
-            default:
-                throw new ArgumentException(
-                    $"Unsupported order status '{status}'.",
-                    nameof(status));
-        }
+                    case OrderStatus.Paid:
 
-        await unitOfWork.SaveChangesAsync(
+                        throw new InvalidOperationException(
+                            "Paid status can only be established by successful payment completion.");
+
+                    case OrderStatus.Shipped:
+
+                        throw new InvalidOperationException(
+                            "Shipped status can only be established by the shipment workflow.");
+
+                    case OrderStatus.Delivered:
+
+                        throw new InvalidOperationException(
+                            "Delivered status can only be established by the shipment workflow.");
+
+                    case OrderStatus.PendingPayment:
+
+                        throw new InvalidOperationException(
+                            "An order cannot be moved back to PendingPayment.");
+
+                    default:
+
+                        throw new ArgumentException(
+                            $"Unsupported order status '{status}'.",
+                            nameof(status));
+                }
+
+                await unitOfWork.SaveChangesAsync(
+                    ct);
+
+                return new OrderStatusResultDto(
+                    order.Id,
+                    order.OrderNumber,
+                    previous.ToString(),
+                    order.Status.ToString());
+            },
             cancellationToken);
-
-        return new OrderStatusResultDto(
-            order.Id,
-            order.OrderNumber,
-            previous.ToString(),
-            order.Status.ToString());
     }
 
     public async Task CancelAsync(
-        string tenantId,
-        Guid orderId,
-        string userId,
-        CancellationToken cancellationToken = default)
+     string tenantId,
+     Guid orderId,
+     string userId,
+     CancellationToken cancellationToken = default)
     {
-        var order =
-            await repository.GetByIdAsync(
-                tenantId,
-                orderId,
-                userId,
-                cancellationToken);
+        await orderConcurrency.ExecuteAsync(
+            tenantId.Trim(),
+            orderId,
+            async ct =>
+            {
+                var order =
+                    await repository.GetByIdAsync(
+                        tenantId.Trim(),
+                        orderId,
+                        userId.Trim(),
+                        ct);
 
-        if (order is null)
-        {
-            throw new KeyNotFoundException(
-                "Order was not found.");
-        }
+                if (order is null)
+                {
+                    throw new KeyNotFoundException(
+                        "Order was not found.");
+                }
 
-        order.Cancel();
+                order.Cancel();
 
-        await unitOfWork.SaveChangesAsync(
+                await unitOfWork.SaveChangesAsync(
+                    ct);
+            },
             cancellationToken);
     }
 
     public async Task<OrderDto> RecordInventoryReservationAsync(
-        string tenantId,
-        string userId,
-        Guid orderId,
-        string reservationKey,
-        Guid productVariantId,
-        int quantity,
-        DateTimeOffset expiresAt,
-        CancellationToken cancellationToken = default)
+       string tenantId,
+       string userId,
+       Guid orderId,
+       string reservationKey,
+       Guid productVariantId,
+       int quantity,
+       DateTimeOffset expiresAt,
+       CancellationToken cancellationToken = default)
     {
         ValidateInventoryReservation(
             tenantId,
@@ -459,43 +483,54 @@ request.ShippingMethodId);
             quantity,
             expiresAt);
 
-        var order =
-            await repository.GetByIdAsync(
-                tenantId,
-                orderId,
-                userId,
-                cancellationToken);
+        return await orderConcurrency.ExecuteAsync(
+            tenantId.Trim(),
+            orderId,
+            async ct =>
+            {
+                var order =
+                    await repository.GetByIdAsync(
+                        tenantId.Trim(),
+                        orderId,
+                        userId.Trim(),
+                        ct);
 
-        if (order is null)
-        {
-            throw new InvalidOperationException(
-                "Order was not found.");
-        }
+                if (order is null)
+                {
+                    throw new InvalidOperationException(
+                        "Order was not found.");
+                }
 
-        if (order.Status !=
-            OrderStatus.PendingPayment)
-        {
-            throw new InvalidOperationException(
-                "Inventory reservations can only be recorded for orders pending payment.");
-        }
+                if (order.Status !=
+                    OrderStatus.PendingPayment)
+                {
+                    throw new InvalidOperationException(
+                        "Inventory reservations can only be recorded for orders pending payment.");
+                }
 
-        var reservation =
-           order.AddInventoryReservation(
-               reservationKey,
-               productVariantId,
-               quantity,
-               expiresAt);
+                var reservation =
+                    order.AddInventoryReservation(
+                        reservationKey,
+                        productVariantId,
+                        quantity,
+                        expiresAt);
 
-        await repository.AddInventoryReservationAsync(
-            reservation,
+                /*
+                 * AddInventoryReservation already adds the entity to the
+                 * aggregate collection. We only add it explicitly to the
+                 * DbSet when the repository expects it.
+                 */
+                await repository.AddInventoryReservationAsync(
+                    reservation,
+                    ct);
+
+                await unitOfWork.SaveChangesAsync(
+                    ct);
+
+                return Map(order);
+            },
             cancellationToken);
-
-        await unitOfWork.SaveChangesAsync(
-            cancellationToken);
-
-        return Map(order);
     }
-
     private static OrderListDto CreateList(
         IReadOnlyList<Order> orders,
         int page,
