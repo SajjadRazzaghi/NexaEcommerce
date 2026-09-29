@@ -1013,6 +1013,8 @@
 
     "productDetail": {
       "title": "جزئیات محصول",
+      "selectProductAttributes": "انتخاب ویژگی محصول",
+      "selectAttributesHint": "لطفاً ویژگی‌های موردنظر محصول را انتخاب کنید.",
       "retry": "تلاش دوباره",
       "loadError": "دریافت محصول انجام نشد.",
       "notFound": "محصول پیدا نشد.",
@@ -1032,7 +1034,6 @@
       "description": "توضیحات",
       "categories": "دسته‌بندی‌ها",
       "manufacturer": "تولیدکننده",
-
       "attributes": {
         "color": "رنگ",
         "size": "سایز",

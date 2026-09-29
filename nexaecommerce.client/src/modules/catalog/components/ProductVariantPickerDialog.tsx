@@ -21,6 +21,10 @@ import {
     ShoppingCartOutlined,
 } from '@mui/icons-material';
 
+import {
+    useTranslation,
+} from 'react-i18next';
+
 import type {
     Product,
     ProductVariant,
@@ -42,6 +46,29 @@ type AttributeOption = {
     colorHex?: string | null;
 };
 
+const ATTRIBUTE_TRANSLATION_KEYS: Record<
+    string,
+    string
+> = {
+    color:
+        'storefront.productDetail.attributes.color',
+
+    colour:
+        'storefront.productDetail.attributes.color',
+
+    size:
+        'storefront.productDetail.attributes.size',
+
+    material:
+        'storefront.productDetail.attributes.material',
+
+    fabric:
+        'storefront.productDetail.attributes.material',
+
+    pattern:
+        'storefront.productDetail.attributes.pattern',
+};
+
 function getVariantAttributeOptions(
     product: Product,
 ): Map<
@@ -54,7 +81,9 @@ function getVariantAttributeOptions(
             AttributeOption[]
         >();
 
-    for (const variant of product.variants) {
+    for (
+        const variant of product.variants
+    ) {
         if (
             !variant.isActive ||
             variant.stockQuantity <= 0
@@ -62,8 +91,10 @@ function getVariantAttributeOptions(
             continue;
         }
 
-        for (const attribute of
-            variant.attributes ?? []) {
+        for (
+            const attribute of
+            variant.attributes ?? []
+        ) {
             const key =
                 attribute.attributeCode ||
                 attribute.attributeName;
@@ -91,9 +122,11 @@ function getVariantAttributeOptions(
             ) {
                 values.push({
                     value,
+
                     displayValue:
                         attribute.displayValue?.trim() ||
                         value,
+
                     colorHex:
                         attribute.colorHex,
                 });
@@ -111,11 +144,15 @@ function getVariantAttributeOptions(
             result.keys(),
         ).some(
             key =>
-                key.toLowerCase() ===
+                key
+                    .trim()
+                    .toLowerCase() ===
                 'color',
         );
 
-    if (!hasColorAttribute) {
+    if (
+        !hasColorAttribute
+    ) {
         const colors =
             product.variants
                 .filter(
@@ -156,11 +193,15 @@ function getVariantAttributeOptions(
             result.keys(),
         ).some(
             key =>
-                key.toLowerCase() ===
+                key
+                    .trim()
+                    .toLowerCase() ===
                 'size',
         );
 
-    if (!hasSizeAttribute) {
+    if (
+        !hasSizeAttribute
+    ) {
         const sizes =
             product.variants
                 .filter(
@@ -206,19 +247,26 @@ function variantMatchesSelection(
         string
     >,
 ): boolean {
-    for (const [
-        key,
-        selectedValue,
-    ] of Object.entries(
-        selection,
-    )) {
+    for (
+        const [
+            key,
+            selectedValue,
+        ] of Object.entries(
+            selection,
+        )
+    ) {
         const attribute =
             variant.attributes?.find(
                 item =>
                     (
                         item.attributeCode ||
                         item.attributeName
-                    ) === key,
+                    )
+                        ?.trim()
+                        .toLowerCase() ===
+                    key
+                        .trim()
+                        .toLowerCase(),
             );
 
         if (attribute) {
@@ -233,7 +281,9 @@ function variantMatchesSelection(
         }
 
         if (
-            key.toLowerCase() ===
+            key
+                .trim()
+                .toLowerCase() ===
             'color'
         ) {
             if (
@@ -247,7 +297,9 @@ function variantMatchesSelection(
         }
 
         if (
-            key.toLowerCase() ===
+            key
+                .trim()
+                .toLowerCase() ===
             'size'
         ) {
             if (
@@ -269,6 +321,58 @@ export default function ProductVariantPickerDialog({
     onClose,
     onConfirm,
 }: ProductVariantPickerDialogProps) {
+    const {
+        t,
+        i18n,
+    } = useTranslation();
+
+    const isFa =
+        i18n.language
+            ?.toLowerCase()
+            .startsWith('fa') ??
+        false;
+
+    const getText = (
+        key: string,
+        fallback: string,
+    ) =>
+        t(
+            key,
+            {
+                defaultValue:
+                    fallback,
+            },
+        );
+
+    const getAttributeName = (
+        code: string,
+        fallback: string,
+    ) => {
+        const normalizedCode =
+            code
+                .trim()
+                .toLowerCase();
+
+        const translationKey =
+            ATTRIBUTE_TRANSLATION_KEYS[
+            normalizedCode
+            ];
+
+        if (
+            !translationKey
+        ) {
+            return fallback;
+        }
+
+        return t(
+            translationKey,
+            {
+                defaultValue:
+                    fallback,
+            },
+        );
+    };
+
     const [
         selection,
         setSelection,
@@ -280,7 +384,10 @@ export default function ProductVariantPickerDialog({
         if (!open) {
             setSelection({});
         }
-    }, [open, product?.id]);
+    }, [
+        open,
+        product?.id,
+    ]);
 
     const attributeOptions =
         useMemo(
@@ -293,7 +400,9 @@ export default function ProductVariantPickerDialog({
                         string,
                         AttributeOption[]
                     >(),
-            [product],
+            [
+                product,
+            ],
         );
 
     const selectedVariant =
@@ -324,7 +433,9 @@ export default function ProductVariantPickerDialog({
             if (
                 requiredKeys.some(
                     key =>
-                        !selection[key],
+                        !selection[
+                        key
+                        ],
                 )
             ) {
                 return null;
@@ -349,7 +460,9 @@ export default function ProductVariantPickerDialog({
         ]);
 
     const canConfirm =
-        Boolean(selectedVariant);
+        Boolean(
+            selectedVariant,
+        );
 
     const getOptionAvailable = (
         attributeKey: string,
@@ -361,6 +474,7 @@ export default function ProductVariantPickerDialog({
 
         const nextSelection = {
             ...selection,
+
             [attributeKey]:
                 value,
         };
@@ -383,7 +497,9 @@ export default function ProductVariantPickerDialog({
     };
 
     const handleConfirm = () => {
-        if (!selectedVariant) {
+        if (
+            !selectedVariant
+        ) {
             return;
         }
 
@@ -391,6 +507,28 @@ export default function ProductVariantPickerDialog({
             selectedVariant,
         );
     };
+
+    const formatNumber = (
+        value: number,
+    ) =>
+        new Intl.NumberFormat(
+            isFa
+                ? 'fa-IR'
+                : 'en-US',
+        ).format(value);
+
+    const formatPrice = (
+        value: number,
+    ) =>
+        new Intl.NumberFormat(
+            isFa
+                ? 'fa-IR'
+                : 'en-US',
+            {
+                maximumFractionDigits:
+                    0,
+            },
+        ).format(value);
 
     if (!product) {
         return null;
@@ -406,15 +544,27 @@ export default function ProductVariantPickerDialog({
             }
             fullWidth
             maxWidth="sm"
-            dir="rtl"
+            dir={
+                isFa
+                    ? 'rtl'
+                    : 'ltr'
+            }
         >
             <DialogTitle
                 sx={{
-                    fontWeight: 800,
-                    textAlign: 'right',
+                    fontWeight:
+                        800,
+
+                    textAlign:
+                        isFa
+                            ? 'right'
+                            : 'left',
                 }}
             >
-                انتخاب ویژگی محصول
+                {getText(
+                    'storefront.productDetail.selectProductAttributes',
+                    'Select product options',
+                )}
             </DialogTitle>
 
             <DialogContent
@@ -424,7 +574,9 @@ export default function ProductVariantPickerDialog({
                     spacing={2.5}
                     sx={{
                         direction:
-                            'rtl',
+                            isFa
+                                ? 'rtl'
+                                : 'ltr',
                     }}
                 >
                     <Typography
@@ -432,8 +584,11 @@ export default function ProductVariantPickerDialog({
                         sx={{
                             fontWeight:
                                 800,
+
                             textAlign:
-                                'right',
+                                isFa
+                                    ? 'right'
+                                    : 'left',
                         }}
                     >
                         {
@@ -459,13 +614,17 @@ export default function ProductVariantPickerDialog({
                                     sx={{
                                         fontWeight:
                                             800,
+
                                         textAlign:
-                                            'right',
+                                            isFa
+                                                ? 'right'
+                                                : 'left',
                                     }}
                                 >
-                                    {
-                                        attributeKey
-                                    }
+                                    {getAttributeName(
+                                        attributeKey,
+                                        attributeKey,
+                                    )}
                                 </Typography>
 
                                 <Stack
@@ -473,10 +632,13 @@ export default function ProductVariantPickerDialog({
                                     sx={{
                                         flexWrap:
                                             'wrap',
-                                        gap:
-                                            1,
+
+                                        gap: 1,
+
                                         direction:
-                                            'rtl',
+                                            isFa
+                                                ? 'rtl'
+                                                : 'ltr',
                                     }}
                                 >
                                     {options.map(
@@ -489,13 +651,13 @@ export default function ProductVariantPickerDialog({
 
                                             const selected =
                                                 selection[
-                                                    attributeKey
+                                                attributeKey
                                                 ] ===
                                                 option.value;
 
                                             return (
                                                 <Button
-                                                    key={`${ attributeKey } -${ option.value }`}
+                                                    key={`${attributeKey}-${option.value}`}
                                                     type="button"
                                                     variant={
                                                         selected
@@ -510,7 +672,10 @@ export default function ProductVariantPickerDialog({
                                                         setSelection(
                                                             current => ({
                                                                 ...current,
-                                                                [attributeKey]:
+
+                                                                [
+                                                                    attributeKey
+                                                                ]:
                                                                     option.value,
                                                             }),
                                                         )
@@ -518,12 +683,18 @@ export default function ProductVariantPickerDialog({
                                                     sx={{
                                                         minWidth:
                                                             72,
+
                                                         minHeight:
                                                             42,
+
                                                         borderRadius:
                                                             2,
+
                                                         fontWeight:
                                                             700,
+
+                                                        textTransform:
+                                                            'none',
                                                     }}
                                                 >
                                                     {option.colorHex && (
@@ -535,10 +706,12 @@ export default function ProductVariantPickerDialog({
                                                                     '50%',
                                                                 background:
                                                                     option.colorHex,
-                                                                border: '1px solid rgba(0,0,0,.2)',
+                                                                border:
+                                                                    '1px solid rgba(0,0,0,.2)',
                                                                 display:
                                                                     'inline-block',
-                                                                marginLeft: 8,
+                                                                marginInlineEnd:
+                                                                    8,
                                                             }}
                                                         />
                                                     )}
@@ -562,22 +735,35 @@ export default function ProductVariantPickerDialog({
                             direction="row"
                             sx={{
                                 direction:
-                                    'rtl',
+                                    isFa
+                                        ? 'rtl'
+                                        : 'ltr',
+
                                 alignItems:
                                     'center',
+
                                 justifyContent:
                                     'space-between',
+
                                 gap: 1,
+
+                                flexWrap:
+                                    'wrap',
                             }}
                         >
                             <Stack
                                 direction="row"
                                 sx={{
                                     direction:
-                                        'rtl',
+                                        isFa
+                                            ? 'rtl'
+                                            : 'ltr',
+
                                     alignItems:
                                         'center',
+
                                     gap: 1,
+
                                     flexWrap:
                                         'wrap',
                                 }}
@@ -586,13 +772,22 @@ export default function ProductVariantPickerDialog({
                                     icon={
                                         <CheckCircle />
                                     }
-                                    label={`SKU: ${ selectedVariant.sku }`}
+                                    label={`${getText(
+                                        'storefront.productDetail.sku',
+                                        'SKU',
+                                    )}: ${selectedVariant.sku
+                                        }`}
                                     color="success"
                                     variant="outlined"
                                 />
 
                                 <Chip
-                                    label={`موجودی: ${ selectedVariant.stockQuantity }`}
+                                    label={`${getText(
+                                        'storefront.productDetail.availableQuantity',
+                                        'Available quantity',
+                                    )}: ${formatNumber(
+                                        selectedVariant.stockQuantity,
+                                    )}`}
                                     color="success"
                                 />
                             </Stack>
@@ -602,20 +797,17 @@ export default function ProductVariantPickerDialog({
                                 sx={{
                                     fontWeight:
                                         700,
+
                                     whiteSpace:
                                         'nowrap',
                                 }}
                             >
                                 {selectedVariant.priceOverride !=
                                     null
-                                    ? new Intl.NumberFormat(
-                                        'fa-IR',
-                                    ).format(
+                                    ? formatPrice(
                                         selectedVariant.priceOverride,
                                     )
-                                    : new Intl.NumberFormat(
-                                        'fa-IR',
-                                    ).format(
+                                    : formatPrice(
                                         product.finalPrice,
                                     )}{' '}
                                 {
@@ -629,13 +821,18 @@ export default function ProductVariantPickerDialog({
                             color="text.secondary"
                             sx={{
                                 textAlign:
-                                    'right',
+                                    isFa
+                                        ? 'right'
+                                        : 'left',
+
                                 lineHeight:
                                     1.8,
                             }}
                         >
-                            لطفاً ویژگی‌های موردنظر
-                            محصول را انتخاب کنید.
+                            {getText(
+                                'storefront.productDetail.selectAttributesHint',
+                                'Please select the available product options.',
+                            )}
                         </Typography>
                     )}
                 </Stack>
@@ -644,8 +841,12 @@ export default function ProductVariantPickerDialog({
             <DialogActions
                 sx={{
                     p: 2,
+
                     direction:
-                        'rtl',
+                        isFa
+                            ? 'rtl'
+                            : 'ltr',
+
                     gap: 1,
                 }}
             >
@@ -655,9 +856,14 @@ export default function ProductVariantPickerDialog({
                     onClick={
                         handleClose
                     }
-                    disabled={loading}
+                    disabled={
+                        loading
+                    }
                 >
-                    انصراف
+                    {getText(
+                        'common.cancel',
+                        'Cancel',
+                    )}
                 </Button>
 
                 <Button
@@ -676,13 +882,20 @@ export default function ProductVariantPickerDialog({
                     sx={{
                         minWidth:
                             170,
+
                         fontWeight:
                             800,
                     }}
                 >
                     {loading
-                        ? 'در حال افزودن...'
-                        : 'افزودن به سبد'}
+                        ? getText(
+                            'storefront.productDetail.adding',
+                            'Adding...',
+                        )
+                        : getText(
+                            'storefront.productDetail.addToCart',
+                            'Add to cart',
+                        )}
                 </Button>
             </DialogActions>
         </Dialog>

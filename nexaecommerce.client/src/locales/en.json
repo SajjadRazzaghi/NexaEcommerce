@@ -1058,6 +1058,8 @@
 
     "productDetail": {
       "title": "Product details",
+      "selectProductAttributes": "Select product options",
+      "selectAttributesHint": "Please select the available product options.",
       "retry": "Retry",
       "loadError": "Failed to load product.",
       "notFound": "Product not found.",
@@ -1077,7 +1079,6 @@
       "description": "Description",
       "categories": "Categories",
       "manufacturer": "Manufacturer",
-
       "attributes": {
         "color": "Color",
         "size": "Size",
