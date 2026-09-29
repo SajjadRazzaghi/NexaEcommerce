@@ -1,4 +1,47 @@
 {
+  "productAdminDetail": {
+    "product": "محصول",
+    "retry": "تلاش دوباره",
+    "loadError": "بارگذاری محصول انجام نشد.",
+    "backToProducts": "بازگشت به محصولات",
+
+    "actions": {
+      "back": "بازگشت",
+      "editProduct": "ویرایش محصول"
+    },
+
+    "status": {
+      "active": "فعال",
+      "inactive": "غیرفعال",
+      "published": "منتشرشده",
+      "unpublished": "منتشرنشده",
+      "featured": "ویژه",
+      "notFeatured": "غیرویژه",
+      "inStock": "موجود",
+      "outOfStock": "ناموجود"
+    },
+
+    "fields": {
+      "sku": "SKU",
+      "brand": "برند",
+      "basePrice": "قیمت پایه",
+      "totalStock": "موجودی کل",
+      "shortDescription": "توضیح کوتاه",
+      "description": "توضیحات",
+      "categories": "دسته‌بندی‌ها"
+    },
+
+    "variants": {
+      "title": "واریانت‌ها",
+      "count_one": "{{count}} واریانت",
+      "count_other": "{{count}} واریانت",
+      "empty": "این محصول هیچ واریانتی ندارد.",
+      "skuAttributes": "SKU / ویژگی‌ها",
+      "price": "قیمت",
+      "stock": "موجودی",
+      "status": "وضعیت"
+    }
+  },
   "productEdit": {
     "product": "محصول",
     "pageTitle": "ویرایش {{productName}} · {{storeName}}",

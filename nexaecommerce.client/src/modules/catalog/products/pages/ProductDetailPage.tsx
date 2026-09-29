@@ -1,12 +1,27 @@
-import {Link, useNavigate, useParams} from 'react-router-dom';
+import {
+    Link,
+    useNavigate,
+    useParams,
+} from 'react-router-dom';
+
+import {
+    useTranslation,
+} from 'react-i18next';
+
+import type {
+    TFunction,
+} from 'i18next';
+
 import {
     ArrowLeft,
     Edit,
     Package,
 } from 'lucide-react';
+
 import {
     resolveMediaUrl,
 } from '@/lib/media-url';
+
 import {
     Alert,
     Box,
@@ -27,14 +42,20 @@ import {
     Typography,
 } from '@mui/material';
 
-import {useProduct} from '../hooks';
-import type {ProductVariant} from '../../api/products';
+import {
+    useProduct,
+} from '../hooks';
+
+import type {
+    ProductVariant,
+} from '../../api/products';
 
 function formatPrice(
     value: number,
     currency: string,
+    locale: string,
 ) {
-    return`${new Intl.NumberFormat('en-US').format(value)} ${currency}`;
+    return `${new Intl.NumberFormat(locale).format(value)} ${currency}`;
 }
 
 function StatusChip({
@@ -48,16 +69,30 @@ function StatusChip({
         <Chip
             label={label}
             size="small"
-            color={active ? 'success' : 'default'}
-            variant={active ? 'filled' : 'outlined'}
-       />
+            color={
+                active
+                    ? 'success'
+                    : 'default'
+            }
+            variant={
+                active
+                    ? 'filled'
+                    : 'outlined'
+            }
+        />
     );
 }
 
 function VariantSummary({
     variant,
+    currency,
+    locale,
+    t,
 }: {
     variant: ProductVariant;
+    currency: string;
+    locale: string;
+    t: TFunction;
 }) {
     const attributes = [
         variant.color,
@@ -66,166 +101,253 @@ function VariantSummary({
         .filter(Boolean)
         .join(' • ');
 
-    return (
-        <TableRow>
-            <TableCell>
+    
+return (
+    <TableRow>
+        <TableCell>
+            <Typography
+                variant="body2"
+                sx={{
+                    fontWeight: 700,
+                }}
+            >
+                {variant.sku}
+            </Typography>
+
+            {attributes && (
                 <Typography
-                    variant="body2"
-                    sx={{fontWeight: 700}}
+                    variant="caption"
+                    color="text.secondary"
                 >
-                    {variant.sku}
+                    {attributes}
                 </Typography>
+            )}
+        </TableCell>
 
-                {attributes && (
-                    <Typography
-                        variant="caption"
-                        color="text.secondary"
-                    >
-                        {attributes}
-                    </Typography>
-                )}
-            </TableCell>
+        <TableCell>
+            {formatPrice(
+                variant.priceOverride ?? 0,
+                currency,
+                locale,
+            )}
+        </TableCell>
 
-            <TableCell>
-                {formatPrice(
-                    variant.priceOverride ?? 0,
-                    'IRR',
-                )}
-            </TableCell>
+        <TableCell>
+            <Typography
+                sx={{
+                    fontWeight: 700,
+                    color:
+                        variant.stockQuantity > 0
+                            ? 'success.main'
+                            : 'error.main',
+                }}
+            >
+                {variant.stockQuantity}
+            </Typography>
+        </TableCell>
 
-            <TableCell>
-                <Typography
-                    sx={{
-                        fontWeight: 700,
-                        color:
-                            variant.stockQuantity > 0
-                                ? 'success.main'
-                                : 'error.main',
-                   }}
-                >
-                    {variant.stockQuantity}
-                </Typography>
-            </TableCell>
+        <TableCell>
+            <StatusChip
+                label={
+                    variant.isActive
+                        ? t(
+                            'productAdminDetail.status.active',
+                        )
+                        : t(
+                            'productAdminDetail.status.inactive',
+                        )
+                }
+                active={
+                    variant.isActive
+                }
+            />
+        </TableCell>
+    </TableRow>
+);
 
-            <TableCell>
-                <StatusChip
-                    label={
-                        variant.isActive
-                            ? 'Active'
-                            : 'Inactive'
-                   }
-                    active={variant.isActive}
-               />
-            </TableCell>
-        </TableRow>
-    );
+
 }
 
 export default function ProductDetailPage() {
-    const {id} = useParams<{id: string}>();
-    const navigate = useNavigate();
-
     const {
-        data: product,
-        isLoading,
-        isError,
-        error,
-        refetch,
-   } = useProduct(id);
+        id,
+    } = useParams<{
+        id: string;
+    }>();
 
-    if (isLoading) {
-        return (
-            <Stack spacing={3}>
-                <Skeleton
-                    variant="rectangular"
-                    height={56}
-                    sx={{borderRadius: 2}}
-               />
+    
+const navigate =
+    useNavigate();
 
-                <Grid container spacing={3}>
-                    <Grid size={{xs: 12, md: 5}}>
-                        <Skeleton
-                            variant="rectangular"
-                            height={420}
-                            sx={{borderRadius: 3}}
-                       />
-                    </Grid>
+const {
+    t,
+    i18n,
+} = useTranslation();
 
-                    <Grid size={{xs: 12, md: 7}}>
-                        <Stack spacing={2}>
-                            <Skeleton height={55}/>
-                            <Skeleton height={35}/>
-                            <Skeleton height={35}/>
-                            <Skeleton height={120}/>
-                        </Stack>
-                    </Grid>
-                </Grid>
-            </Stack>
-        );
-   }
+const locale =
+    i18n.resolvedLanguage === 'fa'
+        ? 'fa-IR'
+        : 'en-US';
 
-    if (isError || !product) {
-        return (
-            <Stack spacing={2}>
-                <Alert
-                    severity="error"
-                    action={
-                        <Button
-                            color="inherit"
-                            size="small"
-                            onClick={() => refetch()}
-                        >
-                            Retry
-                        </Button>
-                   }
-                >
-                    {error instanceof Error
-                        ? error.message
-                        : 'Failed to load product.'}
-                </Alert>
+const {
+    data: product,
+    isLoading,
+    isError,
+    error,
+    refetch,
+} = useProduct(id);
 
-                <Button
-                    component={Link}
-                    to="/admin/products"
-                    startIcon={<ArrowLeft/>}
-                    variant="outlined"
-                    sx={{alignSelf: 'flex-start'}}
-                >
-                    Back to products
-                </Button>
-            </Stack>
-        );
-   }
-
-    const mainImage =
-        product.images?.find(
-            (image) => image.isMain,
-        )?.imageUrl ??
-        product.images?.[0]?.imageUrl ??
-        '/placeholder.jpg';
-
-    const variants =
-        product.variants ?? [];
-
-    const totalStock =
-        variants.reduce(
-            (sum, variant) =>
-                sum + variant.stockQuantity,
-            0,
-        );
-
+if (isLoading) {
     return (
         <Stack spacing={3}>
+            <Skeleton
+                variant="rectangular"
+                height={56}
+                sx={{
+                    borderRadius: 2,
+                }}
+            />
+
+            <Grid
+                container
+                spacing={3}
+            >
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 5,
+                    }}
+                >
+                    <Skeleton
+                        variant="rectangular"
+                        height={420}
+                        sx={{
+                            borderRadius: 3,
+                        }}
+                    />
+                </Grid>
+
+                <Grid
+                    size={{
+                        xs: 12,
+                        md: 7,
+                    }}
+                >
+                    <Stack spacing={2}>
+                        <Skeleton height={55} />
+                        <Skeleton height={35} />
+                        <Skeleton height={35} />
+                        <Skeleton height={120} />
+                    </Stack>
+                </Grid>
+            </Grid>
+        </Stack>
+    );
+}
+
+if (
+    isError ||
+    !product
+) {
+    return (
+        <Stack spacing={2}>
+            <Alert
+                severity="error"
+                action={
+                    <Button
+                        color="inherit"
+                        size="small"
+                        onClick={() =>
+                            refetch()
+                        }
+                    >
+                        {t(
+                            'productAdminDetail.retry',
+                        )}
+                    </Button>
+                }
+            >
+                {error instanceof Error
+                    ? error.message
+                    : t(
+                        'productAdminDetail.loadError',
+                    )}
+            </Alert>
+
+            <Button
+                component={Link}
+                to="/admin/products"
+                startIcon={
+                    <ArrowLeft />
+                }
+                variant="outlined"
+                sx={{
+                    alignSelf:
+                        'flex-start',
+                }}
+            >
+                {t(
+                    'productAdminDetail.actions.backToProducts',
+                )}
+            </Button>
+        </Stack>
+    );
+}
+
+const mainImage =
+    product.images?.find(
+        image =>
+            image.isMain,
+    )?.imageUrl ??
+    product.images?.[0]
+        ?.imageUrl ??
+    '/placeholder.jpg';
+
+const variants =
+    product.variants ?? [];
+
+const totalStock =
+    variants.reduce(
+        (
+            sum,
+            variant,
+        ) =>
+            sum +
+            variant.stockQuantity,
+        0,
+    );
+
+const variantCount =
+    variants.length;
+
+const finalPrice =
+    product.finalPrice ??
+    product.price;
+
+const hasComparePrice =
+    product.comparePrice != null &&
+    product.comparePrice > finalPrice;
+
+return (
+    <Stack spacing={3}>
+        {/* =====================================================
+            Header
+        ===================================================== */}
+
             <Stack
-                direction={{xs: 'column', sm: 'row'}}
+                direction={{
+                    xs: 'column',
+                    sm: 'row',
+                }}
                 spacing={2}
                 sx={{
-                    justifyContent: 'space-between',
+                    justifyContent:
+                        'space-between',
                     alignItems: {
                         xs: 'stretch',
                         sm: 'center',
-                   },
-               }}
+                    },
+                }}
             >
                 <Box>
                     <Typography
@@ -233,7 +355,7 @@ export default function ProductDetailPage() {
                         sx={{
                             fontWeight: 900,
                             mb: 0.5,
-                       }}
+                        }}
                     >
                         {product.name}
                     </Typography>
@@ -241,7 +363,10 @@ export default function ProductDetailPage() {
                     <Typography
                         color="text.secondary"
                     >
-                        SKU: {product.sku}
+                        {t(
+                            'productAdminDetail.fields.sku',
+                        )}
+                        : {product.sku}
                     </Typography>
                 </Box>
 
@@ -251,51 +376,79 @@ export default function ProductDetailPage() {
                 >
                     <Button
                         variant="outlined"
-                        startIcon={<ArrowLeft/>}
+                        startIcon={
+                            <ArrowLeft />
+                        }
                         onClick={() =>
                             navigate(
                                 '/admin/products',
                             )
-                       }
+                        }
                     >
-                        Back
+                        {t(
+                            'productAdminDetail.actions.back',
+                        )}
                     </Button>
 
                     <Button
                         variant="contained"
-                        startIcon={<Edit/>}
+                        startIcon={
+                            <Edit />
+                        }
                         onClick={() =>
                             navigate(
-                               `/admin/products/${product.id}/edit`,
+                                `/admin/products/${product.id}/edit`,
                             )
-                       }
+                        }
                     >
-    Edit Product
-                    </Button >
-                </Stack >
-            </Stack >
+                        {t(
+                            'productAdminDetail.actions.editProduct',
+                        )}
+                    </Button>
+                </Stack>
+            </Stack>
+
+            {/* =====================================================
+            Main Product Information
+        ===================================================== */}
 
             <Card>
                 <CardContent>
-                    <Grid container spacing={4}>
-                        <Grid size={{xs: 12, md: 5}}>
+                    <Grid
+                        container
+                        spacing={4}
+                    >
+                        {/* =================================================
+                        Images
+                    ================================================= */}
+
+                        <Grid
+                            size={{
+                                xs: 12,
+                                md: 5,
+                            }}
+                        >
                             <Box
                                 component="img"
-                                src={resolveMediaUrl(mainImage)}
-                                alt={product.name}
+                                src={resolveMediaUrl(
+                                    mainImage,
+                                )}
+                                alt={
+                                    product.name
+                                }
                                 sx={{
                                     width: '100%',
                                     height: {
                                         xs: 300,
                                         md: 430,
-                                   },
+                                    },
                                     objectFit:
                                         'contain',
                                     borderRadius: 3,
                                     bgcolor:
                                         'background.default',
-                               }}
-                                onError={(event) => {
+                                }}
+                                onError={event => {
                                     const image =
                                         event.currentTarget;
 
@@ -306,13 +459,13 @@ export default function ProductDetailPage() {
                                     ) {
                                         image.src =
                                             '/placeholder.jpg';
-                                   }
-                               }}
-                           />
+                                    }
+                                }}
+                            />
 
                             {product.images &&
                                 product.images.length >
-                                    1 && (
+                                1 && (
                                     <Stack
                                         direction="row"
                                         spacing={1}
@@ -320,143 +473,177 @@ export default function ProductDetailPage() {
                                             mt: 2,
                                             overflowX:
                                                 'auto',
-                                       }}
+                                        }}
                                     >
                                         {product.images.map(
-                                            (
-                                                image,
-                                            ) => (
+                                            image => (
                                                 <Box
                                                     key={
                                                         image.id
-                                                   }
+                                                    }
                                                     component="img"
-                                                    src={
-                                                        resolveMediaUrl( image.imageUrl)
-                                                   }
+                                                    src={resolveMediaUrl(
+                                                        image.imageUrl,
+                                                    )}
                                                     alt={
                                                         image.altText ??
                                                         product.name
-                                                   }
+                                                    }
                                                     sx={{
                                                         width: 72,
                                                         height: 72,
+                                                        flexShrink: 0,
                                                         objectFit:
                                                             'cover',
                                                         borderRadius: 2,
                                                         border:
                                                             '1px solid',
                                                         borderColor:
-                                                            'divider',
-                                                   }}
-                                               />
+                                                            image.isMain
+                                                                ? 'primary.main'
+                                                                : 'divider',
+                                                    }}
+                                                />
                                             ),
                                         )}
                                     </Stack>
                                 )}
                         </Grid>
 
-                        <Grid size={{xs: 12, md: 7}}>
+                        {/* =================================================
+                        Product Details
+                    ================================================= */}
+
+                        <Grid
+                            size={{
+                                xs: 12,
+                                md: 7,
+                            }}
+                        >
                             <Stack spacing={2.5}>
+                                {/* Status */}
                                 <Stack
                                     direction="row"
                                     spacing={1}
                                     useFlexGap
                                     sx={{
-                                        flexWrap: 'wrap',
-                                   }}
+                                        flexWrap:
+                                            'wrap',
+                                    }}
                                 >
                                     <StatusChip
                                         label={
                                             product.isActive
-                                                ? 'Active'
-                                                : 'Inactive'
-                                       }
+                                                ? t(
+                                                    'productAdminDetail.status.active',
+                                                )
+                                                : t(
+                                                    'productAdminDetail.status.inactive',
+                                                )
+                                        }
                                         active={
                                             product.isActive
-                                       }
-                                   />
+                                        }
+                                    />
 
                                     <StatusChip
                                         label={
                                             product.isPublished
-                                                ? 'Published'
-                                                : 'Unpublished'
-                                       }
+                                                ? t(
+                                                    'productAdminDetail.status.published',
+                                                )
+                                                : t(
+                                                    'productAdminDetail.status.unpublished',
+                                                )
+                                        }
                                         active={
                                             product.isPublished
-                                       }
-                                   />
+                                        }
+                                    />
 
                                     <StatusChip
                                         label={
                                             product.isFeatured
-                                                ? 'Featured'
-                                                : 'Not Featured'
-                                       }
+                                                ? t(
+                                                    'productAdminDetail.status.featured',
+                                                )
+                                                : t(
+                                                    'productAdminDetail.status.notFeatured',
+                                                )
+                                        }
                                         active={
                                             product.isFeatured
-                                       }
-                                   />
+                                        }
+                                    />
 
                                     <StatusChip
                                         label={
                                             product.isInStock
-                                                ? 'In Stock'
-                                                : 'Out of Stock'
-                                       }
+                                                ? t(
+                                                    'productAdminDetail.status.inStock',
+                                                )
+                                                : t(
+                                                    'productAdminDetail.status.outOfStock',
+                                                )
+                                        }
                                         active={
                                             product.isInStock
-                                       }
-                                   />
+                                        }
+                                    />
                                 </Stack>
 
+                                {/* Brand */}
                                 {product.brandName && (
                                     <Typography
                                         color="text.secondary"
                                     >
-                                        Brand:{' '}
+                                        {t(
+                                            'productAdminDetail.fields.brand',
+                                        )}
+                                        :{' '}
                                         <strong>
                                             {
                                                 product.brandName
-                                           }
+                                            }
                                         </strong>
                                     </Typography>
                                 )}
 
+                                {/* Final Price */}
                                 <Typography
                                     variant="h4"
                                     color="primary"
                                     sx={{
                                         fontWeight: 900,
-                                   }}
+                                    }}
                                 >
                                     {formatPrice(
-                                        product.finalPrice ??
-                                            product.price,
+                                        finalPrice,
                                         product.currency,
+                                        locale,
                                     )}
                                 </Typography>
 
-                                {product.comparePrice &&
-                                    product.comparePrice >
-                                        product.finalPrice && (
-                                        <Typography
-                                            color="text.secondary"
-                                            sx={{
-                                                textDecoration:
-                                                    'line-through',
-                                           }}
-                                        >
-                                            {formatPrice(
-                                                product.comparePrice,
-                                                product.currency,
-                                            )}
-                                        </Typography>
-                                    )}
+                                {/* Compare Price */}
+                                {hasComparePrice && (
+                                    <Typography
+                                        color="text.secondary"
+                                        sx={{
+                                            textDecoration:
+                                                'line-through',
+                                        }}
+                                    >
+                                        {formatPrice(
+                                            product.comparePrice!,
+                                            product.currency,
+                                            locale,
+                                        )}
+                                    </Typography>
+                                )}
 
-                                <Divider/>
+                                <Divider />
 
+                                {/* Price / Stock */}
                                 <Grid
                                     container
                                     spacing={2}
@@ -465,7 +652,7 @@ export default function ProductDetailPage() {
                                         size={{
                                             xs: 12,
                                             sm: 6,
-                                       }}
+                                        }}
                                     >
                                         <Card
                                             variant="outlined"
@@ -475,18 +662,21 @@ export default function ProductDetailPage() {
                                                     variant="caption"
                                                     color="text.secondary"
                                                 >
-                                                    Base Price
+                                                    {t(
+                                                        'productAdminDetail.fields.basePrice',
+                                                    )}
                                                 </Typography>
 
                                                 <Typography
                                                     variant="h6"
                                                     sx={{
                                                         fontWeight: 800,
-                                                   }}
+                                                    }}
                                                 >
                                                     {formatPrice(
                                                         product.price,
                                                         product.currency,
+                                                        locale,
                                                     )}
                                                 </Typography>
                                             </CardContent>
@@ -497,7 +687,7 @@ export default function ProductDetailPage() {
                                         size={{
                                             xs: 12,
                                             sm: 6,
-                                       }}
+                                        }}
                                     >
                                         <Card
                                             variant="outlined"
@@ -507,14 +697,16 @@ export default function ProductDetailPage() {
                                                     variant="caption"
                                                     color="text.secondary"
                                                 >
-                                                    Total Stock
+                                                    {t(
+                                                        'productAdminDetail.fields.totalStock',
+                                                    )}
                                                 </Typography>
 
                                                 <Typography
                                                     variant="h6"
                                                     sx={{
                                                         fontWeight: 800,
-                                                   }}
+                                                    }}
                                                 >
                                                     {totalStock}
                                                 </Typography>
@@ -523,6 +715,7 @@ export default function ProductDetailPage() {
                                     </Grid>
                                 </Grid>
 
+                                {/* Short Description */}
                                 {product.shortDescription && (
                                     <Box>
                                         <Typography
@@ -530,9 +723,11 @@ export default function ProductDetailPage() {
                                             sx={{
                                                 fontWeight: 800,
                                                 mb: 1,
-                                           }}
+                                            }}
                                         >
-                                            Short Description
+                                            {t(
+                                                'productAdminDetail.fields.shortDescription',
+                                            )}
                                         </Typography>
 
                                         <Typography
@@ -541,15 +736,16 @@ export default function ProductDetailPage() {
                                                 whiteSpace:
                                                     'pre-line',
                                                 lineHeight: 1.9,
-                                           }}
+                                            }}
                                         >
                                             {
                                                 product.shortDescription
-                                           }
+                                            }
                                         </Typography>
                                     </Box>
                                 )}
 
+                                {/* Description */}
                                 {product.description && (
                                     <Box>
                                         <Typography
@@ -557,9 +753,11 @@ export default function ProductDetailPage() {
                                             sx={{
                                                 fontWeight: 800,
                                                 mb: 1,
-                                           }}
+                                            }}
                                         >
-                                            Description
+                                            {t(
+                                                'productAdminDetail.fields.description',
+                                            )}
                                         </Typography>
 
                                         <Typography
@@ -568,113 +766,143 @@ export default function ProductDetailPage() {
                                                 whiteSpace:
                                                     'pre-line',
                                                 lineHeight: 1.9,
-                                           }}
+                                            }}
                                         >
                                             {
                                                 product.description
-                                           }
+                                            }
                                         </Typography>
                                     </Box>
                                 )}
 
+                                {/* Categories */}
                                 {product.categories?.length >
                                     0 && (
-                                    <Box>
-                                        <Typography
-                                            variant="h6"
-                                            sx={{
-                                                fontWeight: 800,
-                                                mb: 1,
-                                           }}
-                                        >
-                                            Categories
-                                        </Typography>
+                                        <Box>
+                                            <Typography
+                                                variant="h6"
+                                                sx={{
+                                                    fontWeight: 800,
+                                                    mb: 1,
+                                                }}
+                                            >
+                                                {t(
+                                                    'productAdminDetail.fields.categories',
+                                                )}
+                                            </Typography>
 
-                                        <Stack
-                                            direction="row"
-                                            spacing={1}
-                                            useFlexGap
-                                            sx={{
-                                                flexWrap: 'wrap',
-                                           }}
-                                        >
-                                            {product.categories.map(
-                                                (
-                                                    category,
-                                                ) => (
-                                                    <Chip
-                                                        key={
-                                                            category
-                                                       }
-                                                        label={
-                                                            category
-                                                       }
-                                                        size="small"
-                                                   />
-                                                ),
-                                            )}
-                                        </Stack>
-                                    </Box>
-                                )}
+                                            <Stack
+                                                direction="row"
+                                                spacing={1}
+                                                useFlexGap
+                                                sx={{
+                                                    flexWrap:
+                                                        'wrap',
+                                                }}
+                                            >
+                                                {product.categories.map(
+                                                    category => (
+                                                        <Chip
+                                                            key={
+                                                                category
+                                                            }
+                                                            label={
+                                                                category
+                                                            }
+                                                            size="small"
+                                                        />
+                                                    ),
+                                                )}
+                                            </Stack>
+                                        </Box>
+                                    )}
                             </Stack>
                         </Grid>
                     </Grid>
                 </CardContent>
             </Card>
 
+            {/* =====================================================
+            Variants
+        ===================================================== */}
+
             <Card>
                 <CardHeader
-                    avatar={<Package/>}
-                    title="Variants"
-                    subheader={`${variants.length} variant(s)`}
-               />
+                    avatar={<Package />}
+                    title={t(
+                        'productAdminDetail.variants.title',
+                    )}
+                    subheader={t(
+                        variantCount === 1
+                            ? 'productAdminDetail.variants.count_one'
+                            : 'productAdminDetail.variants.count_other',
+                        {
+                            count: variantCount,
+                        },
+                    )}
+                />
 
                 <CardContent>
                     {variants.length === 0 ? (
                         <Alert severity="info">
-                            This product has no variants.
+                            {t(
+                                'productAdminDetail.variants.empty',
+                            )}
                         </Alert>
                     ) : (
                         <Box
                             sx={{
                                 overflowX:
                                     'auto',
-                           }}
+                            }}
                         >
                             <Table>
                                 <TableHead>
                                     <TableRow>
                                         <TableCell>
-                                            SKU/Attributes
+                                            {t(
+                                                'productAdminDetail.variants.skuAttributes',
+                                            )}
                                         </TableCell>
 
                                         <TableCell>
-                                            Price
+                                            {t(
+                                                'productAdminDetail.variants.price',
+                                            )}
                                         </TableCell>
 
                                         <TableCell>
-                                            Stock
+                                            {t(
+                                                'productAdminDetail.variants.stock',
+                                            )}
                                         </TableCell>
 
                                         <TableCell>
-                                            Status
+                                            {t(
+                                                'productAdminDetail.variants.status',
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 </TableHead>
 
                                 <TableBody>
                                     {variants.map(
-                                        (
-                                            variant,
-                                        ) => (
+                                        variant => (
                                             <VariantSummary
                                                 key={
                                                     variant.id
-                                               }
+                                                }
                                                 variant={
                                                     variant
-                                               }
-                                           />
+                                                }
+                                                currency={
+                                                    product.currency
+                                                }
+                                                locale={
+                                                    locale
+                                                }
+                                                t={t}
+                                            />
                                         ),
                                     )}
                                 </TableBody>
@@ -683,7 +911,7 @@ export default function ProductDetailPage() {
                     )}
                 </CardContent>
             </Card>
-        </Stack >
+        </Stack>
     );
 }
 

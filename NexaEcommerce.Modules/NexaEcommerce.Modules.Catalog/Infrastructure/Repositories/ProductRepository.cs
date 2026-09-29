@@ -786,16 +786,18 @@ var normalizedUrls =
 }
 
     public async Task DeleteVariantAttributeMappingsAsync(
-        Guid variantId,
-        IReadOnlyCollection<Guid> attributeValueIds,
-        CancellationToken cancellationToken = default)
+    Guid variantId,
+    IReadOnlyCollection<Guid> attributeValueIds,
+    CancellationToken cancellationToken = default)
     {
         if (variantId == Guid.Empty)
         {
             return;
         }
 
-        if (attributeValueIds.Count == 0)
+
+if (attributeValueIds is null ||
+    attributeValueIds.Count == 0)
         {
             return;
         }
@@ -813,30 +815,53 @@ var normalizedUrls =
             return;
         }
 
-        var mappings =
-            await _context
-                .Set<VariantAttributeValue>()
-                .IgnoreQueryFilters()
+        // ------------------------------------------------------------
+        // Detach tracked mapping entities first.
+        //
+        // ProductRepository.GetByIdAsync() loads VariantAttributeValue
+        // entities as tracked. We are deleting their database rows
+        // directly, so those old tracked instances must not be sent
+        // through SaveChanges().
+        // ------------------------------------------------------------
+
+        var trackedMappings =
+            _context.ChangeTracker
+                .Entries<VariantAttributeValue>()
                 .Where(
-                    x =>
-                        x.ProductVariantId ==
+                    entry =>
+                        entry.Entity.ProductVariantId ==
                         variantId &&
 
                         ids.Contains(
-                            x.AttributeValueId))
-                .ToListAsync(
-                    cancellationToken);
+                            entry.Entity.AttributeValueId))
+                .ToList();
 
-        if (mappings.Count == 0)
+        foreach (var entry in trackedMappings)
         {
-            return;
+            entry.State =
+                EntityState.Detached;
         }
 
-        _context
+        // ------------------------------------------------------------
+        // Delete the persisted mapping rows directly.
+        // ------------------------------------------------------------
+
+        await _context
             .Set<VariantAttributeValue>()
-            .RemoveRange(
-                mappings);
-    }
+            .IgnoreQueryFilters()
+            .Where(
+                x =>
+                    x.ProductVariantId ==
+                    variantId &&
+
+                    ids.Contains(
+                        x.AttributeValueId))
+            .ExecuteDeleteAsync(
+                cancellationToken);
+
+
+}
+
 
     // ============================================================
     // Add Variant Attribute Mappings

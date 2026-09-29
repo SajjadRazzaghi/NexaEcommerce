@@ -64,7 +64,7 @@ Task<Product?> GetBySlugAsync(
     Task AddAsync(
         Product product,
         CancellationToken cancellationToken = default);
-    void ResetModifiedAttributeValues();
+
     void Update(
         Product product);
 

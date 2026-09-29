@@ -14,16 +14,17 @@ public sealed class CategoryRepository : ICategoryRepository
     }
 
     public async Task<Category?> GetByIdAsync(
-      Guid id,
-      CancellationToken cancellationToken = default)
+   Guid id,
+   CancellationToken cancellationToken = default)
     {
         return await _context.Categories
-            .Include(x => x.ParentCategory)
-            .Include(x => x.SubCategories)
-            .Include(x => x.ProductCategories)
-            .FirstOrDefaultAsync(
-                x => x.Id == id,
-                cancellationToken);
+        .AsSplitQuery()
+        .Include(x => x.ParentCategory)
+        .Include(x => x.SubCategories)
+        .Include(x => x.ProductCategories)
+        .FirstOrDefaultAsync(
+        x => x.Id == id,
+        cancellationToken);
     }
 
     public async Task<Category?> GetBySlugAsync(

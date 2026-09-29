@@ -1,4 +1,47 @@
 {
+  "productAdminDetail": {
+    "product": "Product",
+    "retry": "Retry",
+    "loadError": "Failed to load product.",
+    "backToProducts": "Back to products",
+
+    "actions": {
+      "back": "Back",
+      "editProduct": "Edit Product"
+    },
+
+    "status": {
+      "active": "Active",
+      "inactive": "Inactive",
+      "published": "Published",
+      "unpublished": "Unpublished",
+      "featured": "Featured",
+      "notFeatured": "Not Featured",
+      "inStock": "In Stock",
+      "outOfStock": "Out of Stock"
+    },
+
+    "fields": {
+      "sku": "SKU",
+      "brand": "Brand",
+      "basePrice": "Base Price",
+      "totalStock": "Total Stock",
+      "shortDescription": "Short Description",
+      "description": "Description",
+      "categories": "Categories"
+    },
+
+    "variants": {
+      "title": "Variants",
+      "count_one": "{{count}} variant",
+      "count_other": "{{count}} variants",
+      "empty": "This product has no variants.",
+      "skuAttributes": "SKU / Attributes",
+      "price": "Price",
+      "stock": "Stock",
+      "status": "Status"
+    }
+  },
   "productEdit": {
     "product": "Product",
     "pageTitle": "Edit {{productName}} · {{storeName}}",
