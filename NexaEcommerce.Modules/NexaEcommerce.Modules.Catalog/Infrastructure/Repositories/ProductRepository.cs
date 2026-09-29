@@ -685,6 +685,105 @@ public sealed class ProductRepository : IProductRepository
     // ============================================================
     // Delete Variant Attribute Mappings
     // ============================================================
+    public async Task ReplaceProductImagesAsync(
+Guid productId,
+IReadOnlyCollection<string>? imageUrls,
+CancellationToken cancellationToken = default)
+    {
+        if (productId == Guid.Empty)
+        {
+            throw new ArgumentException(
+            "Product id is required.",
+            nameof(productId));
+        }
+
+
+var normalizedUrls =
+    (imageUrls ?? Array.Empty<string>())
+        .Select(
+            url =>
+                url?.Trim())
+        .Where(
+            url =>
+                !string.IsNullOrWhiteSpace(url))
+        .Select(
+            url =>
+                url!)
+        .Distinct(
+            StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+        // ------------------------------------------------------------
+        // Detach previously tracked image entities.
+        //
+        // Product update loads Images as tracked entities. We replace
+        // the database rows directly, so those old tracked entities
+        // must not participate in SaveChanges afterwards.
+        // ------------------------------------------------------------
+
+        var trackedImages =
+            _context.ChangeTracker
+                .Entries<ProductImage>()
+                .Where(
+                    entry =>
+                        entry.Entity.ProductId ==
+                        productId)
+                .ToList();
+
+        foreach (var entry in trackedImages)
+        {
+            entry.State =
+                EntityState.Detached;
+        }
+
+        // ------------------------------------------------------------
+        // Remove current persisted images.
+        // Ignore query filters so even soft-deleted image rows do not
+        // remain behind when the desired image collection is replaced.
+        // ------------------------------------------------------------
+
+        await _context.ProductImages
+            .IgnoreQueryFilters()
+            .Where(
+                image =>
+                    image.ProductId ==
+                    productId)
+            .ExecuteDeleteAsync(
+                cancellationToken);
+
+        // ------------------------------------------------------------
+        // No images requested.
+        // ------------------------------------------------------------
+
+        if (normalizedUrls.Count == 0)
+        {
+            return;
+        }
+
+        // ------------------------------------------------------------
+        // Insert the desired image state.
+        // New ProductImage entities receive new GUIDs and therefore
+        // cannot collide with the deleted image rows.
+        // ------------------------------------------------------------
+
+        var newImages =
+            normalizedUrls
+                .Select(
+                    (url, index) =>
+                        new ProductImage(
+                            productId,
+                            url,
+                            null,
+                            index,
+                            index == 0))
+                .ToList();
+
+        await _context.ProductImages.AddRangeAsync(
+            newImages,
+            cancellationToken);
+
+
+}
 
     public async Task DeleteVariantAttributeMappingsAsync(
         Guid variantId,
@@ -893,7 +992,7 @@ public sealed class ProductRepository : IProductRepository
             product,
             cancellationToken);
     }
-
+  
     // ============================================================
     // Update
     // ============================================================
@@ -918,7 +1017,18 @@ public sealed class ProductRepository : IProductRepository
     // ============================================================
     // Delete - Soft Delete
     // ============================================================
-
+    public void ResetModifiedAttributeValues()
+    {
+        foreach (var entry in
+                 _context.ChangeTracker
+                     .Entries<AttributeValue>())
+        {
+            if (entry.State == EntityState.Modified)
+            {
+                entry.State = EntityState.Unchanged;
+            }
+        }
+    }
     public void Delete(
         Product product)
     {

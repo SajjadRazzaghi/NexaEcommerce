@@ -4,7 +4,9 @@ import {
     Edit,
     Package,
 } from 'lucide-react';
-
+import {
+    resolveMediaUrl,
+} from '@/lib/media-url';
 import {
     Alert,
     Box,
@@ -279,7 +281,7 @@ export default function ProductDetailPage() {
                         <Grid size={{xs: 12, md: 5}}>
                             <Box
                                 component="img"
-                                src={mainImage}
+                                src={resolveMediaUrl(mainImage)}
                                 alt={product.name}
                                 sx={{
                                     width: '100%',
@@ -330,7 +332,7 @@ export default function ProductDetailPage() {
                                                    }
                                                     component="img"
                                                     src={
-                                                        image.imageUrl
+                                                        resolveMediaUrl( image.imageUrl)
                                                    }
                                                     alt={
                                                         image.altText ??

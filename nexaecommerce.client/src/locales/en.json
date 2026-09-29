@@ -1,4 +1,95 @@
 {
+  "productEdit": {
+    "product": "Product",
+    "pageTitle": "Edit {{productName}} · {{storeName}}",
+    "editTitle": "Edit {{productName}}",
+    "description": "Update product information, variants and catalog configuration.",
+    "loadError": "Unable to load product.",
+
+    "basicInformation": {
+      "title": "Basic Information",
+      "description": "Basic product information"
+    },
+
+    "fields": {
+      "sku": "SKU",
+      "slug": "slug",
+      "productName": "Product Name *",
+      "generatedAutomatically": "Generated automatically",
+      "productSku": "Product SKU",
+      "description": "Description",
+      "shortDescription": "Short Description",
+      "price": "Price *",
+      "comparePrice": "Compare Price",
+      "discountPercentage": "Discount Percentage",
+      "currency": "Currency",
+      "productStock": "Product Stock",
+      "brand": "Brand",
+      "selectBrand": "Select Brand",
+      "categories": "Categories"
+    },
+
+    "pricing": {
+      "title": "Pricing & Discount",
+      "description": "Product pricing and discount settings"
+    },
+
+    "brandCategories": {
+      "title": "Brand & Categories",
+      "description": "Select the product brand and categories"
+    },
+
+    "variants": {
+      "title": "Variants",
+      "description": "SKU, catalog attributes, variant pricing and availability",
+      "add": "Add Variant",
+      "skuPlaceholder": "Variant SKU",
+      "sku": "SKU",
+      "stock": "Stock",
+      "existingStock": "Existing stock is managed by Inventory.",
+      "price": "Variant Price",
+      "attributeCount": "variant attributes",
+      "select": "Select",
+      "selected": "Selected",
+      "empty": "No variants added yet.",
+      "addHint": "Click \"Add Variant\" to add one."
+    },
+
+    "images": {
+      "title": "Images",
+      "description": "Product images",
+      "dropzone": "Drop an image here or click to upload",
+      "alt": "Product image",
+      "main": "Main image",
+      "empty": "No images added yet.",
+      "uploadHint": "Upload an image above."
+    },
+
+    "publication": {
+      "title": "Publication Status",
+      "description": "Control product visibility status",
+      "active": "Active",
+      "activeDescription": "Inactive products are not shown in the storefront.",
+      "featured": "Featured",
+      "featuredDescription": "Featured products are highlighted in featured sections.",
+      "inStock": "In Stock",
+      "stockDescription": "Product stock status in the storefront."
+    },
+
+    "actions": {
+      "back": "Back",
+      "cancel": "Cancel",
+      "create": "Create Product",
+      "save": "Save Changes"
+    },
+
+    "messages": {
+      "created": "Product created successfully.",
+      "updated": "Product updated successfully."
+    },
+
+    "optional": "Optional"
+  },
   "appearance": {
     "loadError": "Unable to load store branding.",
     "retry": "Retry",

@@ -2,8 +2,10 @@ import {useState} from 'react';
 
 import {Link} from 'react-router-dom';
 
-import {useTranslation} from 'react-i18next';
-
+import { useTranslation } from 'react-i18next';
+import {
+    resolveMediaUrl,
+} from '@/lib/media-url';
 import {
     Box,
     Button,
@@ -107,7 +109,9 @@ export default function ProductCard({
               : 0;
 
     const image =
-        product.mainImage?.trim() ||
+        resolveMediaUrl(
+            product.mainImage,
+        ) ||
         '/placeholder.jpg';
 
     const formatPrice = (value: number) =>

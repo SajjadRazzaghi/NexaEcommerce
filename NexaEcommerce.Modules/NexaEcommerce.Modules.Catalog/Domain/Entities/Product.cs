@@ -81,7 +81,7 @@ public class Product : AggregateRoot
     // =========================================================
     // EF Constructor
     // =========================================================
-
+ 
     private Product()
     {
     }
@@ -320,14 +320,19 @@ public class Product : AggregateRoot
     public void SetMainImage(Guid imageId)
     {
         foreach (var image in Images)
+        {
             image.UnsetPrimary();
+        }
 
-        var selectedImage = Images
-            .FirstOrDefault(x => x.Id == imageId);
+        var selectedImage =
+            Images.FirstOrDefault(
+                x => x.Id == imageId);
 
-        if (selectedImage == null)
+        if (selectedImage is null)
+        {
             throw new InvalidOperationException(
                 "Product image was not found.");
+        }
 
         selectedImage.SetPrimary();
     }

@@ -2,6 +2,12 @@ import {
     useEffect,
     useMemo,
 } from 'react';
+import {
+    resolveMediaUrl,
+} from '@/lib/media-url';
+import {
+    useTranslation,
+} from 'react-i18next';
 
 import {
     zodResolver,
@@ -398,14 +404,6 @@ const emptyValues: FormValues = {
 /*                         Catalog → Product Mapping                          */
 /* -------------------------------------------------------------------------- */
 
-/**
- * Converts ProductVariant attribute references into
- * CatalogAttributeValue IDs.
- *
- * ProductVariant.attributes may contain Product-level
- * attribute/value identifiers, while the update API expects
- * CatalogAttributeValue IDs.
- */
 function mapProductVariantAttributeIds(
     variant:
         Product['variants'][number],
@@ -482,9 +480,9 @@ function mapProductVariantAttributeIds(
 
                     return (
                         canonicalValue ===
-                            productValue ||
+                        productValue ||
                         displayValue ===
-                            productValue
+                        productValue
                     );
                 },
             );
@@ -571,8 +569,10 @@ function toValues(
 
         isActive:
             product.isActive,
+
         isPublished:
             product.isPublished,
+
         isFeatured:
             product.isFeatured,
 
@@ -690,6 +690,9 @@ type ProductFormProps =
 export function ProductForm(
     props: ProductFormProps,
 ) {
+    const { t } =
+        useTranslation();
+
     const {
         product,
         mode,
@@ -799,13 +802,13 @@ export function ProductForm(
 
     const {
         fields:
-            variantFields,
+        variantFields,
 
         append:
-            addVariant,
+        addVariant,
 
         remove:
-            removeVariant,
+        removeVariant,
     } =
         useFieldArray({
             control:
@@ -818,13 +821,13 @@ export function ProductForm(
 
     const {
         fields:
-            imageFields,
+        imageFields,
 
         append:
-            addImage,
+        addImage,
 
         remove:
-            removeImage,
+        removeImage,
     } =
         useFieldArray({
             control:
@@ -860,7 +863,7 @@ export function ProductForm(
         useSubmitForm<
             FormValues,
             CreateProductDto |
-                UpdateProductDto,
+            UpdateProductDto,
             unknown
         >({
             form,
@@ -882,8 +885,12 @@ export function ProductForm(
 
             successMessage:
                 mode === 'create'
-                    ? 'Product created successfully.'
-                    : 'Product updated successfully.',
+                    ? t(
+                        'productEdit.messages.created',
+                    )
+                    : t(
+                        'productEdit.messages.updated',
+                    ),
 
             onSuccess:
                 onCancel,
@@ -937,10 +944,6 @@ export function ProductForm(
                                 }),
                             );
 
-                        /*
-                         * Simple products without explicitly entered
-                         * variants receive one default variant.
-                         */
                         if (
                             variants.length ===
                             0
@@ -953,7 +956,7 @@ export function ProductForm(
                             variants = [
                                 {
                                     sku:
-                                        `${ baseSku } -DEFAULT`,
+                                        `${baseSku}-DEFAULT`,
 
                                     color:
                                         '',
@@ -1034,13 +1037,6 @@ export function ProductForm(
                             (
                                 variant,
                             ) => ({
-                                /*
-                                 * Existing variant:
-                                 * keep its actual server-side ID.
-                                 *
-                                 * New variant:
-                                 * omit the ID.
-                                 */
                                 id:
                                     variant.id ||
                                     undefined,
@@ -1063,10 +1059,6 @@ export function ProductForm(
                                     variant.priceOverride ??
                                     null,
 
-                                /*
-                                 * Existing stock is owned by Inventory.
-                                 * Only a NEW variant may send initial stock.
-                                 */
                                 stockQuantity:
                                     variant.id
                                         ? undefined
@@ -1075,10 +1067,6 @@ export function ProductForm(
                                 isActive:
                                     true,
 
-                                /*
-                                 * IMPORTANT:
-                                 * These must be CatalogAttributeValue IDs.
-                                 */
                                 attributeValueIds:
                                     Array.from(
                                         new Set(
@@ -1096,25 +1084,21 @@ export function ProductForm(
 
                     return {
                         name:
-                            values.name
-                                .trim(),
+                            values.name.trim(),
 
                         price:
                             values.price,
 
                         currency:
-                            values.currency
-                                .trim() ||
+                            values.currency.trim() ||
                             'IRR',
 
                         description:
-                            values.description
-                                ?.trim() ||
+                            values.description?.trim() ||
                             undefined,
 
                         shortDescription:
-                            values.shortDescription
-                                ?.trim() ||
+                            values.shortDescription?.trim() ||
                             undefined,
 
                         comparePrice:
@@ -1131,6 +1115,11 @@ export function ProductForm(
 
                         categoryIds:
                             values.categoryIds,
+
+                        images:
+                            getOrderedImageUrls(
+                                values.images,
+                            ),
 
                         isActive:
                             values.isActive,
@@ -1177,7 +1166,59 @@ export function ProductForm(
 
 
     /* --------------------------- Image Actions -------------------------- */
+    const getOrderedImageUrls = (
+        images: FormValues['images'],
+    ): string[] => {
+        const validImages =
+            images
+                .filter(
+                    image =>
+                        Boolean(
+                            image.imageUrl?.trim(),
+                        ),
+                )
+                .map(
+                    image => ({
+                        ...image,
+                        imageUrl:
+                            image.imageUrl.trim(),
+                    }),
+                );
 
+        if (
+            validImages.length <= 1
+        ) {
+            return validImages.map(
+                image =>
+                    image.imageUrl,
+            );
+        }
+
+        const mainIndex =
+            validImages.findIndex(
+                image =>
+                    image.isMain,
+            );
+
+        if (mainIndex > 0) {
+            const [
+                mainImage,
+            ] =
+                validImages.splice(
+                    mainIndex,
+                    1,
+                );
+
+            validImages.unshift(
+                mainImage,
+            );
+        }
+
+        return validImages.map(
+            image =>
+                image.imageUrl,
+        );
+    };
     const handleAddImage =
         (
             url: string,
@@ -1220,16 +1261,16 @@ export function ProductForm(
         )
             ? categoriesData
             : (
-                  categoriesData as
-                      | {
-                            items?: Array<{
-                                id: string;
-                                name: string;
-                            }>;
-                        }
-                      | undefined
-              )?.items ??
-              [];
+                categoriesData as
+                | {
+                    items?: Array<{
+                        id: string;
+                        name: string;
+                    }>;
+                }
+                | undefined
+            )?.items ??
+            [];
 
 
     /* ---------------------------------------------------------------------- */
@@ -1261,11 +1302,15 @@ export function ProductForm(
                 <Card>
                     <CardHeader>
                         <CardTitle>
-                            Basic Information
+                            {t(
+                                'productEdit.basicInformation.title',
+                            )}
                         </CardTitle>
 
                         <CardDescription>
-                            Basic product information
+                            {t(
+                                'productEdit.basicInformation.description',
+                            )}
                         </CardDescription>
                     </CardHeader>
 
@@ -1280,7 +1325,9 @@ export function ProductForm(
                             }) => (
                                 <FormItem>
                                     <FormLabel>
-                                        Product Name *
+                                        {t(
+                                            'productEdit.fields.productName',
+                                        )}
                                     </FormLabel>
 
                                     <FormControl>
@@ -1306,7 +1353,9 @@ export function ProductForm(
                                 }) => (
                                     <FormItem>
                                         <FormLabel>
-                                            Slug
+                                            {t(
+                                                'productEdit.fields.slug',
+                                            )}
                                         </FormLabel>
 
                                         <FormControl>
@@ -1314,8 +1363,10 @@ export function ProductForm(
                                                 {...field}
                                                 placeholder={
                                                     mode ===
-                                                    'create'
-                                                        ? 'Generated automatically'
+                                                        'create'
+                                                        ? t(
+                                                            'productEdit.fields.generatedAutomatically',
+                                                        )
                                                         : undefined
                                                 }
                                                 disabled={
@@ -1340,13 +1391,17 @@ export function ProductForm(
                                 }) => (
                                     <FormItem>
                                         <FormLabel>
-                                            SKU
+                                            {t(
+                                                'productEdit.fields.sku',
+                                            )}
                                         </FormLabel>
 
                                         <FormControl>
                                             <Input
                                                 {...field}
-                                                placeholder="Product SKU"
+                                                placeholder={t(
+                                                    'productEdit.fields.productSkuPlaceholder',
+                                                )}
                                             />
                                         </FormControl>
 
@@ -1366,7 +1421,9 @@ export function ProductForm(
                             }) => (
                                 <FormItem>
                                     <FormLabel>
-                                        Description
+                                        {t(
+                                            'productEdit.fields.description',
+                                        )}
                                     </FormLabel>
 
                                     <FormControl>
@@ -1391,7 +1448,9 @@ export function ProductForm(
                             }) => (
                                 <FormItem>
                                     <FormLabel>
-                                        Short Description
+                                        {t(
+                                            'productEdit.fields.shortDescription',
+                                        )}
                                     </FormLabel>
 
                                     <FormControl>
@@ -1416,11 +1475,15 @@ export function ProductForm(
                 <Card>
                     <CardHeader>
                         <CardTitle>
-                            Pricing & Discount
+                            {t(
+                                'productEdit.pricing.title',
+                            )}
                         </CardTitle>
 
                         <CardDescription>
-                            Product pricing and discount settings
+                            {t(
+                                'productEdit.pricing.description',
+                            )}
                         </CardDescription>
                     </CardHeader>
 
@@ -1436,7 +1499,9 @@ export function ProductForm(
                                 }) => (
                                     <FormItem>
                                         <FormLabel>
-                                            Price *
+                                            {t(
+                                                'productEdit.fields.price',
+                                            )}
                                         </FormLabel>
 
                                         <FormControl>
@@ -1476,7 +1541,9 @@ export function ProductForm(
                                 }) => (
                                     <FormItem>
                                         <FormLabel>
-                                            Compare Price
+                                            {t(
+                                                'productEdit.fields.comparePrice',
+                                            )}
                                         </FormLabel>
 
                                         <FormControl>
@@ -1496,10 +1563,10 @@ export function ProductForm(
                                                             .target
                                                             .value
                                                             ? Number(
-                                                                  event
-                                                                      .target
-                                                                      .value,
-                                                              )
+                                                                event
+                                                                    .target
+                                                                    .value,
+                                                            )
                                                             : null,
                                                     )
                                                 }
@@ -1523,7 +1590,9 @@ export function ProductForm(
                                 }) => (
                                     <FormItem>
                                         <FormLabel>
-                                            Discount Percentage
+                                            {t(
+                                                'productEdit.fields.discountPercentage',
+                                            )}
                                         </FormLabel>
 
                                         <FormControl>
@@ -1543,10 +1612,10 @@ export function ProductForm(
                                                             .target
                                                             .value
                                                             ? Number(
-                                                                  event
-                                                                      .target
-                                                                      .value,
-                                                              )
+                                                                event
+                                                                    .target
+                                                                    .value,
+                                                            )
                                                             : null,
                                                     )
                                                 }
@@ -1568,13 +1637,17 @@ export function ProductForm(
                                 }) => (
                                     <FormItem>
                                         <FormLabel>
-                                            Currency
+                                            {t(
+                                                'productEdit.fields.currency',
+                                            )}
                                         </FormLabel>
 
                                         <FormControl>
                                             <Input
                                                 {...field}
-                                                placeholder="IRR"
+                                                placeholder={t(
+                                                    'productEdit.fields.currencyPlaceholder',
+                                                )}
                                                 maxLength={
                                                     10
                                                 }
@@ -1596,7 +1669,9 @@ export function ProductForm(
                                 }) => (
                                     <FormItem>
                                         <FormLabel>
-                                            Product Stock
+                                            {t(
+                                                'productEdit.fields.productStock',
+                                            )}
                                         </FormLabel>
 
                                         <FormControl>
@@ -1636,11 +1711,15 @@ export function ProductForm(
                 <Card>
                     <CardHeader>
                         <CardTitle>
-                            Brand & Categories
+                            {t(
+                                'productEdit.brandCategories.title',
+                            )}
                         </CardTitle>
 
                         <CardDescription>
-                            Select the product brand and categories
+                            {t(
+                                'productEdit.brandCategories.description',
+                            )}
                         </CardDescription>
                     </CardHeader>
 
@@ -1655,7 +1734,9 @@ export function ProductForm(
                             }) => (
                                 <FormItem>
                                     <FormLabel>
-                                        Brand
+                                        {t(
+                                            'productEdit.fields.brand',
+                                        )}
                                     </FormLabel>
 
                                     <FormControl>
@@ -1677,7 +1758,9 @@ export function ProductForm(
                                             }
                                         >
                                             <option value="">
-                                                Select Brand
+                                                {t(
+                                                    'productEdit.fields.selectBrand',
+                                                )}
                                             </option>
 
                                             {brands.map(
@@ -1716,7 +1799,9 @@ export function ProductForm(
                             }) => (
                                 <FormItem>
                                     <FormLabel>
-                                        Categories
+                                        {t(
+                                            'productEdit.fields.categories',
+                                        )}
                                     </FormLabel>
 
                                     <FormControl>
@@ -1780,11 +1865,15 @@ export function ProductForm(
                         <div className="flex items-center justify-between gap-4">
                             <div>
                                 <CardTitle>
-                                    Variants
+                                    {t(
+                                        'productEdit.variants.title',
+                                    )}
                                 </CardTitle>
 
                                 <CardDescription>
-                                    SKU, catalog attributes, variant pricing and availability
+                                    {t(
+                                        'productEdit.variants.description',
+                                    )}
                                 </CardDescription>
                             </div>
 
@@ -1797,7 +1886,10 @@ export function ProductForm(
                                 }
                             >
                                 <Plus className="me-1 size-4" />
-                                Add Variant
+
+                                {t(
+                                    'productEdit.variants.add',
+                                )}
                             </Button>
                         </div>
                     </CardHeader>
@@ -1845,19 +1937,23 @@ export function ProductForm(
                                                     control={
                                                         form.control
                                                     }
-                                                    name={`variants.${ index }.sku`}
+                                                    name={`variants.${index}.sku`}
                                                     render={({
                                                         field,
                                                     }) => (
                                                         <FormItem>
                                                             <FormLabel>
-                                                                SKU
+                                                                {t(
+                                                                    'productEdit.variants.sku',
+                                                                )}
                                                             </FormLabel>
 
                                                             <FormControl>
                                                                 <Input
                                                                     {...field}
-                                                                    placeholder="Variant SKU"
+                                                                    placeholder={t(
+                                                                        'productEdit.variants.skuPlaceholder',
+                                                                    )}
                                                                 />
                                                             </FormControl>
 
@@ -1870,13 +1966,15 @@ export function ProductForm(
                                                     control={
                                                         form.control
                                                     }
-                                                    name={`variants.${ index }.stockQuantity`}
+                                                    name={`variants.${index}.stockQuantity`}
                                                     render={({
                                                         field,
                                                     }) => (
                                                         <FormItem>
                                                             <FormLabel>
-                                                                Stock
+                                                                {t(
+                                                                    'productEdit.variants.stock',
+                                                                )}
                                                             </FormLabel>
 
                                                             <FormControl>
@@ -1888,7 +1986,7 @@ export function ProductForm(
                                                                     }
                                                                     disabled={
                                                                         mode ===
-                                                                            'edit' &&
+                                                                        'edit' &&
                                                                         isExistingVariant
                                                                     }
                                                                     onChange={(
@@ -1909,7 +2007,9 @@ export function ProductForm(
                                                                 'edit' &&
                                                                 isExistingVariant && (
                                                                     <p className="text-muted-foreground text-xs">
-                                                                        Existing stock is managed by Inventory.
+                                                                        {t(
+                                                                            'productEdit.variants.existingStock',
+                                                                        )}
                                                                     </p>
                                                                 )}
 
@@ -1922,13 +2022,15 @@ export function ProductForm(
                                                     control={
                                                         form.control
                                                     }
-                                                    name={`variants.${ index }.priceOverride`}
+                                                    name={`variants.${index}.priceOverride`}
                                                     render={({
                                                         field,
                                                     }) => (
                                                         <FormItem>
                                                             <FormLabel>
-                                                                Variant Price
+                                                                {t(
+                                                                    'productEdit.variants.price',
+                                                                )}
                                                             </FormLabel>
 
                                                             <FormControl>
@@ -1948,14 +2050,16 @@ export function ProductForm(
                                                                                 .target
                                                                                 .value
                                                                                 ? Number(
-                                                                                      event
-                                                                                          .target
-                                                                                          .value,
-                                                                                  )
+                                                                                    event
+                                                                                        .target
+                                                                                        .value,
+                                                                                )
                                                                                 : undefined,
                                                                         )
                                                                     }
-                                                                    placeholder="Optional"
+                                                                    placeholder={t(
+                                                                        'productEdit.optional',
+                                                                    )}
                                                                 />
                                                             </FormControl>
 
@@ -1968,229 +2072,231 @@ export function ProductForm(
                                                     {
                                                         variantAttributes.length
                                                     }{' '}
-                                                    variant attributes
+                                                    {t(
+                                                        'productEdit.variants.attributeCount',
+                                                    )}
                                                 </div>
                                             </FormGrid>
 
 
                                             {variantAttributes.length >
                                                 0 && (
-                                                <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                                                    {variantAttributes.map(
-                                                        (
-                                                            attribute,
-                                                        ) => {
-                                                            const selectedIds =
-                                                                form.watch(
-                                                                    `variants.${ index }.attributeValueIds`,
-                                                                ) ||
-                                                                [];
+                                                    <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                                                        {variantAttributes.map(
+                                                            (
+                                                                attribute,
+                                                            ) => {
+                                                                const selectedIds =
+                                                                    form.watch(
+                                                                        `variants.${index}.attributeValueIds`,
+                                                                    ) ||
+                                                                    [];
 
-                                                            const selectedValueId =
-                                                                selectedIds.find(
-                                                                    (
-                                                                        valueId,
-                                                                    ) =>
-                                                                        attribute.values.some(
-                                                                            (
-                                                                                value,
-                                                                            ) =>
-                                                                                value.id ===
-                                                                                valueId,
-                                                                        ),
-                                                                ) ||
-                                                                '';
+                                                                const selectedValueId =
+                                                                    selectedIds.find(
+                                                                        (
+                                                                            valueId,
+                                                                        ) =>
+                                                                            attribute.values.some(
+                                                                                (
+                                                                                    value,
+                                                                                ) =>
+                                                                                    value.id ===
+                                                                                    valueId,
+                                                                            ),
+                                                                    ) ||
+                                                                    '';
 
-                                                            const selectedValue =
-                                                                attribute.values.find(
-                                                                    (
-                                                                        value,
-                                                                    ) =>
-                                                                        value.id ===
-                                                                        selectedValueId,
-                                                                );
+                                                                const selectedValue =
+                                                                    attribute.values.find(
+                                                                        (
+                                                                            value,
+                                                                        ) =>
+                                                                            value.id ===
+                                                                            selectedValueId,
+                                                                    );
 
-                                                            return (
-                                                                <div
-                                                                    key={
-                                                                        attribute.id
-                                                                    }
-                                                                    className="space-y-2"
-                                                                >
-                                                                    <FormLabel>
-                                                                        {
-                                                                            attribute.name
+                                                                return (
+                                                                    <div
+                                                                        key={
+                                                                            attribute.id
                                                                         }
-
-                                                                        {attribute.isRequired && (
-                                                                            <span className="ms-1 text-destructive">
-                                                                                *
-                                                                            </span>
-                                                                        )}
-                                                                    </FormLabel>
-
-                                                                    <select
-                                                                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                                                        value={
-                                                                            selectedValueId
-                                                                        }
-                                                                        onChange={(
-                                                                            event,
-                                                                        ) => {
-                                                                            const nextValueId =
-                                                                                event
-                                                                                    .target
-                                                                                    .value;
-
-                                                                            const currentIds =
-                                                                                form.getValues(
-                                                                                    `variants.${ index }.attributeValueIds`,
-                                                                                ) ||
-                                                                                [];
-
-                                                                            const idsWithoutCurrentAttribute =
-                                                                                currentIds.filter(
-                                                                                    (
-                                                                                        valueId,
-                                                                                    ) =>
-                                                                                        !attribute.values.some(
-                                                                                            (
-                                                                                                value,
-                                                                                            ) =>
-                                                                                                value.id ===
-                                                                                                valueId,
-                                                                                        ),
-                                                                                );
-
-                                                                            const nextIds =
-                                                                                nextValueId
-                                                                                    ? [
-                                                                                          ...idsWithoutCurrentAttribute,
-                                                                                          nextValueId,
-                                                                                      ]
-                                                                                    : idsWithoutCurrentAttribute;
-
-                                                                            form.setValue(
-                                                                                `variants.${ index }.attributeValueIds`,
-                                                                                Array.from(
-                                                                                    new Set(
-                                                                                        nextIds,
-                                                                                    ),
-                                                                                ),
-                                                                                {
-                                                                                    shouldDirty:
-                                                                                        true,
-                                                                                    shouldTouch:
-                                                                                        true,
-                                                                                    shouldValidate:
-                                                                                        true,
-                                                                                },
-                                                                            );
-
-                                                                            /*
-                                                                             * Keep legacy color/size convenience
-                                                                             * fields synchronized with the generic
-                                                                             * catalog attribute model.
-                                                                             */
-                                                                            const code =
-                                                                                attribute.code
-                                                                                    ?.trim()
-                                                                                    .toLowerCase();
-
-                                                                            const display =
-                                                                                attribute.values.find(
-                                                                                    (
-                                                                                        value,
-                                                                                    ) =>
-                                                                                        value.id ===
-                                                                                        nextValueId,
-                                                                                );
-
-                                                                            if (
-                                                                                code ===
-                                                                                'color'
-                                                                            ) {
-                                                                                form.setValue(
-                                                                                    `variants.${ index }.color`,
-                                                                                    display?.displayValue ||
-                                                                                        display?.value ||
-                                                                                        '',
-                                                                                    {
-                                                                                        shouldDirty:
-                                                                                            true,
-                                                                                    },
-                                                                                );
-                                                                            }
-
-                                                                            if (
-                                                                                code ===
-                                                                                'size'
-                                                                            ) {
-                                                                                form.setValue(
-                                                                                    `variants.${ index }.size`,
-                                                                                    display?.displayValue ||
-                                                                                        display?.value ||
-                                                                                        '',
-                                                                                    {
-                                                                                        shouldDirty:
-                                                                                            true,
-                                                                                    },
-                                                                                );
-                                                                            }
-                                                                        }}
+                                                                        className="space-y-2"
                                                                     >
-                                                                        <option value="">
-                                                                            Select{' '}
+                                                                        <FormLabel>
                                                                             {
                                                                                 attribute.name
                                                                             }
-                                                                        </option>
 
-                                                                        {attribute.values.map(
-                                                                            (
-                                                                                value,
-                                                                            ) => (
-                                                                                <option
-                                                                                    key={
-                                                                                        value.id
-                                                                                    }
-                                                                                    value={
-                                                                                        value.id
-                                                                                    }
-                                                                                >
-                                                                                    {value.displayValue ||
-                                                                                        value.value}
-                                                                                </option>
-                                                                            ),
-                                                                        )}
-                                                                    </select>
-
-                                                                    {attribute.displayType?.toLowerCase() ===
-                                                                        'color' &&
-                                                                        selectedValueId && (
-                                                                            <div className="text-muted-foreground flex items-center gap-2 text-xs">
-                                                                                <span
-                                                                                    className="size-4 rounded-full border"
-                                                                                    style={{
-                                                                                        backgroundColor:
-                                                                                            selectedValue?.colorHex ||
-                                                                                            'transparent',
-                                                                                    }}
-                                                                                />
-
-                                                                                <span>
-                                                                                    {selectedValue?.displayValue ||
-                                                                                        selectedValue?.value ||
-                                                                                        'Selected'}
+                                                                            {attribute.isRequired && (
+                                                                                <span className="ms-1 text-destructive">
+                                                                                    *
                                                                                 </span>
-                                                                            </div>
-                                                                        )}
-                                                                </div>
-                                                            );
-                                                        },
-                                                    )}
-                                                </div>
-                                            )}
+                                                                            )}
+                                                                        </FormLabel>
+
+                                                                        <select
+                                                                            className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                                                            value={
+                                                                                selectedValueId
+                                                                            }
+                                                                            onChange={(
+                                                                                event,
+                                                                            ) => {
+                                                                                const nextValueId =
+                                                                                    event
+                                                                                        .target
+                                                                                        .value;
+
+                                                                                const currentIds =
+                                                                                    form.getValues(
+                                                                                        `variants.${index}.attributeValueIds`,
+                                                                                    ) ||
+                                                                                    [];
+
+                                                                                const idsWithoutCurrentAttribute =
+                                                                                    currentIds.filter(
+                                                                                        (
+                                                                                            valueId,
+                                                                                        ) =>
+                                                                                            !attribute.values.some(
+                                                                                                (
+                                                                                                    value,
+                                                                                                ) =>
+                                                                                                    value.id ===
+                                                                                                    valueId,
+                                                                                            ),
+                                                                                    );
+
+                                                                                const nextIds =
+                                                                                    nextValueId
+                                                                                        ? [
+                                                                                            ...idsWithoutCurrentAttribute,
+                                                                                            nextValueId,
+                                                                                        ]
+                                                                                        : idsWithoutCurrentAttribute;
+
+                                                                                form.setValue(
+                                                                                    `variants.${index}.attributeValueIds`,
+                                                                                    Array.from(
+                                                                                        new Set(
+                                                                                            nextIds,
+                                                                                        ),
+                                                                                    ),
+                                                                                    {
+                                                                                        shouldDirty:
+                                                                                            true,
+                                                                                        shouldTouch:
+                                                                                            true,
+                                                                                        shouldValidate:
+                                                                                            true,
+                                                                                    },
+                                                                                );
+
+                                                                                const code =
+                                                                                    attribute.code
+                                                                                        ?.trim()
+                                                                                        .toLowerCase();
+
+                                                                                const display =
+                                                                                    attribute.values.find(
+                                                                                        (
+                                                                                            value,
+                                                                                        ) =>
+                                                                                            value.id ===
+                                                                                            nextValueId,
+                                                                                    );
+
+                                                                                if (
+                                                                                    code ===
+                                                                                    'color'
+                                                                                ) {
+                                                                                    form.setValue(
+                                                                                        `variants.${index}.color`,
+                                                                                        display?.displayValue ||
+                                                                                        display?.value ||
+                                                                                        '',
+                                                                                        {
+                                                                                            shouldDirty:
+                                                                                                true,
+                                                                                        },
+                                                                                    );
+                                                                                }
+
+                                                                                if (
+                                                                                    code ===
+                                                                                    'size'
+                                                                                ) {
+                                                                                    form.setValue(
+                                                                                        `variants.${index}.size`,
+                                                                                        display?.displayValue ||
+                                                                                        display?.value ||
+                                                                                        '',
+                                                                                        {
+                                                                                            shouldDirty:
+                                                                                                true,
+                                                                                        },
+                                                                                    );
+                                                                                }
+                                                                            }}
+                                                                        >
+                                                                            <option value="">
+                                                                                {t(
+                                                                                    'productEdit.variants.selectAttribute',
+                                                                                    {
+                                                                                        attribute:
+                                                                                            attribute.name,
+                                                                                    },
+                                                                                )}
+                                                                            </option>
+
+                                                                            {attribute.values.map(
+                                                                                (
+                                                                                    value,
+                                                                                ) => (
+                                                                                    <option
+                                                                                        key={
+                                                                                            value.id
+                                                                                        }
+                                                                                        value={
+                                                                                            value.id
+                                                                                        }
+                                                                                    >
+                                                                                        {value.displayValue ||
+                                                                                            value.value}
+                                                                                    </option>
+                                                                                ),
+                                                                            )}
+                                                                        </select>
+
+                                                                        {attribute.displayType?.toLowerCase() ===
+                                                                            'color' &&
+                                                                            selectedValueId && (
+                                                                                <div className="text-muted-foreground flex items-center gap-2 text-xs">
+                                                                                    <span
+                                                                                        className="size-4 rounded-full border"
+                                                                                        style={{
+                                                                                            backgroundColor:
+                                                                                                selectedValue?.colorHex ||
+                                                                                                'transparent',
+                                                                                        }}
+                                                                                    />
+
+                                                                                    <span>
+                                                                                        {selectedValue?.displayValue ||
+                                                                                            selectedValue?.value ||
+                                                                                            t(
+                                                                                                'productEdit.variants.selected',
+                                                                                            )}
+                                                                                    </span>
+                                                                                </div>
+                                                                            )}
+                                                                    </div>
+                                                                );
+                                                            },
+                                                        )}
+                                                    </div>
+                                                )}
                                         </div>
                                     );
                                 },
@@ -2198,11 +2304,15 @@ export function ProductForm(
 
                             {variantFields.length ===
                                 0 && (
-                                <p className="text-muted-foreground py-4 text-center text-sm">
-                                    No variants added yet.
-                                    Click "Add Variant" to add one.
-                                </p>
-                            )}
+                                    <p className="text-muted-foreground py-4 text-center text-sm">
+                                        {t(
+                                            'productEdit.variants.empty',
+                                        )}{' '}
+                                        {t(
+                                            'productEdit.variants.addHint',
+                                        )}
+                                    </p>
+                                )}
                         </div>
                     </CardContent>
                 </Card>
@@ -2217,11 +2327,15 @@ export function ProductForm(
                         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                             <div>
                                 <CardTitle>
-                                    Images
+                                    {t(
+                                        'productEdit.images.title',
+                                    )}
                                 </CardTitle>
 
                                 <CardDescription>
-                                    Product images
+                                    {t(
+                                        'productEdit.images.description',
+                                    )}
                                 </CardDescription>
                             </div>
 
@@ -2231,7 +2345,9 @@ export function ProductForm(
                                 }
                                 accept="image/*"
                                 maxSize={5}
-                                placeholder="Drop an image here or click to upload"
+                                placeholder={t(
+                                    'productEdit.images.dropzone',
+                                )}
                             />
                         </div>
                     </CardHeader>
@@ -2250,12 +2366,12 @@ export function ProductForm(
                                         className="relative rounded-lg border p-2"
                                     >
                                         <img
-                                            src={
-                                                field.imageUrl
-                                            }
+                                            src={resolveMediaUrl(field.imageUrl)}
                                             alt={
                                                 field.altText ||
-                                                'Product image'
+                                                t(
+                                                    'productEdit.images.alt',
+                                                )
                                             }
                                             className="h-24 w-full rounded object-cover"
                                         />
@@ -2278,10 +2394,10 @@ export function ProductForm(
                                             control={
                                                 form.control
                                             }
-                                            name={`images.${ index }.isMain`}
+                                            name={`images.${index}.isMain`}
                                             render={({
                                                 field:
-                                                    imageField,
+                                                imageField,
                                             }) => (
                                                 <FormItem className="mt-2 flex items-center gap-2">
                                                     <FormControl>
@@ -2290,21 +2406,32 @@ export function ProductForm(
                                                             checked={
                                                                 imageField.value
                                                             }
-                                                            onChange={(
-                                                                event,
-                                                            ) =>
-                                                                imageField.onChange(
-                                                                    event
-                                                                        .target
-                                                                        .checked,
-                                                                )
-                                                            }
+                                                            onChange={(event) => {
+                                                                const checked =
+                                                                    event.target.checked;
+
+                                                                imageFields.forEach(
+                                                                    (_, imageIndex) => {
+                                                                        form.setValue(
+                                                                            `images.${imageIndex}.isMain`,
+                                                                            checked &&
+                                                                            imageIndex === index,
+                                                                            {
+                                                                                shouldDirty:
+                                                                                    true,
+                                                                            },
+                                                                        );
+                                                                    },
+                                                                );
+                                                            }}
                                                             className="size-3"
                                                         />
                                                     </FormControl>
 
                                                     <FormLabel className="text-xs">
-                                                        Main image
+                                                        {t(
+                                                            'productEdit.images.main',
+                                                        )}
                                                     </FormLabel>
                                                 </FormItem>
                                             )}
@@ -2315,11 +2442,15 @@ export function ProductForm(
 
                             {imageFields.length ===
                                 0 && (
-                                <p className="text-muted-foreground col-span-full py-8 text-center text-sm">
-                                    No images added yet.
-                                    Upload an image above.
-                                </p>
-                            )}
+                                    <p className="text-muted-foreground col-span-full py-8 text-center text-sm">
+                                        {t(
+                                            'productEdit.images.empty',
+                                        )}{' '}
+                                        {t(
+                                            'productEdit.images.uploadHint',
+                                        )}
+                                    </p>
+                                )}
                         </div>
                     </CardContent>
                 </Card>
@@ -2332,11 +2463,15 @@ export function ProductForm(
                 <Card>
                     <CardHeader>
                         <CardTitle>
-                            Publication Status
+                            {t(
+                                'productEdit.publication.title',
+                            )}
                         </CardTitle>
 
                         <CardDescription>
-                            Control product visibility status
+                            {t(
+                                'productEdit.publication.description',
+                            )}
                         </CardDescription>
                     </CardHeader>
 
@@ -2345,27 +2480,27 @@ export function ProductForm(
                             [
                                 [
                                     'isActive',
-                                    'Active',
-                                    'Inactive products are not shown in the storefront.',
+                                    'active',
+                                    'activeDescription',
                                 ],
 
                                 [
                                     'isFeatured',
-                                    'Featured',
-                                    'Featured products are highlighted in featured sections.',
+                                    'featured',
+                                    'featuredDescription',
                                 ],
 
                                 [
                                     'isInStock',
-                                    'In Stock',
-                                    'Product stock status in the storefront.',
+                                    'inStock',
+                                    'stockDescription',
                                 ],
                             ] as const
                         ).map(
                             ([
                                 name,
-                                label,
-                                description,
+                                labelKey,
+                                descriptionKey,
                             ]) => (
                                 <FormField
                                     key={
@@ -2383,15 +2518,15 @@ export function ProductForm(
                                         <FormItem className="flex items-center justify-between rounded-lg border p-4">
                                             <div className="space-y-1">
                                                 <FormLabel>
-                                                    {
-                                                        label
-                                                    }
+                                                    {t(
+                                                        `productEdit.publication.${labelKey}`,
+                                                    )}
                                                 </FormLabel>
 
                                                 <p className="text-muted-foreground text-xs">
-                                                    {
-                                                        description
-                                                    }
+                                                    {t(
+                                                        `productEdit.publication.${descriptionKey}`,
+                                                    )}
                                                 </p>
                                             </div>
 
@@ -2430,7 +2565,9 @@ export function ProductForm(
                             submitFlow.isPending
                         }
                     >
-                        Cancel
+                        {t(
+                            'productEdit.actions.cancel',
+                        )}
                     </Button>
 
                     <Button
@@ -2447,13 +2584,16 @@ export function ProductForm(
                         )}
 
                         {mode ===
-                        'create'
-                            ? 'Create Product'
-                            : 'Save Changes'}
+                            'create'
+                            ? t(
+                                'productEdit.actions.create',
+                            )
+                            : t(
+                                'productEdit.actions.save',
+                            )}
                     </Button>
                 </div>
             </form>
         </Form>
     );
 }
-

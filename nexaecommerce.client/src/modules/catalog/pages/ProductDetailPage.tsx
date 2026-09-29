@@ -2,7 +2,9 @@ import {
     useMemo,
     useState,
 } from 'react';
-
+import {
+    resolveMediaUrl,
+} from '@/lib/media-url';
 import {
     Alert,
     Box,
@@ -986,7 +988,7 @@ export default function ProductDetailPage() {
                                 <Box
                                     component="img"
                                     src={
-                                        imageUrl
+                                        resolveMediaUrl(imageUrl)
                                     }
                                     alt={
                                         product.name
@@ -1074,7 +1076,7 @@ export default function ProductDetailPage() {
                                                         <Box
                                                             component="img"
                                                             src={
-                                                                image.imageUrl
+                                                                resolveMediaUrl(image.imageUrl)
                                                             }
                                                             alt={
                                                                 image.altText ||

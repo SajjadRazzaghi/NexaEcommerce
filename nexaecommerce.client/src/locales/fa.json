@@ -1,4 +1,95 @@
 {
+  "productEdit": {
+    "product": "محصول",
+    "pageTitle": "ویرایش {{productName}} · {{storeName}}",
+    "editTitle": "ویرایش {{productName}}",
+    "description": "اطلاعات محصول، تنوع‌ها و تنظیمات کاتالوگ را به‌روزرسانی کنید.",
+    "loadError": "بارگذاری محصول انجام نشد.",
+
+    "basicInformation": {
+      "title": "اطلاعات پایه",
+      "description": "اطلاعات پایه محصول"
+    },
+
+    "fields": {
+      "sku": "کد SKU محصول",
+      "slug": " slug محصول",
+      "productName": "نام محصول *",
+      "generatedAutomatically": "به‌صورت خودکار تولید می‌شود",
+      "productSku": "کد SKU محصول",
+      "description": "توضیحات",
+      "shortDescription": "توضیح کوتاه",
+      "price": "قیمت *",
+      "comparePrice": "قیمت مقایسه‌ای",
+      "discountPercentage": "درصد تخفیف",
+      "currency": "واحد پول",
+      "productStock": "موجودی محصول",
+      "brand": "برند",
+      "selectBrand": "انتخاب برند",
+      "categories": "دسته‌بندی‌ها"
+    },
+
+    "pricing": {
+      "title": "قیمت‌گذاری و تخفیف",
+      "description": "تنظیمات قیمت و تخفیف محصول"
+    },
+
+    "brandCategories": {
+      "title": "برند و دسته‌بندی‌ها",
+      "description": "برند و دسته‌بندی‌های محصول را انتخاب کنید"
+    },
+
+    "variants": {
+      "title": "تنوع‌ها",
+      "description": "SKU، ویژگی‌های کاتالوگ، قیمت و موجودی تنوع‌ها",
+      "add": "افزودن تنوع",
+      "skuPlaceholder": "SKU تنوع",
+      "sku": "SKU",
+      "stock": "موجودی",
+      "existingStock": "موجودی موجود توسط سیستم انبار مدیریت می‌شود.",
+      "price": "قیمت تنوع",
+      "attributeCount": "ویژگی تنوع",
+      "select": "انتخاب",
+      "selected": "انتخاب‌شده",
+      "empty": "هنوز تنوعی اضافه نشده است.",
+      "addHint": "برای افزودن تنوع روی «افزودن تنوع» کلیک کنید."
+    },
+
+    "images": {
+      "title": "تصاویر",
+      "description": "تصاویر محصول",
+      "dropzone": "تصویر را اینجا رها کنید یا برای بارگذاری کلیک کنید",
+      "alt": "تصویر محصول",
+      "main": "تصویر اصلی",
+      "empty": "هنوز تصویری اضافه نشده است.",
+      "uploadHint": "یک تصویر را از بالا بارگذاری کنید."
+    },
+
+    "publication": {
+      "title": "وضعیت انتشار",
+      "description": "وضعیت نمایش محصول را کنترل کنید",
+      "active": "فعال",
+      "activeDescription": "محصولات غیرفعال در فروشگاه نمایش داده نمی‌شوند.",
+      "featured": "ویژه",
+      "featuredDescription": "محصولات ویژه در بخش‌های منتخب برجسته می‌شوند.",
+      "inStock": "موجود",
+      "stockDescription": "وضعیت موجودی محصول در فروشگاه."
+    },
+
+    "actions": {
+      "back": "بازگشت",
+      "cancel": "لغو",
+      "create": "ایجاد محصول",
+      "save": "ذخیره تغییرات"
+    },
+
+    "messages": {
+      "created": "محصول با موفقیت ایجاد شد.",
+      "updated": "محصول با موفقیت به‌روزرسانی شد."
+    },
+
+    "optional": "اختیاری"
+  },
   "appearance": {
     "loadError": "بارگذاری اطلاعات برند فروشگاه انجام نشد.",
     "retry": "تلاش مجدد",

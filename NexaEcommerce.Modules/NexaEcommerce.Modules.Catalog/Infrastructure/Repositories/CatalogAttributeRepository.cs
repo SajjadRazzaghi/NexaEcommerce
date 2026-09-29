@@ -20,6 +20,7 @@ public class CatalogAttributeRepository : ICatalogAttributeRepository
         CancellationToken cancellationToken = default)
     {
         return await _context.CatalogAttributes
+                 .AsNoTracking()
             .Include(x => x.Values)
             .FirstOrDefaultAsync(
                 x => x.Id == id,
@@ -31,6 +32,7 @@ public class CatalogAttributeRepository : ICatalogAttributeRepository
         CancellationToken cancellationToken = default)
     {
         return await _context.CatalogAttributes
+                 .AsNoTracking()
             .Include(x => x.Values)
             .FirstOrDefaultAsync(
                 x => x.Code == code,
@@ -41,6 +43,7 @@ public class CatalogAttributeRepository : ICatalogAttributeRepository
         CancellationToken cancellationToken = default)
     {
         return await _context.CatalogAttributes
+                 .AsNoTracking()
             .Include(x => x.Values)
             .OrderBy(x => x.DisplayOrder)
             .ThenBy(x => x.Name)

@@ -213,13 +213,14 @@ export type UpdateProductDto = {
 
     categoryIds: string[];
 
+    images: string[];
+
     isActive: boolean;
     isFeatured: boolean;
     isPublished: boolean;
 
     variants: UpdateProductVariantDto[];
 };
-
 export const productsApi = {
     getAll: (
         params?: ProductFilter,

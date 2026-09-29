@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { Boxes, Package, Search, Warehouse as WarehouseIcon } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-
+import {
+    resolveMediaUrl,
+} from '@/lib/media-url';
 import { PageHeader, EmptyState, ErrorState, LoadingSkeleton } from '@/components/data-states';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -124,7 +126,7 @@ export default function InventoryPage() {
                                     <div className="flex items-center gap-3">
                                         <div className="bg-muted grid size-11 shrink-0 place-items-center overflow-hidden rounded-lg border">
                                             {product.mainImage ? (
-                                                <img src={product.mainImage} alt="" className="size-full object-contain" />
+                                                <img src={resolveMediaUrl(product.mainImage)} alt="" className="size-full object-contain" />
                                             ) : (
                                                 <Package className="text-muted-foreground size-5" />
                                             )}

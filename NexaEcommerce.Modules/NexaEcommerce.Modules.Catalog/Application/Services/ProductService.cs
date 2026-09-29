@@ -307,11 +307,10 @@ public sealed class ProductService : IProductService
         // --------------------------------------------------------
         // Categories
         // --------------------------------------------------------
-
         await ReplaceCategoriesAsync(
-            product,
-            createDto.CategoryIds,
-            cancellationToken);
+     product,
+     createDto.CategoryIds,
+     cancellationToken);
 
         // --------------------------------------------------------
         // Persist
@@ -320,6 +319,12 @@ public sealed class ProductService : IProductService
         await _productRepository.AddAsync(
             product,
             cancellationToken);
+
+        await _unitOfWork.SaveChangesAsync(
+            cancellationToken);
+
+        _productRepository.Update(
+            product);
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -333,19 +338,32 @@ public sealed class ProductService : IProductService
             ? _mapper.Map<ProductDto>(product)
             : _mapper.Map<ProductDto>(created);
     }
+    private void ResetTrackedAttributeValueChanges(
+    IReadOnlySet<Guid> existingAttributeValueIds)
+    {
+        if (existingAttributeValueIds.Count == 0)
+            return;
 
+        var dbContext =
+            _productRepository
+                .GetType()
+                .GetProperty("Context");
+
+        // Intentionally left empty.
+    }
     // ============================================================
     // Update
     // ============================================================
 
     public async Task UpdateAsync(
-        Guid id,
-        UpdateProductDto updateDto,
-        CancellationToken cancellationToken = default)
+    Guid id,
+    UpdateProductDto updateDto,
+    CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(updateDto);
 
-        if (string.IsNullOrWhiteSpace(updateDto.Name))
+
+if (string.IsNullOrWhiteSpace(updateDto.Name))
         {
             throw new ArgumentException(
                 "Product name is required.",
@@ -359,16 +377,44 @@ public sealed class ProductService : IProductService
                 "Product price cannot be negative.");
         }
 
+        // ------------------------------------------------------------
+        // Load existing tracked product aggregate
+        // ------------------------------------------------------------
+
         var product =
             await GetExistingProductAsync(
                 id,
                 cancellationToken);
+
+        // ------------------------------------------------------------
+        // Capture existing AttributeValue ids before synchronization.
+        //
+        // Product update must not persist accidental changes to
+        // AttributeValue entities themselves. Only VariantAttributeValue
+        // mappings are supposed to change.
+        // ------------------------------------------------------------
+
+        var existingAttributeValueIds =
+            product.Attributes
+                .SelectMany(
+                    attribute => attribute.Values)
+                .Select(
+                    value => value.Id)
+                .ToHashSet();
+
+        // ------------------------------------------------------------
+        // Slug
+        // ------------------------------------------------------------
 
         var normalizedSlug =
             await CreateUniqueSlugAsync(
                 updateDto.Name,
                 cancellationToken,
                 id);
+
+        // ------------------------------------------------------------
+        // Basic product information
+        // ------------------------------------------------------------
 
         product.Update(
             updateDto.Name.Trim(),
@@ -382,6 +428,10 @@ public sealed class ProductService : IProductService
         product.SetCurrency(
             updateDto.Currency);
 
+        // ------------------------------------------------------------
+        // Pricing
+        // ------------------------------------------------------------
+
         product.SetComparePrice(
             updateDto.ComparePrice);
 
@@ -394,6 +444,10 @@ public sealed class ProductService : IProductService
         {
             product.RemoveDiscount();
         }
+
+        // ------------------------------------------------------------
+        // Status
+        // ------------------------------------------------------------
 
         product.SetActive(
             updateDto.IsActive);
@@ -410,31 +464,73 @@ public sealed class ProductService : IProductService
             product.Unpublish();
         }
 
+        // ------------------------------------------------------------
+        // Brand / Manufacturer
+        // ------------------------------------------------------------
+
         product.SetBrand(
             updateDto.BrandId);
 
         product.SetManufacturer(
             updateDto.ManufacturerId);
 
+        // ------------------------------------------------------------
+        // Categories
+        // ------------------------------------------------------------
+
         await ReplaceCategoriesAsync(
             product,
             updateDto.CategoryIds,
             cancellationToken);
+
+        // ------------------------------------------------------------
+        // Variants + attribute mappings
+        // ------------------------------------------------------------
+
         await SynchronizeVariantsAsync(
-    product,
-    updateDto.Variants,
-    cancellationToken);
+            product,
+            updateDto.Variants,
+            cancellationToken);
+
+        // ------------------------------------------------------------
+        // Prevent accidental UPDATE statements against existing
+        // AttributeValue records.
+        // ------------------------------------------------------------
+
+        _productRepository.ResetModifiedAttributeValues();
+
+        // ------------------------------------------------------------
+        // Images
+        //
+        // Image records are replaced as a complete desired state.
+        // This avoids stale tracked ProductImage entities.
+        // ------------------------------------------------------------
+
+        await _productRepository.ReplaceProductImagesAsync(
+            product.Id,
+            updateDto.Images,
+            cancellationToken);
+
+        // ------------------------------------------------------------
+        // Persist
+        //
+        // Product itself is already tracked by GetExistingProductAsync.
+        // Repository.Update intentionally does not call DbSet.Update().
+        // ------------------------------------------------------------
+
         _productRepository.Update(
             product);
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
-    }
+
+
+}
+
 
     // ============================================================
     // Stock
     // ============================================================
-
     public async Task UpdateStockAsync(
         Guid id,
         int quantity,

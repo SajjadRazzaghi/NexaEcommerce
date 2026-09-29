@@ -3,6 +3,9 @@ import {
     useParams,
 } from 'react-router-dom';
 
+import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
+
 import {
     ArrowLeft,
 } from 'lucide-react';
@@ -34,26 +37,44 @@ import {
     useDocumentTitle,
 } from '@/hooks/use-document-title';
 
+import {
+    appearanceApi,
+} from '@/lib/api/appearance';
+
 export default function ProductEditPage() {
-    useDocumentTitle(
-        'Edit Product',
-    );
+    const { t } = useTranslation();
 
     const {
         id,
-    } =
-        useParams<{
-            id: string;
-        }>();
+    } = useParams<{
+        id: string;
+    }>();
 
-    const navigate =
-        useNavigate();
+    const navigate = useNavigate();
 
-    const query =
-        useProduct(id);
+    const query = useProduct(id);
 
-    const mutation =
-        useUpdateProduct();
+    const mutation = useUpdateProduct();
+
+    const appearanceQuery = useQuery({
+        queryKey: ['appearance'],
+        queryFn: appearanceApi.get,
+        staleTime: 5 * 60_000,
+        retry: 1,
+    });
+
+    const storeName =
+        appearanceQuery.data?.storeName ||
+        'NexaECommerce';
+
+    useDocumentTitle(
+        t('productEdit.pageTitle', {
+            productName:
+                query.data?.name ||
+                t('productEdit.product'),
+            storeName,
+        }),
+    );
 
     if (query.isLoading) {
         return (
@@ -74,7 +95,9 @@ export default function ProductEditPage() {
                 onRetry={() =>
                     query.refetch()
                 }
-                message="Unable to load product."
+                message={t(
+                    'productEdit.loadError',
+                )}
             />
         );
     }
@@ -101,8 +124,16 @@ export default function ProductEditPage() {
     return (
         <div className="space-y-6">
             <PageHeader
-                title={`Edit ${query.data.name}`}
-                description="Update product information, variants and catalog configuration."
+                title={t(
+                    'productEdit.editTitle',
+                    {
+                        productName:
+                            query.data.name,
+                    },
+                )}
+                description={t(
+                    'productEdit.description',
+                )}
                 actions={
                     <Button
                         type="button"
@@ -114,7 +145,9 @@ export default function ProductEditPage() {
                         }
                     >
                         <ArrowLeft />
-                        Back
+                        {t(
+                            'productEdit.actions.back',
+                        )}
                     </Button>
                 }
             />

@@ -2,7 +2,9 @@
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus, Search, MoreHorizontal, Eye, Pencil, Trash2, Power, PowerOff, Star, StarOff, Package } from 'lucide-react'; import { toast } from 'sonner';
-
+import {
+    resolveMediaUrl,
+} from '@/lib/media-url';
 import { PageHeader, EmptyState, ErrorState, LoadingSkeleton } from '@/components/data-states';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -147,7 +149,7 @@ export default function ProductListPage() {
                                                 <div className="flex items-center gap-3">
                                                     <div className="bg-muted grid size-10 shrink-0 place-items-center overflow-hidden rounded-lg border">
                                                         {product.mainImage ? (
-                                                            <img src={product.mainImage} alt="" className="size-full object-contain" />
+                                                            <img src={resolveMediaUrl(product.mainImage)} alt="" className="size-full object-contain" />
                                                         ) : (
                                                             <Package className="text-muted-foreground size-5" />
                                                         )}

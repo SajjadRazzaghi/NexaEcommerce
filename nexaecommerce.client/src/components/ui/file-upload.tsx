@@ -17,7 +17,7 @@ import {
 import {
     Button,
 } from '@/components/ui/button';
-
+import { resolveMediaUrl } from '@/lib/media-url';
 import {
     cn,
 } from '@/lib/utils';
@@ -79,28 +79,7 @@ export function FileUpload({
         );
     }, [value]);
 
-    const getImageUrl = (
-        url: string,
-    ): string => {
-        if (
-            url.startsWith(
-                'http://',
-            ) ||
-            url.startsWith(
-                'https://',
-            )
-        ) {
-            return url;
-        }
 
-        if (
-            url.startsWith('/')
-        ) {
-            return url;
-        }
-
-        return `/${url}`;
-    };
 
     const handleFileChange =
         async (
@@ -335,9 +314,7 @@ export function FileUpload({
                 ) : preview ? (
                     <div className="relative">
                         <img
-                            src={getImageUrl(
-                                preview,
-                            )}
+                                src={resolveMediaUrl(preview)}
                                 alt={t('fileUpload.preview')}
                             className="mx-auto max-h-48 w-auto rounded-lg object-contain"
                             onError={event => {
@@ -358,8 +335,7 @@ export function FileUpload({
                                     target.dataset.fallback =
                                         'true';
 
-                                    target.src =
-                                        `http://localhost:5000${preview}`;
+                                   
                                 }
                             }}
                         />

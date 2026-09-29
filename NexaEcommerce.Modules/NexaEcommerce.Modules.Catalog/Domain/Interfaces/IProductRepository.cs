@@ -5,12 +5,13 @@ namespace NexaEcommerce.Modules.Catalog.Domain.Interfaces;
 public interface IProductRepository
 {
     Task<Product?> GetByIdAsync(
-        Guid id,
-        CancellationToken cancellationToken = default);
+    Guid id,
+    CancellationToken cancellationToken = default);
 
-    Task<Product?> GetBySlugAsync(
-        string slug,
-        CancellationToken cancellationToken = default);
+
+Task<Product?> GetBySlugAsync(
+    string slug,
+    CancellationToken cancellationToken = default);
 
     Task<bool> ExistsBySkuAsync(
         string sku,
@@ -63,17 +64,27 @@ public interface IProductRepository
     Task AddAsync(
         Product product,
         CancellationToken cancellationToken = default);
+    void ResetModifiedAttributeValues();
+    void Update(
+        Product product);
 
-    void Update(Product product);
+    void Delete(
+        Product product);
 
-    void Delete(Product product);
     Task DeleteVariantAttributeMappingsAsync(
-    Guid variantId,
-    IReadOnlyCollection<Guid> attributeValueIds,
-    CancellationToken cancellationToken = default);
+        Guid variantId,
+        IReadOnlyCollection<Guid> attributeValueIds,
+        CancellationToken cancellationToken = default);
 
     Task AddVariantAttributeMappingsAsync(
         Guid variantId,
         IReadOnlyCollection<Guid> attributeValueIds,
         CancellationToken cancellationToken = default);
+
+    Task ReplaceProductImagesAsync(
+        Guid productId,
+        IReadOnlyCollection<string>? imageUrls,
+        CancellationToken cancellationToken = default);
+
+
 }
