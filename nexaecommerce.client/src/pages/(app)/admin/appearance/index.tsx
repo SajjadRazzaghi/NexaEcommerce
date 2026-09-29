@@ -1,8 +1,12 @@
 import {
-    useEffect,
     useMemo,
     useState,
+    type FormEvent,
 } from 'react';
+
+import {
+    useTranslation,
+} from 'react-i18next';
 
 import {
     useMutation,
@@ -68,7 +72,89 @@ const appearanceQueryKey = [
 const defaultTheme =
     'default';
 
+type AppearanceResponse =
+    Awaited<
+        ReturnType<
+            typeof appearanceApi.get
+        >
+    >;
+
+type AppearanceFormState = {
+    storeName: string;
+    logoUrl: string;
+    faviconUrl: string;
+    theme: string;
+    brandColor: string;
+    customTheme: string;
+    contactPhone: string;
+    contactEmail: string;
+    contactAddress: string;
+    websiteUrl: string;
+    seoTitle: string;
+    seoDescription: string;
+};
+
+function createAppearanceFormState(
+    appearance:
+        | AppearanceResponse
+        | undefined,
+): AppearanceFormState {
+    return {
+        storeName:
+            appearance?.storeName ??
+            '',
+
+        logoUrl:
+            appearance?.logoUrl ??
+            '',
+
+        faviconUrl:
+            appearance?.faviconUrl ??
+            '',
+
+        theme:
+            appearance?.theme ??
+            defaultTheme,
+
+        brandColor:
+            appearance?.brandColor ??
+            '',
+
+        customTheme:
+            appearance?.customTheme ??
+            '',
+
+        contactPhone:
+            appearance?.contactPhone ??
+            '',
+
+        contactEmail:
+            appearance?.contactEmail ??
+            '',
+
+        contactAddress:
+            appearance?.contactAddress ??
+            '',
+
+        websiteUrl:
+            appearance?.websiteUrl ??
+            '',
+
+        seoTitle:
+            appearance?.seoTitle ??
+            '',
+
+        seoDescription:
+            appearance?.seoDescription ??
+            '',
+    };
+}
+
 export default function AppearancePage() {
+    const {
+        t,
+    } = useTranslation();
+
     const queryClient =
         useQueryClient();
 
@@ -89,110 +175,47 @@ export default function AppearancePage() {
                 0,
         });
 
-    const [storeName, setStoreName] =
-        useState('');
-
-    const [logoUrl, setLogoUrl] =
-        useState('');
-
-    const [faviconUrl, setFaviconUrl] =
-        useState('');
-
-    const [theme, setTheme] =
-        useState(defaultTheme);
-
-    const [brandColor, setBrandColor] =
-        useState('');
-
-    const [customTheme, setCustomTheme] =
-        useState('');
-
-    const [contactPhone, setContactPhone] =
-        useState('');
-
-    const [contactEmail, setContactEmail] =
-        useState('');
-
-    const [contactAddress, setContactAddress] =
-        useState('');
-
-    const [websiteUrl, setWebsiteUrl] =
-        useState('');
-
-    const [seoTitle, setSeoTitle] =
-        useState('');
-
-    const [seoDescription, setSeoDescription] =
-        useState('');
-
     const appearance =
         appearanceQuery.data;
 
-    useEffect(() => {
-        if (!appearance) {
-            return;
-        }
+    /*
+     * draft === null
+     *   => نمایش مستقیم دادهٔ سرور
+     *
+     * draft !== null
+     *   => کاربر در حال ویرایش است و
+     *      تغییرات محلی باید حفظ شوند.
+     *
+     * این ساختار نیاز به useEffect و setState
+     * همزمان با render ندارد.
+     */
+    const [draft, setDraft] =
+        useState<
+            AppearanceFormState | null
+        >(null);
 
-        setStoreName(
-            appearance.storeName ??
-            '',
+    const form =
+        draft ??
+        createAppearanceFormState(
+            appearance,
         );
 
-        setLogoUrl(
-            appearance.logoUrl ??
-            '',
-        );
+    const updateField = <
+        K extends keyof AppearanceFormState,
+    >(
+        field: K,
+        value: AppearanceFormState[K],
+    ) => {
+        setDraft(current => ({
+            ...(current ??
+                createAppearanceFormState(
+                    appearance,
+                )),
 
-        setFaviconUrl(
-            appearance.faviconUrl ??
-            '',
-        );
-
-        setTheme(
-            appearance.theme ??
-            defaultTheme,
-        );
-
-        setBrandColor(
-            appearance.brandColor ??
-            '',
-        );
-
-        setCustomTheme(
-            appearance.customTheme ??
-            '',
-        );
-
-        setContactPhone(
-            appearance.contactPhone ??
-            '',
-        );
-
-        setContactEmail(
-            appearance.contactEmail ??
-            '',
-        );
-
-        setContactAddress(
-            appearance.contactAddress ??
-            '',
-        );
-
-        setWebsiteUrl(
-            appearance.websiteUrl ??
-            '',
-        );
-
-        setSeoTitle(
-            appearance.seoTitle ??
-            '',
-        );
-
-        setSeoDescription(
-            appearance.seoDescription ??
-            '',
-        );
-    }, [appearance]);
+            [field]:
+                value,
+        }));
+    };
 
     const save =
         useMutation({
@@ -206,6 +229,13 @@ export default function AppearancePage() {
                         result,
                     );
 
+                    /*
+                     * بعد از ذخیره، draft پاک می‌شود
+                     * تا فرم دوباره از دادهٔ canonical
+                     * React Query تغذیه شود.
+                     */
+                    setDraft(null);
+
                     await queryClient.invalidateQueries(
                         {
                             queryKey:
@@ -214,7 +244,9 @@ export default function AppearancePage() {
                     );
 
                     toast.success(
-                        'Brand settings saved successfully.',
+                        t(
+                            'appearance.toast.saved',
+                        ),
                     );
                 },
 
@@ -226,7 +258,9 @@ export default function AppearancePage() {
                                 error.problem.detail ??
                                 error.message
                             )
-                            : 'Unable to save brand settings.',
+                            : t(
+                                'appearance.toast.saveError',
+                            ),
                     );
                 },
         });
@@ -237,80 +271,97 @@ export default function AppearancePage() {
                 THEMES.find(
                     item =>
                         item.key ===
-                        theme,
+                        form.theme,
                 ) ??
                 THEMES[0],
+
             [
-                theme,
+                form.theme,
             ],
         );
 
     const previewName =
-        storeName.trim() ||
+        form.storeName.trim() ||
         'NexaECommerce';
 
     const previewLogo =
-        logoUrl.trim() ||
+        form.logoUrl.trim() ||
         null;
 
     const previewFavicon =
-        faviconUrl.trim() ||
+        form.faviconUrl.trim() ||
         null;
 
     const previewColor =
-        brandColor.trim() ||
+        form.brandColor.trim() ||
         selectedTheme?.swatch ||
         '#111827';
 
+    const selectedThemeName =
+        t(
+            `appearance.theme.names.${
+    selectedTheme?.key ??
+        defaultTheme
+} `,
+            {
+                defaultValue:
+                    selectedTheme?.name ??
+                    t(
+                        'appearance.theme.names.default',
+                    ),
+            },
+        );
+
     const handleSubmit = (
-        event:
-            React.FormEvent<HTMLFormElement>,
+        event: FormEvent<HTMLFormElement>,
     ) => {
         event.preventDefault();
 
         const normalizedStoreName =
-            storeName.trim();
+            form.storeName.trim();
 
         const normalizedLogoUrl =
-            logoUrl.trim();
+            form.logoUrl.trim();
 
         const normalizedFaviconUrl =
-            faviconUrl.trim();
+            form.faviconUrl.trim();
 
         const normalizedTheme =
-            theme.trim() ||
+            form.theme.trim() ||
             defaultTheme;
 
         const normalizedBrandColor =
-            brandColor.trim();
+            form.brandColor.trim();
 
         const normalizedCustomTheme =
-            customTheme.trim();
+            form.customTheme.trim();
 
         const normalizedContactPhone =
-            contactPhone.trim();
+            form.contactPhone.trim();
 
         const normalizedContactEmail =
-            contactEmail.trim();
+            form.contactEmail.trim();
 
         const normalizedContactAddress =
-            contactAddress.trim();
+            form.contactAddress.trim();
 
         const normalizedWebsiteUrl =
-            websiteUrl.trim();
+            form.websiteUrl.trim();
 
         const normalizedSeoTitle =
-            seoTitle.trim();
+            form.seoTitle.trim();
 
         const normalizedSeoDescription =
-            seoDescription.trim();
+            form.seoDescription.trim();
 
         if (
             normalizedStoreName.length >
             128
         ) {
             toast.error(
-                'Store name cannot exceed 128 characters.',
+                t(
+                    'appearance.validation.storeNameMax',
+                ),
             );
 
             return;
@@ -321,7 +372,9 @@ export default function AppearancePage() {
             2048
         ) {
             toast.error(
-                'Logo URL cannot exceed 2048 characters.',
+                t(
+                    'appearance.validation.logoUrlMax',
+                ),
             );
 
             return;
@@ -332,7 +385,9 @@ export default function AppearancePage() {
             2048
         ) {
             toast.error(
-                'Favicon URL cannot exceed 2048 characters.',
+                t(
+                    'appearance.validation.faviconUrlMax',
+                ),
             );
 
             return;
@@ -343,7 +398,9 @@ export default function AppearancePage() {
             64
         ) {
             toast.error(
-                'Brand color cannot exceed 64 characters.',
+                t(
+                    'appearance.validation.brandColorMax',
+                ),
             );
 
             return;
@@ -354,7 +411,9 @@ export default function AppearancePage() {
             4000
         ) {
             toast.error(
-                'Custom theme is too large.',
+                t(
+                    'appearance.validation.customThemeMax',
+                ),
             );
 
             return;
@@ -365,7 +424,9 @@ export default function AppearancePage() {
             64
         ) {
             toast.error(
-                'Contact phone cannot exceed 64 characters.',
+                t(
+                    'appearance.validation.contactPhoneMax',
+                ),
             );
 
             return;
@@ -376,7 +437,9 @@ export default function AppearancePage() {
             256
         ) {
             toast.error(
-                'Contact email cannot exceed 256 characters.',
+                t(
+                    'appearance.validation.contactEmailMax',
+                ),
             );
 
             return;
@@ -387,7 +450,9 @@ export default function AppearancePage() {
             1000
         ) {
             toast.error(
-                'Contact address cannot exceed 1000 characters.',
+                t(
+                    'appearance.validation.contactAddressMax',
+                ),
             );
 
             return;
@@ -398,7 +463,9 @@ export default function AppearancePage() {
             2048
         ) {
             toast.error(
-                'Website URL cannot exceed 2048 characters.',
+                t(
+                    'appearance.validation.websiteUrlMax',
+                ),
             );
 
             return;
@@ -409,7 +476,9 @@ export default function AppearancePage() {
             160
         ) {
             toast.error(
-                'SEO title cannot exceed 160 characters.',
+                t(
+                    'appearance.validation.seoTitleMax',
+                ),
             );
 
             return;
@@ -420,7 +489,9 @@ export default function AppearancePage() {
             320
         ) {
             toast.error(
-                'SEO description cannot exceed 320 characters.',
+                t(
+                    'appearance.validation.seoDescriptionMax',
+                ),
             );
 
             return;
@@ -495,7 +566,11 @@ export default function AppearancePage() {
                 <Card>
                     <CardContent className="p-8">
                         <p className="text-sm text-destructive">
-                            Unable to load store branding.
+                            {
+                                t(
+                                    'appearance.loadError',
+                                )
+                            }
                         </p>
 
                         <Button
@@ -506,7 +581,11 @@ export default function AppearancePage() {
                                 void appearanceQuery.refetch()
                             }
                         >
-                            Retry
+                            {
+                                t(
+                                    'appearance.retry',
+                                )
+                            }
                         </Button>
                     </CardContent>
                 </Card>
@@ -518,11 +597,19 @@ export default function AppearancePage() {
         <div className="grid gap-5">
             <header>
                 <h1 className="text-2xl font-semibold tracking-tight">
-                    Store Branding
+                    {
+                        t(
+                            'appearance.title',
+                        )
+                    }
                 </h1>
 
                 <p className="mt-1 text-muted-foreground">
-                    Configure the store identity, logo, favicon, contact information, SEO metadata and visual theme used across the storefront.
+                    {
+                        t(
+                            'appearance.description',
+                        )
+                    }
                 </p>
             </header>
 
@@ -537,7 +624,12 @@ export default function AppearancePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Store className="size-5" />
-                                Store identity
+
+                                {
+                                    t(
+                                        'appearance.identity.title',
+                                    )
+                                }
                             </CardTitle>
                         </CardHeader>
 
@@ -547,17 +639,22 @@ export default function AppearancePage() {
                                     htmlFor="store-name"
                                     className="text-sm font-medium"
                                 >
-                                    Store name
+                                    {
+                                        t(
+                                            'appearance.identity.storeName',
+                                        )
+                                    }
                                 </label>
 
                                 <Input
                                     id="store-name"
                                     value={
-                                        storeName
+                                        form.storeName
                                     }
                                     onChange={
                                         event =>
-                                            setStoreName(
+                                            updateField(
+                                                'storeName',
                                                 event.target.value,
                                             )
                                     }
@@ -566,33 +663,63 @@ export default function AppearancePage() {
                                         save.isPending
                                     }
                                     maxLength={128}
-                                    placeholder="My Store"
+                                    placeholder={
+                                        t(
+                                            'appearance.identity.storeNamePlaceholder',
+                                        )
+                                    }
                                 />
 
                                 <p className="text-xs text-muted-foreground">
-                                    This is the public name shown across the storefront.
+                                    {
+                                        t(
+                                            'appearance.identity.storeNameHint',
+                                        )
+                                    }
                                 </p>
                             </div>
 
                             <div className="grid gap-2">
                                 <label className="text-sm font-medium">
-                                    Store logo
+                                    {
+                                        t(
+                                            'appearance.identity.logo',
+                                        )
+                                    }
                                 </label>
 
                                 <FileUpload
-                                    value={logoUrl}
-                                    onChange={setLogoUrl}
+                                    value={
+                                        form.logoUrl
+                                    }
+                                    onChange={
+                                        value =>
+                                            updateField(
+                                                'logoUrl',
+                                                value,
+                                            )
+                                    }
                                     onRemove={() =>
-                                        setLogoUrl('')
+                                        updateField(
+                                            'logoUrl',
+                                            '',
+                                        )
                                     }
                                     accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml"
                                     maxSize={5}
-                                    placeholder="Upload store logo"
+                                    placeholder={
+                                        t(
+                                            'appearance.identity.logoUpload',
+                                        )
+                                    }
                                 />
 
                                 <p className="text-xs text-muted-foreground">
-                                    Recommended for the storefront header, navigation and footer.
-                                    Maximum size: 5 MB.
+                                    {
+                                        t(
+                                            'appearance.identity.logoHint',
+                                        )
+                                    }
                                 </p>
 
                                 <div className="grid gap-2">
@@ -600,17 +727,22 @@ export default function AppearancePage() {
                                         htmlFor="logo-url"
                                         className="text-xs font-medium text-muted-foreground"
                                     >
-                                        Or enter an existing logo URL
+                                        {
+                                            t(
+                                                'appearance.identity.logoUrl',
+                                            )
+                                        }
                                     </label>
 
                                     <Input
                                         id="logo-url"
                                         value={
-                                            logoUrl
+                                            form.logoUrl
                                         }
                                         onChange={
                                             event =>
-                                                setLogoUrl(
+                                                updateField(
+                                                    'logoUrl',
                                                     event.target.value,
                                                 )
                                         }
@@ -619,30 +751,56 @@ export default function AppearancePage() {
                                             save.isPending
                                         }
                                         maxLength={2048}
-                                        placeholder="/uploads/logo.png"
+                                        placeholder={
+                                            t(
+                                                'appearance.identity.logoUrlPlaceholder',
+                                            )
+                                        }
                                     />
                                 </div>
                             </div>
 
                             <div className="grid gap-2">
                                 <label className="text-sm font-medium">
-                                    Favicon
+                                    {
+                                        t(
+                                            'appearance.identity.favicon',
+                                        )
+                                    }
                                 </label>
 
                                 <FileUpload
-                                    value={faviconUrl}
-                                    onChange={setFaviconUrl}
+                                    value={
+                                        form.faviconUrl
+                                    }
+                                    onChange={
+                                        value =>
+                                            updateField(
+                                                'faviconUrl',
+                                                value,
+                                            )
+                                    }
                                     onRemove={() =>
-                                        setFaviconUrl('')
+                                        updateField(
+                                            'faviconUrl',
+                                            '',
+                                        )
                                     }
                                     accept="image/png,image/jpeg,image/webp,image/gif,image/svg+xml"
                                     maxSize={2}
-                                    placeholder="Upload favicon"
+                                    placeholder={
+                                        t(
+                                            'appearance.identity.faviconUpload',
+                                        )
+                                    }
                                 />
 
                                 <p className="text-xs text-muted-foreground">
-                                    Used for the browser tab, bookmarks and other browser UI.
-                                    A square PNG, WEBP or SVG is recommended. Maximum size: 2 MB.
+                                    {
+                                        t(
+                                            'appearance.identity.faviconHint',
+                                        )
+                                    }
                                 </p>
 
                                 <div className="grid gap-2">
@@ -650,17 +808,22 @@ export default function AppearancePage() {
                                         htmlFor="favicon-url"
                                         className="text-xs font-medium text-muted-foreground"
                                     >
-                                        Or enter an existing favicon URL
+                                        {
+                                            t(
+                                                'appearance.identity.faviconUrl',
+                                            )
+                                        }
                                     </label>
 
                                     <Input
                                         id="favicon-url"
                                         value={
-                                            faviconUrl
+                                            form.faviconUrl
                                         }
                                         onChange={
                                             event =>
-                                                setFaviconUrl(
+                                                updateField(
+                                                    'faviconUrl',
                                                     event.target.value,
                                                 )
                                         }
@@ -669,7 +832,11 @@ export default function AppearancePage() {
                                             save.isPending
                                         }
                                         maxLength={2048}
-                                        placeholder="/uploads/favicon.png"
+                                        placeholder={
+                                            t(
+                                                'appearance.identity.faviconUrlPlaceholder',
+                                            )
+                                        }
                                     />
                                 </div>
                             </div>
@@ -680,17 +847,26 @@ export default function AppearancePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Phone className="size-5" />
-                                Contact information
+
+                                {
+                                    t(
+                                        'appearance.contact.title',
+                                    )
+                                }
                             </CardTitle>
                         </CardHeader>
 
-                        <CardContent className="grid gap-5">
+                        <CardContent className="grid min-w-0 gap-5">
                             <div className="grid gap-2">
                                 <label
                                     htmlFor="contact-phone"
                                     className="text-sm font-medium"
                                 >
-                                    Contact phone
+                                    {
+                                        t(
+                                            'appearance.contact.phone',
+                                        )
+                                    }
                                 </label>
 
                                 <div className="relative">
@@ -699,11 +875,12 @@ export default function AppearancePage() {
                                     <Input
                                         id="contact-phone"
                                         value={
-                                            contactPhone
+                                            form.contactPhone
                                         }
                                         onChange={
                                             event =>
-                                                setContactPhone(
+                                                updateField(
+                                                    'contactPhone',
                                                     event.target.value,
                                                 )
                                         }
@@ -713,7 +890,11 @@ export default function AppearancePage() {
                                         }
                                         maxLength={64}
                                         className="pl-9"
-                                        placeholder="+98 21 12345678"
+                                        placeholder={
+                                            t(
+                                                'appearance.contact.phonePlaceholder',
+                                            )
+                                        }
                                     />
                                 </div>
                             </div>
@@ -723,7 +904,11 @@ export default function AppearancePage() {
                                     htmlFor="contact-email"
                                     className="text-sm font-medium"
                                 >
-                                    Contact email
+                                    {
+                                        t(
+                                            'appearance.contact.email',
+                                        )
+                                    }
                                 </label>
 
                                 <div className="relative">
@@ -733,11 +918,12 @@ export default function AppearancePage() {
                                         id="contact-email"
                                         type="email"
                                         value={
-                                            contactEmail
+                                            form.contactEmail
                                         }
                                         onChange={
                                             event =>
-                                                setContactEmail(
+                                                updateField(
+                                                    'contactEmail',
                                                     event.target.value,
                                                 )
                                         }
@@ -747,7 +933,11 @@ export default function AppearancePage() {
                                         }
                                         maxLength={256}
                                         className="pl-9"
-                                        placeholder="info@example.com"
+                                        placeholder={
+                                            t(
+                                                'appearance.contact.emailPlaceholder',
+                                            )
+                                        }
                                     />
                                 </div>
                             </div>
@@ -757,7 +947,11 @@ export default function AppearancePage() {
                                     htmlFor="website-url"
                                     className="text-sm font-medium"
                                 >
-                                    Website URL
+                                    {
+                                        t(
+                                            'appearance.contact.website',
+                                        )
+                                    }
                                 </label>
 
                                 <div className="relative">
@@ -767,11 +961,12 @@ export default function AppearancePage() {
                                         id="website-url"
                                         type="url"
                                         value={
-                                            websiteUrl
+                                            form.websiteUrl
                                         }
                                         onChange={
                                             event =>
-                                                setWebsiteUrl(
+                                                updateField(
+                                                    'websiteUrl',
                                                     event.target.value,
                                                 )
                                         }
@@ -781,7 +976,11 @@ export default function AppearancePage() {
                                         }
                                         maxLength={2048}
                                         className="pl-9"
-                                        placeholder="https://example.com"
+                                        placeholder={
+                                            t(
+                                                'appearance.contact.websitePlaceholder',
+                                            )
+                                        }
                                     />
                                 </div>
                             </div>
@@ -791,17 +990,22 @@ export default function AppearancePage() {
                                     htmlFor="contact-address"
                                     className="text-sm font-medium"
                                 >
-                                    Contact address
+                                    {
+                                        t(
+                                            'appearance.contact.address',
+                                        )
+                                    }
                                 </label>
 
                                 <textarea
                                     id="contact-address"
                                     value={
-                                        contactAddress
+                                        form.contactAddress
                                     }
                                     onChange={
                                         event =>
-                                            setContactAddress(
+                                            updateField(
+                                                'contactAddress',
                                                 event.target.value,
                                             )
                                     }
@@ -811,12 +1015,20 @@ export default function AppearancePage() {
                                     }
                                     maxLength={1000}
                                     rows={4}
-                                    placeholder="Store address"
+                                    placeholder={
+                                        t(
+                                            'appearance.contact.addressPlaceholder',
+                                        )
+                                    }
                                     className="border-input bg-background min-h-24 rounded-md border px-3 py-2 text-sm outline-none focus:ring-2"
                                 />
 
                                 <p className="text-xs text-muted-foreground">
-                                    This information can be displayed in the storefront footer and contact sections.
+                                    {
+                                        t(
+                                            'appearance.contact.addressHint',
+                                        )
+                                    }
                                 </p>
                             </div>
                         </CardContent>
@@ -826,27 +1038,37 @@ export default function AppearancePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Search className="size-5" />
-                                SEO settings
+
+                                {
+                                    t(
+                                        'appearance.seo.title',
+                                    )
+                                }
                             </CardTitle>
                         </CardHeader>
 
-                        <CardContent className="grid gap-5">
+                        <CardContent className="grid min-w-0 gap-5">
                             <div className="grid gap-2">
                                 <label
                                     htmlFor="seo-title"
                                     className="text-sm font-medium"
                                 >
-                                    SEO title
+                                    {
+                                        t(
+                                            'appearance.seo.seoTitle',
+                                        )
+                                    }
                                 </label>
 
                                 <Input
                                     id="seo-title"
                                     value={
-                                        seoTitle
+                                        form.seoTitle
                                     }
                                     onChange={
                                         event =>
-                                            setSeoTitle(
+                                            updateField(
+                                                'seoTitle',
                                                 event.target.value,
                                             )
                                     }
@@ -855,11 +1077,19 @@ export default function AppearancePage() {
                                         save.isPending
                                     }
                                     maxLength={160}
-                                    placeholder="My Store | Online Shopping"
+                                    placeholder={
+                                        t(
+                                            'appearance.seo.seoTitlePlaceholder',
+                                        )
+                                    }
                                 />
 
                                 <p className="text-xs text-muted-foreground">
-                                    Used as the browser page title and search-engine title.
+                                    {
+                                        t(
+                                            'appearance.seo.seoTitleHint',
+                                        )
+                                    }
                                 </p>
                             </div>
 
@@ -868,17 +1098,22 @@ export default function AppearancePage() {
                                     htmlFor="seo-description"
                                     className="text-sm font-medium"
                                 >
-                                    SEO description
+                                    {
+                                        t(
+                                            'appearance.seo.description',
+                                        )
+                                    }
                                 </label>
 
                                 <textarea
                                     id="seo-description"
                                     value={
-                                        seoDescription
+                                        form.seoDescription
                                     }
                                     onChange={
                                         event =>
-                                            setSeoDescription(
+                                            updateField(
+                                                'seoDescription',
                                                 event.target.value,
                                             )
                                     }
@@ -888,12 +1123,20 @@ export default function AppearancePage() {
                                     }
                                     maxLength={320}
                                     rows={5}
-                                    placeholder="Describe your store and products for search engines."
+                                    placeholder={
+                                        t(
+                                            'appearance.seo.descriptionPlaceholder',
+                                        )
+                                    }
                                     className="border-input bg-background min-h-28 rounded-md border px-3 py-2 text-sm outline-none focus:ring-2"
                                 />
 
                                 <p className="text-xs text-muted-foreground">
-                                    Used for the page meta description.
+                                    {
+                                        t(
+                                            'appearance.seo.descriptionHint',
+                                        )
+                                    }
                                 </p>
                             </div>
                         </CardContent>
@@ -903,27 +1146,37 @@ export default function AppearancePage() {
                         <CardHeader>
                             <CardTitle className="flex items-center gap-2">
                                 <Palette className="size-5" />
-                                Theme
+
+                                {
+                                    t(
+                                        'appearance.theme.title',
+                                    )
+                                }
                             </CardTitle>
                         </CardHeader>
 
-                        <CardContent className="grid gap-5">
+                        <CardContent className="grid min-w-0 gap-5">
                             <div className="grid gap-3">
                                 <label
                                     htmlFor="theme"
                                     className="text-sm font-medium"
                                 >
-                                    Base theme
+                                    {
+                                        t(
+                                            'appearance.theme.baseTheme',
+                                        )
+                                    }
                                 </label>
 
                                 <select
                                     id="theme"
                                     value={
-                                        theme
+                                        form.theme
                                     }
                                     onChange={
                                         event =>
-                                            setTheme(
+                                            updateField(
+                                                'theme',
                                                 event.target.value,
                                             )
                                     }
@@ -944,7 +1197,13 @@ export default function AppearancePage() {
                                                 }
                                             >
                                                 {
-                                                    item.name
+                                                    t(
+                                                        `appearance.theme.names.${ item.key } `,
+                                                        {
+                                                            defaultValue:
+                                                                item.name,
+                                                        },
+                                                    )
                                                 }
                                             </option>
                                         ),
@@ -957,7 +1216,11 @@ export default function AppearancePage() {
                                     htmlFor="brand-color"
                                     className="text-sm font-medium"
                                 >
-                                    Brand color
+                                    {
+                                        t(
+                                            'appearance.theme.brandColor',
+                                        )
+                                    }
                                 </label>
 
                                 <div className="flex gap-3">
@@ -966,14 +1229,15 @@ export default function AppearancePage() {
                                         type="color"
                                         value={
                                             /^#[0-9a-fA-F]{6}$/.test(
-                                                brandColor,
+                                                form.brandColor,
                                             )
-                                                ? brandColor
+                                                ? form.brandColor
                                                 : '#111827'
                                         }
                                         onChange={
                                             event =>
-                                                setBrandColor(
+                                                updateField(
+                                                    'brandColor',
                                                     event.target.value,
                                                 )
                                         }
@@ -982,17 +1246,22 @@ export default function AppearancePage() {
                                             save.isPending
                                         }
                                         className="h-10 w-14 cursor-pointer rounded-md border bg-background p-1 disabled:cursor-not-allowed"
-                                        aria-label="Pick brand color"
+                                        aria-label={
+                                            t(
+                                                'appearance.theme.pickBrandColor',
+                                            )
+                                        }
                                     />
 
                                     <Input
                                         id="brand-color"
                                         value={
-                                            brandColor
+                                            form.brandColor
                                         }
                                         onChange={
                                             event =>
-                                                setBrandColor(
+                                                updateField(
+                                                    'brandColor',
                                                     event.target.value,
                                                 )
                                         }
@@ -1001,12 +1270,20 @@ export default function AppearancePage() {
                                             save.isPending
                                         }
                                         maxLength={64}
-                                        placeholder="#2563eb"
+                                        placeholder={
+                                            t(
+                                                'appearance.theme.brandColorPlaceholder',
+                                            )
+                                        }
                                     />
                                 </div>
 
                                 <p className="text-xs text-muted-foreground">
-                                    Leave empty to use the selected theme accent.
+                                    {
+                                        t(
+                                            'appearance.theme.brandColorHint',
+                                        )
+                                    }
                                 </p>
                             </div>
 
@@ -1015,17 +1292,22 @@ export default function AppearancePage() {
                                     htmlFor="custom-theme"
                                     className="text-sm font-medium"
                                 >
-                                    Custom theme JSON
+                                    {
+                                        t(
+                                            'appearance.theme.customTheme',
+                                        )
+                                    }
                                 </label>
 
                                 <textarea
                                     id="custom-theme"
                                     value={
-                                        customTheme
+                                        form.customTheme
                                     }
                                     onChange={
                                         event =>
-                                            setCustomTheme(
+                                            updateField(
+                                                'customTheme',
                                                 event.target.value,
                                             )
                                     }
@@ -1035,12 +1317,20 @@ export default function AppearancePage() {
                                     }
                                     maxLength={4000}
                                     rows={8}
-                                    placeholder='{"light":{...},"dark":{...}}'
+                                    placeholder={
+                                        t(
+                                            'appearance.theme.customThemePlaceholder',
+                                        )
+                                    }
                                     className="border-input bg-background min-h-40 rounded-md border px-3 py-2 font-mono text-xs outline-none focus:ring-2"
                                 />
 
                                 <p className="text-xs text-muted-foreground">
-                                    Used only when the selected theme is custom.
+                                    {
+                                        t(
+                                            'appearance.theme.customThemeHint',
+                                        )
+                                    }
                                 </p>
                             </div>
                         </CardContent>
@@ -1056,34 +1346,41 @@ export default function AppearancePage() {
                         >
                             <Save className="size-4" />
 
-                            {save.isPending
-                                ? 'Saving...'
-                                : 'Save changes'}
+                            {
+                                t(
+                                    save.isPending
+                                        ? 'appearance.actions.saving'
+                                        : 'appearance.actions.save',
+                                )
+                            }
                         </Button>
                     </div>
                 </div>
 
-                <Card className="h-fit lg:sticky lg:top-6">
+             
+                <Card className="h-fit min-w-0 overflow-hidden lg:sticky lg:top-6">
                     <CardHeader>
                         <CardTitle>
-                            Live preview
+                            {
+                                t(
+                                    'appearance.preview.title',
+                                )
+                            }
                         </CardTitle>
                     </CardHeader>
 
-                    <CardContent className="grid gap-5">
-                        <div className="rounded-2xl border p-5">
-                            <div className="flex items-center gap-3">
+                    <CardContent className="grid min-w-0 gap-5">
+                        <div className="min-w-0 overflow-hidden rounded-2xl border p-5">
+                            <div className="flex min-w-0 items-center gap-3">
                                 {previewLogo ? (
                                     <img
-                                        src={
-                                            previewLogo
-                                        }
+                                        src={previewLogo}
                                         alt=""
-                                        className="size-12 rounded-xl border object-cover"
+                                        className="size-12 shrink-0 rounded-xl border object-cover"
                                     />
                                 ) : (
                                     <div
-                                        className="grid size-12 place-items-center rounded-xl text-white"
+                                        className="grid size-12 shrink-0 place-items-center rounded-xl text-white"
                                         style={{
                                             backgroundColor:
                                                 previewColor,
@@ -1095,53 +1392,51 @@ export default function AppearancePage() {
 
                                 <div className="min-w-0">
                                     <div className="truncate font-semibold">
-                                        {
-                                            previewName
-                                        }
+                                        {previewName}
                                     </div>
 
-                                    <div className="text-xs text-muted-foreground">
-                                        {
-                                            selectedTheme?.name ??
-                                            'Default'
-                                        }
+                                    <div className="truncate text-xs text-muted-foreground">
+                                        {selectedThemeName}
                                     </div>
                                 </div>
                             </div>
 
                             <div
-                                className="mt-5 h-2 rounded-full"
+                                className="mt-5 h-2 w-full rounded-full"
                                 style={{
                                     backgroundColor:
                                         previewColor,
                                 }}
                             />
 
-                            <div className="mt-5 grid gap-3">
+                            <div className="mt-5 grid min-w-0 gap-3">
                                 <div className="h-4 w-3/4 rounded bg-muted" />
                                 <div className="h-4 w-full rounded bg-muted" />
-                                <div className="h-10 rounded-lg bg-muted" />
+                                <div className="h-10 w-full rounded-lg bg-muted" />
                             </div>
                         </div>
 
-                        <div className="rounded-xl border p-4">
-                            <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-                                <Image className="size-4" />
-                                Browser identity
+                        <div className="min-w-0 overflow-hidden rounded-xl border p-4">
+                            <div className="mb-3 flex min-w-0 items-center gap-2 text-sm font-medium">
+                                <Image className="size-4 shrink-0" />
+
+                                {
+                                    t(
+                                        'appearance.preview.browserIdentity',
+                                    )
+                                }
                             </div>
 
-                            <div className="flex items-center gap-3">
+                            <div className="flex min-w-0 items-center gap-3">
                                 {previewFavicon ? (
                                     <img
-                                        src={
-                                            previewFavicon
-                                        }
+                                        src={previewFavicon}
                                         alt=""
-                                        className="size-10 rounded-lg border bg-background object-contain p-1"
+                                        className="size-10 shrink-0 rounded-lg border bg-background object-contain p-1"
                                     />
                                 ) : (
                                     <div
-                                        className="grid size-10 place-items-center rounded-lg text-white"
+                                        className="grid size-10 shrink-0 place-items-center rounded-lg text-white"
                                         style={{
                                             backgroundColor:
                                                 previewColor,
@@ -1154,7 +1449,7 @@ export default function AppearancePage() {
                                 <div className="min-w-0">
                                     <div className="truncate text-sm font-medium">
                                         {
-                                            seoTitle.trim() ||
+                                            form.seoTitle.trim() ||
                                             previewName
                                         }
                                     </div>
@@ -1162,103 +1457,124 @@ export default function AppearancePage() {
                                     <div className="truncate text-xs text-muted-foreground">
                                         {
                                             previewFavicon ||
-                                            'Default favicon'
+                                            t(
+                                                'appearance.preview.defaultFavicon',
+                                            )
                                         }
                                     </div>
                                 </div>
                             </div>
                         </div>
 
-                        <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
-                            Changes are stored per tenant and are loaded dynamically by the storefront.
+                        <div className="min-w-0 overflow-hidden rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                            {
+                                t(
+                                    'appearance.preview.tenantNote',
+                                )
+                            }
                         </div>
 
-                        <div className="rounded-xl border p-4">
+                        <div className="min-w-0 overflow-hidden rounded-xl border p-4">
                             <div className="mb-3 text-sm font-medium">
-                                Contact preview
+                                {
+                                    t(
+                                        'appearance.preview.contact',
+                                    )
+                                }
                             </div>
 
-                            <div className="grid gap-2 text-sm text-muted-foreground">
-                                {contactPhone.trim() && (
-                                    <div className="flex items-center gap-2">
+                            <div className="grid min-w-0 gap-2 text-sm text-muted-foreground">
+                                {form.contactPhone.trim() && (
+                                    <div className="flex min-w-0 items-center gap-2">
                                         <Phone className="size-4 shrink-0" />
 
-                                        <span className="truncate">
+                                        <span className="min-w-0 truncate">
                                             {
-                                                contactPhone.trim()
+                                                form.contactPhone.trim()
                                             }
                                         </span>
                                     </div>
                                 )}
 
-                                {contactEmail.trim() && (
-                                    <div className="flex items-center gap-2">
+                                {form.contactEmail.trim() && (
+                                    <div className="flex min-w-0 items-center gap-2">
                                         <Mail className="size-4 shrink-0" />
 
-                                        <span className="truncate">
+                                        <span className="min-w-0 truncate">
                                             {
-                                                contactEmail.trim()
+                                                form.contactEmail.trim()
                                             }
                                         </span>
                                     </div>
                                 )}
 
-                                {websiteUrl.trim() && (
-                                    <div className="flex items-center gap-2">
+                                {form.websiteUrl.trim() && (
+                                    <div className="flex min-w-0 items-center gap-2">
                                         <Globe className="size-4 shrink-0" />
 
-                                        <span className="truncate">
+                                        <span className="min-w-0 truncate">
                                             {
-                                                websiteUrl.trim()
+                                                form.websiteUrl.trim()
                                             }
                                         </span>
                                     </div>
                                 )}
 
-                                {contactAddress.trim() && (
-                                    <p className="leading-6">
+                                {form.contactAddress.trim() && (
+                                    <p className="min-w-0 break-words leading-6">
                                         {
-                                            contactAddress.trim()
+                                            form.contactAddress.trim()
                                         }
                                     </p>
                                 )}
 
-                                {!contactPhone.trim() &&
-                                    !contactEmail.trim() &&
-                                    !websiteUrl.trim() &&
-                                    !contactAddress.trim() && (
-                                        <span>
-                                            No contact information configured.
+                                {!form.contactPhone.trim() &&
+                                    !form.contactEmail.trim() &&
+                                    !form.websiteUrl.trim() &&
+                                    !form.contactAddress.trim() && (
+                                        <span className="min-w-0 break-words">
+                                            {
+                                                t(
+                                                    'appearance.preview.noContact',
+                                                )
+                                            }
                                         </span>
                                     )}
                             </div>
                         </div>
 
-                        <div className="rounded-xl border p-4">
+                        <div className="min-w-0 overflow-hidden rounded-xl border p-4">
                             <div className="mb-3 flex items-center gap-2 text-sm font-medium">
-                                <Search className="size-4" />
-                                SEO preview
+                                <Search className="size-4 shrink-0" />
+
+                                {
+                                    t(
+                                        'appearance.preview.seo',
+                                    )
+                                }
                             </div>
 
-                            <div className="grid gap-2">
+                            <div className="grid min-w-0 gap-2">
                                 <div className="truncate font-medium">
                                     {
-                                        seoTitle.trim() ||
+                                        form.seoTitle.trim() ||
                                         previewName
                                     }
                                 </div>
 
-                                <p className="line-clamp-3 text-sm text-muted-foreground">
+                                <p className="line-clamp-3 break-words text-sm text-muted-foreground">
                                     {
-                                        seoDescription.trim() ||
-                                        'No SEO description configured.'
+                                        form.seoDescription.trim() ||
+                                        t(
+                                            'appearance.preview.noSeoDescription',
+                                        )
                                     }
                                 </p>
 
-                                {websiteUrl.trim() && (
+                                {form.websiteUrl.trim() && (
                                     <div className="truncate text-xs text-muted-foreground">
                                         {
-                                            websiteUrl.trim()
+                                            form.websiteUrl.trim()
                                         }
                                     </div>
                                 )}
@@ -1266,7 +1582,10 @@ export default function AppearancePage() {
                         </div>
                     </CardContent>
                 </Card>
+               
+
             </form>
         </div>
     );
 }
+

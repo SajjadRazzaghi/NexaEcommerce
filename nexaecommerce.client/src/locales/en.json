@@ -1,4 +1,326 @@
 {
+  "appearance": {
+    "loadError": "Unable to load store branding.",
+    "retry": "Retry",
+    "title": "Store Branding",
+    "description": "Configure the store identity, logo, favicon, contact information, SEO metadata and visual theme used across the storefront.",
+
+    "identity": {
+      "title": "Store identity",
+      "storeName": "Store name",
+      "storeNamePlaceholder": "My Store",
+      "storeNameHint": "This is the public name shown across the storefront.",
+      "logo": "Store logo",
+      "logoUpload": "Upload store logo",
+      "logoHint": "Recommended for the storefront header, navigation and footer. Maximum size: 5 MB.",
+      "logoUrl": "Or enter an existing logo URL",
+      "logoUrlPlaceholder": "/uploads/logo.png",
+      "favicon": "Favicon",
+      "faviconUpload": "Upload favicon",
+      "faviconHint": "Used for the browser tab, bookmarks and other browser UI. A square PNG, WEBP or SVG is recommended. Maximum size: 2 MB.",
+      "faviconUrl": "Or enter an existing favicon URL",
+      "faviconUrlPlaceholder": "/uploads/favicon.png"
+    },
+
+    "contact": {
+      "title": "Contact information",
+      "phone": "Contact phone",
+      "phonePlaceholder": "+98 21 12345678",
+      "email": "Contact email",
+      "emailPlaceholder": "info@example.com",
+      "website": "Website URL",
+      "websitePlaceholder": "https://example.com",
+      "address": "Contact address",
+      "addressPlaceholder": "Store address",
+      "addressHint": "This information can be displayed in the storefront footer and contact sections."
+    },
+
+    "seo": {
+      "title": "SEO settings",
+      "seoTitle": "SEO title",
+      "seoTitlePlaceholder": "My Store | Online Shopping",
+      "seoTitleHint": "Used as the browser page title and search-engine title.",
+      "description": "SEO description",
+      "descriptionPlaceholder": "Describe your store and products for search engines.",
+      "descriptionHint": "Used for the page meta description."
+    },
+
+    "theme": {
+      "title": "Theme",
+      "baseTheme": "Base theme",
+      "brandColor": "Brand color",
+      "pickBrandColor": "Pick brand color",
+      "brandColorPlaceholder": "#2563eb",
+      "brandColorHint": "Leave empty to use the selected theme accent.",
+      "customTheme": "Custom theme JSON",
+      "customThemePlaceholder": "{\"light\":{...},\"dark\":{...}}",
+      "customThemeHint": "Used only when the selected theme is custom.",
+
+      "names": {
+        "default": "Default",
+        "zinc": "Zinc",
+        "ocean": "Ocean",
+        "forest": "Forest",
+        "sunset": "Sunset"
+      }
+    },
+
+    "actions": {
+      "save": "Save changes",
+      "saving": "Saving..."
+    },
+
+    "preview": {
+      "title": "Live preview",
+      "browserIdentity": "Browser identity",
+      "defaultFavicon": "Default favicon",
+      "tenantNote": "Changes are stored per tenant and are loaded dynamically by the storefront.",
+      "contact": "Contact preview",
+      "noContact": "No contact information configured.",
+      "seo": "SEO preview",
+      "noSeoDescription": "No SEO description configured."
+    },
+
+    "validation": {
+      "storeNameMax": "Store name cannot exceed 128 characters.",
+      "logoUrlMax": "Logo URL cannot exceed 2048 characters.",
+      "faviconUrlMax": "Favicon URL cannot exceed 2048 characters.",
+      "brandColorMax": "Brand color cannot exceed 64 characters.",
+      "customThemeMax": "Custom theme is too large.",
+      "contactPhoneMax": "Contact phone cannot exceed 64 characters.",
+      "contactEmailMax": "Contact email cannot exceed 256 characters.",
+      "contactAddressMax": "Contact address cannot exceed 1000 characters.",
+      "websiteUrlMax": "Website URL cannot exceed 2048 characters.",
+      "seoTitleMax": "SEO title cannot exceed 160 characters.",
+      "seoDescriptionMax": "SEO description cannot exceed 320 characters."
+    },
+
+    "toast": {
+      "saved": "Brand settings saved successfully.",
+      "saveError": "Unable to save brand settings."
+    }
+  },
+
+  "actions": {
+    "edit": "Edit",
+    "delete": "Delete"
+  },
+
+  "common": {
+    "technicalDetails": "Technical details",
+    "saveChanges": "Save changes",
+    "loading": "Loading...",
+    "skipToContent": "Skip to content",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "search": "Search",
+    "sections": "Sections"
+  },
+
+  "roles": {
+    "title": "Roles",
+    "subtitle": "Manage roles and the permissions assigned to them.",
+    "bundleHint": "Roles bundle permissions so access can be managed consistently.",
+    "newRole": "New role",
+    "loadError": "We couldn't load roles.",
+    "emptyTitle": "No roles found",
+    "emptyDesc": "Create a role to define a reusable set of permissions.",
+    "builtIn": "Built-in",
+    "builtInReadonly": "Built-in roles cannot be edited.",
+    "allPermissions": "All permissions",
+    "permissionCount": "{{count}} permissions",
+    "userCount": "{{count}} users",
+    "editRole": "Edit role",
+    "deleteAria": "Delete role {{name}}",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteDescWithUsers": "This role is assigned to {{count}} users. Remove the role before deleting it.",
+    "deleteDescPlain": "This role will be permanently deleted.",
+    "deleteConfirm": "Delete role",
+    "deleteError": "Could not delete the role.",
+    "deleted": "Role deleted.",
+    "newTitle": "New role",
+    "editTitle": "Edit {{name}}",
+    "editorDesc": "Choose a name and the permissions this role should grant.",
+    "name": "Role name",
+    "nameRequired": "Role name is required.",
+    "saveError": "Could not save the role.",
+    "created": "Role created successfully.",
+    "updated": "Role updated successfully.",
+    "createRole": "Create role"
+  },
+
+  "comments": {
+    "deleteAria": "Delete comment",
+    "deleteError": "Could not delete the comment.",
+    "deleted": "Comment deleted.",
+    "emptyDesc": "Be the first to leave a comment.",
+    "emptyTitle": "No comments yet",
+    "loadError": "Could not load comments.",
+    "placeholder": "Write a comment...",
+    "post": "Post comment",
+    "postError": "Could not post the comment.",
+    "sendHint": "Use @ to mention a user.",
+    "deleteConfirm": "Delete comment"
+  },
+
+  "grid": {
+    "tableView": "Table view",
+    "cardView": "Card view",
+    "columns": "Columns",
+    "selected": "{{count}} selected",
+    "clearSelection": "Clear selection",
+    "emptyTitle": "No records found",
+    "emptyDesc": "There are no records to display.",
+    "rangeOf": "{{from}}–{{to}} of {{total}}",
+    "perPage": "{{n}} / page",
+    "pageOf": "Page {{page}} of {{total}}",
+    "prev": "Previous page",
+    "next": "Next page",
+    "viewName": "View name",
+    "views": "Views",
+    "savedViews": "Saved views",
+    "noViews": "No saved views yet.",
+    "setDefaultView": "Set as default view",
+    "deleteView": "Delete view",
+    "saveCurrentView": "Save current view",
+    "filterAll": "All",
+    "filterClear": "Clear filters",
+    "filterCount": "{{count}} filters",
+    "filterNoMatch": "No matching options.",
+    "filterSearch": "Search options...",
+    "selectAll": "Select all rows",
+    "selectRow": "Select row"
+  },
+
+  "health": {
+    "autoRefresh": "Auto refresh",
+    "refresh": "Refresh",
+    "loadError": "Unable to load system health.",
+    "noAccessTitle": "Access denied",
+    "noAccessDesc": "You do not have permission to view system health.",
+    "noChecksTitle": "No health checks",
+    "noChecksDesc": "No health checks are currently registered.",
+
+    "headline": {
+      "healthy": "System is healthy",
+      "degraded": "System is degraded",
+      "unhealthy": "System is unhealthy"
+    },
+
+    "status": {
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "unhealthy": "Unhealthy"
+    },
+
+    "checks": {
+      "database": "Database",
+      "background-jobs": "Background jobs",
+      "storage": "Storage"
+    },
+
+    "data": {
+      "provider": "Provider",
+      "pendingMigrations": "Pending migrations",
+      "jobServerRunning": "Job server running",
+      "storagePath": "Storage path"
+    },
+
+    "tags": {
+      "ready": "Ready"
+    },
+
+    "descriptions": {
+      "database": {
+        "healthy": "Database is reachable.",
+        "degraded": "Database is reachable, but {{count}} migration(s) are pending.",
+        "unhealthy": "The application database cannot be reached."
+      }
+    },
+
+    "lastChecked": "Last checked: {{time}} · {{ms}} ms",
+    "durationMs": "{{ms}} ms",
+    "errorDetail": "Error details"
+  },
+
+  "permissions": {
+    "title": "Permissions",
+    "subtitle": "Review the permissions available to the application.",
+    "loadError": "We couldn't load the permission catalog.",
+    "emptyTitle": "No permissions found",
+    "emptyDesc": "No permissions have been registered.",
+    "groups": {
+      "appearance": "Appearance",
+      "catalog": "Catalog",
+      "brands": "Brands",
+      "comments": "Comments",
+      "health": "System health",
+      "inventory": "Inventory",
+      "orders": "Orders",
+      "shipping": "Shipping",
+      "roles": "Roles",
+      "settings": "Settings",
+      "users": "Users"
+    }
+  },
+
+  "settings": {
+    "title": "Settings",
+    "subtitle": "Manage application settings and operational preferences.",
+    "loadError": "We couldn't load settings.",
+    "emptyTitle": "No settings found",
+    "emptyDesc": "No application settings are available.",
+    "saveError": "Could not save the setting.",
+    "saved": "Setting saved.",
+    "categories": {
+      "account": "Account",
+      "catalog": "Catalog",
+      "appearance": "Appearance",
+      "orders": "Orders",
+      "shipping": "Shipping",
+      "inventory": "Inventory",
+      "system": "System"
+    }
+  },
+
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you requested could not be found.",
+    "goHome": "Go home",
+    "goBack": "Go back"
+  },
+
+  "pages": {
+    "usersDesc": "Manage users, roles, account security and access.",
+    "healthDesc": "Monitor database connectivity, application dependencies and overall system health."
+  },
+
+  "checkout": {
+    "default": "Default"
+  },
+
+  "create": "Create user",
+  "createDesc": "Create a user account and assign roles.",
+  "createError": "Could not create the user.",
+  "createdToast": "User created successfully.",
+  "displayNameOptional": "Display name (optional)",
+  "emailLabel": "Email address",
+  "invitedToast": "Invitation sent successfully.",
+  "markVerified": "Mark email as verified",
+  "rolesHint": "Select the roles assigned to this user.",
+  "rolesLoadError": "Could not load roles.",
+  "rolesOptional": "Roles (optional)",
+  "rolesUpdateError": "Could not update the user's roles.",
+  "rolesUpdated": "User roles updated.",
+  "saveRoles": "Save roles",
+  "saveUser": "Save user",
+  "sendInvite": "Send invitation",
+  "tempPassword": "Temporary password",
+  "tempPasswordHint": "Set a temporary password when no invitation is sent.",
+  "updateError": "Could not update the user.",
+  "updated": "User updated successfully.",
+
   "catalogCategories": {
     "title": "Categories",
     "description": "Manage product categories, hierarchy, visibility and SEO.",
@@ -10,55 +332,43 @@
     "back": "Back to categories",
     "view": "View",
     "edit": "Edit",
-
     "basicInfo": "Basic information",
     "basicInfoDescription": "Current category information and hierarchy.",
-
     "image": "Category image",
     "noImage": "No category image has been uploaded.",
-
     "slug": "Slug",
     "parent": "Parent category",
     "rootCategory": "Root category",
     "displayOrder": "Display order",
-
     "active": "Active",
     "inactive": "Inactive",
     "published": "Published",
     "draft": "Draft",
     "featured": "Featured",
     "normal": "Normal",
-
     "descriptionLabel": "Description",
     "noDescription": "No description.",
-
     "seo": "SEO",
     "seoDescription": "Search engine metadata for this category.",
     "seoTitle": "SEO title",
     "seoMetaDescription": "SEO description",
     "seoKeywords": "SEO keywords",
     "notSet": "Not set.",
-
     "systemInfo": "System information",
     "systemInfoDescription": "Audit information for this category.",
     "created": "Created",
     "updated": "Last updated",
     "notUpdated": "Not updated yet.",
-
     "search": "Search categories...",
     "newCategory": "New category",
-
     "emptyTitle": "No categories found",
     "emptySearch": "Try a different search.",
     "emptyDescription": "Create your first category to start building the catalog.",
-
     "all": "All",
-
     "delete": "Delete",
     "deleteTitle": "Delete {{name}}?",
     "deleteDescription": "The category will be soft-deleted and removed from active catalog operations.",
     "confirmDelete": "Delete category",
-
     "actionFailed": "Action failed.",
     "deleted": "Category deleted.",
     "activated": "Category activated.",
@@ -67,7 +377,6 @@
     "unpublishedToast": "Category unpublished.",
     "featuredToast": "Category featured.",
     "unfeaturedToast": "Category removed from featured.",
-
     "activate": "Activate",
     "deactivate": "Deactivate",
     "publish": "Publish",
@@ -75,6 +384,7 @@
     "feature": "Feature",
     "unfeature": "Remove from featured"
   },
+
   "auth": {
     "pageTitle": "Sign in",
     "email": "Email address",
@@ -170,6 +480,7 @@
       "backToSignUp": "Back to sign up"
     }
   },
+
   "fileUpload": {
     "placeholder": "Upload or drop a file here.",
     "images": "Images",
@@ -184,6 +495,7 @@
     "preview": "Preview",
     "removeFile": "Remove file"
   },
+
   "catalogBrands": {
     "title": "Brands",
     "description": "Manage catalog brands, publishing state, merchandising and SEO.",
@@ -199,6 +511,7 @@
     "loadError": "We couldn't load brands.",
     "actionFailed": "Action failed.",
     "newBrand": "New Brand",
+
     "filters": {
       "all": "All",
       "active": "Active",
@@ -251,7 +564,7 @@
       "published": "Brand published.",
       "unpublished": "Brand unpublished.",
       "featured": "Brand featured.",
-      "unfeatured": "Brand unfeatured.",
+      "unfeatured": "Brand removed from featured.",
       "deleted": "Brand deleted."
     },
 
@@ -324,7 +637,6 @@
     "uploadLogo": "Logo",
     "coverImage": "Cover image",
 
-
     "seo": "SEO",
     "seoBrandDesc": "Optimize how this brand appears in search engines.",
     "seoTitle": "SEO title",
@@ -364,11 +676,6 @@
       "displayOrderMax": "Display order is too large."
     }
   },
-  "common": {
-    "technicalDetails": "Technical details",
-    "saveChanges": "Save changes",
-    "loading": "Loading..."
-  },
 
   "language": {
     "label": "Language"
@@ -393,6 +700,7 @@
     "joined": "Joined",
     "orders": "My Orders"
   },
+
   "profile": {
     "title": "Profile",
     "subtitle": "Manage your account information, addresses, preferences and password.",
@@ -465,6 +773,7 @@
       "setBtn": "Set password"
     }
   },
+
   "users": {
     "user": "User",
     "roles": "Roles",
@@ -512,9 +821,6 @@
     "bulkDeleteConfirm": "Delete users"
   },
 
-  "pages": {
-    "usersDesc": "Manage users, roles, account security and access."
-  },
   "nav": {
     "home": "Home",
     "products": "Products",
@@ -538,9 +844,6 @@
     "settings": "Settings",
     "health": "System Health"
   },
-
-
-
 
   "checkout": {
     "title": "Checkout",
@@ -573,6 +876,7 @@
     "shippingError": "Shipping methods could not be loaded.",
     "shippingErrorDescription": "Please try again before placing your order.",
     "error": "Unable to create the order. Please check your information and try again.",
+
     "validation": {
       "fullName": "Full name is required.",
       "fullNameShort": "Please enter a valid full name.",
@@ -585,6 +889,7 @@
       "shippingInvalid": "The selected shipping method is no longer available. Please choose another one."
     }
   },
+
   "storefront": {
     "brand": {
       "onlineStore": "Online Store",
@@ -592,6 +897,7 @@
       "signIn": "Sign in",
       "products": "Products"
     },
+
     "fulfillment": {
       "statuses": {
         "Pending": "Pending",
@@ -605,6 +911,7 @@
         "Cancelled": "Cancelled"
       }
     },
+
     "shipment": {
       "statuses": {
         "Pending": "Pending",
@@ -613,6 +920,7 @@
         "Cancelled": "Cancelled"
       }
     },
+
     "header": {
       "search": "Search",
       "searchProducts": "Search products...",
@@ -749,6 +1057,7 @@
     },
 
     "productDetail": {
+      "title": "Product details",
       "retry": "Retry",
       "loadError": "Failed to load product.",
       "notFound": "Product not found.",
@@ -767,7 +1076,14 @@
       "availableQuantity": "Available quantity",
       "description": "Description",
       "categories": "Categories",
-      "manufacturer": "Manufacturer"
+      "manufacturer": "Manufacturer",
+
+      "attributes": {
+        "color": "Color",
+        "size": "Size",
+        "material": "Material",
+        "pattern": "Pattern"
+      }
     },
 
     "orders": {
@@ -777,24 +1093,20 @@
       "filter": "Filter by status",
       "search": "Search orders...",
       "allStatuses": "All statuses",
-
       "loading": "Loading your orders...",
       "error": "We could not load your orders.",
       "retry": "Try again",
       "empty": "You have not placed any orders yet.",
       "shop": "Start shopping",
-
       "selected": "selected",
       "printLabels": "Print shipping labels",
       "selectAll": "Select all orders",
-
       "order": "Order",
       "customer": "Customer",
       "status": "Status",
       "total": "Total",
       "date": "Date",
       "actions": "Actions",
-
       "items": "items",
       "view": "View order",
       "previous": "Previous",
@@ -821,6 +1133,7 @@
       "backToCart": "Back to cart",
       "shippingError": "Shipping methods could not be loaded.",
       "shippingErrorDescription": "Please try again before placing your order.",
+
       "validation": {
         "fullNameRequired": "Full name is required.",
         "fullNameInvalid": "Please enter a valid full name.",
@@ -832,6 +1145,7 @@
         "shippingRequired": "Please select a shipping method.",
         "shippingInvalid": "The selected shipping method is no longer available. Please choose another one."
       },
+
       "createOrderError": "Unable to create the order. Please check your information and try again.",
       "title": "Checkout",
       "subtitle": "Review your delivery information and choose a shipping method.",
@@ -857,52 +1171,41 @@
       "processing": "Processing...",
       "placeOrder": "Place order"
     },
+
     "payment": {
       "orderNotFound": "Order not found",
       "orderNotFoundDescription": "We could not load this order for payment.",
       "backToOrders": "Back to orders",
-
       "notAvailable": "Payment is not available",
       "notAvailableDescription": "This order is no longer waiting for payment.",
       "backToOrder": "Back to order",
-
       "success": "Payment completed successfully.",
       "successDescription": "Your payment was verified and your order has been completed.",
-
       "alreadyPaid": "Order already paid",
       "alreadyPaidDescription": "This order has already been paid successfully.",
       "viewOrder": "View order",
-
       "title": "Secure payment",
       "subtitle": "Complete payment for your order.",
-
       "failed": "Payment was not completed.",
       "cancelled": "The payment was cancelled or rejected.",
       "failedDescription": "We could not complete the payment. You can try again.",
-
       "secureTitle": "Secure checkout",
       "secureDescription": "Your payment is processed through the configured payment gateway.",
-
       "gateway": "Payment gateway",
       "starting": "Starting payment...",
       "start": "Start payment",
-
       "reference": "Payment reference",
       "gatewayHint": "Confirming will verify the transaction and mark the order as paid.",
-
       "processing": "Processing payment...",
       "confirm": "Confirm payment",
-
       "summary": "Order summary",
       "orderNumber": "Order",
       "status": "Status",
       "amount": "Amount",
-
       "missingReference": "The payment gateway did not return a payment reference.",
       "startError": "Unable to start the payment. Please try again.",
       "verifyError": "Payment verification failed.",
       "completeError": "Payment verification succeeded, but the order could not be completed."
     }
   }
-
 }

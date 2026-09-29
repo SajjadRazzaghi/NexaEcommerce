@@ -27,6 +27,10 @@ import {
 } from '@mui/icons-material';
 
 import {
+    useQuery,
+} from '@tanstack/react-query';
+
+import {
     Link,
     useParams,
 } from 'react-router-dom';
@@ -40,17 +44,48 @@ import {
 } from '../hooks/useProducts';
 
 import {
+    appearanceApi,
+} from '@/lib/api/appearance';
+
+import {
+    useDocumentTitle,
+} from '@/hooks/use-document-title';
+
+import {
     useCartMutations,
 } from '@/modules/cart/hooks/useCartMutations';
 
 import type {
-     ProductVariant,
+    ProductVariant,
 } from '../api/products';
 
 type SelectedAttributes = Record<
     string,
     string
 >;
+
+const ATTRIBUTE_TRANSLATION_KEYS: Record<
+    string,
+    string
+> = {
+    color:
+        'storefront.productDetail.attributes.color',
+
+    colour:
+        'storefront.productDetail.attributes.color',
+
+    size:
+        'storefront.productDetail.attributes.size',
+
+    material:
+        'storefront.productDetail.attributes.material',
+
+    fabric:
+        'storefront.productDetail.attributes.material',
+
+    pattern:
+        'storefront.productDetail.attributes.pattern',
+};
 
 function getAttributeValue(
     variant: ProductVariant,
@@ -65,7 +100,8 @@ function getAttributeValue(
                 code
                     .trim()
                     .toLowerCase(),
-        )?.attributeValueId ?? null
+        )?.attributeValueId ??
+        null
     );
 }
 
@@ -76,7 +112,8 @@ function getVariantLabel(
         variant.attributes ?? [];
 
     if (
-        genericAttributes.length > 0
+        genericAttributes.length >
+        0
     ) {
         return genericAttributes
             .map(
@@ -94,24 +131,23 @@ function getVariantLabel(
     ].filter(Boolean);
 
     if (
-        legacyParts.length > 0
+        legacyParts.length >
+        0
     ) {
-        return legacyParts.join(' / ');
+        return legacyParts.join(
+            ' / ',
+        );
     }
 
     return variant.sku;
 }
 
-
-
 export default function ProductDetailPage() {
-    
-const {
-    slug,
-} = useParams<{
-    slug: string;
-}>();
-
+    const {
+        slug,
+    } = useParams<{
+        slug: string;
+    }>();
 
     const {
         t,
@@ -121,7 +157,8 @@ const {
     const isFa =
         i18n.language
             ?.toLowerCase()
-            .startsWith('fa');
+            .startsWith('fa') ??
+        false;
 
     const getText = (
         key: string,
@@ -140,11 +177,40 @@ const {
         isLoading,
         error,
     } =
-        useProductBySlug(slug);
+        useProductBySlug(
+            slug,
+        );
+
+    const appearanceQuery =
+        useQuery({
+            queryKey: [
+                'appearance',
+            ],
+
+            queryFn:
+                appearanceApi.get,
+
+            staleTime:
+                5 * 60_000,
+        });
+
+    const documentTitle =
+        product?.name?.trim() ||
+        getText(
+            'storefront.productDetail.title',
+            'Product details',
+        );
+
+    useDocumentTitle(
+        documentTitle,
+        appearanceQuery.data
+            ?.storeName,
+    );
 
     const {
         add,
-    } = useCartMutations();
+    } =
+        useCartMutations();
 
     const [
         imageIndex,
@@ -187,9 +253,11 @@ const {
                     variant =>
                         variant.isActive &&
                         variant.stockQuantity >
-                            0,
+                        0,
                 ),
-            [product],
+            [
+                product,
+            ],
         );
 
     const genericVariantMode =
@@ -202,98 +270,111 @@ const {
         );
 
     const attributeGroups =
-        useMemo(() => {
-            if (
-                !genericVariantMode
-            ) {
-                return [];
-            }
-
-            const groups = new Map<
-                string,
-                {
-                    code: string;
-                    name: string;
-                    values: {
-                        id: string;
-                        label: string;
-                        colorHex?:
-                            | string
-                            | null;
-                    }[];
-                }
-            >();
-
-            for (
-                const variant of
-                availableVariants
-            ) {
-                for (
-                    const attribute of
-                    variant.attributes ??
-                    []
+        useMemo(
+            () => {
+                if (
+                    !genericVariantMode
                 ) {
-                    const key =
-                        attribute.attributeCode
-                            .trim()
-                            .toLowerCase();
+                    return [];
+                }
 
-                    if (
-                        !groups.has(key)
+                const groups =
+                    new Map<
+                        string,
+                        {
+                            code: string;
+                            name: string;
+                            values: {
+                                id: string;
+                                label: string;
+                                colorHex?:
+                                | string
+                                | null;
+                            }[];
+                        }
+                    >();
+
+                for (
+                    const variant of
+                    availableVariants
+                ) {
+                    for (
+                        const attribute of
+                        variant.attributes ??
+                        []
                     ) {
-                        groups.set(
-                            key,
-                            {
-                                code:
-                                    attribute.attributeCode,
-                                name:
-                                    attribute.attributeName,
-                                values: [],
-                            },
-                        );
-                    }
+                        const key =
+                            attribute.attributeCode
+                                .trim()
+                                .toLowerCase();
 
-                    const group =
-                        groups.get(
-                            key,
-                        );
+                        if (
+                            !groups.has(
+                                key,
+                            )
+                        ) {
+                            groups.set(
+                                key,
+                                {
+                                    code:
+                                        attribute.attributeCode,
 
-                    if (
-                        !group
-                    ) {
-                        continue;
-                    }
+                                    name:
+                                        attribute.attributeName,
 
-                    const exists =
-                        group.values.some(
-                            value =>
-                                value.id ===
-                                attribute.attributeValueId,
-                        );
+                                    values:
+                                        [],
+                                },
+                            );
+                        }
 
-                    if (!exists) {
-                        group.values.push(
-                            {
-                                id:
+                        const group =
+                            groups.get(
+                                key,
+                            );
+
+                        if (
+                            !group
+                        ) {
+                            continue;
+                        }
+
+                        const exists =
+                            group.values.some(
+                                value =>
+                                    value.id ===
                                     attribute.attributeValueId,
-                                label:
-                                    attribute.displayValue ||
-                                    attribute.value,
-                                colorHex:
-                                    attribute.colorHex,
-                            },
-                        );
+                            );
+
+                        if (
+                            !exists
+                        ) {
+                            group.values.push(
+                                {
+                                    id:
+                                        attribute.attributeValueId,
+
+                                    label:
+                                        attribute.displayValue ||
+                                        attribute.value,
+
+                                    colorHex:
+                                        attribute.colorHex,
+                                },
+                            );
+                        }
                     }
                 }
-            }
 
-            return Array.from(
-                groups.values(),
-            );
-        }, [
-            availableVariants,
-            genericVariantMode,
-        ]);
+                return Array.from(
+                    groups.values(),
+                );
+            },
+            [
+                availableVariants,
+                genericVariantMode,
+            ],
+        );
 
     const selectedEntries =
         Object.entries(
@@ -310,7 +391,8 @@ const {
                 );
 
             if (
-                entries.length === 0
+                entries.length ===
+                0
             ) {
                 return null;
             }
@@ -319,13 +401,20 @@ const {
                 availableVariants.find(
                     variant =>
                         entries.every(
-                            ([code, valueId]) =>
+                            (
+                                [
+                                    code,
+                                    valueId,
+                                ],
+                            ) =>
                                 getAttributeValue(
                                     variant,
                                     code,
-                                ) === valueId,
+                                ) ===
+                                valueId,
                         ),
-                ) ?? null
+                ) ??
+                null
             );
         };
 
@@ -334,8 +423,8 @@ const {
             () =>
                 genericVariantMode
                     ? findMatchingVariant(
-                          selectedAttributes,
-                      )
+                        selectedAttributes,
+                    )
                     : null,
             [
                 availableVariants,
@@ -365,7 +454,8 @@ const {
                         variant =>
                             variant.id ===
                             selectedLegacyVariantId,
-                    ) ?? null
+                    ) ??
+                    null
                 );
             },
             [
@@ -378,20 +468,21 @@ const {
     const activeVariant =
         genericVariantMode
             ? matchingVariant ??
-              availableVariants[0] ??
-              null
+            availableVariants[0] ??
+            null
             : activeLegacyVariant;
 
     const hasCompleteGenericSelection =
         genericVariantMode &&
-        attributeGroups.length > 0 &&
+        attributeGroups.length >
+        0 &&
         attributeGroups.every(
             group =>
                 Boolean(
                     selectedAttributes[
-                        group.code
-                            .trim()
-                            .toLowerCase()
+                    group.code
+                        .trim()
+                        .toLowerCase()
                     ],
                 ),
         );
@@ -402,8 +493,8 @@ const {
         ) &&
         Boolean(
             activeVariant &&
-                activeVariant.stockQuantity >
-                    0,
+            activeVariant.stockQuantity >
+            0,
         ) &&
         (
             !genericVariantMode ||
@@ -433,6 +524,7 @@ const {
         activeVariant?.stockQuantity ??
         product?.stockQuantity ??
         0;
+
     const baseVariantPrice =
         activeVariant?.priceOverride ??
         product?.price ??
@@ -441,7 +533,8 @@ const {
     const discountPercentage =
         Math.min(
             Math.max(
-                product?.discountPercentage ?? 0,
+                product?.discountPercentage ??
+                0,
                 0,
             ),
             100,
@@ -461,7 +554,8 @@ const {
         null;
 
     const currency =
-        product?.currency ?? '';
+        product?.currency ??
+        '';
 
     const formatPrice = (
         value: number,
@@ -471,12 +565,39 @@ const {
                 ? 'fa-IR'
                 : 'en-US',
             {
-                maximumFractionDigits: 0,
+                maximumFractionDigits:
+                    0,
             },
         ).format(value);
 
+    const formatRating = (
+        value: number,
+    ) =>
+        new Intl.NumberFormat(
+            isFa
+                ? 'fa-IR'
+                : 'en-US',
+            {
+                minimumFractionDigits:
+                    1,
+
+                maximumFractionDigits:
+                    1,
+            },
+        ).format(value);
+
+    const formatCount = (
+        value: number,
+    ) =>
+        new Intl.NumberFormat(
+            isFa
+                ? 'fa-IR'
+                : 'en-US',
+        ).format(value);
+
     const localizedRating =
-        product?.averageRating ?? 0;
+        product?.averageRating ??
+        0;
 
     const handleAttributeSelect =
         (
@@ -486,9 +607,12 @@ const {
             setSelectedAttributes(
                 current => ({
                     ...current,
-                    [code
-                        .trim()
-                        .toLowerCase()]:
+
+                    [
+                        code
+                            .trim()
+                            .toLowerCase()
+                    ]:
                         valueId,
                 }),
             );
@@ -496,6 +620,35 @@ const {
             setQuantity(1);
             setAdded(false);
         };
+
+    const getAttributeName = (
+        code: string,
+        fallback: string,
+    ) => {
+        const normalizedCode =
+            code
+                .trim()
+                .toLowerCase();
+
+        const translationKey =
+            ATTRIBUTE_TRANSLATION_KEYS[
+            normalizedCode
+            ];
+
+        if (
+            !translationKey
+        ) {
+            return fallback;
+        }
+
+        return t(
+            translationKey,
+            {
+                defaultValue:
+                    fallback,
+            },
+        );
+    };
 
     const isAttributeValueAvailable =
         (
@@ -508,14 +661,17 @@ const {
                         getAttributeValue(
                             variant,
                             code,
-                        ) !== valueId
+                        ) !==
+                        valueId
                     ) {
                         return false;
                     }
 
                     return selectedEntries
                         .filter(
-                            ([selectedCode]) =>
+                            ([
+                                selectedCode,
+                            ]) =>
                                 selectedCode
                                     .trim()
                                     .toLowerCase() !==
@@ -580,6 +736,7 @@ const {
                 {
                     productVariantId:
                         activeVariant.id,
+
                     quantity,
                 },
                 {
@@ -593,21 +750,22 @@ const {
             );
         };
 
-    if (isLoading) {
+    if (
+        isLoading
+    ) {
         return (
             <Container
                 maxWidth="xl"
                 sx={{
                     py: 5,
+
                     direction:
                         isFa
                             ? 'rtl'
                             : 'ltr',
                 }}
             >
-                <Stack
-                    spacing={3}
-                >
+                <Stack spacing={3}>
                     <Skeleton
                         variant="rounded"
                         height={40}
@@ -632,6 +790,7 @@ const {
                                 sx={{
                                     width:
                                         '100%',
+
                                     height: {
                                         xs: 350,
                                         md: 520,
@@ -675,12 +834,15 @@ const {
         );
     }
 
-    if (error) {
+    if (
+        error
+    ) {
         return (
             <Container
                 maxWidth="lg"
                 sx={{
                     py: 6,
+
                     direction:
                         isFa
                             ? 'rtl'
@@ -698,14 +860,14 @@ const {
                             }
                         >
                             {getText(
-                                'common.retry',
+                                'storefront.productDetail.retry',
                                 'Retry',
                             )}
                         </Button>
                     }
                 >
                     {getText(
-                        'catalog.productLoadError',
+                        'storefront.productDetail.loadError',
                         'Failed to load product.',
                     )}
                 </Alert>
@@ -713,12 +875,15 @@ const {
         );
     }
 
-    if (!product) {
+    if (
+        !product
+    ) {
         return (
             <Container
                 maxWidth="lg"
                 sx={{
                     py: 6,
+
                     direction:
                         isFa
                             ? 'rtl'
@@ -733,7 +898,7 @@ const {
                     }}
                 >
                     {getText(
-                        'catalog.productNotFound',
+                        'storefront.productDetail.notFound',
                         'Product not found.',
                     )}
                 </Typography>
@@ -747,7 +912,7 @@ const {
                     variant="outlined"
                 >
                     {getText(
-                        'catalog.backToProducts',
+                        'storefront.productDetail.backToProducts',
                         'Back to products',
                     )}
                 </Button>
@@ -760,17 +925,21 @@ const {
             sx={{
                 minHeight:
                     '100vh',
+
                 py: {
                     xs: 3,
                     md: 5,
                 },
+
                 direction:
                     isFa
                         ? 'rtl'
                         : 'ltr',
             }}
         >
-            <Container maxWidth="xl">
+            <Container
+                maxWidth="xl"
+            >
                 <Stack spacing={3}>
                     <Button
                         component={Link}
@@ -784,7 +953,7 @@ const {
                         }}
                     >
                         {getText(
-                            'catalog.backToProducts',
+                            'storefront.productDetail.backToProducts',
                             'Back to products',
                         )}
                     </Button>
@@ -795,6 +964,7 @@ const {
                                 xs: 2,
                                 md: 4,
                             },
+
                             borderRadius: 4,
                         }}
                     >
@@ -825,95 +995,106 @@ const {
                                     sx={{
                                         width:
                                             '100%',
+
                                         height: {
                                             xs: 350,
                                             md: 520,
                                         },
+
                                         objectFit:
                                             'contain',
+
                                         borderRadius: 3,
+
                                         bgcolor:
                                             'background.default',
                                     }}
-                                    onError={event => {
-                                        const image =
-                                            event.currentTarget;
+                                    onError={
+                                        event => {
+                                            const image =
+                                                event.currentTarget;
 
-                                        if (
-                                            !image.src.endsWith(
-                                                '/placeholder.jpg',
-                                            )
-                                        ) {
-                                            image.src =
-                                                '/placeholder.jpg';
+                                            if (
+                                                !image.src.endsWith(
+                                                    '/placeholder.jpg',
+                                                )
+                                            ) {
+                                                image.src =
+                                                    '/placeholder.jpg';
+                                            }
                                         }
-                                    }}
+                                    }
                                 />
 
                                 {images.length >
                                     1 && (
-                                    <Stack
-                                        direction="row"
-                                        spacing={1}
-                                        sx={{
-                                            mt: 2,
-                                            overflowX:
-                                                'auto',
-                                            pb: 1,
-                                        }}
-                                    >
-                                        {images.map(
-                                            (
-                                                image,
-                                                index,
-                                            ) => (
-                                                <IconButton
-                                                    key={
-                                                        image.id
-                                                    }
-                                                    onClick={() =>
-                                                        setImageIndex(
-                                                            index,
-                                                        )
-                                                    }
-                                                    sx={{
-                                                        p: 0.5,
-                                                        border:
-                                                            '2px solid',
-                                                        borderColor:
-                                                            safeImageIndex ===
-                                                            index
-                                                                ? 'primary.main'
-                                                                : 'transparent',
-                                                        borderRadius:
-                                                            2,
-                                                        flexShrink: 0,
-                                                    }}
-                                                >
-                                                    <Box
-                                                        component="img"
-                                                        src={
-                                                            image.imageUrl
+                                        <Stack
+                                            direction="row"
+                                            spacing={1}
+                                            sx={{
+                                                mt: 2,
+                                                overflowX:
+                                                    'auto',
+                                                pb: 1,
+                                            }}
+                                        >
+                                            {images.map(
+                                                (
+                                                    image,
+                                                    index,
+                                                ) => (
+                                                    <IconButton
+                                                        key={
+                                                            image.id
                                                         }
-                                                        alt={
-                                                            image.altText ||
-                                                            product.name
+                                                        onClick={() =>
+                                                            setImageIndex(
+                                                                index,
+                                                            )
                                                         }
-                                                        loading="lazy"
                                                         sx={{
-                                                            width: 70,
-                                                            height: 70,
-                                                            objectFit:
-                                                                'cover',
+                                                            p: 0.5,
+
+                                                            border:
+                                                                '2px solid',
+
+                                                            borderColor:
+                                                                safeImageIndex ===
+                                                                    index
+                                                                    ? 'primary.main'
+                                                                    : 'transparent',
+
                                                             borderRadius:
-                                                                1.5,
+                                                                2,
+
+                                                            flexShrink:
+                                                                0,
                                                         }}
-                                                    />
-                                                </IconButton>
-                                            ),
-                                        )}
-                                    </Stack>
-                                )}
+                                                    >
+                                                        <Box
+                                                            component="img"
+                                                            src={
+                                                                image.imageUrl
+                                                            }
+                                                            alt={
+                                                                image.altText ||
+                                                                product.name
+                                                            }
+                                                            loading="lazy"
+                                                            sx={{
+                                                                width: 70,
+                                                                height: 70,
+                                                                objectFit:
+                                                                    'cover',
+                                                                borderRadius:
+                                                                    1.5,
+                                                            }}
+                                                        />
+                                                    </IconButton>
+                                                ),
+                                            )}
+                                        </Stack>
+                                    )}
                             </Box>
 
                             <Box
@@ -945,6 +1126,7 @@ const {
                                         sx={{
                                             fontWeight: 900,
                                             lineHeight: 1.2,
+
                                             fontSize: {
                                                 xs: '2rem',
                                                 md: '3rem',
@@ -961,16 +1143,19 @@ const {
                                         spacing={2}
                                         useFlexGap
                                         sx={{
-                                            flexWrap: 'wrap',
-                                            alignItems: 'center',
+                                            flexWrap:
+                                                'wrap',
+
+                                            alignItems:
+                                                'center',
                                         }}
                                     >
                                         <Stack
                                             direction="row"
                                             spacing={1}
                                             sx={{
-                                               
-                                                alignItems: 'center',
+                                                alignItems:
+                                                    'center',
                                             }}
                                         >
                                             <Rating
@@ -988,12 +1173,16 @@ const {
                                                 variant="body2"
                                                 color="text.secondary"
                                             >
-                                                {formatPrice(
-                                                    product.averageRating,
-                                                )}{' '}
+                                                {
+                                                    formatRating(
+                                                        localizedRating,
+                                                    )
+                                                }{' '}
                                                 (
                                                 {
-                                                    product.reviewCount
+                                                    formatCount(
+                                                        product.reviewCount,
+                                                    )
                                                 }
                                                 )
                                             </Typography>
@@ -1004,20 +1193,24 @@ const {
                                                 icon={
                                                     <CheckCircleOutlined />
                                                 }
-                                                label={getText(
-                                                    'catalog.inStock',
-                                                    'In stock',
-                                                )}
+                                                label={
+                                                    getText(
+                                                        'storefront.productDetail.inStock',
+                                                        'In stock',
+                                                    )
+                                                }
                                                 color="success"
                                                 size="small"
                                                 variant="outlined"
                                             />
                                         ) : (
                                             <Chip
-                                                label={getText(
-                                                    'catalog.outOfStock',
-                                                    'Out of stock',
-                                                )}
+                                                label={
+                                                    getText(
+                                                        'storefront.productDetail.outOfStock',
+                                                        'Out of stock',
+                                                    )
+                                                }
                                                 color="default"
                                                 size="small"
                                             />
@@ -1028,10 +1221,12 @@ const {
                                         variant="body2"
                                         color="text.secondary"
                                     >
-                                        {getText(
-                                            'catalog.sku',
-                                            'SKU',
-                                        )}
+                                        {
+                                            getText(
+                                                'storefront.productDetail.sku',
+                                                'SKU',
+                                            )
+                                        }
                                         :{' '}
                                         {
                                             activeVariant?.sku ||
@@ -1045,7 +1240,7 @@ const {
                                         {comparePrice !==
                                             null &&
                                             comparePrice >
-                                                price && (
+                                            price && (
                                                 <Typography
                                                     variant="body2"
                                                     color="text.secondary"
@@ -1054,9 +1249,11 @@ const {
                                                             'line-through',
                                                     }}
                                                 >
-                                                    {formatPrice(
-                                                        comparePrice,
-                                                    )}{' '}
+                                                    {
+                                                        formatPrice(
+                                                            comparePrice,
+                                                        )
+                                                    }{' '}
                                                     {
                                                         currency
                                                     }
@@ -1071,9 +1268,11 @@ const {
                                                 mt: 0.5,
                                             }}
                                         >
-                                            {formatPrice(
-                                                price,
-                                            )}{' '}
+                                            {
+                                                formatPrice(
+                                                    price,
+                                                )
+                                            }{' '}
                                             {
                                                 currency
                                             }
@@ -1081,26 +1280,26 @@ const {
 
                                         {product.discountPercentage >
                                             0 && (
-                                            <Typography
-                                                variant="body2"
-                                                color="success.main"
-                                                sx={{
-                                                    mt: 0.5,
-                                                    fontWeight: 700,
-                                                }}
-                                            >
-                                                -
-                                                {
-                                                    product.discountPercentage
-                                                }
-                                                %
-                                            </Typography>
-                                        )}
+                                                <Typography
+                                                    variant="body2"
+                                                    color="success.main"
+                                                    sx={{
+                                                        mt: 0.5,
+                                                        fontWeight: 700,
+                                                    }}
+                                                >
+                                                    -
+                                                    {
+                                                        product.discountPercentage
+                                                    }
+                                                    %
+                                                </Typography>
+                                            )}
                                     </Box>
 
                                     {genericVariantMode &&
                                         attributeGroups.length >
-                                            0 && (
+                                        0 && (
                                             <Stack
                                                 spacing={2.5}
                                             >
@@ -1113,7 +1312,7 @@ const {
 
                                                         const selectedValueId =
                                                             selectedAttributes[
-                                                                code
+                                                            code
                                                             ] ??
                                                             '';
 
@@ -1126,13 +1325,16 @@ const {
                                                                 <Typography
                                                                     variant="h6"
                                                                     sx={{
-                                                                        fontWeight: 800,
+                                                                        fontWeight:
+                                                                            800,
+
                                                                         mb: 1,
                                                                     }}
                                                                 >
-                                                                    {
-                                                                        group.name
-                                                                    }
+                                                                    {getAttributeName(
+                                                                        group.code,
+                                                                        group.name,
+                                                                    )}
                                                                 </Typography>
 
                                                                 <Stack
@@ -1140,7 +1342,8 @@ const {
                                                                     spacing={1}
                                                                     useFlexGap
                                                                     sx={{
-                                                                        flexWrap: 'wrap',
+                                                                        flexWrap:
+                                                                            'wrap',
                                                                     }}
                                                                 >
                                                                     {group.values.map(
@@ -1177,12 +1380,16 @@ const {
                                                                                     sx={{
                                                                                         minWidth:
                                                                                             80,
+
                                                                                         minHeight:
                                                                                             42,
+
                                                                                         borderRadius:
                                                                                             2,
+
                                                                                         textTransform:
                                                                                             'none',
+
                                                                                         opacity:
                                                                                             available
                                                                                                 ? 1
@@ -1194,15 +1401,21 @@ const {
                                                                                             component="span"
                                                                                             sx={{
                                                                                                 width: 16,
+
                                                                                                 height: 16,
+
                                                                                                 borderRadius:
                                                                                                     '50%',
+
                                                                                                 backgroundColor:
                                                                                                     value.colorHex,
+
                                                                                                 border:
                                                                                                     '1px solid',
+
                                                                                                 borderColor:
                                                                                                     'divider',
+
                                                                                                 mr: 1,
                                                                                             }}
                                                                                         />
@@ -1225,28 +1438,33 @@ const {
 
                                     {!genericVariantMode &&
                                         availableVariants.length >
-                                            1 && (
+                                        1 && (
                                             <Box>
                                                 <Typography
                                                     variant="h6"
                                                     sx={{
-                                                        fontWeight: 800,
+                                                        fontWeight:
+                                                            800,
+
                                                         mb: 1,
                                                     }}
                                                 >
-                                                    {getText(
-                                                        'catalog.variant',
-                                                        'Variant',
-                                                    )}
+                                                    {
+                                                        getText(
+                                                            'storefront.productDetail.variant',
+                                                            'Variant',
+                                                        )
+                                                    }
                                                 </Typography>
 
                                                 <Stack
                                                     direction="row"
                                                     spacing={1}
                                                     useFlexGap
-                                                sx={{
-                                                    flexWrap: 'wrap',
-                                                }}
+                                                    sx={{
+                                                        flexWrap:
+                                                            'wrap',
+                                                    }}
                                                 >
                                                     {availableVariants.map(
                                                         variant => {
@@ -1268,9 +1486,11 @@ const {
                                                                         setSelectedLegacyVariantId(
                                                                             variant.id,
                                                                         );
+
                                                                         setQuantity(
                                                                             1,
                                                                         );
+
                                                                         setAdded(
                                                                             false,
                                                                         );
@@ -1278,13 +1498,16 @@ const {
                                                                     sx={{
                                                                         textTransform:
                                                                             'none',
+
                                                                         borderRadius:
                                                                             2,
                                                                     }}
                                                                 >
-                                                                    {getVariantLabel(
-                                                                        variant,
-                                                                    )}
+                                                                    {
+                                                                        getVariantLabel(
+                                                                            variant,
+                                                                        )
+                                                                    }
                                                                 </Button>
                                                             );
                                                         },
@@ -1299,10 +1522,12 @@ const {
                                                 severity="info"
                                                 variant="outlined"
                                             >
-                                                {getText(
-                                                    'catalog.selectAllVariants',
-                                                    'Please select all available options before adding the product to your cart.',
-                                                )}
+                                                {
+                                                    getText(
+                                                        'storefront.productDetail.selectAllVariants',
+                                                        'Please select all available options before adding the product to your cart.',
+                                                    )
+                                                }
                                             </Alert>
                                         )}
 
@@ -1313,10 +1538,12 @@ const {
                                                 severity="warning"
                                                 variant="outlined"
                                             >
-                                                {getText(
-                                                    'catalog.variantUnavailable',
-                                                    'The selected combination is not available.',
-                                                )}
+                                                {
+                                                    getText(
+                                                        'storefront.productDetail.variantUnavailable',
+                                                        'The selected combination is not available.',
+                                                    )
+                                                }
                                             </Alert>
                                         )}
 
@@ -1337,7 +1564,8 @@ const {
                                             direction="row"
                                             spacing={1}
                                             sx={{
-                                                alignItems: 'center',
+                                                alignItems:
+                                                    'center',
                                             }}
                                         >
                                             <IconButton
@@ -1348,24 +1576,32 @@ const {
                                                     quantity <=
                                                     1
                                                 }
-                                                aria-label={getText(
-                                                    'catalog.decreaseQuantity',
-                                                    'Decrease quantity',
-                                                )}
+                                                aria-label={
+                                                    getText(
+                                                        'storefront.productDetail.decreaseQuantity',
+                                                        'Decrease quantity',
+                                                    )
+                                                }
                                             >
                                                 <Remove />
                                             </IconButton>
 
                                             <Typography
                                                 sx={{
-                                                    minWidth: 32,
+                                                    minWidth:
+                                                        32,
+
                                                     textAlign:
                                                         'center',
-                                                    fontWeight: 800,
+
+                                                    fontWeight:
+                                                        800,
                                                 }}
                                             >
                                                 {
-                                                    quantity
+                                                    formatCount(
+                                                        quantity,
+                                                    )
                                                 }
                                             </Typography>
 
@@ -1375,14 +1611,16 @@ const {
                                                 }
                                                 disabled={
                                                     maxQuantity <=
-                                                        0 ||
+                                                    0 ||
                                                     quantity >=
-                                                        maxQuantity
+                                                    maxQuantity
                                                 }
-                                                aria-label={getText(
-                                                    'catalog.increaseQuantity',
-                                                    'Increase quantity',
-                                                )}
+                                                aria-label={
+                                                    getText(
+                                                        'storefront.productDetail.increaseQuantity',
+                                                        'Increase quantity',
+                                                    )
+                                                }
                                             >
                                                 <Add />
                                             </IconButton>
@@ -1407,43 +1645,53 @@ const {
                                                 add.isPending
                                             }
                                             sx={{
-                                                minHeight: 52,
-                                                borderRadius: 2.5,
-                                                fontWeight: 800,
+                                                minHeight:
+                                                    52,
+
+                                                borderRadius:
+                                                    2.5,
+
+                                                fontWeight:
+                                                    800,
                                             }}
                                         >
                                             {add.isPending
                                                 ? getText(
-                                                      'catalog.addingToCart',
-                                                      'Adding...',
-                                                  )
+                                                    'storefront.productDetail.adding',
+                                                    'Adding...',
+                                                )
                                                 : added
-                                                  ? getText(
-                                                        'catalog.addedToCart',
+                                                    ? getText(
+                                                        'storefront.productDetail.addedToCart',
                                                         'Added to cart',
                                                     )
-                                                  : getText(
-                                                        'catalog.addToCart',
+                                                    : getText(
+                                                        'storefront.productDetail.addToCart',
                                                         'Add to cart',
                                                     )}
                                         </Button>
                                     </Stack>
 
-                                    {maxQuantity > 0 && (
-                                        <Typography
-                                            variant="caption"
-                                            color="text.secondary"
-                                        >
-                                            {getText(
-                                                'catalog.availableQuantity',
-                                                'Available quantity',
-                                            )}
-                                            :{' '}
-                                            {formatPrice(
-                                                maxQuantity,
-                                            )}
-                                        </Typography>
-                                    )}
+                                    {maxQuantity >
+                                        0 && (
+                                            <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                            >
+                                                {
+                                                    getText(
+                                                        'storefront.productDetail.availableQuantity',
+                                                        'Available quantity',
+                                                    )
+                                                }
+                                                :{' '}
+                                                {
+                                                    formatCount(
+                                                        maxQuantity,
+                                                    )
+                                                }
+                                            </Typography>
+                                        )}
 
                                     {product.shortDescription && (
                                         <>
@@ -1452,7 +1700,8 @@ const {
                                             <Typography
                                                 color="text.secondary"
                                                 sx={{
-                                                    lineHeight: 1.9,
+                                                    lineHeight:
+                                                        1.9,
                                                 }}
                                             >
                                                 {
@@ -1462,107 +1711,122 @@ const {
                                         </>
                                     )}
 
-                                    {(product.description ||
+                                    {(
+                                        product.description ||
                                         product.categories.length >
-                                            0 ||
-                                        product.manufacturerName) && (
-                                        <>
-                                            <Divider />
+                                        0 ||
+                                        product.manufacturerName
+                                    ) && (
+                                            <>
+                                                <Divider />
 
-                                            <Stack
-                                                spacing={2}
-                                            >
-                                                {product.description && (
-                                                    <Box>
-                                                        <Typography
-                                                            variant="h6"
-                                                            sx={{
-                                                                fontWeight: 800,
-                                                                mb: 1,
-                                                            }}
-                                                        >
-                                                            {getText(
-                                                                'catalog.description',
-                                                                'Description',
-                                                            )}
-                                                        </Typography>
+                                                <Stack
+                                                    spacing={2}
+                                                >
+                                                    {product.description && (
+                                                        <Box>
+                                                            <Typography
+                                                                variant="h6"
+                                                                sx={{
+                                                                    fontWeight:
+                                                                        800,
 
-                                                        <Typography
-                                                            color="text.secondary"
-                                                            sx={{
-                                                                whiteSpace:
-                                                                    'pre-line',
-                                                                lineHeight: 1.9,
-                                                            }}
-                                                        >
-                                                            {
-                                                                product.description
-                                                            }
-                                                        </Typography>
-                                                    </Box>
-                                                )}
+                                                                    mb: 1,
+                                                                }}
+                                                            >
+                                                                {
+                                                                    getText(
+                                                                        'storefront.productDetail.description',
+                                                                        'Description',
+                                                                    )
+                                                                }
+                                                            </Typography>
 
-                                                {product.categories.length >
-                                                    0 && (
-                                                    <Box>
+                                                            <Typography
+                                                                color="text.secondary"
+                                                                sx={{
+                                                                    whiteSpace:
+                                                                        'pre-line',
+
+                                                                    lineHeight:
+                                                                        1.9,
+                                                                }}
+                                                            >
+                                                                {
+                                                                    product.description
+                                                                }
+                                                            </Typography>
+                                                        </Box>
+                                                    )}
+
+                                                    {product.categories.length >
+                                                        0 && (
+                                                            <Box>
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    color="text.secondary"
+                                                                    sx={{
+                                                                        mb: 1,
+
+                                                                        fontWeight:
+                                                                            700,
+                                                                    }}
+                                                                >
+                                                                    {
+                                                                        getText(
+                                                                            'storefront.productDetail.categories',
+                                                                            'Categories',
+                                                                        )
+                                                                    }
+                                                                </Typography>
+
+                                                                <Stack
+                                                                    direction="row"
+                                                                    spacing={1}
+                                                                    useFlexGap
+                                                                    sx={{
+                                                                        flexWrap:
+                                                                            'wrap',
+                                                                    }}
+                                                                >
+                                                                    {product.categories.map(
+                                                                        category => (
+                                                                            <Chip
+                                                                                key={
+                                                                                    category
+                                                                                }
+                                                                                label={
+                                                                                    category
+                                                                                }
+                                                                                size="small"
+                                                                                variant="outlined"
+                                                                            />
+                                                                        ),
+                                                                    )}
+                                                                </Stack>
+                                                            </Box>
+                                                        )}
+
+                                                    {product.manufacturerName && (
                                                         <Typography
                                                             variant="body2"
                                                             color="text.secondary"
-                                                            sx={{
-                                                                mb: 1,
-                                                                fontWeight: 700,
-                                                            }}
                                                         >
-                                                            {getText(
-                                                                'catalog.categories',
-                                                                'Categories',
-                                                            )}
+                                                            {
+                                                                getText(
+                                                                    'storefront.productDetail.manufacturer',
+                                                                    'Manufacturer',
+                                                                )
+                                                            }
+                                                            :{' '}
+                                                            {
+                                                                product.manufacturerName
+                                                            }
                                                         </Typography>
-
-                                                        <Stack
-                                                            direction="row"
-                                                            spacing={1}
-                                                            useFlexGap
-                                                            sx={{
-                                                                flexWrap: 'wrap',
-                                                            }}
-                                                        >
-                                                            {product.categories.map(
-                                                                category => (
-                                                                    <Chip
-                                                                        key={
-                                                                            category
-                                                                        }
-                                                                        label={
-                                                                            category
-                                                                        }
-                                                                        size="small"
-                                                                        variant="outlined"
-                                                                    />
-                                                                ),
-                                                            )}
-                                                        </Stack>
-                                                    </Box>
-                                                )}
-
-                                                {product.manufacturerName && (
-                                                    <Typography
-                                                        variant="body2"
-                                                        color="text.secondary"
-                                                    >
-                                                        {getText(
-                                                            'catalog.manufacturer',
-                                                            'Manufacturer',
-                                                        )}
-                                                        :{' '}
-                                                        {
-                                                            product.manufacturerName
-                                                        }
-                                                    </Typography>
-                                                )}
-                                            </Stack>
-                                        </>
-                                    )}
+                                                    )}
+                                                </Stack>
+                                            </>
+                                        )}
                                 </Stack>
                             </Box>
                         </Stack>

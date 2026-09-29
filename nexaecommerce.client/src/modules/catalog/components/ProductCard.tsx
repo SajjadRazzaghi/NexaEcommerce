@@ -1,8 +1,8 @@
-import { useState } from 'react';
+import {useState} from 'react';
 
-import { Link } from 'react-router-dom';
+import {Link} from 'react-router-dom';
 
-import { useTranslation } from 'react-i18next';
+import {useTranslation} from 'react-i18next';
 
 import {
     Box,
@@ -31,20 +31,20 @@ import {
 
 import ProductVariantPickerDialog from './ProductVariantPickerDialog';
 
-import { useCartMutations } from '@/modules/cart/hooks/useCartMutations';
+import {useCartMutations} from '@/modules/cart/hooks/useCartMutations';
 
 interface ProductCardProps {
     product: ProductListItem;
 }
 
 function getProductUrl(slug: string): string {
-    return `/ products / ${ encodeURIComponent(slug.trim()) } `;
+    return`/products/${encodeURIComponent(slug.trim())}`;
 }
 
 export default function ProductCard({
     product,
 }: ProductCardProps) {
-    const { i18n, t } = useTranslation();
+    const {i18n, t} = useTranslation();
 
     const isFa =
         i18n.language?.startsWith('fa') ?? false;
@@ -83,7 +83,7 @@ export default function ProductCard({
     const [variantLoading, setVariantLoading] =
         useState(false);
 
-    const { add } = useCartMutations();
+    const {add} = useCartMutations();
 
     const price =
         typeof product.finalPrice === 'number'
@@ -100,7 +100,7 @@ export default function ProductCard({
             : hasDiscount &&
                 product.comparePrice != null
               ? Math.round(
-                    ((product.comparePrice - price) /
+                    ((product.comparePrice - price)/
                         product.comparePrice) *
                         100,
                 )
@@ -115,14 +115,14 @@ export default function ProductCard({
             isFa ? 'fa-IR' : undefined,
             {
                 maximumFractionDigits: 0,
-            },
+           },
         ).format(value);
 
     const closeVariantDialog = () => {
         setVariantDialogOpen(false);
         setVariantProduct(null);
         setVariantLoading(false);
-    };
+   };
 
     const handleAddToCart = async () => {
         if (
@@ -131,13 +131,13 @@ export default function ProductCard({
             variantLoading
         ) {
             return;
-        }
+       }
 
         setErrorMessage(null);
         setVariantLoading(true);
 
         try {
-            /*
+           /*
              * ProductListItem intentionally does not
              * contain the complete variant collection.
              * Load the canonical product by slug.
@@ -162,9 +162,9 @@ export default function ProductCard({
                 );
 
                 return;
-            }
+           }
 
-            /*
+           /*
              * If there is exactly one sellable variant,
              * add it directly without showing the picker.
              */
@@ -173,29 +173,29 @@ export default function ProductCard({
                     productVariantId:
                         sellableVariants[0].id,
                     quantity: 1,
-                });
+               });
 
                 setAdded(true);
 
                 return;
-            }
+           }
 
-            /*
+           /*
              * Multiple sellable variants:
              * customer must select the exact variant.
              */
             setVariantProduct(fullProduct);
             setVariantDialogOpen(true);
-        } catch {
+       } catch {
             setErrorMessage(
                 isFa
                     ? 'افزودن محصول به سبد خرید انجام نشد.'
                     : 'The product could not be added to the cart.',
             );
-        } finally {
+       } finally {
             setVariantLoading(false);
-        }
-    };
+       }
+   };
 
     const handleVariantConfirm = async (
         variant: ProductVariant,
@@ -206,7 +206,7 @@ export default function ProductCard({
             add.isPending
         ) {
             return;
-        }
+       }
 
         setErrorMessage(null);
 
@@ -214,18 +214,18 @@ export default function ProductCard({
             await add.mutateAsync({
                 productVariantId: variant.id,
                 quantity: 1,
-            });
+           });
 
             setAdded(true);
             closeVariantDialog();
-        } catch {
+       } catch {
             setErrorMessage(
                 isFa
                     ? 'افزودن محصول به سبد خرید انجام نشد.'
                     : 'The product could not be added to the cart.',
             );
-        }
-    };
+       }
+   };
 
     const productUrl = getProductUrl(
         product.slug,
@@ -249,8 +249,8 @@ export default function ProductCard({
                     '&:hover': {
                         transform: 'translateY(-4px)',
                         boxShadow: 6,
-                    },
-                }}
+                   },
+               }}
             >
                 {discountPercentage > 0 && (
                     <Chip
@@ -259,7 +259,7 @@ export default function ProductCard({
                             {
                                 percent:
                                     discountPercentage,
-                            },
+                           },
                         )}
                         color="error"
                         size="small"
@@ -269,8 +269,8 @@ export default function ProductCard({
                             right: 12,
                             zIndex: 3,
                             fontWeight: 700,
-                        }}
-                    />
+                       }}
+                   />
                 )}
 
                 <IconButton
@@ -282,12 +282,12 @@ export default function ProductCard({
                             : t(
                                   'storefront.product.addFavorite',
                               )
-                    }
+                   }
                     onClick={() =>
                         setFavorite(
                             (value) => !value,
                         )
-                    }
+                   }
                     sx={{
                         position: 'absolute',
                         top: 8,
@@ -297,13 +297,13 @@ export default function ProductCard({
                             'rgba(255,255,255,.92)',
                         '&:hover': {
                             backgroundColor: '#fff',
-                        },
-                    }}
+                       },
+                   }}
                 >
                     {favorite ? (
-                        <Favorite color="error" />
+                        <Favorite color="error"/>
                     ) : (
-                        <FavoriteBorder />
+                        <FavoriteBorder/>
                     )}
                 </IconButton>
 
@@ -315,7 +315,7 @@ export default function ProductCard({
                         overflow: 'hidden',
                         backgroundColor: '#f7f7f7',
                         textDecoration: 'none',
-                    }}
+                   }}
                 >
                     <Box
                         component="img"
@@ -329,15 +329,15 @@ export default function ProductCard({
                                 xs: 220,
                                 sm: 230,
                                 md: 240,
-                            },
+                           },
                             objectFit: 'cover',
                             transition:
                                 'transform .4s ease',
                             '.MuiCard-root:hover &': {
                                 transform:
                                     'scale(1.05)',
-                            },
-                        }}
+                           },
+                       }}
                         onError={(event) => {
                             if (
                                 event.currentTarget.src.endsWith(
@@ -345,12 +345,12 @@ export default function ProductCard({
                                 )
                             ) {
                                 return;
-                            }
+                           }
 
                             event.currentTarget.src =
                                 '/placeholder.jpg';
-                        }}
-                    />
+                       }}
+                   />
                 </Box>
 
                 <CardContent
@@ -366,7 +366,7 @@ export default function ProductCard({
                         direction: isFa
                             ? 'rtl'
                             : 'ltr',
-                    }}
+                   }}
                 >
                     {product.brandName && (
                         <Typography
@@ -374,7 +374,7 @@ export default function ProductCard({
                             color="text.secondary"
                             sx={{
                                 fontWeight: 600,
-                            }}
+                           }}
                         >
                             {product.brandName}
                         </Typography>
@@ -398,8 +398,8 @@ export default function ProductCard({
                             overflow: 'hidden',
                             '&:hover': {
                                 color: 'primary.main',
-                            },
-                        }}
+                           },
+                       }}
                     >
                         {product.name}
                     </Typography>
@@ -407,8 +407,8 @@ export default function ProductCard({
                     <Box
                         sx={{
                             flexGrow: 1,
-                        }}
-                    />
+                       }}
+                   />
 
                     {hasDiscount &&
                         product.comparePrice != null && (
@@ -418,7 +418,7 @@ export default function ProductCard({
                                 sx={{
                                     textDecoration:
                                         'line-through',
-                                }}
+                               }}
                             >
                                 {formatPrice(
                                     product.comparePrice,
@@ -433,7 +433,7 @@ export default function ProductCard({
                         sx={{
                             fontWeight: 900,
                             fontSize: '1.15rem',
-                        }}
+                       }}
                     >
                         {formatPrice(price)}{' '}
                         {product.currency}
@@ -446,7 +446,7 @@ export default function ProductCard({
                                 ? 'success.main'
                                 : 'error.main',
                             fontWeight: 700,
-                        }}
+                       }}
                     >
                         • {stockLabel}
                     </Typography>
@@ -458,7 +458,7 @@ export default function ProductCard({
                             sx={{
                                 fontWeight: 600,
                                 lineHeight: 1.6,
-                            }}
+                           }}
                         >
                             {errorMessage}
                         </Typography>
@@ -468,13 +468,13 @@ export default function ProductCard({
                         direction={{
                             xs: 'column',
                             sm: 'row',
-                        }}
+                       }}
                         spacing={1}
                         sx={{
                             mt: 1,
                             width: '100%',
                             minWidth: 0,
-                        }}
+                       }}
                     >
                         <Button
                             component={Link}
@@ -484,27 +484,27 @@ export default function ProductCard({
                                 width: {
                                     xs: '100%',
                                     sm: 'auto',
-                                },
+                               },
                                 minWidth: 0,
                                 flex: {
                                     xs: 'none',
                                     sm: 1,
-                                },
+                               },
                                 borderRadius: 2,
                                 fontWeight: 700,
                                 minHeight: 46,
                                 px: {
                                     xs: 1.5,
                                     sm: 2,
-                                },
+                               },
                                 fontSize: {
                                     xs: '0.78rem',
                                     sm: '0.875rem',
-                                },
+                               },
                                 lineHeight: 1.3,
                                 whiteSpace: 'normal',
                                 overflow: 'hidden',
-                            }}
+                           }}
                         >
                             {viewLabel}
                         </Button>
@@ -520,31 +520,31 @@ export default function ProductCard({
                                             display: {
                                                 xs: 'none',
                                                 sm: 'inline-flex',
-                                            },
-                                        }}
-                                    />
-                                }
+                                           },
+                                       }}
+                                   />
+                               }
                                 sx={{
                                     width: {
                                         xs: '100%',
                                         sm: 'auto',
-                                    },
+                                   },
                                     minWidth: 0,
                                     flex: {
                                         xs: 'none',
                                         sm: 1.5,
-                                    },
+                                   },
                                     borderRadius: 2,
                                     fontWeight: 800,
                                     minHeight: 46,
                                     px: {
                                         xs: 1.5,
                                         sm: 2,
-                                    },
+                                   },
                                     fontSize: {
                                         xs: '0.78rem',
                                         sm: '0.875rem',
-                                    },
+                                   },
                                     lineHeight: 1.3,
                                     whiteSpace: 'normal',
                                     overflow: 'hidden',
@@ -552,8 +552,8 @@ export default function ProductCard({
                                         {
                                             marginInlineEnd:
                                                 0.5,
-                                        },
-                                }}
+                                       },
+                               }}
                             >
                                 {addedLabel}
                             </Button>
@@ -565,41 +565,41 @@ export default function ProductCard({
                                     !product.isInStock ||
                                     add.isPending ||
                                     variantLoading
-                                }
+                               }
                                 startIcon={
                                     <ShoppingCartOutlined
                                         sx={{
                                             display: {
                                                 xs: 'none',
                                                 sm: 'inline-flex',
-                                            },
-                                        }}
-                                    />
-                                }
+                                           },
+                                       }}
+                                   />
+                               }
                                 onClick={
                                     handleAddToCart
-                                }
+                               }
                                 sx={{
                                     width: {
                                         xs: '100%',
                                         sm: 'auto',
-                                    },
+                                   },
                                     minWidth: 0,
                                     flex: {
                                         xs: 'none',
                                         sm: 1.5,
-                                    },
+                                   },
                                     borderRadius: 2,
                                     fontWeight: 800,
                                     minHeight: 46,
                                     px: {
                                         xs: 1.5,
                                         sm: 2,
-                                    },
+                                   },
                                     fontSize: {
                                         xs: '0.78rem',
                                         sm: '0.875rem',
-                                    },
+                                   },
                                     lineHeight: 1.3,
                                     whiteSpace: 'normal',
                                     overflow: 'hidden',
@@ -607,8 +607,8 @@ export default function ProductCard({
                                         {
                                             marginInlineEnd:
                                                 0.5,
-                                        },
-                                }}
+                                       },
+                               }}
                             >
                                 {add.isPending ||
                                 variantLoading
@@ -626,14 +626,14 @@ export default function ProductCard({
                 loading={
                     variantLoading ||
                     add.isPending
-                }
+               }
                 onClose={
                     closeVariantDialog
-                }
+               }
                 onConfirm={
                     handleVariantConfirm
-                }
-            />
+               }
+           />
         </>
     );
 }

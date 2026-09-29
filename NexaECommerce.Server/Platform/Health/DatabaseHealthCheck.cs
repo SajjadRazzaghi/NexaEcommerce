@@ -4,23 +4,39 @@ using NexaECommerce.Server.Data;
 
 namespace NexaECommerce.Server.Platform.Health;
 
-/// <summary>Reachability of the application database plus whether any EF migration is still pending.</summary>
-public sealed class DatabaseHealthCheck(AppDbContext db) : IHealthCheck
+/// <summary>
+/// Verifies that the application database is reachable.
+///
+/// AppDbContext has a historical migration chain that is intentionally
+/// not applied by EcommerceDatabaseInitializer because it was generated
+/// from an older data model. Therefore this health check must not treat
+/// those historical pending migrations as a degraded runtime condition.
+/// </summary>
+public sealed class DatabaseHealthCheck(
+    AppDbContext db)
+    : IHealthCheck
 {
-    public async Task<HealthCheckResult> CheckHealthAsync(HealthCheckContext context, CancellationToken ct = default)
+    public async Task<HealthCheckResult> CheckHealthAsync(
+        HealthCheckContext context,
+        CancellationToken ct = default)
     {
         if (!await db.Database.CanConnectAsync(ct))
-            return HealthCheckResult.Unhealthy("Cannot connect to the application database.");
-
-        var pending = (await db.Database.GetPendingMigrationsAsync(ct)).ToList();
-        var data = new Dictionary<string, object>
         {
-            ["provider"] = db.Database.ProviderName ?? "unknown",
-            ["pendingMigrations"] = pending.Count,
-        };
+            return HealthCheckResult.Unhealthy(
+                "Cannot connect to the application database.");
+        }
 
-        return pending.Count == 0
-            ? HealthCheckResult.Healthy("Database reachable; schema is up to date.", data)
-            : HealthCheckResult.Degraded($"Database reachable, but {pending.Count} migration(s) pending.", data: data);
+        var data =
+            new Dictionary<string, object>
+            {
+                ["provider"] =
+                    db.Database.ProviderName ??
+                    "unknown",
+            };
+
+        return HealthCheckResult.Healthy(
+            "Database reachable.",
+            data);
     }
 }
+
