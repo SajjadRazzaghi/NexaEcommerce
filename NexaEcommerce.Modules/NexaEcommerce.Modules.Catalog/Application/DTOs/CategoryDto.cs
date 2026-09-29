@@ -12,15 +12,27 @@ public sealed class CategoryDto
 
     public string? ImageUrl { get; set; }
 
+    // =========================================================
+    // SEO
+    // =========================================================
+
     public string? SeoTitle { get; set; }
 
     public string? SeoDescription { get; set; }
 
     public string? SeoKeywords { get; set; }
 
+    // =========================================================
+    // Hierarchy
+    // =========================================================
+
     public Guid? ParentCategoryId { get; set; }
 
     public string? ParentCategoryName { get; set; }
+
+    // =========================================================
+    // Display / Status
+    // =========================================================
 
     public int DisplayOrder { get; set; }
 
@@ -30,7 +42,23 @@ public sealed class CategoryDto
 
     public bool IsFeatured { get; set; }
 
+    // =========================================================
+    // Statistics
+    // =========================================================
+
     public int ProductCount { get; set; }
+
+    // =========================================================
+    // Audit
+    // =========================================================
+
+    public DateTime CreatedAt { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+
+    // =========================================================
+    // Children
+    // =========================================================
 
     public List<CategoryDto> SubCategories { get; set; }
         = new();
@@ -46,14 +74,17 @@ public sealed class CreateCategoryDto
 
     public string? ImageUrl { get; set; }
 
+    // SEO
     public string? SeoTitle { get; set; }
 
     public string? SeoDescription { get; set; }
 
     public string? SeoKeywords { get; set; }
 
+    // Hierarchy
     public Guid? ParentCategoryId { get; set; }
 
+    // Display / Status
     public int DisplayOrder { get; set; }
 
     public bool IsActive { get; set; } = true;
@@ -73,14 +104,17 @@ public sealed class UpdateCategoryDto
 
     public string? ImageUrl { get; set; }
 
+    // SEO
     public string? SeoTitle { get; set; }
 
     public string? SeoDescription { get; set; }
 
     public string? SeoKeywords { get; set; }
 
+    // Hierarchy
     public Guid? ParentCategoryId { get; set; }
 
+    // Display / Status
     public int DisplayOrder { get; set; }
 
     public bool IsActive { get; set; }
@@ -98,5 +132,6 @@ public class CategoryHierarchyDto
 
     public string? Slug { get; set; }
 
-    public List<CategoryHierarchyDto> Children { get; set; } = new();
+    public List<CategoryHierarchyDto> Children { get; set; }
+        = new();
 }

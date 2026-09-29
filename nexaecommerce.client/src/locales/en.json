@@ -1,6 +1,175 @@
 {
-  "seoCategoryDesc": "Optimize how this category appears in search engines.",
-  "seoKeywordsCategoryPlaceholder": "maternity clothing, maternity sets, women's loungewear, patlet",
+  "catalogCategories": {
+    "title": "Categories",
+    "description": "Manage product categories, hierarchy, visibility and SEO.",
+    "newTitle": "New category",
+    "newDescription": "Create a new catalog category.",
+    "editTitle": "Edit {{name}}",
+    "editDescription": "Update category information, SEO and publishing state.",
+    "detailsTitle": "Category details",
+    "back": "Back to categories",
+    "view": "View",
+    "edit": "Edit",
+
+    "basicInfo": "Basic information",
+    "basicInfoDescription": "Current category information and hierarchy.",
+
+    "image": "Category image",
+    "noImage": "No category image has been uploaded.",
+
+    "slug": "Slug",
+    "parent": "Parent category",
+    "rootCategory": "Root category",
+    "displayOrder": "Display order",
+
+    "active": "Active",
+    "inactive": "Inactive",
+    "published": "Published",
+    "draft": "Draft",
+    "featured": "Featured",
+    "normal": "Normal",
+
+    "descriptionLabel": "Description",
+    "noDescription": "No description.",
+
+    "seo": "SEO",
+    "seoDescription": "Search engine metadata for this category.",
+    "seoTitle": "SEO title",
+    "seoMetaDescription": "SEO description",
+    "seoKeywords": "SEO keywords",
+    "notSet": "Not set.",
+
+    "systemInfo": "System information",
+    "systemInfoDescription": "Audit information for this category.",
+    "created": "Created",
+    "updated": "Last updated",
+    "notUpdated": "Not updated yet.",
+
+    "search": "Search categories...",
+    "newCategory": "New category",
+
+    "emptyTitle": "No categories found",
+    "emptySearch": "Try a different search.",
+    "emptyDescription": "Create your first category to start building the catalog.",
+
+    "all": "All",
+
+    "delete": "Delete",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteDescription": "The category will be soft-deleted and removed from active catalog operations.",
+    "confirmDelete": "Delete category",
+
+    "actionFailed": "Action failed.",
+    "deleted": "Category deleted.",
+    "activated": "Category activated.",
+    "deactivated": "Category deactivated.",
+    "publishedToast": "Category published.",
+    "unpublishedToast": "Category unpublished.",
+    "featuredToast": "Category featured.",
+    "unfeaturedToast": "Category removed from featured.",
+
+    "activate": "Activate",
+    "deactivate": "Deactivate",
+    "publish": "Publish",
+    "unpublish": "Unpublish",
+    "feature": "Feature",
+    "unfeature": "Remove from featured"
+  },
+  "auth": {
+    "pageTitle": "Sign in",
+    "email": "Email address",
+    "emailPlaceholder": "you@example.com",
+    "password": "Password",
+    "passwordPlaceholder": "Enter your password",
+    "backToSignIn": "Back to sign in",
+    "trace": "Trace ID: {{id}}",
+
+    "valid": {
+      "emailRequired": "Email address is required.",
+      "emailInvalid": "Enter a valid email address.",
+      "passwordRequired": "Password is required.",
+      "passwordMin": "Password must be at least 8 characters.",
+      "confirmRequired": "Please confirm your password.",
+      "mismatch": "Passwords do not match."
+    },
+
+    "oauthError": {
+      "generic": "External sign-in could not be completed. Please try again.",
+      "access_denied": "External sign-in was cancelled.",
+      "server_error": "The external identity provider returned an error.",
+      "temporarily_unavailable": "The external identity provider is temporarily unavailable.",
+      "invalid_request": "The external sign-in request was invalid.",
+      "unauthorized": "External sign-in was not authorized."
+    },
+
+    "login": {
+      "title": "Sign in",
+      "subtitle": "Sign in to continue to your account.",
+      "demoTitle": "Demo account",
+      "demoHint": "Use the demo credentials above to fill the sign-in form.",
+      "forgot": "Forgot your password?",
+      "keepSignedIn": "Keep me signed in",
+      "signIn": "Sign in",
+      "noAccount": "Don't have an account?",
+      "createOne": "Create one",
+      "resend": "Resend confirmation email",
+      "resendSent": "Confirmation email sent."
+    },
+
+    "forgot": {
+      "title": "Forgot password",
+      "subtitle": "Enter your email address and we will send you instructions to reset your password.",
+      "submit": "Send reset instructions",
+      "sentTitle": "Check your email",
+      "sentDesc": "If an account exists for that email address, password reset instructions have been sent."
+    },
+
+    "register": {
+      "title": "Create account",
+      "subtitle": "Create an account to continue shopping.",
+      "name": "Name",
+      "namePlaceholder": "Enter your name",
+      "passwordHint": "Use at least 8 characters.",
+      "confirm": "Confirm password",
+      "submit": "Create account",
+      "haveAccount": "Already have an account?",
+      "signIn": "Sign in",
+      "closedTitle": "Registration unavailable",
+      "closedDesc": "New account registration is currently unavailable.",
+      "checkEmailTitle": "Check your email",
+      "checkEmailDesc": "We sent a confirmation link to your email address.",
+      "successTitle": "Account created",
+      "successDesc": "Your account was created successfully. Please confirm your email to continue."
+    },
+
+    "reset": {
+      "title": "Reset password",
+      "subtitle": "Choose a new password for your account.",
+      "new": "New password",
+      "passwordHint": "Use at least 8 characters.",
+      "confirm": "Confirm new password",
+      "submit": "Reset password",
+      "invalidMissing": "The password reset link is missing required information or is no longer valid.",
+      "invalidTitle": "Invalid reset link",
+      "requestNew": "Request a new reset link.",
+      "doneTitle": "Password reset complete",
+      "doneDesc": "Your password has been reset successfully.",
+      "goSignIn": "Continue to sign in"
+    },
+
+    "verify": {
+      "confirmingTitle": "Confirming your email",
+      "confirmingDesc": "Please wait while we confirm your email address.",
+      "confirmedTitle": "Email confirmed",
+      "confirmedDesc": "Your email address has been confirmed successfully.",
+      "goSignIn": "Continue to sign in",
+      "failedTitle": "Email confirmation failed",
+      "failedDesc": "We could not confirm your email address. The link may be invalid or expired.",
+      "invalidTitle": "Invalid confirmation link",
+      "invalidDesc": "The email confirmation link is missing required information.",
+      "backToSignUp": "Back to sign up"
+    }
+  },
   "fileUpload": {
     "placeholder": "Upload or drop a file here.",
     "images": "Images",
@@ -109,6 +278,8 @@
   },
 
   "catalogForms": {
+    "seoCategoryDesc": "Optimize how this category appears in search engines.",
+    "seoKeywordsCategoryPlaceholder": "e.g. maternity clothing, maternity sets, women's loungewear, patlet",
     "basicInfoCategory": "Define the category name, hierarchy and display order.",
     "parentCategory": "Parent category",
     "noParent": "No parent category",
@@ -194,6 +365,7 @@
     }
   },
   "common": {
+    "technicalDetails": "Technical details",
     "saveChanges": "Save changes",
     "loading": "Loading..."
   },
@@ -217,9 +389,10 @@
   },
 
   "fields": {
+    "status": "Status",
+    "joined": "Joined",
     "orders": "My Orders"
   },
-
   "profile": {
     "title": "Profile",
     "subtitle": "Manage your account information, addresses, preferences and password.",
@@ -292,7 +465,56 @@
       "setBtn": "Set password"
     }
   },
+  "users": {
+    "user": "User",
+    "roles": "Roles",
+    "activeStatus": "Active",
+    "pendingEmail": "Pending email",
+    "twoFactor": "2FA enabled",
+    "lockedBadge": "Locked",
+    "you": "You",
+    "newUser": "New user",
+    "searchPlaceholder": "Search users...",
+    "emptyTitle": "No users found",
+    "emptyDesc": "Try a different search or create a new user.",
+    "actionsFor": "Actions for {{email}}",
+    "editUser": "Edit user",
+    "editRoles": "Edit roles",
+    "verify": "Verify email",
+    "resendConfirm": "Resend confirmation",
+    "sendReset": "Send password reset",
+    "disable2fa": "Disable 2FA",
+    "viewActivity": "View activity",
+    "lock": "Lock",
+    "unlock": "Unlock",
+    "locked": "User locked.",
+    "unlocked": "User unlocked.",
+    "lockError": "Could not update the user's lock status.",
+    "verified": "Email verified.",
+    "verifyError": "Could not verify the user's email.",
+    "resetSent": "Password reset email sent.",
+    "resetError": "Could not send the password reset email.",
+    "confirmationSent": "Confirmation email sent.",
+    "resendError": "Could not resend the confirmation email.",
+    "twoFactorDisabled": "Two-factor authentication disabled.",
+    "disable2faError": "Could not disable two-factor authentication.",
+    "deleted": "User deleted.",
+    "deleteError": "Could not delete the user.",
+    "bulkLocked": "{{count}} users locked.",
+    "bulkLockError": "Could not lock the selected users.",
+    "bulkDeleted": "{{count}} users deleted.",
+    "bulkDeleteError": "Could not delete the selected users.",
+    "deleteTitle": "Delete {{name}}?",
+    "deleteDesc": "This user will be removed from the system. This action cannot be undone from this screen.",
+    "deleteConfirm": "Delete user",
+    "bulkDeleteTitle": "Delete {{count}} users?",
+    "bulkDeleteDesc": "The selected users will be removed from the system.",
+    "bulkDeleteConfirm": "Delete users"
+  },
 
+  "pages": {
+    "usersDesc": "Manage users, roles, account security and access."
+  },
   "nav": {
     "home": "Home",
     "products": "Products",
@@ -317,13 +539,7 @@
     "health": "System Health"
   },
 
-  "account": {
-    "profile": "Profile"
-  },
 
-  "fields": {
-    "orders": "My Orders"
-  },
 
 
   "checkout": {

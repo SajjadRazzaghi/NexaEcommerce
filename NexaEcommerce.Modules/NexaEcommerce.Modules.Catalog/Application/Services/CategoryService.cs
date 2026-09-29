@@ -572,8 +572,8 @@ public sealed class CategoryService : ICategoryService
     // =========================================================
 
     private static CategoryDto Map(
-        Category category,
-        IReadOnlyDictionary<Guid, int> productCounts)
+      Category category,
+      IReadOnlyDictionary<Guid, int> productCounts)
     {
         return new CategoryDto
         {
@@ -626,6 +626,12 @@ public sealed class CategoryService : ICategoryService
                         ? count
                         : 0,
 
+            CreatedAt =
+                category.CreatedAt,
+
+            UpdatedAt =
+                category.UpdatedAt,
+
             SubCategories =
                 category.SubCategories
                     .Select(
@@ -636,7 +642,6 @@ public sealed class CategoryService : ICategoryService
                     .ToList()
         };
     }
-
     // =========================================================
     // Helpers
     // =========================================================
