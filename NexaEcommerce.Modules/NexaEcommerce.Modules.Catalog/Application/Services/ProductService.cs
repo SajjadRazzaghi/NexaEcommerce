@@ -898,9 +898,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
         return slug.Trim('-');
     }
     private async Task SynchronizeVariantsAsync(
-        Product product,
-        IEnumerable<UpdateProductVariantDto>? variantDtos,
-        CancellationToken cancellationToken)
+      Product product,
+      IEnumerable<UpdateProductVariantDto>? variantDtos,
+      CancellationToken cancellationToken)
     {
         var requested =
             (variantDtos ??
@@ -938,10 +938,14 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
 
         var normalizedSkus =
             requested
-                .Select(x => x.Sku?.Trim() ?? string.Empty)
+                .Select(
+                    x =>
+                        x.Sku?.Trim() ??
+                        string.Empty)
                 .ToList();
 
-        if (normalizedSkus.Any(string.IsNullOrWhiteSpace))
+        if (normalizedSkus.Any(
+                string.IsNullOrWhiteSpace))
         {
             throw new ArgumentException(
                 "Every variant SKU is required.");
@@ -963,14 +967,7 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
         }
 
         // ------------------------------------------------------------
-        // Determine whether this request explicitly identifies
-        // existing variants.
-        //
-        // We only synchronize removals when at least one existing
-        // variant ID was explicitly supplied.
-        //
-        // This prevents legacy SKU-only requests from accidentally
-        // deactivating all existing variants.
+        // Only synchronize removals when explicit existing IDs exist.
         // ------------------------------------------------------------
 
         var hasExistingIds =
@@ -991,11 +988,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
             cancellationToken.ThrowIfCancellationRequested();
 
             var sku =
-                dto.Sku?.Trim() ?? string.Empty;
+                dto.Sku?.Trim() ??
+                string.Empty;
 
-            // This should already have been caught by validation above,
-            // but keep the guard here so this method never passes an
-            // invalid SKU to the domain/repository layer.
             if (string.IsNullOrWhiteSpace(sku))
             {
                 throw new ArgumentException(
@@ -1009,11 +1004,14 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
             if (dto.Id.HasValue &&
                 dto.Id.Value != Guid.Empty)
             {
-                var variantId = dto.Id.Value;
+                var variantId =
+                    dto.Id.Value;
 
                 var variant =
                     product.Variants.FirstOrDefault(
-                        x => x.Id == variantId);
+                        x =>
+                            x.Id ==
+                            variantId);
 
                 if (variant is null)
                 {
@@ -1029,8 +1027,6 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
 
                 // --------------------------------------------------------
                 // SKU uniqueness.
-                //
-                // Exclude the current variant itself from the lookup.
                 // --------------------------------------------------------
 
                 if (await _productRepository.ExistsByVariantSkuAsync(
@@ -1046,7 +1042,8 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 // Update scalar/domain values.
                 // --------------------------------------------------------
 
-                variant.ChangeSku(sku);
+                variant.ChangeSku(
+                    sku);
 
                 variant.ChangePrice(
                     dto.PriceOverride ??
@@ -1060,9 +1057,6 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
 
                 // --------------------------------------------------------
                 // Persist scalar ProductVariant fields directly.
-                //
-                // This prevents EF from generating a normal UPDATE for
-                // the tracked ProductVariant during SaveChanges.
                 // --------------------------------------------------------
 
                 var variantUpdated =
@@ -1095,10 +1089,8 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                     variant.Id);
 
                 // IMPORTANT:
-                // StockQuantity is deliberately NOT changed here.
-                //
-                // Existing stock is controlled by Inventory and must not
-                // be overwritten by the product-edit operation.
+                // Inventory is the source of truth.
+                // Product edit never changes existing stock.
                 continue;
             }
 
@@ -1121,23 +1113,11 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                     product.Price,
                     dto.ComparePrice);
 
-            // ------------------------------------------------------------
-            // StockQuantity can only be initialized for a new variant.
+            // IMPORTANT:
+            // Inventory is the single source of truth for stock.
             //
-            // Existing variant stock is intentionally left untouched.
-            // ------------------------------------------------------------
-
-            if (dto.StockQuantity.HasValue)
-            {
-                if (dto.StockQuantity.Value < 0)
-                {
-                    throw new ArgumentException(
-                        $"Stock quantity for variant '{sku}' cannot be negative.");
-                }
-
-                newVariant.ChangeStock(
-                    dto.StockQuantity.Value);
-            }
+            // A new variant starts without catalog-managed stock.
+            // Product edit must not write stock quantities.
 
             newVariant.SetActive(
                 dto.IsActive);
@@ -1157,52 +1137,36 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
         // ================================================================
         // SYNCHRONIZE REMOVALS
         // ================================================================
-        //
-        // Only do this when the caller supplied explicit existing IDs.
-        //
-        // Example:
-        //
-        // Existing:
-        //   A
-        //   B
-        //   C
-        //
-        // Request:
-        //   A
-        //   C
-        //
-        // B will be deactivated.
-        //
-        // But if the request is SKU-only:
-        //
-        //   SKU-A
-        //   SKU-C
-        //
-        // we do NOT assume that B should be removed.
-        // ================================================================
 
         if (hasExistingIds)
         {
-            foreach (var existingVariant in product.Variants.ToList())
+            foreach (var existingVariant
+                     in product.Variants.ToList())
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                if (matchedExisting.Contains(existingVariant.Id))
+                if (matchedExisting.Contains(
+                        existingVariant.Id))
+                {
                     continue;
+                }
 
                 var wasExplicitlyRequested =
                     requested.Any(
                         x =>
                             x.Id.HasValue &&
                             x.Id.Value != Guid.Empty &&
-                            x.Id.Value == existingVariant.Id);
+                            x.Id.Value ==
+                            existingVariant.Id);
 
                 if (wasExplicitlyRequested)
+                {
                     continue;
+                }
 
                 // --------------------------------------------------------
-                // The variant was not included in the requested set.
-                // Deactivate it instead of physically deleting it.
+                // Variant was removed from requested set.
+                // Deactivate instead of deleting.
                 // --------------------------------------------------------
 
                 existingVariant.Deactivate();
