@@ -320,9 +320,7 @@ public sealed class ProductService : IProductService
             product,
             cancellationToken);
 
-        await _productRepository.AddAsync(
-          product,
-          cancellationToken);
+     
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -914,10 +912,15 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
         if (requested.Count == 0)
             return;
 
+        // ------------------------------------------------------------
+        // Validate duplicate variant IDs inside the request.
+        // ------------------------------------------------------------
+
         var duplicateIds =
             requested
-                .Where(x => x.Id.HasValue &&
-                            x.Id.Value != Guid.Empty)
+                .Where(x =>
+                    x.Id.HasValue &&
+                    x.Id.Value != Guid.Empty)
                 .GroupBy(x => x.Id!.Value)
                 .Where(x => x.Count() > 1)
                 .Select(x => x.Key)
@@ -929,14 +932,16 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 "The same variant cannot appear more than once.");
         }
 
+        // ------------------------------------------------------------
+        // Normalize and validate SKUs.
+        // ------------------------------------------------------------
+
         var normalizedSkus =
             requested
-                .Select(
-                    x => x.Sku.Trim())
+                .Select(x => x.Sku?.Trim() ?? string.Empty)
                 .ToList();
 
-        if (normalizedSkus.Any(
-                string.IsNullOrWhiteSpace))
+        if (normalizedSkus.Any(string.IsNullOrWhiteSpace))
         {
             throw new ArgumentException(
                 "Every variant SKU is required.");
@@ -957,31 +962,63 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 $"Duplicate variant SKU detected: {string.Join(", ", duplicateSkus)}.");
         }
 
+        // ------------------------------------------------------------
+        // Determine whether this request explicitly identifies
+        // existing variants.
+        //
+        // We only synchronize removals when at least one existing
+        // variant ID was explicitly supplied.
+        //
+        // This prevents legacy SKU-only requests from accidentally
+        // deactivating all existing variants.
+        // ------------------------------------------------------------
+
         var hasExistingIds =
             requested.Any(
-                x => x.Id.HasValue &&
-                     x.Id.Value != Guid.Empty);
+                x =>
+                    x.Id.HasValue &&
+                    x.Id.Value != Guid.Empty);
 
         var matchedExisting =
             new HashSet<Guid>();
+
+        // ------------------------------------------------------------
+        // Synchronize requested variants.
+        // ------------------------------------------------------------
 
         foreach (var dto in requested)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var sku = dto.Sku.Trim();
+            var sku =
+                dto.Sku?.Trim() ?? string.Empty;
+
+            // This should already have been caught by validation above,
+            // but keep the guard here so this method never passes an
+            // invalid SKU to the domain/repository layer.
+            if (string.IsNullOrWhiteSpace(sku))
+            {
+                throw new ArgumentException(
+                    "Every variant SKU is required.");
+            }
+
+            // ============================================================
+            // EXISTING VARIANT
+            // ============================================================
 
             if (dto.Id.HasValue &&
                 dto.Id.Value != Guid.Empty)
             {
+                var variantId = dto.Id.Value;
+
                 var variant =
                     product.Variants.FirstOrDefault(
-                        x => x.Id == dto.Id.Value);
+                        x => x.Id == variantId);
 
                 if (variant is null)
                 {
                     throw new KeyNotFoundException(
-                        $"Product variant '{dto.Id}' was not found.");
+                        $"Product variant '{variantId}' was not found.");
                 }
 
                 if (variant.ProductId != product.Id)
@@ -989,6 +1026,12 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                     throw new InvalidOperationException(
                         "The specified variant does not belong to this product.");
                 }
+
+                // --------------------------------------------------------
+                // SKU uniqueness.
+                //
+                // Exclude the current variant itself from the lookup.
+                // --------------------------------------------------------
 
                 if (await _productRepository.ExistsByVariantSkuAsync(
                         sku,
@@ -998,6 +1041,10 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                     throw new ArgumentException(
                         $"Variant SKU '{sku}' already exists.");
                 }
+
+                // --------------------------------------------------------
+                // Update scalar/domain values.
+                // --------------------------------------------------------
 
                 variant.ChangeSku(sku);
 
@@ -1011,16 +1058,53 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 variant.SetActive(
                     dto.IsActive);
 
-                await ReplaceVariantAttributesAsync(product, variant, dto, persistMappingsExplicitly: true, cancellationToken);
+                // --------------------------------------------------------
+                // Persist scalar ProductVariant fields directly.
+                //
+                // This prevents EF from generating a normal UPDATE for
+                // the tracked ProductVariant during SaveChanges.
+                // --------------------------------------------------------
+
+                var variantUpdated =
+                    await _productRepository.UpdateVariantAsync(
+                        variant.Id,
+                        variant.Sku,
+                        variant.PriceOverride,
+                        variant.ComparePrice,
+                        variant.IsActive,
+                        cancellationToken);
+
+                if (!variantUpdated)
+                {
+                    throw new KeyNotFoundException(
+                        $"Product variant '{variant.Id}' no longer exists.");
+                }
+
+                // --------------------------------------------------------
+                // Synchronize attribute mappings separately.
+                // --------------------------------------------------------
+
+                await ReplaceVariantAttributesAsync(
+                    product,
+                    variant,
+                    dto,
+                    persistMappingsExplicitly: true,
+                    cancellationToken);
 
                 matchedExisting.Add(
                     variant.Id);
 
                 // IMPORTANT:
-                // StockQuantity is deliberately NOT changed here
-                // for an existing variant.
+                // StockQuantity is deliberately NOT changed here.
+                //
+                // Existing stock is controlled by Inventory and must not
+                // be overwritten by the product-edit operation.
                 continue;
             }
+
+            // ============================================================
+            // NEW VARIANT
+            // ============================================================
 
             if (await _productRepository.ExistsByVariantSkuAsync(
                     sku,
@@ -1037,6 +1121,12 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                     product.Price,
                     dto.ComparePrice);
 
+            // ------------------------------------------------------------
+            // StockQuantity can only be initialized for a new variant.
+            //
+            // Existing variant stock is intentionally left untouched.
+            // ------------------------------------------------------------
+
             if (dto.StockQuantity.HasValue)
             {
                 if (dto.StockQuantity.Value < 0)
@@ -1052,27 +1142,91 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
             newVariant.SetActive(
                 dto.IsActive);
 
-            await ReplaceVariantAttributesAsync(product, newVariant, dto, persistMappingsExplicitly: false, cancellationToken);
+            // ------------------------------------------------------------
+            // New variant attribute mappings.
+            // ------------------------------------------------------------
+
+            await ReplaceVariantAttributesAsync(
+                product,
+                newVariant,
+                dto,
+                persistMappingsExplicitly: false,
+                cancellationToken);
         }
 
-        // Only synchronize removals when the request contains
-        // explicit existing IDs. This prevents legacy callers
-        // that send SKU-only variants from accidentally disabling
-        // every current variant.
+        // ================================================================
+        // SYNCHRONIZE REMOVALS
+        // ================================================================
+        //
+        // Only do this when the caller supplied explicit existing IDs.
+        //
+        // Example:
+        //
+        // Existing:
+        //   A
+        //   B
+        //   C
+        //
+        // Request:
+        //   A
+        //   C
+        //
+        // B will be deactivated.
+        //
+        // But if the request is SKU-only:
+        //
+        //   SKU-A
+        //   SKU-C
+        //
+        // we do NOT assume that B should be removed.
+        // ================================================================
+
         if (hasExistingIds)
         {
-            foreach (var existingVariant in
-                     product.Variants.ToList())
+            foreach (var existingVariant in product.Variants.ToList())
             {
-                if (!matchedExisting.Contains(
-                        existingVariant.Id) &&
-                    !requested.Any(
-                        x => x.Id == existingVariant.Id))
+                cancellationToken.ThrowIfCancellationRequested();
+
+                if (matchedExisting.Contains(existingVariant.Id))
+                    continue;
+
+                var wasExplicitlyRequested =
+                    requested.Any(
+                        x =>
+                            x.Id.HasValue &&
+                            x.Id.Value != Guid.Empty &&
+                            x.Id.Value == existingVariant.Id);
+
+                if (wasExplicitlyRequested)
+                    continue;
+
+                // --------------------------------------------------------
+                // The variant was not included in the requested set.
+                // Deactivate it instead of physically deleting it.
+                // --------------------------------------------------------
+
+                existingVariant.Deactivate();
+
+                var variantUpdated =
+                    await _productRepository.UpdateVariantAsync(
+                        existingVariant.Id,
+                        existingVariant.Sku,
+                        existingVariant.PriceOverride,
+                        existingVariant.ComparePrice,
+                        false,
+                        cancellationToken);
+
+                if (!variantUpdated)
                 {
-                    existingVariant.Deactivate();
+                    throw new KeyNotFoundException(
+                        $"Product variant '{existingVariant.Id}' no longer exists.");
                 }
             }
         }
+
+        // ================================================================
+        // FINAL VALIDATION
+        // ================================================================
 
         var activeVariants =
             product.Variants

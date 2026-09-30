@@ -218,39 +218,95 @@ public sealed class InventoryAwareProductService(
         };
     }
 
-    private static UpdateProductDto SanitizeUpdate(UpdateProductDto source)
+    private static UpdateProductDto SanitizeUpdate(
+     UpdateProductDto source)
     {
-        ArgumentNullException.ThrowIfNull(source);
+        ArgumentNullException.ThrowIfNull(
+            source);
 
         return new UpdateProductDto
         {
-            Name = source.Name,
-            Price = source.Price,
-            Currency = source.Currency,
-            Description = source.Description,
-            ShortDescription = source.ShortDescription,
-            ComparePrice = source.ComparePrice,
-            DiscountPercentage = source.DiscountPercentage,
-            BrandId = source.BrandId,
-            ManufacturerId = source.ManufacturerId,
-            CategoryIds = source.CategoryIds?.ToList() ?? [],
-            IsActive = source.IsActive,
-            IsFeatured = source.IsFeatured,
-            IsPublished = source.IsPublished,
-            Variants = (source.Variants ?? [])
-                .Select(x => new UpdateProductVariantDto
-                {
-                    Id = x.Id,
-                    Sku = x.Sku,
-                    Color = x.Color,
-                    Size = x.Size,
-                    PriceOverride = x.PriceOverride,
-                    ComparePrice = x.ComparePrice,
-                    StockQuantity = null,
-                    IsActive = x.IsActive,
-                    AttributeValueIds = x.AttributeValueIds?.ToList() ?? []
-                })
-                .ToList()
+            Name =
+                source.Name,
+
+            Price =
+                source.Price,
+
+            Currency =
+                source.Currency,
+
+            Description =
+                source.Description,
+
+            ShortDescription =
+                source.ShortDescription,
+
+            ComparePrice =
+                source.ComparePrice,
+
+            DiscountPercentage =
+                source.DiscountPercentage,
+
+            BrandId =
+                source.BrandId,
+
+            ManufacturerId =
+                source.ManufacturerId,
+
+            CategoryIds =
+                source.CategoryIds?.ToList() ??
+                [],
+
+            // IMPORTANT:
+            // The image list is part of the desired product state.
+            Images =
+                source.Images?.ToList() ??
+                [],
+
+            IsActive =
+                source.IsActive,
+
+            IsFeatured =
+                source.IsFeatured,
+
+            IsPublished =
+                source.IsPublished,
+
+            Variants =
+                (source.Variants ?? [])
+                    .Select(
+                        x =>
+                            new UpdateProductVariantDto
+                            {
+                                Id =
+                                    x.Id,
+
+                                Sku =
+                                    x.Sku,
+
+                                Color =
+                                    x.Color,
+
+                                Size =
+                                    x.Size,
+
+                                PriceOverride =
+                                    x.PriceOverride,
+
+                                ComparePrice =
+                                    x.ComparePrice,
+
+                                StockQuantity =
+                                    null,
+
+                                IsActive =
+                                    x.IsActive,
+
+                                AttributeValueIds =
+                                    x.AttributeValueIds?.ToList() ??
+                                    []
+                            })
+                    .ToList()
         };
     }
 }

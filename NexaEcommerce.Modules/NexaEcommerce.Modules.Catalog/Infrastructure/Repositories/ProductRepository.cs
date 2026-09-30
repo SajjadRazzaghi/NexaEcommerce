@@ -18,7 +18,102 @@ public sealed class ProductRepository : IProductRepository
     // ============================================================
     // Get By Id
     // ============================================================
+    // ============================================================
+    // Update Existing Variant
+    // ============================================================
+    //
+    // ProductVariant does not currently use a concurrency token.
+    // Existing variants are loaded as tracked entities, but updating
+    // them through normal EF tracking has produced zero-row UPDATE
+    // concurrency exceptions in the product aggregate.
+    //
+    // ExecuteUpdate performs the scalar update directly in SQL.
+    // The tracked entity is then marked Unchanged so SaveChanges()
+    // does not issue the same UPDATE again.
+    //
+    public async Task<bool> UpdateVariantAsync(
+        Guid variantId,
+        string sku,
+        decimal priceOverride,
+        decimal? comparePrice,
+        bool isActive,
+        CancellationToken cancellationToken = default)
+    {
+        if (variantId == Guid.Empty)
+        {
+            return false;
+        }
 
+        if (string.IsNullOrWhiteSpace(sku))
+        {
+            throw new ArgumentException(
+                "Variant SKU is required.",
+                nameof(sku));
+        }
+
+        if (priceOverride < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(priceOverride));
+        }
+
+        var normalizedSku =
+            sku.Trim();
+
+        var now =
+            DateTime.UtcNow;
+
+        var affectedRows =
+            await _context.ProductVariants
+                .IgnoreQueryFilters()
+                .Where(
+                    variant =>
+                        variant.Id == variantId &&
+                        !variant.IsDeleted)
+                .ExecuteUpdateAsync(
+                    setters =>
+                        setters
+                            .SetProperty(
+                                variant => variant.Sku,
+                                normalizedSku)
+                            .SetProperty(
+                                variant => variant.PriceOverride,
+                                priceOverride)
+                            .SetProperty(
+                                variant => variant.ComparePrice,
+                                comparePrice)
+                            .SetProperty(
+                                variant => variant.IsActive,
+                                isActive)
+                            .SetProperty(
+                                variant => variant.UpdatedAt,
+                                now),
+                    cancellationToken);
+
+        var trackedEntry =
+            _context.ChangeTracker
+                .Entries<ProductVariant>()
+                .FirstOrDefault(
+                    entry =>
+                        entry.Entity.Id ==
+                        variantId);
+
+        if (trackedEntry is not null)
+        {
+            if (affectedRows == 1)
+            {
+                trackedEntry.State =
+                    EntityState.Unchanged;
+            }
+            else
+            {
+                trackedEntry.State =
+                    EntityState.Detached;
+            }
+        }
+
+        return affectedRows == 1;
+    }
     public async Task<Product?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default)

@@ -411,16 +411,16 @@ function CategorySection({
                                     {category.name}
                                 </div>
 
-                                {typeof category.productCount ===
-                                    'number' && (
-                                        <div className="mt-1 text-xs text-muted-foreground">
-                                            {category.productCount}{' '}
-                                            {t(
-                                                'storefront.home.categories.products',
-                                                'products',
-                                            )}
-                                        </div>
-                                    )}
+                                {typeof category.productCount === 'number' && (
+                                    <div className="mt-1 text-xs text-muted-foreground">
+                                        {t(
+                                            'storefront.home.categories.products',
+                                            {
+                                                count: category.productCount,
+                                            },
+                                        )}
+                                    </div>
+                                )}
                             </div>
                         </Link>
                     ))}

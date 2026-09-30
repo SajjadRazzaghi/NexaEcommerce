@@ -8,8 +8,14 @@ public interface IProductRepository
     Guid id,
     CancellationToken cancellationToken = default);
 
-
-Task<Product?> GetBySlugAsync(
+    Task<bool> UpdateVariantAsync(
+        Guid variantId,
+        string sku,
+        decimal priceOverride,
+        decimal? comparePrice,
+        bool isActive,
+        CancellationToken cancellationToken = default);
+    Task<Product?> GetBySlugAsync(
     string slug,
     CancellationToken cancellationToken = default);
 
