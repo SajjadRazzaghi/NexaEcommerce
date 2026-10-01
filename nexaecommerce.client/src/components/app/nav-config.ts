@@ -18,6 +18,7 @@ import {
     Users,
     Warehouse,
     type LucideIcon,
+    SlidersHorizontal,
 } from 'lucide-react';
 
 import { PERM } from '@/lib/api/admin';
@@ -82,6 +83,12 @@ export const NAV: NavSection[] = [
                 to: '/admin',
                 icon: LayoutDashboard,
                 end: true,
+            },
+            {
+                titleKey: 'nav.catalogAttributes',
+                to: '/admin/catalog-attributes',
+                icon: SlidersHorizontal,
+                permission: PERM.productsUpdate,
             },
             {
                 titleKey: 'nav.products',

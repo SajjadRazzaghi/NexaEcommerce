@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Plus,
     Pencil,
@@ -81,12 +82,19 @@ function normalizeCode(value: string) {
 }
 
 export default function CatalogAttributeManagementPage() {
-    const [search, setSearch] = useState('');
-    const [expandedId, setExpandedId] = useState<string | null>(null);
+    const { t } = useTranslation();
 
-    const [editingId, setEditingId] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
+    const [expandedId, setExpandedId] =
+        useState<string | null>(null);
+
+    const [editingId, setEditingId] =
+        useState<string | null>(null);
+
     const [attributeForm, setAttributeForm] =
-        useState<AttributeFormState>(emptyAttributeForm);
+        useState<AttributeFormState>(
+            emptyAttributeForm,
+        );
 
     const [addingValueFor, setAddingValueFor] =
         useState<string | null>(null);
@@ -95,7 +103,9 @@ export default function CatalogAttributeManagementPage() {
         useState<string | null>(null);
 
     const [valueForm, setValueForm] =
-        useState<ValueFormState>(emptyValueForm);
+        useState<ValueFormState>(
+            emptyValueForm,
+        );
 
     const {
         data: attributes = [],
@@ -124,16 +134,20 @@ export default function CatalogAttributeManagementPage() {
             [...attributes].sort(
                 (a, b) =>
                     a.displayOrder - b.displayOrder ||
-                    a.name.localeCompare(b.name),
+                    a.name.localeCompare(
+                        b.name,
+                    ),
             ),
         [attributes],
     );
 
     const startCreateAttribute = () => {
         setEditingId(null);
+
         setAttributeForm({
             ...emptyAttributeForm,
-            displayOrder: attributes.length,
+            displayOrder:
+                attributes.length,
         });
     };
 
@@ -148,12 +162,16 @@ export default function CatalogAttributeManagementPage() {
             description:
                 attribute.description ?? '',
             displayType:
-                attribute.displayType ?? 'select',
-            isRequired: attribute.isRequired,
-            isFilterable: attribute.isFilterable,
+                attribute.displayType ??
+                'select',
+            isRequired:
+                attribute.isRequired,
+            isFilterable:
+                attribute.isFilterable,
             isVariantAttribute:
                 attribute.isVariantAttribute,
-            isActive: attribute.isActive,
+            isActive:
+                attribute.isActive,
             displayOrder:
                 attribute.displayOrder,
         });
@@ -161,6 +179,7 @@ export default function CatalogAttributeManagementPage() {
 
     const cancelAttributeEdit = () => {
         setEditingId(null);
+
         setAttributeForm(
             emptyAttributeForm,
         );
@@ -168,30 +187,38 @@ export default function CatalogAttributeManagementPage() {
 
     const submitAttribute = async () => {
         const body: CreateCatalogAttributeDto = {
-            name: attributeForm.name.trim(),
+            name:
+                attributeForm.name.trim(),
+
             code: normalizeCode(
                 attributeForm.code ||
-                attributeForm.name,
+                    attributeForm.name,
             ),
+
             description:
                 attributeForm.description.trim() ||
                 null,
+
             displayType:
                 attributeForm.displayType.trim() ||
                 null,
+
             isRequired:
                 attributeForm.isRequired,
+
             isFilterable:
                 attributeForm.isFilterable,
+
             isVariantAttribute:
                 attributeForm.isVariantAttribute,
+
             isActive:
                 attributeForm.isActive,
-            displayOrder:
-                Math.max(
-                    0,
-                    attributeForm.displayOrder,
-                ),
+
+            displayOrder: Math.max(
+                0,
+                attributeForm.displayOrder,
+            ),
         };
 
         if (!body.name) {
@@ -215,10 +242,14 @@ export default function CatalogAttributeManagementPage() {
     const handleDeleteAttribute = async (
         attribute: CatalogAttribute,
     ) => {
-        const confirmed =
-            window.confirm(
-                `Delete attribute "${attribute.name}"?`,
-            );
+        const confirmed = window.confirm(
+            t(
+                'catalogAttributes.confirm.deleteAttribute',
+                {
+                    name: attribute.name,
+                },
+            ),
+        );
 
         if (!confirmed) {
             return;
@@ -253,6 +284,7 @@ export default function CatalogAttributeManagementPage() {
         setAddingValueFor(
             value.catalogAttributeId,
         );
+
         setEditingValueId(value.id);
 
         setValueForm({
@@ -271,6 +303,7 @@ export default function CatalogAttributeManagementPage() {
     const cancelValueEdit = () => {
         setAddingValueFor(null);
         setEditingValueId(null);
+
         setValueForm(
             emptyValueForm,
         );
@@ -280,23 +313,26 @@ export default function CatalogAttributeManagementPage() {
         attributeId: string,
     ) => {
         const body: CreateCatalogAttributeValueDto =
-        {
-            value:
-                valueForm.value.trim(),
-            displayValue:
-                valueForm.displayValue.trim() ||
-                null,
-            colorHex:
-                valueForm.colorHex.trim() ||
-                null,
-            displayOrder:
-                Math.max(
+            {
+                value:
+                    valueForm.value.trim(),
+
+                displayValue:
+                    valueForm.displayValue.trim() ||
+                    null,
+
+                colorHex:
+                    valueForm.colorHex.trim() ||
+                    null,
+
+                displayOrder: Math.max(
                     0,
                     valueForm.displayOrder,
                 ),
-            isActive:
-                valueForm.isActive,
-        };
+
+                isActive:
+                    valueForm.isActive,
+            };
 
         if (!body.value) {
             return;
@@ -324,10 +360,14 @@ export default function CatalogAttributeManagementPage() {
         valueId: string,
         valueLabel: string,
     ) => {
-        const confirmed =
-            window.confirm(
-                `Delete value "${valueLabel}"?`,
-            );
+        const confirmed = window.confirm(
+            t(
+                'catalogAttributes.confirm.deleteValue',
+                {
+                    name: valueLabel,
+                },
+            ),
+        );
 
         if (!confirmed) {
             return;
@@ -344,10 +384,15 @@ export default function CatalogAttributeManagementPage() {
             <div className="space-y-6">
                 <div>
                     <h1 className="text-2xl font-bold">
-                        Catalog Attributes
+                        {t(
+                            'catalogAttributes.title',
+                        )}
                     </h1>
+
                     <p className="text-muted-foreground">
-                        Loading catalog attributes...
+                        {t(
+                            'catalogAttributes.loading',
+                        )}
                     </p>
                 </div>
             </div>
@@ -359,12 +404,17 @@ export default function CatalogAttributeManagementPage() {
             <Card>
                 <CardHeader>
                     <CardTitle>
-                        Failed to load catalog attributes
+                        {t(
+                            'catalogAttributes.loadError',
+                        )}
                     </CardTitle>
+
                     <CardDescription>
                         {error instanceof Error
                             ? error.message
-                            : 'Unexpected error.'}
+                            : t(
+                                  'catalogAttributes.unexpectedError',
+                              )}
                     </CardDescription>
                 </CardHeader>
             </Card>
@@ -373,27 +423,37 @@ export default function CatalogAttributeManagementPage() {
 
     return (
         <div className="space-y-6">
+            {/* Page Header */}
             <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
                     <h1 className="text-2xl font-bold">
-                        Catalog Attributes
+                        {t(
+                            'catalogAttributes.title',
+                        )}
                     </h1>
 
                     <p className="text-muted-foreground">
-                        Manage reusable product attributes
-                        used by filters and product variants.
+                        {t(
+                            'catalogAttributes.description',
+                        )}
                     </p>
                 </div>
 
                 <Button
                     type="button"
-                    onClick={startCreateAttribute}
+                    onClick={
+                        startCreateAttribute
+                    }
                 >
                     <Plus className="me-2 size-4" />
-                    New Attribute
+
+                    {t(
+                        'catalogAttributes.newAttribute',
+                    )}
                 </Button>
             </div>
 
+            {/* Search */}
             <Card>
                 <CardContent className="pt-6">
                     <Input
@@ -403,30 +463,37 @@ export default function CatalogAttributeManagementPage() {
                                 event.target.value,
                             )
                         }
-                        placeholder="Search attributes..."
+                        placeholder={t(
+                            'catalogAttributes.searchPlaceholder',
+                        )}
                     />
                 </CardContent>
             </Card>
 
+            {/* Saving State */}
             {(createAttribute.isPending ||
                 updateAttribute.isPending ||
                 deleteAttribute.isPending) && (
-                    <div className="text-muted-foreground text-sm">
-                        Saving catalog changes...
-                    </div>
-                )}
+                <div className="text-muted-foreground text-sm">
+                    {t(
+                        'catalogAttributes.saving',
+                    )}
+                </div>
+            )}
 
-            {(editingId === null &&
-                attributeForm.name === '') && (
-                    <Card>
+            {editingId === null && (
+                <Card>
                         <CardHeader>
                             <CardTitle>
-                                Attribute Form
+                                {t(
+                                    'catalogAttributes.form.title',
+                                )}
                             </CardTitle>
 
                             <CardDescription>
-                                Create a reusable attribute
-                                definition.
+                                {t(
+                                    'catalogAttributes.form.description',
+                                )}
                             </CardDescription>
                         </CardHeader>
 
@@ -436,7 +503,9 @@ export default function CatalogAttributeManagementPage() {
                                     value={
                                         attributeForm.name
                                     }
-                                    onChange={(event) =>
+                                    onChange={(
+                                        event,
+                                    ) =>
                                         setAttributeForm(
                                             (current) => ({
                                                 ...current,
@@ -446,14 +515,18 @@ export default function CatalogAttributeManagementPage() {
                                             }),
                                         )
                                     }
-                                    placeholder="Name"
+                                    placeholder={t(
+                                        'catalogAttributes.form.name',
+                                    )}
                                 />
 
                                 <Input
                                     value={
                                         attributeForm.code
                                     }
-                                    onChange={(event) =>
+                                    onChange={(
+                                        event,
+                                    ) =>
                                         setAttributeForm(
                                             (current) => ({
                                                 ...current,
@@ -463,26 +536,33 @@ export default function CatalogAttributeManagementPage() {
                                             }),
                                         )
                                     }
-                                    placeholder="Code"
+                                    placeholder={t(
+                                        'catalogAttributes.form.code',
+                                    )}
                                 />
 
-                                <Input
-                                    value={
-                                        attributeForm.displayType
-                                    }
-                                    onChange={(event) =>
-                                        setAttributeForm(
-                                            (current) => ({
-                                                ...current,
-                                                displayType:
-                                                    event
-                                                        .target
-                                                        .value,
-                                            }),
-                                        )
-                                    }
-                                    placeholder="Display type"
-                                />
+                            <select
+                                value={attributeForm.displayType}
+                                onChange={(event) =>
+                                    setAttributeForm((current) => ({
+                                        ...current,
+                                        displayType: event.target.value,
+                                    }))
+                                }
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            >
+                                <option value="select">
+                                    {t(
+                                        'catalogAttributes.form.displayTypeOptions.select',
+                                    )}
+                                </option>
+
+                                <option value="color">
+                                    {t(
+                                        'catalogAttributes.form.displayTypeOptions.color',
+                                    )}
+                                </option>
+                            </select>
 
                                 <Input
                                     type="number"
@@ -490,7 +570,9 @@ export default function CatalogAttributeManagementPage() {
                                     value={
                                         attributeForm.displayOrder
                                     }
-                                    onChange={(event) =>
+                                    onChange={(
+                                        event,
+                                    ) =>
                                         setAttributeForm(
                                             (current) => ({
                                                 ...current,
@@ -503,7 +585,9 @@ export default function CatalogAttributeManagementPage() {
                                             }),
                                         )
                                     }
-                                    placeholder="Display order"
+                                    placeholder={t(
+                                        'catalogAttributes.form.displayOrder',
+                                    )}
                                 />
 
                                 <div className="md:col-span-2">
@@ -511,9 +595,13 @@ export default function CatalogAttributeManagementPage() {
                                         value={
                                             attributeForm.description
                                         }
-                                        onChange={(event) =>
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             setAttributeForm(
-                                                (current) => ({
+                                                (
+                                                    current,
+                                                ) => ({
                                                     ...current,
                                                     description:
                                                         event
@@ -522,7 +610,9 @@ export default function CatalogAttributeManagementPage() {
                                                 }),
                                             )
                                         }
-                                        placeholder="Description"
+                                        placeholder={t(
+                                            'catalogAttributes.form.descriptionField',
+                                        )}
                                     />
                                 </div>
 
@@ -530,12 +620,15 @@ export default function CatalogAttributeManagementPage() {
                                     <input
                                         type="checkbox"
                                         checked={
-                                            attributeForm
-                                                .isRequired
+                                            attributeForm.isRequired
                                         }
-                                        onChange={(event) =>
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             setAttributeForm(
-                                                (current) => ({
+                                                (
+                                                    current,
+                                                ) => ({
                                                     ...current,
                                                     isRequired:
                                                         event
@@ -545,19 +638,25 @@ export default function CatalogAttributeManagementPage() {
                                             )
                                         }
                                     />
-                                    Required
+
+                                    {t(
+                                        'catalogAttributes.form.required',
+                                    )}
                                 </label>
 
                                 <label className="flex items-center gap-2 text-sm">
                                     <input
                                         type="checkbox"
                                         checked={
-                                            attributeForm
-                                                .isFilterable
+                                            attributeForm.isFilterable
                                         }
-                                        onChange={(event) =>
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             setAttributeForm(
-                                                (current) => ({
+                                                (
+                                                    current,
+                                                ) => ({
                                                     ...current,
                                                     isFilterable:
                                                         event
@@ -567,19 +666,25 @@ export default function CatalogAttributeManagementPage() {
                                             )
                                         }
                                     />
-                                    Filterable
+
+                                    {t(
+                                        'catalogAttributes.form.filterable',
+                                    )}
                                 </label>
 
                                 <label className="flex items-center gap-2 text-sm">
                                     <input
                                         type="checkbox"
                                         checked={
-                                            attributeForm
-                                                .isVariantAttribute
+                                            attributeForm.isVariantAttribute
                                         }
-                                        onChange={(event) =>
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             setAttributeForm(
-                                                (current) => ({
+                                                (
+                                                    current,
+                                                ) => ({
                                                     ...current,
                                                     isVariantAttribute:
                                                         event
@@ -589,19 +694,25 @@ export default function CatalogAttributeManagementPage() {
                                             )
                                         }
                                     />
-                                    Variant Attribute
+
+                                    {t(
+                                        'catalogAttributes.form.variantAttribute',
+                                    )}
                                 </label>
 
                                 <label className="flex items-center gap-2 text-sm">
                                     <input
                                         type="checkbox"
                                         checked={
-                                            attributeForm
-                                                .isActive
+                                            attributeForm.isActive
                                         }
-                                        onChange={(event) =>
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             setAttributeForm(
-                                                (current) => ({
+                                                (
+                                                    current,
+                                                ) => ({
                                                     ...current,
                                                     isActive:
                                                         event
@@ -611,7 +722,10 @@ export default function CatalogAttributeManagementPage() {
                                             )
                                         }
                                     />
-                                    Active
+
+                                    {t(
+                                        'catalogAttributes.form.active',
+                                    )}
                                 </label>
 
                                 <div className="flex gap-2 md:col-span-2">
@@ -624,7 +738,9 @@ export default function CatalogAttributeManagementPage() {
                                             createAttribute.isPending
                                         }
                                     >
-                                        Create Attribute
+                                        {t(
+                                            'catalogAttributes.form.create',
+                                        )}
                                     </Button>
 
                                     <Button
@@ -634,7 +750,9 @@ export default function CatalogAttributeManagementPage() {
                                             cancelAttributeEdit
                                         }
                                     >
-                                        Reset
+                                        {t(
+                                            'catalogAttributes.form.reset',
+                                        )}
                                     </Button>
                                 </div>
                             </div>
@@ -642,11 +760,14 @@ export default function CatalogAttributeManagementPage() {
                     </Card>
                 )}
 
+            {/* Edit Attribute Form */}
             {editingId !== null && (
                 <Card>
                     <CardHeader>
                         <CardTitle>
-                            Edit Attribute
+                            {t(
+                                'catalogAttributes.form.editTitle',
+                            )}
                         </CardTitle>
                     </CardHeader>
 
@@ -656,7 +777,9 @@ export default function CatalogAttributeManagementPage() {
                                 value={
                                     attributeForm.name
                                 }
-                                onChange={(event) =>
+                                onChange={(
+                                    event,
+                                ) =>
                                     setAttributeForm(
                                         (current) => ({
                                             ...current,
@@ -666,14 +789,18 @@ export default function CatalogAttributeManagementPage() {
                                         }),
                                     )
                                 }
-                                placeholder="Name"
+                                placeholder={t(
+                                    'catalogAttributes.form.name',
+                                )}
                             />
 
                             <Input
                                 value={
                                     attributeForm.code
                                 }
-                                onChange={(event) =>
+                                onChange={(
+                                    event,
+                                ) =>
                                     setAttributeForm(
                                         (current) => ({
                                             ...current,
@@ -683,26 +810,33 @@ export default function CatalogAttributeManagementPage() {
                                         }),
                                     )
                                 }
-                                placeholder="Code"
+                                placeholder={t(
+                                    'catalogAttributes.form.code',
+                                )}
                             />
 
-                            <Input
-                                value={
-                                    attributeForm.displayType
-                                }
+                            <select
+                                value={attributeForm.displayType}
                                 onChange={(event) =>
-                                    setAttributeForm(
-                                        (current) => ({
-                                            ...current,
-                                            displayType:
-                                                event
-                                                    .target
-                                                    .value,
-                                        }),
-                                    )
+                                    setAttributeForm((current) => ({
+                                        ...current,
+                                        displayType: event.target.value,
+                                    }))
                                 }
-                                placeholder="Display type"
-                            />
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                            >
+                                <option value="select">
+                                    {t(
+                                        'catalogAttributes.form.displayTypeOptions.select',
+                                    )}
+                                </option>
+
+                                <option value="color">
+                                    {t(
+                                        'catalogAttributes.form.displayTypeOptions.color',
+                                    )}
+                                </option>
+                            </select>
 
                             <Input
                                 type="number"
@@ -710,7 +844,9 @@ export default function CatalogAttributeManagementPage() {
                                 value={
                                     attributeForm.displayOrder
                                 }
-                                onChange={(event) =>
+                                onChange={(
+                                    event,
+                                ) =>
                                     setAttributeForm(
                                         (current) => ({
                                             ...current,
@@ -723,24 +859,31 @@ export default function CatalogAttributeManagementPage() {
                                         }),
                                     )
                                 }
-                                placeholder="Display order"
+                                placeholder={t(
+                                    'catalogAttributes.form.displayOrder',
+                                )}
                             />
 
                             <Textarea
                                 value={
                                     attributeForm.description
                                 }
-                                onChange={(event) =>
+                                onChange={(
+                                    event,
+                                ) =>
                                     setAttributeForm(
                                         (current) => ({
                                             ...current,
                                             description:
-                                                event.target
+                                                event
+                                                    .target
                                                     .value,
                                         }),
                                     )
                                 }
-                                placeholder="Description"
+                                placeholder={t(
+                                    'catalogAttributes.form.descriptionField',
+                                )}
                             />
 
                             <div className="space-y-2 text-sm">
@@ -748,12 +891,15 @@ export default function CatalogAttributeManagementPage() {
                                     <input
                                         type="checkbox"
                                         checked={
-                                            attributeForm
-                                                .isRequired
+                                            attributeForm.isRequired
                                         }
-                                        onChange={(event) =>
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             setAttributeForm(
-                                                (current) => ({
+                                                (
+                                                    current,
+                                                ) => ({
                                                     ...current,
                                                     isRequired:
                                                         event
@@ -763,19 +909,25 @@ export default function CatalogAttributeManagementPage() {
                                             )
                                         }
                                     />
-                                    Required
+
+                                    {t(
+                                        'catalogAttributes.form.required',
+                                    )}
                                 </label>
 
                                 <label className="flex items-center gap-2">
                                     <input
                                         type="checkbox"
                                         checked={
-                                            attributeForm
-                                                .isFilterable
+                                            attributeForm.isFilterable
                                         }
-                                        onChange={(event) =>
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             setAttributeForm(
-                                                (current) => ({
+                                                (
+                                                    current,
+                                                ) => ({
                                                     ...current,
                                                     isFilterable:
                                                         event
@@ -785,19 +937,25 @@ export default function CatalogAttributeManagementPage() {
                                             )
                                         }
                                     />
-                                    Filterable
+
+                                    {t(
+                                        'catalogAttributes.form.filterable',
+                                    )}
                                 </label>
 
                                 <label className="flex items-center gap-2">
                                     <input
                                         type="checkbox"
                                         checked={
-                                            attributeForm
-                                                .isVariantAttribute
+                                            attributeForm.isVariantAttribute
                                         }
-                                        onChange={(event) =>
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             setAttributeForm(
-                                                (current) => ({
+                                                (
+                                                    current,
+                                                ) => ({
                                                     ...current,
                                                     isVariantAttribute:
                                                         event
@@ -807,19 +965,25 @@ export default function CatalogAttributeManagementPage() {
                                             )
                                         }
                                     />
-                                    Variant Attribute
+
+                                    {t(
+                                        'catalogAttributes.form.variantAttribute',
+                                    )}
                                 </label>
 
                                 <label className="flex items-center gap-2">
                                     <input
                                         type="checkbox"
                                         checked={
-                                            attributeForm
-                                                .isActive
+                                            attributeForm.isActive
                                         }
-                                        onChange={(event) =>
+                                        onChange={(
+                                            event,
+                                        ) =>
                                             setAttributeForm(
-                                                (current) => ({
+                                                (
+                                                    current,
+                                                ) => ({
                                                     ...current,
                                                     isActive:
                                                         event
@@ -829,7 +993,10 @@ export default function CatalogAttributeManagementPage() {
                                             )
                                         }
                                     />
-                                    Active
+
+                                    {t(
+                                        'catalogAttributes.form.active',
+                                    )}
                                 </label>
                             </div>
 
@@ -843,7 +1010,9 @@ export default function CatalogAttributeManagementPage() {
                                         updateAttribute.isPending
                                     }
                                 >
-                                    Save Changes
+                                    {t(
+                                        'catalogAttributes.form.update',
+                                    )}
                                 </Button>
 
                                 <Button
@@ -853,7 +1022,9 @@ export default function CatalogAttributeManagementPage() {
                                         cancelAttributeEdit
                                     }
                                 >
-                                    Cancel
+                                    {t(
+                                        'catalogAttributes.form.cancel',
+                                    )}
                                 </Button>
                             </div>
                         </div>
@@ -861,6 +1032,7 @@ export default function CatalogAttributeManagementPage() {
                 </Card>
             )}
 
+            {/* Attributes List */}
             <div className="space-y-4">
                 {sortedAttributes.map(
                     (attribute) => {
@@ -902,18 +1074,28 @@ export default function CatalogAttributeManagementPage() {
 
                                             <div>
                                                 <CardTitle>
-                                                    {attribute.name}
+                                                    {
+                                                        attribute.name
+                                                    }
                                                 </CardTitle>
 
                                                 <CardDescription>
                                                     <span className="me-2">
-                                                        {attribute.code}
+                                                        {
+                                                            attribute.code
+                                                        }
                                                     </span>
 
                                                     {attribute.isVariantAttribute
-                                                        ? 'Variant'
-                                                        : 'Product'}{' '}
-                                                    attribute
+                                                        ? t(
+                                                              'catalogAttributes.list.variant',
+                                                          )
+                                                        : t(
+                                                              'catalogAttributes.list.product',
+                                                          )}{' '}
+                                                    {t(
+                                                        'catalogAttributes.list.attribute',
+                                                    )}
                                                 </CardDescription>
                                             </div>
                                         </div>
@@ -930,7 +1112,10 @@ export default function CatalogAttributeManagementPage() {
                                                 }
                                             >
                                                 <Pencil className="me-1 size-4" />
-                                                Edit
+
+                                                {t(
+                                                    'catalogAttributes.list.edit',
+                                                )}
                                             </Button>
 
                                             <Button
@@ -944,7 +1129,10 @@ export default function CatalogAttributeManagementPage() {
                                                 }
                                             >
                                                 <Plus className="me-1 size-4" />
-                                                Add Value
+
+                                                {t(
+                                                    'catalogAttributes.list.addValue',
+                                                )}
                                             </Button>
 
                                             <Button
@@ -958,7 +1146,10 @@ export default function CatalogAttributeManagementPage() {
                                                 }
                                             >
                                                 <Trash2 className="me-1 size-4" />
-                                                Delete
+
+                                                {t(
+                                                    'catalogAttributes.list.delete',
+                                                )}
                                             </Button>
                                         </div>
                                     </div>
@@ -969,7 +1160,9 @@ export default function CatalogAttributeManagementPage() {
                                         <div className="grid gap-3 md:grid-cols-4">
                                             <div>
                                                 <div className="text-muted-foreground text-xs">
-                                                    Values
+                                                    {t(
+                                                        'catalogAttributes.list.values',
+                                                    )}
                                                 </div>
 
                                                 <div className="font-semibold">
@@ -983,47 +1176,70 @@ export default function CatalogAttributeManagementPage() {
 
                                             <div>
                                                 <div className="text-muted-foreground text-xs">
-                                                    Required
+                                                    {t(
+                                                        'catalogAttributes.list.required',
+                                                    )}
                                                 </div>
 
                                                 <div className="font-semibold">
                                                     {attribute.isRequired
-                                                        ? 'Yes'
-                                                        : 'No'}
+                                                        ? t(
+                                                              'catalogAttributes.list.yes',
+                                                          )
+                                                        : t(
+                                                              'catalogAttributes.list.no',
+                                                          )}
                                                 </div>
                                             </div>
 
                                             <div>
                                                 <div className="text-muted-foreground text-xs">
-                                                    Filterable
+                                                    {t(
+                                                        'catalogAttributes.list.filterable',
+                                                    )}
                                                 </div>
 
                                                 <div className="font-semibold">
                                                     {attribute.isFilterable
-                                                        ? 'Yes'
-                                                        : 'No'}
+                                                        ? t(
+                                                              'catalogAttributes.list.yes',
+                                                          )
+                                                        : t(
+                                                              'catalogAttributes.list.no',
+                                                          )}
                                                 </div>
                                             </div>
 
                                             <div>
                                                 <div className="text-muted-foreground text-xs">
-                                                    Status
+                                                    {t(
+                                                        'catalogAttributes.list.status',
+                                                    )}
                                                 </div>
 
                                                 <div className="font-semibold">
                                                     {attribute.isActive
-                                                        ? 'Active'
-                                                        : 'Inactive'}
+                                                        ? t(
+                                                              'catalogAttributes.list.active',
+                                                          )
+                                                        : t(
+                                                              'catalogAttributes.list.inactive',
+                                                          )}
                                                 </div>
                                             </div>
                                         </div>
 
+                                        {/* Add/Edit Value */}
                                         {adding && (
                                             <div className="rounded-lg border p-4">
                                                 <div className="mb-3 font-semibold">
                                                     {editingValueId
-                                                        ? 'Edit Value'
-                                                        : 'Add Value'}
+                                                        ? t(
+                                                              'catalogAttributes.values.edit',
+                                                          )
+                                                        : t(
+                                                              'catalogAttributes.values.add',
+                                                          )}
                                                 </div>
 
                                                 <div className="grid gap-3 md:grid-cols-2">
@@ -1031,9 +1247,13 @@ export default function CatalogAttributeManagementPage() {
                                                         value={
                                                             valueForm.value
                                                         }
-                                                        onChange={(event) =>
+                                                        onChange={(
+                                                            event,
+                                                        ) =>
                                                             setValueForm(
-                                                                (current) => ({
+                                                                (
+                                                                    current,
+                                                                ) => ({
                                                                     ...current,
                                                                     value: event
                                                                         .target
@@ -1041,16 +1261,22 @@ export default function CatalogAttributeManagementPage() {
                                                                 }),
                                                             )
                                                         }
-                                                        placeholder="Value"
+                                                        placeholder={t(
+                                                            'catalogAttributes.values.value',
+                                                        )}
                                                     />
 
                                                     <Input
                                                         value={
                                                             valueForm.displayValue
                                                         }
-                                                        onChange={(event) =>
+                                                        onChange={(
+                                                            event,
+                                                        ) =>
                                                             setValueForm(
-                                                                (current) => ({
+                                                                (
+                                                                    current,
+                                                                ) => ({
                                                                     ...current,
                                                                     displayValue:
                                                                         event
@@ -1059,16 +1285,22 @@ export default function CatalogAttributeManagementPage() {
                                                                 }),
                                                             )
                                                         }
-                                                        placeholder="Display value"
+                                                        placeholder={t(
+                                                            'catalogAttributes.values.displayValue',
+                                                        )}
                                                     />
 
                                                     <Input
                                                         value={
                                                             valueForm.colorHex
                                                         }
-                                                        onChange={(event) =>
+                                                        onChange={(
+                                                            event,
+                                                        ) =>
                                                             setValueForm(
-                                                                (current) => ({
+                                                                (
+                                                                    current,
+                                                                ) => ({
                                                                     ...current,
                                                                     colorHex:
                                                                         event
@@ -1086,9 +1318,13 @@ export default function CatalogAttributeManagementPage() {
                                                         value={
                                                             valueForm.displayOrder
                                                         }
-                                                        onChange={(event) =>
+                                                        onChange={(
+                                                            event,
+                                                        ) =>
                                                             setValueForm(
-                                                                (current) => ({
+                                                                (
+                                                                    current,
+                                                                ) => ({
                                                                     ...current,
                                                                     displayOrder:
                                                                         Number(
@@ -1099,21 +1335,24 @@ export default function CatalogAttributeManagementPage() {
                                                                 }),
                                                             )
                                                         }
-                                                        placeholder="Display order"
+                                                        placeholder={t(
+                                                            'catalogAttributes.values.displayOrder',
+                                                        )}
                                                     />
 
                                                     <label className="flex items-center gap-2 text-sm">
                                                         <input
                                                             type="checkbox"
                                                             checked={
-                                                                valueForm
-                                                                    .isActive
+                                                                valueForm.isActive
                                                             }
                                                             onChange={(
                                                                 event,
                                                             ) =>
                                                                 setValueForm(
-                                                                    (current) => ({
+                                                                    (
+                                                                        current,
+                                                                    ) => ({
                                                                         ...current,
                                                                         isActive:
                                                                             event
@@ -1123,7 +1362,10 @@ export default function CatalogAttributeManagementPage() {
                                                                 )
                                                             }
                                                         />
-                                                        Active
+
+                                                        {t(
+                                                            'catalogAttributes.values.active',
+                                                        )}
                                                     </label>
 
                                                     <div className="flex gap-2">
@@ -1140,8 +1382,12 @@ export default function CatalogAttributeManagementPage() {
                                                             }
                                                         >
                                                             {editingValueId
-                                                                ? 'Save Value'
-                                                                : 'Create Value'}
+                                                                ? t(
+                                                                      'catalogAttributes.values.save',
+                                                                  )
+                                                                : t(
+                                                                      'catalogAttributes.values.create',
+                                                                  )}
                                                         </Button>
 
                                                         <Button
@@ -1151,20 +1397,25 @@ export default function CatalogAttributeManagementPage() {
                                                                 cancelValueEdit
                                                             }
                                                         >
-                                                            Cancel
+                                                            {t(
+                                                                'catalogAttributes.values.cancel',
+                                                            )}
                                                         </Button>
                                                     </div>
                                                 </div>
                                             </div>
                                         )}
 
+                                        {/* Values */}
                                         <div className="divide-y rounded-lg border">
                                             {attribute.values.length ===
                                                 0 && (
-                                                    <div className="text-muted-foreground p-6 text-center text-sm">
-                                                        No values defined.
-                                                    </div>
-                                                )}
+                                                <div className="text-muted-foreground p-6 text-center text-sm">
+                                                    {t(
+                                                        'catalogAttributes.values.empty',
+                                                    )}
+                                                </div>
+                                            )}
 
                                             {attribute.values.map(
                                                 (value) => (
@@ -1204,7 +1455,9 @@ export default function CatalogAttributeManagementPage() {
 
                                                         <div className="flex flex-wrap items-center gap-2">
                                                             <span className="text-muted-foreground text-xs">
-                                                                Order{' '}
+                                                                {t(
+                                                                    'catalogAttributes.values.order',
+                                                                )}{' '}
                                                                 {
                                                                     value.displayOrder
                                                                 }
@@ -1212,8 +1465,12 @@ export default function CatalogAttributeManagementPage() {
 
                                                             <span className="text-muted-foreground text-xs">
                                                                 {value.isActive
-                                                                    ? 'Active'
-                                                                    : 'Inactive'}
+                                                                    ? t(
+                                                                          'catalogAttributes.list.active',
+                                                                      )
+                                                                    : t(
+                                                                          'catalogAttributes.list.inactive',
+                                                                      )}
                                                             </span>
 
                                                             <Button
@@ -1227,7 +1484,10 @@ export default function CatalogAttributeManagementPage() {
                                                                 }
                                                             >
                                                                 <Pencil className="me-1 size-4" />
-                                                                Edit
+
+                                                                {t(
+                                                                    'catalogAttributes.list.edit',
+                                                                )}
                                                             </Button>
 
                                                             <Button
@@ -1243,7 +1503,10 @@ export default function CatalogAttributeManagementPage() {
                                                                 }
                                                             >
                                                                 <Trash2 className="me-1 size-4" />
-                                                                Delete
+
+                                                                {t(
+                                                                    'catalogAttributes.list.delete',
+                                                                )}
                                                             </Button>
 
                                                             {value.isActive ? (
@@ -1264,13 +1527,17 @@ export default function CatalogAttributeManagementPage() {
                 )}
             </div>
 
+            {/* Empty State */}
             {sortedAttributes.length === 0 && (
                 <Card>
                     <CardContent className="text-muted-foreground py-12 text-center">
-                        No catalog attributes found.
+                        {t(
+                            'catalogAttributes.list.empty',
+                        )}
                     </CardContent>
                 </Card>
             )}
         </div>
     );
 }
+

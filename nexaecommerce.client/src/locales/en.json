@@ -1,4 +1,84 @@
 {
+  "catalogAttributes": {
+    "title": "Catalog Attributes",
+    "description": "Manage reusable product attributes used by filters and product variants.",
+    "newAttribute": "New Attribute",
+    "searchPlaceholder": "Search attributes...",
+
+    "loading": "Loading catalog attributes...",
+    "saving": "Saving catalog changes...",
+
+    "loadError": "Failed to load catalog attributes",
+    "unexpectedError": "Unexpected error.",
+
+    "form": {
+      "title": "Attribute Form",
+      "description": "Create a reusable attribute definition.",
+      "displayTypeOptions": {
+        "select": "Standard select",
+        "color": "Color"
+      },
+      "name": "Name",
+      "code": "Code",
+      "displayType": "Display type",
+      "displayOrder": "Display order",
+      "descriptionField": "Description",
+
+      "required": "Required",
+      "filterable": "Filterable",
+      "variantAttribute": "Variant Attribute",
+      "active": "Active",
+
+      "create": "Create Attribute",
+      "update": "Save Changes",
+      "reset": "Reset",
+      "cancel": "Cancel"
+    },
+
+    "list": {
+      "variant": "Variant",
+      "product": "Product",
+      "edit": "Edit",
+      "delete": "Delete",
+      "addValue": "Add Value",
+      "values": "Values",
+
+      "required": "Required",
+      "filterable": "Filterable",
+      "status": "Status",
+
+      "yes": "Yes",
+      "no": "No",
+      "active": "Active",
+      "inactive": "Inactive",
+
+      "empty": "No catalog attributes found."
+    },
+
+    "values": {
+      "title": "Values",
+      "add": "Add Value",
+      "edit": "Edit Value",
+
+      "value": "Value",
+      "displayValue": "Display value",
+      "colorHex": "Color",
+      "displayOrder": "Display order",
+      "active": "Active",
+
+      "create": "Create Value",
+      "save": "Save Value",
+      "cancel": "Cancel",
+
+      "empty": "No values defined.",
+      "order": "Order"
+    },
+
+    "confirm": {
+      "deleteAttribute": "Delete attribute \"{{name}}\"?",
+      "deleteValue": "Delete value \"{{name}}\"?"
+    }
+  },
   "variantConfiguration": {
     "title": "Variant Configuration",
     "description": "Choose which product attributes create purchasable variants.",
@@ -1014,6 +1094,7 @@
   },
 
   "nav": {
+    "catalogAttributes": "Product Attributes",
     "home": "Home",
     "products": "Products",
     "catalog": "Catalog",
@@ -1271,12 +1352,7 @@
       "description": "Description",
       "categories": "Categories",
       "manufacturer": "Manufacturer",
-      "attributes": {
-        "color": "Color",
-        "size": "Size",
-        "material": "Material",
-        "pattern": "Pattern"
-      }
+     
     },
 
     "orders": {

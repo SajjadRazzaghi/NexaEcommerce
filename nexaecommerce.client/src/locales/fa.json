@@ -1,4 +1,84 @@
 {
+  "catalogAttributes": {
+    "title": "ویژگی‌های کاتالوگ",
+    "description": "ویژگی‌های قابل استفاده مجدد محصولات را برای فیلترها و تنوع محصولات مدیریت کنید.",
+    "newAttribute": "ویژگی جدید",
+    "searchPlaceholder": "جستجوی ویژگی‌ها...",
+
+    "loading": "در حال بارگذاری ویژگی‌های کاتالوگ...",
+    "saving": "در حال ذخیره تغییرات کاتالوگ...",
+
+    "loadError": "بارگذاری ویژگی‌های کاتالوگ انجام نشد.",
+    "unexpectedError": "خطای غیرمنتظره.",
+
+    "form": {
+      "title": "فرم ویژگی",
+      "description": "یک تعریف قابل استفاده مجدد برای ویژگی محصول ایجاد کنید.",
+      "displayTypeOptions": {
+        "select": "انتخاب معمولی",
+        "color": "رنگ"
+      },
+      "name": "نام",
+      "code": "کد",
+      "displayType": "نوع نمایش",
+      "displayOrder": "ترتیب نمایش",
+      "descriptionField": "توضیحات",
+
+      "required": "الزامی",
+      "filterable": "قابل فیلتر",
+      "variantAttribute": "ویژگی تنوع محصول",
+      "active": "فعال",
+
+      "create": "ایجاد ویژگی",
+      "update": "ذخیره تغییرات",
+      "reset": "بازنشانی",
+      "cancel": "انصراف"
+    },
+
+    "list": {
+      "variant": "تنوع",
+      "product": "محصول",
+      "edit": "ویرایش",
+      "delete": "حذف",
+      "addValue": "افزودن مقدار",
+      "values": "مقادیر",
+
+      "required": "الزامی",
+      "filterable": "قابل فیلتر",
+      "status": "وضعیت",
+
+      "yes": "بله",
+      "no": "خیر",
+      "active": "فعال",
+      "inactive": "غیرفعال",
+
+      "empty": "هیچ ویژگی کاتالوگی پیدا نشد."
+    },
+
+    "values": {
+      "title": "مقادیر",
+      "add": "افزودن مقدار",
+      "edit": "ویرایش مقدار",
+
+      "value": "مقدار",
+      "displayValue": "مقدار نمایشی",
+      "colorHex": "رنگ",
+      "displayOrder": "ترتیب نمایش",
+      "active": "فعال",
+
+      "create": "ایجاد مقدار",
+      "save": "ذخیره مقدار",
+      "cancel": "انصراف",
+
+      "empty": "هنوز مقداری تعریف نشده است.",
+      "order": "ترتیب"
+    },
+
+    "confirm": {
+      "deleteAttribute": "ویژگی «{{name}}» حذف شود؟",
+      "deleteValue": "مقدار «{{name}}» حذف شود؟"
+    }
+  },
   "variantConfiguration": {
     "title": "پیکربندی واریانت",
     "description": "مشخص کنید کدام ویژگی‌های محصول، واریانت‌های قابل خرید را تشکیل می‌دهند.",
@@ -1008,6 +1088,7 @@
   },
 
   "nav": {
+    "catalogAttributes": "ویژگی‌های محصول",
     "home": "خانه",
     "products": "محصولات",
     "catalog": "فروشگاه",
@@ -1205,33 +1286,27 @@
 
     "productDetail": {
       "title": "جزئیات محصول",
-      "selectProductAttributes": "انتخاب ویژگی محصول",
-      "selectAttributesHint": "لطفاً ویژگی‌های موردنظر محصول را انتخاب کنید.",
+      "selectProductAttributes": "انتخاب ویژگی‌های محصول",
+      "selectAttributesHint": "لطفاً ویژگی‌های موجود محصول را انتخاب کنید.",
       "retry": "تلاش دوباره",
-      "loadError": "دریافت محصول انجام نشد.",
+      "loadError": "بارگذاری محصول انجام نشد.",
       "notFound": "محصول پیدا نشد.",
       "backToProducts": "بازگشت به محصولات",
       "inStock": "موجود",
       "outOfStock": "ناموجود",
-      "sku": "کد کالا",
+      "sku": "SKU",
       "variant": "تنوع",
-      "selectAllVariants": "لطفاً همه گزینه‌های موجود را قبل از افزودن محصول به سبد انتخاب کنید.",
-      "variantUnavailable": "ترکیب انتخاب‌شده در دسترس نیست.",
+      "selectAllVariants": "قبل از افزودن محصول به سبد خرید، تمام گزینه‌های موجود را انتخاب کنید.",
+      "variantUnavailable": "ترکیب انتخاب‌شده موجود نیست.",
       "decreaseQuantity": "کاهش تعداد",
       "increaseQuantity": "افزایش تعداد",
       "adding": "در حال افزودن...",
-      "addedToCart": "به سبد اضافه شد",
-      "addToCart": "افزودن به سبد",
-      "availableQuantity": "موجودی",
+      "addedToCart": "به سبد خرید اضافه شد",
+      "addToCart": "افزودن به سبد خرید",
+      "availableQuantity": "موجودی قابل سفارش",
       "description": "توضیحات",
       "categories": "دسته‌بندی‌ها",
-      "manufacturer": "تولیدکننده",
-      "attributes": {
-        "color": "رنگ",
-        "size": "سایز",
-        "material": "جنس",
-        "pattern": "طرح"
-      }
+      "manufacturer": "تولیدکننده"
     },
 
     "orders": {
