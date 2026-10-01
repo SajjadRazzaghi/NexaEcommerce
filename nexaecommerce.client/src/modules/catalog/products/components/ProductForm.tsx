@@ -806,14 +806,19 @@ function toValues(
                                                 attribute.attributeCode,
                                             );
 
+
                                         const attributeValue =
                                             normalize(
                                                 attribute.value,
                                             );
 
+                                        const attributeDisplayValue =
+                                            normalize(
+                                                attribute.displayValue,
+                                            );
+
                                         if (
-                                            !attributeCode ||
-                                            !attributeValue
+                                            !attributeCode
                                         ) {
                                             return undefined;
                                         }
@@ -823,41 +828,56 @@ function toValues(
                                                 attributeCode,
                                             );
 
-                                        if (
-                                            !catalogAttribute
-                                        ) {
+                                        if (!catalogAttribute) {
                                             return undefined;
                                         }
 
-                                        /*
-                                         * IMPORTANT:
-                                         *
-                                         * The backend returns the Product
-                                         * AttributeValue ID here.
-                                         *
-                                         * The UPDATE endpoint expects the
-                                         * CatalogAttributeValue ID.
-                                         *
-                                         * Therefore resolve by value/code,
-                                         * never blindly send attributeValueId.
-                                         */
                                         const catalogValue =
                                             (
                                                 catalogAttribute.values ??
                                                 []
                                             ).find(
-                                                value =>
-                                                    normalize(
-                                                        value.value,
-                                                    ) ===
-                                                        attributeValue ||
-                                                    normalize(
-                                                        value.displayValue,
-                                                    ) ===
-                                                        attributeValue,
+                                                value => {
+                                                    const valueText =
+                                                        normalize(
+                                                            value.value,
+                                                        );
+
+                                                    const displayText =
+                                                        normalize(
+                                                            value.displayValue,
+                                                        );
+
+                                                    return (
+                                                        (
+                                                            Boolean(
+                                                                attributeValue,
+                                                            ) &&
+                                                            (
+                                                                valueText ===
+                                                                attributeValue ||
+                                                                displayText ===
+                                                                attributeValue
+                                                            )
+                                                        ) ||
+                                                        (
+                                                            Boolean(
+                                                                attributeDisplayValue,
+                                                            ) &&
+                                                            (
+                                                                valueText ===
+                                                                attributeDisplayValue ||
+                                                                displayText ===
+                                                                attributeDisplayValue
+                                                            )
+                                                        )
+                                                    );
+                                                },
                                             );
 
                                         return catalogValue?.id;
+
+
                                     },
                                 )
                                 .filter(
