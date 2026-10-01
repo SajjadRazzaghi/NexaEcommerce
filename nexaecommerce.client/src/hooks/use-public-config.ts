@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { authApi } from '@/lib/api/auth';
 
 /**
- * Anonymous config for the sign-in / register screens: whether self-service registration is open, and an
+ * Anonymous config for the sign-in /register screens: whether self-service registration is open, and an
  * optional sign-in hint (e.g. shared demo credentials). Cached briefly — it changes rarely.
  */
 export function usePublicConfig() {

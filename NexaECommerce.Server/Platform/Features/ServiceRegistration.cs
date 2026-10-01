@@ -2,12 +2,12 @@ using System.Reflection;
 
 namespace NexaECommerce.Server.Platform.Features;
 
-/// <summary>
-/// Implemented by a slice that needs to register its own services in DI (e.g. a feature service
-/// like <c>INotificationService</c>, or a search provider). Discovered by reflection at startup —
-/// the DI analogue of <c>IFeatureEndpoints</c> and <c>ISettingsContributor</c> — so a slice wires
-/// its services without editing Program.cs. Underscore-prefixed namespaces are skipped.
-/// </summary>
+///<summary>
+///Implemented by a slice that needs to register its own services in DI (e.g. a feature service
+///like <c>INotificationService</c>, or a search provider). Discovered by reflection at startup —
+///the DI analogue of <c>IFeatureEndpoints</c> and <c>ISettingsContributor</c> — so a slice wires
+///its services without editing Program.cs. Underscore-prefixed namespaces are skipped.
+///</summary>
 public interface IServiceRegistrar
 {
     void Register(IServiceCollection services);

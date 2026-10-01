@@ -17,9 +17,9 @@ public sealed class UploadEndpoints : IFeatureEndpoints
                 .AddEndpointFilter<ValidationFilter>()
                 .AddEndpointFilter<PerformanceFilter>();
 
-        // --------------------------------------------------------
-        // Generic image upload
-        // --------------------------------------------------------
+        //--------------------------------------------------------
+        //Generic image upload
+        //--------------------------------------------------------
 
         group.MapPost(
                 "/",
@@ -27,9 +27,9 @@ public sealed class UploadEndpoints : IFeatureEndpoints
             .RequireAuthorization()
             .DisableAntiforgery();
 
-        // --------------------------------------------------------
-        // Dedicated store logo upload
-        // --------------------------------------------------------
+        //--------------------------------------------------------
+        //Dedicated store logo upload
+        //--------------------------------------------------------
 
         group.MapPost(
                 "/logo",
@@ -39,9 +39,9 @@ public sealed class UploadEndpoints : IFeatureEndpoints
                 AppearancePermissions.Manage)
             .DisableAntiforgery();
 
-        // --------------------------------------------------------
-        // Existing delete endpoint
-        // --------------------------------------------------------
+        //--------------------------------------------------------
+        //Existing delete endpoint
+        //--------------------------------------------------------
 
         group.MapDelete(
                 "/{fileName}",
@@ -319,7 +319,7 @@ public sealed class UploadEndpoints : IFeatureEndpoints
             offset += read;
         }
 
-        // PNG
+        //PNG
         if (offset >= 8 &&
             header[0] == 0x89 &&
             header[1] == 0x50 &&
@@ -335,7 +335,7 @@ public sealed class UploadEndpoints : IFeatureEndpoints
                 "image/png");
         }
 
-        // JPEG
+        //JPEG
         if (offset >= 3 &&
             header[0] == 0xFF &&
             header[1] == 0xD8 &&
@@ -346,7 +346,7 @@ public sealed class UploadEndpoints : IFeatureEndpoints
                 "image/jpeg");
         }
 
-        // GIF
+        //GIF
         if (offset >= 6 &&
             header[0] == (byte)'G' &&
             header[1] == (byte)'I' &&
@@ -361,7 +361,7 @@ public sealed class UploadEndpoints : IFeatureEndpoints
                 "image/gif");
         }
 
-        // WEBP
+        //WEBP
         if (offset >= 12 &&
             header[0] == (byte)'R' &&
             header[1] == (byte)'I' &&
@@ -443,7 +443,7 @@ public sealed class UploadEndpoints : IFeatureEndpoints
                 });
         }
 
-        // Prevent path traversal.
+        //Prevent path traversal.
         var safeFileName =
             Path.GetFileName(
                 fileName);

@@ -3,11 +3,11 @@ using ValidationException = NexaECommerce.Server.Platform.Errors.ValidationExcep
 
 namespace NexaECommerce.Server.Platform.Filters;
 
-/// <summary>
-/// Finds the request argument, resolves its <see cref="IValidator{T}"/>, runs it, and
-/// throws <see cref="ValidationException"/> (→ 400 ProblemDetails with field errors) on
-/// failure. Apply per group — args without a registered validator pass through.
-/// </summary>
+///<summary>
+///Finds the request argument, resolves its <see cref="IValidator{T}"/>, runs it, and
+///throws <see cref="ValidationException"/> (→ 400 ProblemDetails with field errors) on
+///failure. Apply per group — args without a registered validator pass through.
+///</summary>
 public sealed class ValidationFilter(IServiceProvider services) : IEndpointFilter
 {
     public async ValueTask<object?> InvokeAsync(

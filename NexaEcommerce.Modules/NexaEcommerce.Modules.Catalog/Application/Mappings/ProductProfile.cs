@@ -1,6 +1,7 @@
 ﻿using AutoMapper;
 using NexaEcommerce.Modules.Catalog.Application.DTOs;
 using NexaEcommerce.Modules.Catalog.Domain.Entities;
+using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
 
 namespace NexaEcommerce.Modules.Catalog.Application.Mappings;
 
@@ -19,6 +20,12 @@ public sealed class ProductProfile : Profile
                         ? src.Brand.Name
                         : null))
             .ForMember(
+                dest => dest.ManufacturerName,
+                opt => opt.MapFrom(src =>
+                    src.Manufacturer != null
+                        ? src.Manufacturer.Name
+                        : null))
+            .ForMember(
                 dest => dest.Images,
                 opt => opt.MapFrom(src =>
                     src.Images.OrderBy(i => i.DisplayOrder)))
@@ -35,6 +42,10 @@ public sealed class ProductProfile : Profile
             .ForMember(
                 dest => dest.Variants,
                 opt => opt.MapFrom(src => src.Variants))
+            .ForMember(
+                dest => dest.Attributes,
+                opt => opt.MapFrom(src => src.Attributes
+                    .OrderBy(a => a.Name)))
             .ForMember(
                 dest => dest.StockQuantity,
                 opt => opt.MapFrom(src =>
@@ -60,6 +71,10 @@ public sealed class ProductProfile : Profile
                     src.Reviews.Count(r => r.IsApproved)));
 
         CreateMap<ProductImage, ProductImageDto>();
+
+        CreateMap<ProductAttribute, ProductAttributeDto>();
+
+        CreateMap<AttributeValue, ProductAttributeValueDto>();
 
         CreateMap<ProductVariant, ProductVariantDto>()
             .ForMember(
@@ -131,4 +146,3 @@ public sealed class ProductProfile : Profile
                         .ToList()));
     }
 }
-

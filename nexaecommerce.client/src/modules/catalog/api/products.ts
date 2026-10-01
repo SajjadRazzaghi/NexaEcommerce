@@ -1,5 +1,31 @@
 import { api } from '@/lib/api/client';
 
+export type ProductAttributeValue = {
+    id: string;
+    value: string;
+    displayValue?: string | null;
+    colorHex?: string | null;
+};
+
+export type ProductAttribute = {
+    id: string;
+    name: string;
+    code: string;
+    values: ProductAttributeValue[];
+};
+
+export type ProductAttributeValueInput = {
+    value: string;
+    displayValue?: string | null;
+    colorHex?: string | null;
+};
+
+export type ProductAttributeInput = {
+    name: string;
+    code: string;
+    values: ProductAttributeValueInput[];
+};
+
 export type ProductVariantAttribute = {
     attributeValueId: string;
     attributeCode: string;
@@ -64,6 +90,8 @@ export type Product = {
 
     images: ProductImage[];
     variants: ProductVariant[];
+
+    attributes: ProductAttribute[];
 
     categories: string[];
     categoryIds: string[];
@@ -134,11 +162,11 @@ export type ProductFilter = {
     maxPrice?: number;
 
     sortBy?:
-        | 'newest'
-        | 'price_asc'
-        | 'price_desc'
-        | 'name'
-        | 'popular';
+    | 'newest'
+    | 'price_asc'
+    | 'price_desc'
+    | 'name'
+    | 'popular';
 
     desc?: boolean;
 };
@@ -166,8 +194,11 @@ export type CreateProductDto = {
     shortDescription?: string;
 
     brandId?: string;
+    manufacturerId?: string;
 
     categoryIds: string[];
+
+    attributes: ProductAttributeInput[];
 
     variants: CreateProductVariantDto[];
 
@@ -185,10 +216,6 @@ export type UpdateProductVariantDto = {
     priceOverride?: number | null;
     comparePrice?: number | null;
 
-   /**
-     * Only used when creating a new variant.
-     * Existing variant stock is controlled by Inventory.
-     */
     stockQuantity?: number;
 
     isActive: boolean;
@@ -213,6 +240,8 @@ export type UpdateProductDto = {
 
     categoryIds: string[];
 
+    attributes: ProductAttributeInput[];
+
     images: string[];
 
     isActive: boolean;
@@ -221,6 +250,7 @@ export type UpdateProductDto = {
 
     variants: UpdateProductVariantDto[];
 };
+
 export const productsApi = {
     getAll: (
         params?: ProductFilter,
@@ -256,6 +286,7 @@ export const productsApi = {
         api.get<Product>(
             `/products/${id}`,
         ),
+
     getBySlug: (
         slug: string,
     ) =>
@@ -309,17 +340,17 @@ export const productsApi = {
     ) =>
         api.patch<void>(
             `/products/${id}/stock`,
-{ quantity },
+            { quantity },
         ),
 
-toggleActive: (
-    id: string,
-    isActive: boolean,
-) =>
-    api.patch<void>(
-        `/products/${id}/active`,
-        { value: isActive },
-    ),
+    toggleActive: (
+        id: string,
+        isActive: boolean,
+    ) =>
+        api.patch<void>(
+            `/products/${id}/active`,
+            { value: isActive },
+        ),
 
     toggleFeatured: (
         id: string,
@@ -330,11 +361,10 @@ toggleActive: (
             { value: isFeatured },
         ),
 
-        delete: (
-            id: string,
-        ) =>
-            api.del<void>(
-                `/products/${id}`,
-            ),
+    delete: (
+        id: string,
+    ) =>
+        api.del<void>(
+            `/products/${id}`,
+        ),
 };
-

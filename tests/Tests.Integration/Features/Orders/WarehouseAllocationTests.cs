@@ -161,7 +161,7 @@ public sealed class WarehouseAllocationTests(
             variant1,
             10);
 
-        // variant2 intentionally missing.
+        //variant2 intentionally missing.
 
         var fallbackWarehouse =
             await CreateWarehouseAsync(

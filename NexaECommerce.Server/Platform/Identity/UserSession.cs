@@ -4,11 +4,11 @@ using NexaECommerce.Server.Platform.Auditing;
 
 namespace NexaECommerce.Server.Platform.Identity;
 
-/// <summary>
-/// One row per interactive sign-in. Its <see cref="Id"/> is carried in the auth cookie as the
-/// "sid" claim, so a session can be shown ("this device") and revoked individually. Audit-exempt:
-/// LastSeen churns every validation interval; sign-in/revoke are logged as explicit audit events.
-/// </summary>
+///<summary>
+///One row per interactive sign-in. Its <see cref="Id"/> is carried in the auth cookie as the
+///"sid" claim, so a session can be shown ("this device") and revoked individually. Audit-exempt:
+///LastSeen churns every validation interval; sign-in/revoke are logged as explicit audit events.
+///</summary>
 public sealed class UserSession : IAuditExempt
 {
     public required string Id { get; set; }

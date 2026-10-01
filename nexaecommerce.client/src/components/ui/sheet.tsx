@@ -18,8 +18,8 @@ function SheetOverlay({ className, ...props }: React.ComponentProps<typeof Sheet
   );
 }
 
-// A side panel built on the Dialog primitive: used for the mobile nav drawer. `side` controls which
-// edge it docks to; logical insets (start/end) keep it correct under RTL.
+//A side panel built on the Dialog primitive: used for the mobile nav drawer. `side` controls which
+//edge it docks to; logical insets (start/end) keep it correct under RTL.
 function SheetContent({
   className,
   children,

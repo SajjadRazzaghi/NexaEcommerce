@@ -51,6 +51,7 @@ public sealed class CatalogDbContext : DbContext
     public DbSet<VariantAttributeValue> VariantAttributeValues =>
         Set<VariantAttributeValue>();
 
+
     // =========================================================
     // Catalog Attributes
     // =========================================================

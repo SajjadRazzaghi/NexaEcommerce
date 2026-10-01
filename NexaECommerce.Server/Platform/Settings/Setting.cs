@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace NexaECommerce.Server.Platform.Settings;
 
-/// <summary>A persisted setting value at one scope. ScopeId is null for App, else tenant/user id.</summary>
+///<summary>A persisted setting value at one scope. ScopeId is null for App, else tenant/user id.</summary>
 public sealed class Setting
 {
     public int Id { get; set; }

@@ -41,7 +41,7 @@ export function SectionLayout({
     setParams(
       (prev) => {
         const next = new URLSearchParams(prev);
-        // First section is the default → keep the URL clean (no param), matching the grid convention.
+        //First section is the default → keep the URL clean (no param), matching the grid convention.
         if (id === sections[0]?.id) next.delete(param);
         else next.set(param, id);
         return next;
@@ -62,11 +62,11 @@ export function SectionLayout({
     >
       <nav
         aria-label={t('common.sections')}
-        // Mobile: pills wrap (a small, finite picker — show every choice, no scrollbar). Desktop: a
-        // single-column rail.
+        //Mobile: pills wrap (a small, finite picker — show every choice, no scrollbar). Desktop: a
+        //single-column rail.
         className={cn(
           'flex flex-wrap gap-1 md:flex-col md:flex-nowrap md:sticky md:top-4 md:self-start',
-          // Painted on the end column but kept first in the DOM (so it leads the tab order).
+          //Painted on the end column but kept first in the DOM (so it leads the tab order).
           end && 'md:col-start-2 md:row-start-1',
         )}
       >

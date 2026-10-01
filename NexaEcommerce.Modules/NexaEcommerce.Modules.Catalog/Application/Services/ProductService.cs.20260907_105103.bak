@@ -30,9 +30,9 @@ public sealed class ProductService : IProductService
         _mapper = mapper;
     }
 
-    // ============================================================
-    // Queries
-    // ============================================================
+    //============================================================
+    //Queries
+    //============================================================
 
     public async Task<PagedResult<ProductDto>> GetPagedAsync(
         int page = 1,
@@ -163,9 +163,9 @@ public sealed class ProductService : IProductService
             products);
     }
 
-    // ============================================================
-    // Create
-    // ============================================================
+    //============================================================
+    //Create
+    //============================================================
 
     public async Task<ProductDto> CreateAsync(
         CreateProductDto createDto,
@@ -223,9 +223,9 @@ public sealed class ProductService : IProductService
         product.SetManufacturer(
             createDto.ManufacturerId);
 
-        // --------------------------------------------------------
-        // Images
-        // --------------------------------------------------------
+        //--------------------------------------------------------
+        //Images
+        //--------------------------------------------------------
 
         foreach (var imageUrl in
                  createDto.Images ?? new List<string>())
@@ -242,9 +242,9 @@ public sealed class ProductService : IProductService
                 displayOrder == 0);
         }
 
-        // --------------------------------------------------------
-        // Variants
-        // --------------------------------------------------------
+        //--------------------------------------------------------
+        //Variants
+        //--------------------------------------------------------
 
         foreach (var variantDto in
                  createDto.Variants ??
@@ -269,7 +269,7 @@ public sealed class ProductService : IProductService
                     0,
                     variantDto.StockQuantity));
 
-            // Legacy Color support
+            //Legacy Color support
             AddVariantAttribute(
                 product,
                 variant,
@@ -277,7 +277,7 @@ public sealed class ProductService : IProductService
                 "Color",
                 "color");
 
-            // Legacy Size support
+            //Legacy Size support
             AddVariantAttribute(
                 product,
                 variant,
@@ -285,7 +285,7 @@ public sealed class ProductService : IProductService
                 "Size",
                 "size");
 
-            // Generic catalog attributes
+            //Generic catalog attributes
             await AddCatalogVariantAttributesAsync(
                 product,
                 variant,
@@ -293,7 +293,7 @@ public sealed class ProductService : IProductService
                 cancellationToken);
         }
 
-        // A product always has a stock-bearing variant.
+        //A product always has a stock-bearing variant.
         if (product.Variants.Count == 0)
         {
             var defaultVariant =
@@ -304,18 +304,18 @@ public sealed class ProductService : IProductService
             defaultVariant.ChangeStock(0);
         }
 
-        // --------------------------------------------------------
-        // Categories
-        // --------------------------------------------------------
+        //--------------------------------------------------------
+        //Categories
+        //--------------------------------------------------------
 
         await ReplaceCategoriesAsync(
             product,
             createDto.CategoryIds,
             cancellationToken);
 
-        // --------------------------------------------------------
-        // Persist
-        // --------------------------------------------------------
+        //--------------------------------------------------------
+        //Persist
+        //--------------------------------------------------------
 
         await _productRepository.AddAsync(
             product,
@@ -334,9 +334,9 @@ public sealed class ProductService : IProductService
             : _mapper.Map<ProductDto>(created);
     }
 
-    // ============================================================
-    // Update
-    // ============================================================
+    //============================================================
+    //Update
+    //============================================================
 
     public async Task UpdateAsync(
         Guid id,
@@ -431,9 +431,9 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
-    // ============================================================
-    // Stock
-    // ============================================================
+    //============================================================
+    //Stock
+    //============================================================
 
     public async Task UpdateStockAsync(
         Guid id,
@@ -475,9 +475,9 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
-    // ============================================================
-    // Active
-    // ============================================================
+    //============================================================
+    //Active
+    //============================================================
 
     public async Task SetActiveAsync(
         Guid id,
@@ -498,9 +498,9 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
-    // ============================================================
-    // Featured
-    // ============================================================
+    //============================================================
+    //Featured
+    //============================================================
 
     public async Task SetFeaturedAsync(
         Guid id,
@@ -522,9 +522,9 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
-    // ============================================================
-    // Delete
-    // ============================================================
+    //============================================================
+    //Delete
+    //============================================================
 
     public async Task DeleteAsync(
         Guid id,
@@ -542,9 +542,9 @@ public sealed class ProductService : IProductService
             cancellationToken);
     }
 
-    // ============================================================
-    // Categories
-    // ============================================================
+    //============================================================
+    //Categories
+    //============================================================
 
     private async Task ReplaceCategoriesAsync(
         Product product,
@@ -601,9 +601,9 @@ public sealed class ProductService : IProductService
         }
     }
 
-    // ============================================================
-    // Existing Product
-    // ============================================================
+    //============================================================
+    //Existing Product
+    //============================================================
 
     private async Task<Product> GetExistingProductAsync(
         Guid id,
@@ -619,9 +619,9 @@ public sealed class ProductService : IProductService
                    $"Product with id {id} was not found.");
     }
 
-    // ============================================================
-    // Legacy Variant Attributes
-    // ============================================================
+    //============================================================
+    //Legacy Variant Attributes
+    //============================================================
 
     private static void AddVariantAttribute(
         Product product,
@@ -664,9 +664,9 @@ public sealed class ProductService : IProductService
             attributeValue);
     }
 
-    // ============================================================
-    // Generic Catalog Variant Attributes
-    // ============================================================
+    //============================================================
+    //Generic Catalog Variant Attributes
+    //============================================================
 
     private async Task AddCatalogVariantAttributesAsync(
         Product product,
@@ -684,7 +684,7 @@ public sealed class ProductService : IProductService
         if (requestedIds.Count == 0)
             return;
 
-        // Load the catalog attributes and their values once.
+        //Load the catalog attributes and their values once.
         var catalogAttributes =
             await _catalogAttributeRepository.GetAllAsync(
                 cancellationToken);
@@ -735,7 +735,7 @@ public sealed class ProductService : IProductService
                     nameof(attributeValueIds));
             }
 
-            // Reuse the product attribute if it already exists.
+            //Reuse the product attribute if it already exists.
             var productAttribute =
                 product.Attributes.FirstOrDefault(
                     attribute => string.Equals(
@@ -748,7 +748,7 @@ public sealed class ProductService : IProductService
                     catalogAttribute.Name,
                     catalogAttribute.Code);
 
-            // Reuse the product attribute value if it already exists.
+            //Reuse the product attribute value if it already exists.
             var productAttributeValue =
                 productAttribute.Values.FirstOrDefault(
                     value => string.Equals(
@@ -767,9 +767,9 @@ public sealed class ProductService : IProductService
         }
     }
 
-    // ============================================================
-    // Unique Slug
-    // ============================================================
+    //============================================================
+    //Unique Slug
+    //============================================================
 
     private async Task<string> CreateUniqueSlugAsync(
         string name,
@@ -807,18 +807,18 @@ public sealed class ProductService : IProductService
             $"{baseSlug}-{Guid.NewGuid():N}";
     }
 
-    // ============================================================
-    // SKU
-    // ============================================================
+    //============================================================
+    //SKU
+    //============================================================
 
     private static string GenerateSku()
     {
         return $"NX-{Guid.NewGuid():N}";
     }
 
-    // ============================================================
-    // Slug
-    // ============================================================
+    //============================================================
+    //Slug
+    //============================================================
 
     private static string GenerateSlug(
         string name)
@@ -850,8 +850,8 @@ public sealed class ProductService : IProductService
              Enumerable.Empty<UpdateProductVariantDto>())
             .ToList();
 
-        // No variant list means:
-        // preserve the existing lifecycle for backwards compatibility.
+        //No variant list means:
+        //preserve the existing lifecycle for backwards compatibility.
         if (requested.Count == 0)
             return;
 
@@ -961,9 +961,9 @@ public sealed class ProductService : IProductService
                 matchedExisting.Add(
                     variant.Id);
 
-                // IMPORTANT:
-                // StockQuantity is deliberately NOT changed here
-                // for an existing variant.
+                //IMPORTANT:
+                //StockQuantity is deliberately NOT changed here
+                //for an existing variant.
                 continue;
             }
 
@@ -1004,10 +1004,10 @@ public sealed class ProductService : IProductService
                 cancellationToken);
         }
 
-        // Only synchronize removals when the request contains
-        // explicit existing IDs. This prevents legacy callers
-        // that send SKU-only variants from accidentally disabling
-        // every current variant.
+        //Only synchronize removals when the request contains
+        //explicit existing IDs. This prevents legacy callers
+        //that send SKU-only variants from accidentally disabling
+        //every current variant.
         if (hasExistingIds)
         {
             foreach (var existingVariant in
@@ -1195,7 +1195,7 @@ public sealed class ProductService : IProductService
                             x => x,
                             StringComparer.OrdinalIgnoreCase));
 
-            // Variants without attributes are allowed for simple products.
+            //Variants without attributes are allowed for simple products.
             if (string.IsNullOrWhiteSpace(signature))
                 continue;
 

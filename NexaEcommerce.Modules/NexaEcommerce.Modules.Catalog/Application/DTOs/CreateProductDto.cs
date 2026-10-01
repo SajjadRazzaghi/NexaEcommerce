@@ -22,5 +22,7 @@ public sealed class CreateProductDto
 
     public List<string> Images { get; set; } = new();
 
+    public List<ProductAttributeInputDto> Attributes { get; set; } = new();
+
     public List<CreateProductVariantDto> Variants { get; set; } = new();
 }

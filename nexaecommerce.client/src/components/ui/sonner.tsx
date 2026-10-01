@@ -1,7 +1,7 @@
 import { Toaster as Sonner, type ToasterProps } from 'sonner';
 import { useTheme } from '@/components/theme-provider';
 
-// Sonner toaster wired to NexaECommerce's ThemeProvider (not next-themes).
+//Sonner toaster wired to NexaECommerce's ThemeProvider (not next-themes).
 export function Toaster(props: ToasterProps) {
   const { theme } = useTheme();
 

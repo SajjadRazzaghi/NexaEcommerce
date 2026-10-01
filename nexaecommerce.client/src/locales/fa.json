@@ -1,4 +1,20 @@
 {
+  "variantConfiguration": {
+    "title": "پیکربندی واریانت",
+    "description": "مشخص کنید کدام ویژگی‌های محصول، واریانت‌های قابل خرید را تشکیل می‌دهند.",
+    "noAttributes": "هیچ ویژگی قابل استفاده برای واریانت در کاتالوگ تعریف نشده است."
+  },
+  "specifications": {
+    "title": "مشخصات محصول",
+    "description": "ویژگی‌های توصیفی محصول را که انتخاب واریانت نیستند وارد کنید.",
+    "empty": "در حال حاضر مشخصاتی برای این محصول وجود ندارد.",
+    "select": "انتخاب مقدار",
+    "valuePlaceholder": "مقدار را وارد کنید"
+  },
+  "validation": {
+    "variantRequired": "وقتی ویژگی واریانت انتخاب شده است، حداقل یک واریانت لازم است.",
+    "variantAttributeRequired": "برای هر واریانت، مقدار «{{attribute}}» را انتخاب کنید."
+  },
   "productAdminDetail": {
     "product": "محصول",
     "retry": "تلاش دوباره",
@@ -43,6 +59,35 @@
     }
   },
   "productEdit": {
+    "specifications": {
+      "title": "مشخصات محصول",
+      "description": "مشخصات خود محصول را که بخشی از ترکیب تنوع‌ها نیستند اضافه کنید.",
+      "add": "افزودن مشخصه",
+      "empty": "هنوز مشخصه‌ای برای محصول اضافه نشده است.",
+      "attribute": "مشخصه",
+      "selectAttribute": "انتخاب مشخصه",
+      "value": "مقدار",
+      "selectValue": "انتخاب مقدار",
+      "valuePlaceholder": "مقدار را وارد کنید",
+      "errors": {
+        "attributeRequired": "انتخاب مشخصه الزامی است.",
+        "duplicateAttribute": "یک مشخصه نمی‌تواند بیش از یک بار اضافه شود.",
+        "invalidAttribute": "مشخصه انتخاب‌شده معتبر نیست.",
+        "valueRequired": "برای «{{attribute}}» یک مقدار انتخاب کنید.",
+        "textRequired": "برای «{{attribute}}» مقدار وارد کنید."
+      }
+    },
+    "variants": {
+      "dimensionsTitle": "ابعاد تنوع محصول",
+      "dimensionsDescription": "ویژگی‌های کاتالوگ مورد استفاده برای ایجاد تنوع‌های این محصول را انتخاب کنید.",
+      "errors": {
+        "noVariantForDimensions": "برای ابعاد انتخاب‌شده حداقل یک تنوع اضافه کنید.",
+        "noActiveVariant": "محصول باید حداقل یک تنوع فعال داشته باشد.",
+        "missingAttribute": "برای تنوع «{{sku}}» باید مقدار «{{attribute}}» انتخاب شود.",
+        "duplicateCombination": "تنوع «{{sku}}» دارای ترکیب ویژگی تکراری است."
+      },
+      "unnamedVariant": "تنوع بدون نام"
+    },
     "product": "محصول",
     "pageTitle": "ویرایش {{productName}} · {{storeName}}",
     "editTitle": "ویرایش {{productName}}",
@@ -83,6 +128,17 @@
     },
 
     "variants": {
+      "dimensionsTitle": "ویژگی‌های تنوع محصول",
+      "dimensionsDescription": "ویژگی‌های کاتالوگ مورد استفاده برای ایجاد تنوع‌های این محصول را انتخاب کنید.",
+      "noDimensions": "هیچ ویژگی فعال و قابل استفاده برای تنوع وجود ندارد.",
+      "selectedDimensions": "{{count}} ویژگی برای تنوع انتخاب شده است",
+      "selectAttribute": "{{attribute}} را انتخاب کنید",
+      "unnamedVariant": "تنوع بدون نام",
+      "errors": {
+        "noActiveVariant": "محصول باید حداقل یک تنوع فعال داشته باشد.",
+        "missingAttribute": "برای تنوع «{{sku}}» باید مقدار {{attribute}} انتخاب شود.",
+        "duplicateCombination": "تنوع «{{sku}}» دارای ترکیب ویژگی تکراری است."
+      },
       "title": "تنوع‌ها",
       "description": "SKU، ویژگی‌های کاتالوگ، قیمت و موجودی تنوع‌ها",
       "add": "افزودن تنوع",
@@ -116,7 +172,9 @@
       "featured": "ویژه",
       "featuredDescription": "محصولات ویژه در بخش‌های منتخب برجسته می‌شوند.",
       "inStock": "موجود",
-      "stockDescription": "وضعیت موجودی محصول در فروشگاه."
+      "stockDescription": "وضعیت موجودی محصول در فروشگاه.",
+      "published": "منتشر شده",
+      "publishedHint": "محصولات منتشرشده در صورت فعال بودن برای مشتریان قابل مشاهده هستند."
     },
 
     "actions": {

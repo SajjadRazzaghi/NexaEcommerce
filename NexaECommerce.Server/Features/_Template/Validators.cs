@@ -2,8 +2,8 @@ using FluentValidation;
 
 namespace NexaECommerce.Server.Features._Template;
 
-// One AbstractValidator per request type. The ValidationFilter resolves and runs these
-// automatically, returning 400 ProblemDetails with field errors on failure.
+//One AbstractValidator per request type. The ValidationFilter resolves and runs these
+//automatically, returning 400 ProblemDetails with field errors on failure.
 internal sealed class CreateTemplateItemValidator : AbstractValidator<CreateTemplateItemRequest>
 {
     public CreateTemplateItemValidator()

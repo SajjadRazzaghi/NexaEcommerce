@@ -7,13 +7,13 @@ public enum SettingScope
     User,
 }
 
-/// <summary>One selectable value for a choice setting (rendered as a dropdown).</summary>
+///<summary>One selectable value for a choice setting (rendered as a dropdown).</summary>
 public sealed record SettingOption(string Value, string Label);
 
-/// <summary>Declares a setting: its key, value type, supported scopes, default, and grouping. A setting
-/// becomes a dropdown by declaring either a static <see cref="Options"/> list or an
-/// <see cref="OptionsProvider"/> key (a reflection-discovered <c>ISettingOptionsProvider</c> for dynamic
-/// choices like roles) — the admin UI renders the dropdown generically, so nothing is hard-coded there.</summary>
+///<summary>Declares a setting: its key, value type, supported scopes, default, and grouping. A setting
+///becomes a dropdown by declaring either a static <see cref="Options"/> list or an
+///<see cref="OptionsProvider"/> key (a reflection-discovered <c>ISettingOptionsProvider</c> for dynamic
+///choices like roles) — the admin UI renders the dropdown generically, so nothing is hard-coded there.</summary>
 public sealed record SettingDefinition(
     string Key,
     Type Type,
@@ -24,10 +24,10 @@ public sealed record SettingDefinition(
     IReadOnlyList<SettingOption>? Options = null,
     string? OptionsProvider = null);
 
-/// <summary>
-/// Startup registry of known settings. Features call Register(...) once at boot; the admin UI
-/// (Phase 4) renders from <see cref="All"/>, and SettingService resolves defaults from it.
-/// </summary>
+///<summary>
+///Startup registry of known settings. Features call Register(...) once at boot; the admin UI
+///(Phase 4) renders from <see cref="All"/>, and SettingService resolves defaults from it.
+///</summary>
 public static class SettingDefinitions
 {
     private static readonly Dictionary<string, SettingDefinition> Registry = new(StringComparer.OrdinalIgnoreCase);

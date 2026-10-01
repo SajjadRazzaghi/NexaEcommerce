@@ -9,7 +9,7 @@ namespace NexaECommerce.Server.Platform.Settings;
 
 public interface ISettingService
 {
-    /// <summary>Resolves a value walking User → Tenant → App → registered default.</summary>
+    ///<summary>Resolves a value walking User → Tenant → App → registered default.</summary>
     Task<T?> GetAsync<T>(string key, CancellationToken cancellationToken = default);
 
     Task SetAsync<T>(
@@ -25,7 +25,7 @@ public sealed class SettingService(
     {
         var userId = httpContextAccessor.HttpContext?.User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-        // Most specific scope wins.
+        //Most specific scope wins.
         var candidates = new List<(SettingScope Scope, string? ScopeId)>();
         if (userId is not null) candidates.Add((SettingScope.User, userId));
         candidates.Add((SettingScope.Tenant, tenant.TenantId));

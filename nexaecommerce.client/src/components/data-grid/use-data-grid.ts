@@ -25,7 +25,7 @@ export interface DataGridState {
   filters: DataGridFilters;
 }
 
-// Keys the grid owns in the URL query string. Anything else there is treated as a column filter.
+//Keys the grid owns in the URL query string. Anything else there is treated as a column filter.
 const RESERVED = new Set(['page', 'pageSize', 'sort', 'search']);
 
 /**
@@ -41,7 +41,7 @@ export function useDataGrid<T>(options: UseDataGridOptions) {
   const { endpoint, defaultSort, pageSize: initialPageSize = 20 } = options;
   const [params, setParams] = useSearchParams();
 
-  // --- derive state from the URL ---
+  //--- derive state from the URL ---
   const page = Math.max(1, toInt(params.get('page'), 1));
   const pageSize = toInt(params.get('pageSize'), initialPageSize);
   const sortParam = params.get('sort');
@@ -59,7 +59,7 @@ export function useDataGrid<T>(options: UseDataGridOptions) {
   const isDefaultSort = (s?: { id: string; desc: boolean }) =>
     !!defaultSort && !!s && s.id === defaultSort.id && s.desc === (defaultSort.desc ?? false);
 
-  // --- setters: each rewrites the URL (replace, so we don't spam history) and resets to page 1 ---
+  //--- setters: each rewrites the URL (replace, so we don't spam history) and resets to page 1 ---
   const update = (mutate: (next: URLSearchParams) => void) =>
     setParams(
       (prev) => {
@@ -107,7 +107,7 @@ export function useDataGrid<T>(options: UseDataGridOptions) {
       p.delete('page');
     });
 
-  // Replace the whole query string from a (saved-view) state, or clear it when called with nothing.
+  //Replace the whole query string from a (saved-view) state, or clear it when called with nothing.
   const reset = (state?: Partial<DataGridState>) => {
     const next = new URLSearchParams();
     if (state) {
@@ -121,7 +121,7 @@ export function useDataGrid<T>(options: UseDataGridOptions) {
     setParams(next, { replace: true });
   };
 
-  // --- API query string (always carries page/pageSize, unlike the URL) ---
+  //--- API query string (always carries page/pageSize, unlike the URL) ---
   const apiQuery = () => {
     const p = new URLSearchParams();
     p.set('page', String(page));
@@ -134,7 +134,7 @@ export function useDataGrid<T>(options: UseDataGridOptions) {
   const queryString = apiQuery();
   const path = `${endpoint.replace(/\/$/, '')}/?${queryString}`;
 
-  // Same sort/search/filters as the current view (no paging) → a downloadable export URL.
+  //Same sort/search/filters as the current view (no paging) → a downloadable export URL.
   const exportHref = (format: string) => {
     const p = new URLSearchParams();
     if (sorting[0]) p.set('sort', `${sorting[0].id}:${sorting[0].desc ? 'desc' : 'asc'}`);
@@ -147,13 +147,13 @@ export function useDataGrid<T>(options: UseDataGridOptions) {
   const query = useQuery({
     queryKey: [...(options.queryKey ?? ['data-grid', endpoint]), queryString],
     queryFn: () => api.get<PagedResult<T>>(path),
-    placeholderData: keepPreviousData, // keep the current page visible while the next loads
+    placeholderData: keepPreviousData, //keep the current page visible while the next loads
   });
 
   const activeFilterCount = Object.keys(filters).length + (search.trim() ? 1 : 0);
 
   return {
-    // data
+    //data
     items: query.data?.items ?? [],
     pageInfo: query.data,
     isLoading: query.isLoading,
@@ -163,7 +163,7 @@ export function useDataGrid<T>(options: UseDataGridOptions) {
     refetch: query.refetch,
     endpoint,
     exportHref,
-    // state + setters
+    //state + setters
     page,
     setPage,
     pageSize,

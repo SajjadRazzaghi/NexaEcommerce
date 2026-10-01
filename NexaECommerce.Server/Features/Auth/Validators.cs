@@ -2,8 +2,8 @@ using FluentValidation;
 
 namespace NexaECommerce.Server.Features.Auth;
 
-// Mirrors Identity's password policy (length ≥ 8) so the client gets clean 400 field errors
-// before UserManager re-checks server-side.
+//Mirrors Identity's password policy (length ≥ 8) so the client gets clean 400 field errors
+//before UserManager re-checks server-side.
 internal sealed class RegisterRequestValidator : AbstractValidator<RegisterRequest>
 {
     public RegisterRequestValidator()
@@ -47,8 +47,8 @@ internal sealed class ChangePasswordRequestValidator : AbstractValidator<ChangeP
 {
     public ChangePasswordRequestValidator()
     {
-        // CurrentPassword isn't required: an OAuth-created account has no password yet, so this same request
-        // sets the first one. The handler verifies the current password only when the account already has one.
+        //CurrentPassword isn't required: an OAuth-created account has no password yet, so this same request
+        //sets the first one. The handler verifies the current password only when the account already has one.
         RuleFor(x => x.NewPassword).NotEmpty().MinimumLength(8).MaximumLength(128);
     }
 }

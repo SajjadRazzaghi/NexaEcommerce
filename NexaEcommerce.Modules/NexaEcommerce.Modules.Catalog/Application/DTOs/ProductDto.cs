@@ -1,5 +1,47 @@
 ﻿namespace NexaEcommerce.Modules.Catalog.Application.DTOs;
 
+public sealed class ProductAttributeDto
+{
+    public Guid Id { get; set; }
+
+    public string Name { get; set; } = string.Empty;
+
+    public string Code { get; set; } = string.Empty;
+
+    public List<ProductAttributeValueDto> Values { get; set; } = new();
+}
+
+public sealed class ProductAttributeValueDto
+{
+    public Guid Id { get; set; }
+
+    public string Value { get; set; } = string.Empty;
+
+    public string? DisplayValue { get; set; }
+
+    public string? ColorHex { get; set; }
+}
+
+public sealed class ProductAttributeInputDto
+{
+    public Guid CatalogAttributeId { get; set; }
+
+    public List<ProductAttributeValueInputDto> Values { get; set; } = new();
+}
+
+public sealed class ProductAttributeValueInputDto
+{
+    public Guid? CatalogAttributeValueId { get; set; }
+
+    public string? Value { get; set; }
+
+    public string? DisplayValue { get; set; }
+
+    public string? ColorHex { get; set; }
+
+    public int DisplayOrder { get; set; }
+}
+
 public sealed class ProductDto
 {
     public Guid Id { get; set; }
@@ -38,6 +80,10 @@ public sealed class ProductDto
 
     public string? BrandName { get; set; }
 
+    public Guid? ManufacturerId { get; set; }
+
+    public string? ManufacturerName { get; set; }
+
     public List<ProductImageDto> Images { get; set; } = new();
 
     public List<string> Categories { get; set; } = new();
@@ -45,6 +91,8 @@ public sealed class ProductDto
     public List<Guid> CategoryIds { get; set; } = new();
 
     public List<ProductVariantDto> Variants { get; set; } = new();
+
+    public List<ProductAttributeDto> Attributes { get; set; } = new();
 
     public double AverageRating { get; set; }
 

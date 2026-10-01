@@ -25,8 +25,8 @@ public sealed class CreateUserRequestValidator : AbstractValidator<CreateUserReq
     {
         RuleFor(x => x.Email).NotEmpty().WithMessage("Email is required.")
             .EmailAddress().WithMessage("Enter a valid email address.");
-        // The password is optional (the invite path sets it later); Identity's policy enforces strength
-        // when one is supplied, so only the bare minimum is checked here to fail fast on the obvious case.
+        //The password is optional (the invite path sets it later); Identity's policy enforces strength
+        //when one is supplied, so only the bare minimum is checked here to fail fast on the obvious case.
         RuleFor(x => x.Password!).MinimumLength(6)
             .When(x => !string.IsNullOrEmpty(x.Password))
             .WithMessage("Password must be at least 6 characters.");

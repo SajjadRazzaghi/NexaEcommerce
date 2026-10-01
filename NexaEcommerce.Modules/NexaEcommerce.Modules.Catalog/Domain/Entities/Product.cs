@@ -48,6 +48,7 @@ public class Product : AggregateRoot
     public Guid? BrandId { get; private set; }
 
     public Brand? Brand { get; private set; }
+
     // =========================================================
     // Manufacturer
     // =========================================================
@@ -55,33 +56,51 @@ public class Product : AggregateRoot
     public Guid? ManufacturerId { get; private set; }
 
     public Manufacturer? Manufacturer { get; private set; }
-    public void SetManufacturer(Guid? manufacturerId)
+
+    public void SetManufacturer(
+        Guid? manufacturerId)
     {
         ManufacturerId = manufacturerId;
     }
+
     // =========================================================
     // Relations
     // =========================================================
 
-    public ICollection<ProductCategory> ProductCategories { get; private set; }
-        = new List<ProductCategory>();
+    public ICollection<ProductCategory> ProductCategories
+    {
+        get;
+        private set;
+    } = new List<ProductCategory>();
 
-    public ICollection<ProductImage> Images { get; private set; }
-        = new List<ProductImage>();
+    public ICollection<ProductImage> Images
+    {
+        get;
+        private set;
+    } = new List<ProductImage>();
 
-    public ICollection<ProductReview> Reviews { get; private set; }
-        = new List<ProductReview>();
+    public ICollection<ProductReview> Reviews
+    {
+        get;
+        private set;
+    } = new List<ProductReview>();
 
-    public ICollection<ProductVariant> Variants { get; private set; }
-        = new List<ProductVariant>();
+    public ICollection<ProductVariant> Variants
+    {
+        get;
+        private set;
+    } = new List<ProductVariant>();
 
-    public ICollection<ProductAttribute> Attributes { get; private set; }
-        = new List<ProductAttribute>();
+    public ICollection<ProductAttribute> Attributes
+    {
+        get;
+        private set;
+    } = new List<ProductAttribute>();
 
     // =========================================================
     // EF Constructor
     // =========================================================
- 
+
     private Product()
     {
     }
@@ -99,25 +118,34 @@ public class Product : AggregateRoot
         string? description = null)
     {
         if (string.IsNullOrWhiteSpace(name))
+        {
             throw new ArgumentException(
                 "Product name is required.",
                 nameof(name));
+        }
 
         if (string.IsNullOrWhiteSpace(sku))
+        {
             throw new ArgumentException(
                 "Product SKU is required.",
                 nameof(sku));
+        }
 
         if (price < 0)
-            throw new ArgumentOutOfRangeException(nameof(price));
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(price));
+        }
 
         Name = name;
         Sku = sku;
+
         Slug = string.IsNullOrWhiteSpace(slug)
             ? GenerateSlug(name)
             : slug;
 
         Price = price;
+
         Currency = string.IsNullOrWhiteSpace(currency)
             ? "IRR"
             : currency;
@@ -142,34 +170,49 @@ public class Product : AggregateRoot
         decimal price)
     {
         if (string.IsNullOrWhiteSpace(name))
+        {
             throw new ArgumentException(
                 "Product name is required.",
                 nameof(name));
+        }
 
         if (price < 0)
-            throw new ArgumentOutOfRangeException(nameof(price));
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(price));
+        }
 
         Name = name;
+
         Slug = string.IsNullOrWhiteSpace(slug)
             ? GenerateSlug(name)
             : slug;
 
         Description = description;
+
         Price = price;
 
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void SetShortDescription(string? shortDescription)
+    public void SetShortDescription(
+        string? shortDescription)
     {
         ShortDescription = shortDescription;
+
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void SetCurrency(string? currency)
+    public void SetCurrency(
+        string? currency)
     {
         if (!string.IsNullOrWhiteSpace(currency))
-            Currency = currency.Trim().ToUpperInvariant();
+        {
+            Currency =
+                currency
+                    .Trim()
+                    .ToUpperInvariant();
+        }
 
         UpdatedAt = DateTime.UtcNow;
     }
@@ -190,13 +233,15 @@ public class Product : AggregateRoot
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void SetActive(bool isActive)
+    public void SetActive(
+        bool isActive)
     {
         IsActive = isActive;
         UpdatedAt = DateTime.UtcNow;
     }
 
-    public void SetFeatured(bool isFeatured)
+    public void SetFeatured(
+        bool isFeatured)
     {
         IsFeatured = isFeatured;
         UpdatedAt = DateTime.UtcNow;
@@ -218,7 +263,8 @@ public class Product : AggregateRoot
     // Brand
     // =========================================================
 
-    public void SetBrand(Guid? brandId)
+    public void SetBrand(
+        Guid? brandId)
     {
         BrandId = brandId;
         UpdatedAt = DateTime.UtcNow;
@@ -228,37 +274,53 @@ public class Product : AggregateRoot
     // Pricing
     // =========================================================
 
-    public void ApplyDiscount(decimal percentage)
+    public void ApplyDiscount(
+        decimal percentage)
     {
-        if (percentage < 0 || percentage > 100)
+        if (
+            percentage < 0 ||
+            percentage > 100)
+        {
             throw new ArgumentOutOfRangeException(
                 nameof(percentage));
+        }
 
         DiscountPercentage = percentage;
+
         UpdatedAt = DateTime.UtcNow;
     }
 
     public void RemoveDiscount()
     {
         DiscountPercentage = 0;
+
         UpdatedAt = DateTime.UtcNow;
     }
 
     public decimal GetFinalPrice()
     {
         if (DiscountPercentage <= 0)
+        {
             return Price;
+        }
 
-        return Price - (Price * DiscountPercentage / 100m);
+        return Price -
+               (Price * DiscountPercentage / 100m);
     }
 
-    public void SetComparePrice(decimal? comparePrice)
+    public void SetComparePrice(
+        decimal? comparePrice)
     {
-        if (comparePrice.HasValue && comparePrice.Value < 0)
+        if (
+            comparePrice.HasValue &&
+            comparePrice.Value < 0)
+        {
             throw new ArgumentOutOfRangeException(
                 nameof(comparePrice));
+        }
 
         ComparePrice = comparePrice;
+
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -271,14 +333,18 @@ public class Product : AggregateRoot
         decimal price,
         decimal? comparePrice = null)
     {
-        var variant = new ProductVariant(
-            Id,
-            sku,
-            price,
-            0);
+        var variant =
+            new ProductVariant(
+                Id,
+                sku,
+                price,
+                0);
 
         if (comparePrice.HasValue)
-            variant.SetComparePrice(comparePrice.Value);
+        {
+            variant.SetComparePrice(
+                comparePrice.Value);
+        }
 
         Variants.Add(variant);
 
@@ -295,29 +361,36 @@ public class Product : AggregateRoot
         bool isPrimary)
     {
         if (string.IsNullOrWhiteSpace(imageUrl))
+        {
             throw new ArgumentException(
                 "Image URL is required.",
                 nameof(imageUrl));
+        }
 
         if (isPrimary)
         {
-            foreach (var existingImage in Images)
+            foreach (
+                var existingImage in Images)
+            {
                 existingImage.UnsetPrimary();
+            }
         }
 
-        var image = new ProductImage(
-            Id,
-            imageUrl,
-            null,
-            displayOrder,
-            isPrimary);
+        var image =
+            new ProductImage(
+                Id,
+                imageUrl,
+                null,
+                displayOrder,
+                isPrimary);
 
         Images.Add(image);
 
         return image;
     }
 
-    public void SetMainImage(Guid imageId)
+    public void SetMainImage(
+        Guid imageId)
     {
         foreach (var image in Images)
         {
@@ -341,14 +414,18 @@ public class Product : AggregateRoot
         Guid imageId,
         int displayOrder)
     {
-        var image = Images
-            .FirstOrDefault(x => x.Id == imageId);
+        var image =
+            Images.FirstOrDefault(
+                x => x.Id == imageId);
 
         if (image == null)
+        {
             throw new InvalidOperationException(
                 "Product image was not found.");
+        }
 
-        image.UpdateOrder(displayOrder);
+        image.UpdateOrder(
+            displayOrder);
     }
 
     // =========================================================
@@ -360,28 +437,36 @@ public class Product : AggregateRoot
         string code)
     {
         if (string.IsNullOrWhiteSpace(name))
+        {
             throw new ArgumentException(
                 "Attribute name is required.",
                 nameof(name));
+        }
 
         if (string.IsNullOrWhiteSpace(code))
+        {
             throw new ArgumentException(
                 "Attribute code is required.",
                 nameof(code));
+        }
 
-        var existing = Attributes
-            .FirstOrDefault(x =>
-                x.Code.Equals(
-                    code,
-                    StringComparison.OrdinalIgnoreCase));
+        var existing =
+            Attributes.FirstOrDefault(
+                x =>
+                    x.Code.Equals(
+                        code,
+                        StringComparison.OrdinalIgnoreCase));
 
         if (existing != null)
+        {
             return existing;
+        }
 
-        var attribute = new ProductAttribute(
-            Id,
-            name,
-            code);
+        var attribute =
+            new ProductAttribute(
+                Id,
+                name,
+                code);
 
         Attributes.Add(attribute);
 
@@ -392,7 +477,8 @@ public class Product : AggregateRoot
     // Slug
     // =========================================================
 
-    private static string GenerateSlug(string name)
+    private static string GenerateSlug(
+        string name)
     {
         return name
             .Trim()

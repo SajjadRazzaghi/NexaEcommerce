@@ -1,4 +1,4 @@
-// src/components/forms/use-submit-form.tsx
+//src/components/forms/use-submit-form.tsx
 import { useState } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 import { toast } from 'sonner';
@@ -30,11 +30,11 @@ export function useSubmitForm<TFormValues, TApiData, TResponse>({
         e.preventDefault();
         setBanner(null);
 
-        // Trigger validation for all fields
+        //Trigger validation for all fields
         const result = await form.trigger(fields as any, { shouldFocus: true });
 
         if (!result) {
-            // Scroll to first error
+            //Scroll to first error
             const firstError = document.querySelector('[data-error="true"]');
             if (firstError) {
                 firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -55,7 +55,7 @@ export function useSubmitForm<TFormValues, TApiData, TResponse>({
 
             onSuccess?.(response);
         } catch (error: any) {
-            // Handle API errors
+            //Handle API errors
             console.error('Form submission error:', error);
 
             if (error?.response?.data?.message) {

@@ -8,14 +8,14 @@ using NexaECommerce.Server.Platform.MultiTenancy;
 
 namespace NexaECommerce.Tests.Integration.Fixtures;
 
-/// <summary>
-/// Replaces the cookie scheme as the default authenticator for tests so we can mint a principal with
-/// exactly the permission claims a scenario needs — without driving the full login/cookie/security-stamp
-/// machinery (that path is covered separately by the auth-flow test). A request carries its identity in
-/// headers: no <see cref="UserIdHeader"/> ⇒ anonymous (401 on protected routes); a comma-separated
-/// <see cref="PermissionsHeader"/> ⇒ those <c>permission</c> claims, which the real
-/// <see cref="PermissionAuthorizationHandler"/> then evaluates.
-/// </summary>
+///<summary>
+///Replaces the cookie scheme as the default authenticator for tests so we can mint a principal with
+///exactly the permission claims a scenario needs — without driving the full login/cookie/security-stamp
+///machinery (that path is covered separately by the auth-flow test). A request carries its identity in
+///headers: no <see cref="UserIdHeader"/> ⇒ anonymous (401 on protected routes); a comma-separated
+///<see cref="PermissionsHeader"/> ⇒ those <c>permission</c> claims, which the real
+///<see cref="PermissionAuthorizationHandler"/> then evaluates.
+///</summary>
 public sealed class TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger, UrlEncoder encoder)
     : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
 {
@@ -26,7 +26,7 @@ public sealed class TestAuthHandler(IOptionsMonitor<AuthenticationSchemeOptions>
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
         if (!Request.Headers.TryGetValue(UserIdHeader, out var userId) || string.IsNullOrEmpty(userId))
-            return Task.FromResult(AuthenticateResult.NoResult()); // unauthenticated request
+            return Task.FromResult(AuthenticateResult.NoResult()); //unauthenticated request
 
         var claims = new List<Claim>
         {

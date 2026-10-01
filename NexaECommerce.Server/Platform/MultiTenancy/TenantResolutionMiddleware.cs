@@ -4,18 +4,18 @@ using NexaECommerce.Server.Data;
 
 namespace NexaECommerce.Server.Platform.MultiTenancy;
 
-/// <summary>
-/// Resolves the tenant for the current HTTP request and stores it in HttpContext.Items
-/// so ITenantContext and AppDbContext can use the same request tenant.
+///<summary>
+///Resolves the tenant for the current HTTP request and stores it in HttpContext.Items
+///so ITenantContext and AppDbContext can use the same request tenant.
 ///
-/// Supported strategies:
-/// - UserClaim: active tenant from the authenticated principal.
-/// - Header: X-Tenant-Id.
-/// - Subdomain: tenant.example.com.
-/// - Path: /t/{tenantId}/... .
+///Supported strategies:
+///- UserClaim: active tenant from the authenticated principal.
+///- Header: X-Tenant-Id.
+///- Subdomain: tenant.example.com.
+///- Path: /t/{tenantId}/... .
 ///
-/// Single-tenant mode always resolves to the default tenant.
-/// </summary>
+///Single-tenant mode always resolves to the default tenant.
+///</summary>
 public sealed class TenantResolutionMiddleware(
     RequestDelegate next,
     IOptions<TenancyOptions> options)
@@ -87,7 +87,7 @@ public sealed class TenantResolutionMiddleware(
                 StringSplitOptions.RemoveEmptyEntries)
             ?? [];
 
-        // /t/{tenantId}/...
+        ///t/{tenantId}/...
         if (segments.Length >= 2 &&
             string.Equals(
                 segments[0],
@@ -108,8 +108,8 @@ public sealed class TenantResolutionMiddleware(
         if (string.IsNullOrWhiteSpace(host))
             return string.Empty;
 
-        // Local development:
-        // localhost / 127.0.0.1 → default tenant.
+        //Local development:
+        //localhost /127.0.0.1 → default tenant.
         if (host.Equals(
                 "localhost",
                 StringComparison.OrdinalIgnoreCase) ||
@@ -122,7 +122,7 @@ public sealed class TenantResolutionMiddleware(
             '.',
             StringSplitOptions.RemoveEmptyEntries);
 
-        // e.g. acme.example.com
+        //e.g. acme.example.com
         if (parts.Length < 3)
             return string.Empty;
 
@@ -187,8 +187,8 @@ public sealed class TenantResolutionMiddleware(
                 System.Security.Claims.ClaimTypes.NameIdentifier)
             ?.Value;
 
-        // Anonymous public requests may resolve a tenant.
-        // Authenticated users may only operate tenants they belong to.
+        //Anonymous public requests may resolve a tenant.
+        //Authenticated users may only operate tenants they belong to.
         if (!string.IsNullOrWhiteSpace(authenticatedUserId))
         {
             var allowedTenants =

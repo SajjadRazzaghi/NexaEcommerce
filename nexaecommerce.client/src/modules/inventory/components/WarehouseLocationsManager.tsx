@@ -176,7 +176,7 @@ export default function WarehouseLocationsManager({ warehouseId }: { warehouseId
                                         <td className="px-3 py-3 font-medium">{location.code}</td>
                                         <td className="px-3 py-3">{location.name}</td>
                                         <td className="px-3 py-3 text-muted-foreground">
-                                            {[location.zone, location.rack, location.shelf, location.bin].filter(Boolean).join(' / ') || '—'}
+                                            {[location.zone, location.rack, location.shelf, location.bin].filter(Boolean).join(' /') || '—'}
                                         </td>
                                         <td className="px-3 py-3">
                                             <Badge variant={location.isActive ? 'default' : 'secondary'}>

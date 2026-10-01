@@ -11,8 +11,8 @@ import { Toaster } from '@/components/ui/sonner';
 import { queryClient } from '@/lib/query-client';
 import i18n, { directionOf } from '@/i18n.config';
 
-// Keep <html lang> and <html dir> in sync with the active language
-// so the page mirrors correctly for RTL scripts.
+//Keep <html lang> and <html dir> in sync with the active language
+//so the page mirrors correctly for RTL scripts.
 function useDocumentLanguage() {
     useEffect(() => {
         const apply = (lng: string) => {
@@ -32,7 +32,7 @@ function useDocumentLanguage() {
     }, []);
 }
 
-// Once signed in, adopt the user's saved language.
+//Once signed in, adopt the user's saved language.
 function AuthLocaleSync() {
     const { user } = useAuth();
 

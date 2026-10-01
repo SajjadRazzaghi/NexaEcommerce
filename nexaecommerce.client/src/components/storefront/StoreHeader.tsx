@@ -147,7 +147,7 @@ export default function StoreHeader() {
         }
 
         navigate(
-            `/ products ? search = ${ encodeURIComponent(value) } `,
+            `/products ? search = ${ encodeURIComponent(value) } `,
         );
     };
 
@@ -225,7 +225,7 @@ export default function StoreHeader() {
                         : 'ltr'
                 }
             >
-                {/* Store logo / name */}
+                {/* Store logo /name */}
                 <Link
                     to="/"
                     className="flex shrink-0 items-center gap-2"

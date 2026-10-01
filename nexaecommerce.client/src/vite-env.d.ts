@@ -1,5 +1,5 @@
-// NexaEcommerce.Client/src/vite-env.d.ts
-/// <reference types="vite/client" />
+//NexaEcommerce.Client/src/vite-env.d.ts
+///<reference types="vite/client" />
 
 interface ImportMetaEnv {
     readonly VITE_API_URL: string;

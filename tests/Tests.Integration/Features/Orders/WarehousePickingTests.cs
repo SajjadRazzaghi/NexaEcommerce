@@ -322,9 +322,9 @@ public sealed class WarehousePickingTests(
         var productVariantId =
             Guid.NewGuid();
 
-        // ============================================================
-        // Inventory: Warehouse
-        // ============================================================
+        //============================================================
+        //Inventory: Warehouse
+        //============================================================
 
         await using var inventoryScope =
             factory.Services.CreateAsyncScope();
@@ -380,9 +380,9 @@ public sealed class WarehousePickingTests(
         await inventoryDb.SaveChangesAsync(
             TestContext.Current.CancellationToken);
 
-        // ============================================================
-        // Orders: Order + Inventory Reservation + Fulfillment
-        // ============================================================
+        //============================================================
+        //Orders: Order + Inventory Reservation + Fulfillment
+        //============================================================
 
         var order =
             Order.Create(
@@ -450,9 +450,9 @@ public sealed class WarehousePickingTests(
         await ordersDb.SaveChangesAsync(
             TestContext.Current.CancellationToken);
 
-        // ============================================================
-        // Warehouse reservation
-        // ============================================================
+        //============================================================
+        //Warehouse reservation
+        //============================================================
 
         if (createWarehouseReservation)
         {

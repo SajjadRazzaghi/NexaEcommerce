@@ -35,6 +35,7 @@ public class ProductAttribute : BaseEntity
     {
         Name = name;
         Code = code;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public AttributeValue AddValue(
@@ -51,5 +52,11 @@ public class ProductAttribute : BaseEntity
         Values.Add(attributeValue);
 
         return attributeValue;
+    }
+
+    public void ClearValues()
+    {
+        Values.Clear();
+        UpdatedAt = DateTime.UtcNow;
     }
 }

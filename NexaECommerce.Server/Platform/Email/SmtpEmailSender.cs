@@ -5,19 +5,19 @@ using MimeKit;
 
 namespace NexaECommerce.Server.Platform.Email;
 
-/// <summary>
-/// Sends transactional email over SMTP via MailKit. Registered automatically when <see cref="EmailOptions"/>
-/// is configured (a host + from address); otherwise the dev console sender is used. A fresh connection per
-/// message keeps it simple and stateless — fine for the app's transactional volume.
-/// </summary>
+///<summary>
+///Sends transactional email over SMTP via MailKit. Registered automatically when <see cref="EmailOptions"/>
+///is configured (a host + from address); otherwise the dev console sender is used. A fresh connection per
+///message keeps it simple and stateless — fine for the app's transactional volume.
+///</summary>
 public sealed class SmtpEmailSender(IOptions<EmailOptions> options, ILogger<SmtpEmailSender> logger) : IEmailSender
 {
     private readonly EmailOptions _options = options.Value;
 
     public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
     {
-        // Guaranteed by EmailOptions.IsConfigured (the only path that registers this sender), but assert so a
-        // misconfiguration surfaces as a clear error rather than a null-reference deep inside MailKit.
+        //Guaranteed by EmailOptions.IsConfigured (the only path that registers this sender), but assert so a
+        //misconfiguration surfaces as a clear error rather than a null-reference deep inside MailKit.
         var fromAddress = message.From ?? _options.FromAddress
             ?? throw new InvalidOperationException("Email:FromAddress must be configured to send email.");
         var smtp = _options.Smtp;

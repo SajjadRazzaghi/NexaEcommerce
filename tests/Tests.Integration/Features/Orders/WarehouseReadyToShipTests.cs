@@ -340,8 +340,8 @@ public sealed class WarehouseReadyToShipTests(
         }
         else
         {
-            // For the no-package test the fulfillment must already
-            // be Packed, otherwise the validation would fail earlier.
+            //For the no-package test the fulfillment must already
+            //be Packed, otherwise the validation would fail earlier.
             fulfillment.MarkPacked();
 
             await db.SaveChangesAsync(

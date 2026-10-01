@@ -3,36 +3,36 @@ using NexaECommerce.Server.Data;
 
 namespace NexaECommerce.Server.Platform.MultiTenancy;
 
-/// <summary>
-/// Per-tenant role assignment — the application's source of truth for "which roles does this user hold
-/// in this tenant", replacing Identity's global <c>AspNetUserRoles</c>. The claims factory, the login
-/// DTO mapping, and the Users / Tenancy admin endpoints all go through here, so every role grant is
-/// tenant-scoped. Role <em>definitions</em> (and their permission claims) remain global in <c>AspNetRoles</c>.
-/// </summary>
+///<summary>
+///Per-tenant role assignment — the application's source of truth for "which roles does this user hold
+///in this tenant", replacing Identity's global <c>AspNetUserRoles</c>. The claims factory, the login
+///DTO mapping, and the Users /Tenancy admin endpoints all go through here, so every role grant is
+///tenant-scoped. Role <em>definitions</em> (and their permission claims) remain global in <c>AspNetRoles</c>.
+///</summary>
 public interface ITenantRoleService
 {
-    /// <summary>Distinct role names the user holds in the tenant (joined to the global role catalog).</summary>
+    ///<summary>Distinct role names the user holds in the tenant (joined to the global role catalog).</summary>
     Task<IReadOnlyList<string>> RoleNamesAsync(string userId, string tenantId, CancellationToken ct = default);
 
-    /// <summary>The distinct tenants the user belongs to — i.e. the tenants they may switch to.</summary>
+    ///<summary>The distinct tenants the user belongs to — i.e. the tenants they may switch to.</summary>
     Task<IReadOnlyList<string>> TenantIdsForUserAsync(string userId, CancellationToken ct = default);
 
     Task<bool> IsMemberAsync(string userId, string tenantId, CancellationToken ct = default);
 
-    /// <summary>Replaces the user's role set in the tenant with exactly <paramref name="roleIds"/> (diffing
-    /// adds/removes). Removing every role drops the membership — the user can no longer switch to the tenant.</summary>
+    ///<summary>Replaces the user's role set in the tenant with exactly <paramref name="roleIds"/> (diffing
+    ///adds/removes). Removing every role drops the membership — the user can no longer switch to the tenant.</summary>
     Task SetRoleIdsAsync(string userId, string tenantId, IReadOnlyCollection<string> roleIds, CancellationToken ct = default);
 
-    /// <summary>Grants a single role in a tenant without disturbing existing ones (idempotent) — the
-    /// invitation-accept path, where the user may already be a member.</summary>
+    ///<summary>Grants a single role in a tenant without disturbing existing ones (idempotent) — the
+    ///invitation-accept path, where the user may already be a member.</summary>
     Task GrantRoleAsync(string userId, string tenantId, string roleId, CancellationToken ct = default);
 
     Task RemoveFromTenantAsync(string userId, string tenantId, CancellationToken ct = default);
 
-    /// <summary>Distinct users holding a role across all tenants — powers the role-management "members" count.</summary>
+    ///<summary>Distinct users holding a role across all tenants — powers the role-management "members" count.</summary>
     Task<int> CountUsersInRoleAsync(string roleId, CancellationToken ct = default);
 
-    /// <summary>Drops every assignment of a role (used when the role is deleted) so no grants are orphaned.</summary>
+    ///<summary>Drops every assignment of a role (used when the role is deleted) so no grants are orphaned.</summary>
     Task RemoveRoleEverywhereAsync(string roleId, CancellationToken ct = default);
 }
 

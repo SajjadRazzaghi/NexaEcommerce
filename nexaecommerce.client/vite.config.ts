@@ -1,4 +1,4 @@
-// vite.config.ts
+//vite.config.ts
 import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vite';
 import plugin from '@vitejs/plugin-react';
@@ -9,9 +9,9 @@ import path from 'path';
 import child_process from 'child_process';
 import { env } from 'process';
 
-// ============================================
-// 1. تنظیم گواهی SSL
-// ============================================
+//============================================
+//1. تنظیم گواهی SSL
+//============================================
 const baseFolder =
     env.APPDATA !== undefined && env.APPDATA !== ''
         ? `${env.APPDATA}/ASP.NET/https`
@@ -39,15 +39,15 @@ if (!fs.existsSync(certFilePath) || !fs.existsSync(keyFilePath)) {
     }
 }
 
-// ✅ استفاده از HTTP برای راحتی
-// ============================================
-// 2. تنظیم Target (هماهنگ با Backend)
-// ============================================
+//✅ استفاده از HTTP برای راحتی
+//============================================
+//2. تنظیم Target (هماهنگ با Backend)
+//============================================
 const target = 'https://localhost:5001';
 
-// ============================================
-// 3. تنظیمات Vite
-// ============================================
+//============================================
+//3. تنظیمات Vite
+//============================================
 export default defineConfig(({ mode }) => ({
     define: {
         'process.env.DRAGGABLE_DEBUG': 'false',
@@ -111,7 +111,7 @@ export default defineConfig(({ mode }) => ({
             cert: fs.readFileSync(certFilePath),
         }
     },
-    // ✅ اضافه کردن برای حل مشکل کش
+    //✅ اضافه کردن برای حل مشکل کش
     optimizeDeps: {
         include: ['@/lib/utils'],
         force: true,

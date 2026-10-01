@@ -1,4 +1,20 @@
 {
+  "variantConfiguration": {
+    "title": "Variant Configuration",
+    "description": "Choose which product attributes create purchasable variants.",
+    "noAttributes": "No catalog attributes are configured as variant-capable."
+  },
+  "specifications": {
+    "title": "Product Specifications",
+    "description": "Add descriptive product properties that are not variant choices.",
+    "empty": "No specifications are currently available.",
+    "select": "Select a value",
+    "valuePlaceholder": "Enter value"
+  },
+  "validation": {
+    "variantRequired": "At least one variant is required when variant attributes are selected.",
+    "variantAttributeRequired": "Select {{attribute}} for every variant."
+  },
   "productAdminDetail": {
     "product": "Product",
     "retry": "Retry",
@@ -43,6 +59,35 @@
     }
   },
   "productEdit": {
+    "specifications": {
+      "title": "Product Specifications",
+      "description": "Add product-level attributes that do not define individual variants.",
+      "add": "Add Specification",
+      "empty": "No product specifications have been added.",
+      "attribute": "Specification",
+      "selectAttribute": "Select specification",
+      "value": "Value",
+      "selectValue": "Select value",
+      "valuePlaceholder": "Enter a value",
+      "errors": {
+        "attributeRequired": "A specification attribute is required.",
+        "duplicateAttribute": "The same specification attribute cannot be added more than once.",
+        "invalidAttribute": "The selected specification attribute is invalid.",
+        "valueRequired": "Select a value for {{attribute}}.",
+        "textRequired": "Enter a value for {{attribute}}."
+      }
+    },
+    "variants": {
+      "dimensionsTitle": "Variant Dimensions",
+      "dimensionsDescription": "Choose which catalog attributes define the variants of this product.",
+      "errors": {
+        "noVariantForDimensions": "Add at least one variant before saving the selected dimensions.",
+        "noActiveVariant": "The product must have at least one active variant.",
+        "missingAttribute": "Variant \"{{sku}}\" must have a value for {{attribute}}.",
+        "duplicateCombination": "Variant \"{{sku}}\" duplicates another variant combination."
+      },
+      "unnamedVariant": "Unnamed variant"
+    },
     "product": "Product",
     "pageTitle": "Edit {{productName}} · {{storeName}}",
     "editTitle": "Edit {{productName}}",
@@ -95,7 +140,18 @@
       "select": "Select",
       "selected": "Selected",
       "empty": "No variants added yet.",
-      "addHint": "Click \"Add Variant\" to add one."
+      "addHint": "Click \"Add Variant\" to add one.",
+      "dimensionsTitle": "Variant Dimensions",
+      "dimensionsDescription": "Choose which catalog attributes define the variants of this product.",
+      "noDimensions": "No active variant attributes are available.",
+      "selectedDimensions": "{{count}} variant dimensions selected",
+      "selectAttribute": "Select {{attribute}}",
+      "unnamedVariant": "Unnamed variant",
+      "errors": {
+        "noActiveVariant": "The product must have at least one active variant.",
+        "missingAttribute": "Variant \"{{sku}}\" must have a value for {{attribute}}.",
+        "duplicateCombination": "Variant \"{{sku}}\" duplicates another variant attribute combination."
+      }
     },
 
     "images": {
@@ -116,7 +172,9 @@
       "featured": "Featured",
       "featuredDescription": "Featured products are highlighted in featured sections.",
       "inStock": "In Stock",
-      "stockDescription": "Product stock status in the storefront."
+      "stockDescription": "Product stock status in the storefront.",
+      "published": "Published",
+      "publishedHint": "Published products are visible to customers when the product is active."
     },
 
     "actions": {

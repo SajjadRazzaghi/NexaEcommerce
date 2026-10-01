@@ -9,7 +9,7 @@ async function fetchMe(): Promise<AuthUser | null> {
   try {
     return await authApi.me();
   } catch (error) {
-    // 401 just means "not signed in" — a null user, not an error to surface.
+    //401 just means "not signed in" — a null user, not an error to surface.
     if (isApiError(error) && error.status === 401) return null;
     throw error;
   }

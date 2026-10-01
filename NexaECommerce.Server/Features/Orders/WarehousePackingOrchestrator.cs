@@ -54,8 +54,8 @@ public sealed class WarehousePackingOrchestrator(
                 "Fulfillment must exist before packing starts.");
         }
 
-        // Idempotency:
-        // اگر قبلاً Packing شروع شده، دوباره package جدید نساز.
+        //Idempotency:
+        //اگر قبلاً Packing شروع شده، دوباره package جدید نساز.
         if (fulfillment.Status == FulfillmentStatus.Packing)
         {
             await EnsurePackingPackageAsync(
@@ -173,7 +173,7 @@ public sealed class WarehousePackingOrchestrator(
                 "At least one active package is required before packing can be completed.");
         }
 
-        // Idempotency
+        //Idempotency
         if (fulfillment.Status == FulfillmentStatus.Packed)
         {
             EnsurePackagesPacked(

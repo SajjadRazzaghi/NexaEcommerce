@@ -5,7 +5,7 @@ using NexaEcommerce.Modules.Catalog.Domain.Interfaces;
 using NexaEcommerce.SharedKernel.Abstractions;
 using NexaEcommerce.SharedKernel.Pagination;
 using System.Text.RegularExpressions;
-
+using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
 namespace NexaEcommerce.Modules.Catalog.Application.Services;
 
 public sealed class ProductService : IProductService
@@ -304,13 +304,15 @@ public sealed class ProductService : IProductService
             defaultVariant.ChangeStock(0);
         }
 
-        // --------------------------------------------------------
-        // Categories
-        // --------------------------------------------------------
+        await SynchronizeProductAttributesAsync(
+            product,
+            createDto.Attributes,
+            cancellationToken);
+
         await ReplaceCategoriesAsync(
-     product,
-     createDto.CategoryIds,
-     cancellationToken);
+            product,
+            createDto.CategoryIds,
+            cancellationToken);
 
         // --------------------------------------------------------
         // Persist
@@ -460,7 +462,10 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
             product,
             updateDto.Variants,
             cancellationToken);
-
+        await SynchronizeProductAttributesAsync(
+    product,
+    updateDto.Attributes,
+    cancellationToken);
         // ------------------------------------------------------------
         // Images
         // ------------------------------------------------------------
@@ -602,7 +607,177 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
     // ============================================================
     // Categories
     // ============================================================
+    private async Task SynchronizeProductAttributesAsync(
+    Product product,
+    IEnumerable<ProductAttributeInputDto>? requestedAttributes,
+    CancellationToken cancellationToken)
+    {
+        requestedAttributes ??=
+            Enumerable.Empty<ProductAttributeInputDto>();
 
+        var catalogAttributes =
+            await _catalogAttributeRepository.GetAllAsync(
+                cancellationToken);
+
+        var activeVariantCodes =
+            product.Variants
+                .Where(v => v.IsActive)
+                .SelectMany(v => v.AttributeValues)
+                .Where(
+                    x =>
+                        x.AttributeValue != null &&
+                        x.AttributeValue.ProductAttribute != null)
+                .Select(
+                    x =>
+                        x.AttributeValue!
+                            .ProductAttribute
+                            .Code
+                            .Trim()
+                            .ToLowerInvariant())
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var requestedCodes =
+            new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
+
+        foreach (var request in requestedAttributes)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (request.CatalogAttributeId == Guid.Empty)
+            {
+                throw new ArgumentException(
+                    "Catalog attribute is required.");
+            }
+
+            var catalogAttribute =
+                catalogAttributes.FirstOrDefault(
+                    x => x.Id == request.CatalogAttributeId);
+
+            if (catalogAttribute is null)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute '{request.CatalogAttributeId}' was not found.");
+            }
+
+            if (!catalogAttribute.IsActive)
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute '{catalogAttribute.Name}' is inactive.");
+            }
+
+            var code =
+                catalogAttribute.Code
+                    .Trim()
+                    .ToLowerInvariant();
+
+            if (!requestedCodes.Add(code))
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute '{catalogAttribute.Name}' was supplied more than once.");
+            }
+
+            if (activeVariantCodes.Contains(code))
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute '{catalogAttribute.Name}' is already used by an active variant and cannot also be a product specification.");
+            }
+
+            var productAttribute =
+                product.Attributes.FirstOrDefault(
+                    x =>
+                        string.Equals(
+                            x.Code,
+                            catalogAttribute.Code,
+                            StringComparison.OrdinalIgnoreCase));
+
+            productAttribute ??=
+                product.AddAttribute(
+                    catalogAttribute.Name,
+                    catalogAttribute.Code);
+
+            productAttribute.Update(
+                catalogAttribute.Name,
+                catalogAttribute.Code);
+
+            productAttribute.ClearValues();
+
+            var usedValueIds =
+                new HashSet<Guid>();
+
+            foreach (var requestedValue in
+                     request.Values ??
+                     new List<ProductAttributeValueInputDto>())
+            {
+                CatalogAttributeValue? catalogValue = null;
+
+                if (requestedValue.CatalogAttributeValueId.HasValue)
+                {
+                    catalogValue =
+                        catalogAttribute.Values.FirstOrDefault(
+                            x =>
+                                x.Id ==
+                                requestedValue.CatalogAttributeValueId.Value);
+
+                    if (catalogValue is null)
+                    {
+                        throw new ArgumentException(
+                            $"Catalog value '{requestedValue.CatalogAttributeValueId}' does not belong to '{catalogAttribute.Name}'.");
+                    }
+
+                    if (!catalogValue.IsActive)
+                    {
+                        throw new ArgumentException(
+                            $"Catalog value '{catalogValue.Value}' is inactive.");
+                    }
+
+                    if (!usedValueIds.Add(catalogValue.Id))
+                    {
+                        continue;
+                    }
+                }
+
+                var value =
+                    catalogValue?.Value ??
+                    requestedValue.Value?.Trim();
+
+                if (string.IsNullOrWhiteSpace(value))
+                {
+                    continue;
+                }
+
+                productAttribute.AddValue(
+                    value,
+                    catalogValue?.DisplayValue ??
+                    requestedValue.DisplayValue,
+                    catalogValue?.ColorHex ??
+                    requestedValue.ColorHex);
+            }
+        }
+
+        // Remove specifications which no longer exist in the request.
+        // Variant attributes are preserved because they are managed by
+        // VariantAttributeValue mappings.
+        foreach (var existingAttribute in
+                 product.Attributes.ToList())
+        {
+            var code =
+                existingAttribute.Code
+                    .Trim()
+                    .ToLowerInvariant();
+
+            if (activeVariantCodes.Contains(code))
+            {
+                continue;
+            }
+
+            if (!requestedCodes.Contains(code))
+            {
+                product.Attributes.Remove(
+                    existingAttribute);
+            }
+        }
+    }
     private async Task ReplaceCategoriesAsync(
         Product product,
         IEnumerable<Guid>? categoryIds,
@@ -1501,31 +1676,70 @@ if (!persistMappingsExplicitly)
 }
 
     private static void ValidateVariantAttributeCombinations(
-    IEnumerable<ProductVariant> variants)
+        IEnumerable<ProductVariant> variants)
     {
+        var activeVariants =
+            variants
+                .Where(v => v.IsActive)
+                .ToList();
+
+        if (activeVariants.Count == 0)
+        {
+            throw new ArgumentException(
+                "A product must have at least one active variant.");
+        }
+
+        var expectedAttributeCodes =
+            (HashSet<string>?)null;
+
         var signatures =
             new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);
 
-        foreach (var variant in variants)
+        foreach (var variant in activeVariants)
         {
+            var mappings =
+                variant.AttributeValues
+                    .Where(
+                        x =>
+                            x.AttributeValue != null &&
+                            x.AttributeValue.ProductAttribute != null)
+                    .ToList();
+
+            var attributeCodes =
+                mappings
+                    .Select(
+                        x =>
+                            x.AttributeValue!
+                                .ProductAttribute
+                                .Code
+                                .Trim()
+                                .ToLowerInvariant())
+                    .ToHashSet(
+                        StringComparer.OrdinalIgnoreCase);
+
+            if (expectedAttributeCodes is null)
+            {
+                expectedAttributeCodes =
+                    attributeCodes;
+            }
+            else if (!expectedAttributeCodes.SetEquals(
+                         attributeCodes))
+            {
+                throw new ArgumentException(
+                    "All active variants of a product must use the same variant attributes.");
+            }
+
             var signature =
                 string.Join(
                     "|",
-                    variant.AttributeValues
-                        .Where(
-                            x => x.AttributeValue != null &&
-                                 x.AttributeValue.ProductAttribute != null)
+                    mappings
                         .Select(
                             x =>
-                                $"{x.AttributeValue!.ProductAttribute!.Code}:{x.AttributeValueId}")
+                                $"{x.AttributeValue!.ProductAttribute!.Code.ToLowerInvariant()}:{x.AttributeValueId}")
                         .OrderBy(
                             x => x,
                             StringComparer.OrdinalIgnoreCase));
-
-            // Variants without attributes are allowed for simple products.
-            if (string.IsNullOrWhiteSpace(signature))
-                continue;
 
             if (!signatures.Add(signature))
             {
