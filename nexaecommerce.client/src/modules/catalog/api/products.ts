@@ -15,14 +15,15 @@ export type ProductAttribute = {
 };
 
 export type ProductAttributeValueInput = {
-    value: string;
+    catalogAttributeValueId?: string | null;
+    value?: string | null;
     displayValue?: string | null;
     colorHex?: string | null;
+    displayOrder: number;
 };
 
 export type ProductAttributeInput = {
-    name: string;
-    code: string;
+    catalogAttributeId: string;
     values: ProductAttributeValueInput[];
 };
 

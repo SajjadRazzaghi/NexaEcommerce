@@ -76,7 +76,7 @@ public interface IProductRepository
 
     void Delete(
         Product product);
-
+    void DetachTrackedVariantAttributeMappings();
     Task DeleteVariantAttributeMappingsAsync(
         Guid variantId,
         IReadOnlyCollection<Guid> attributeValueIds,

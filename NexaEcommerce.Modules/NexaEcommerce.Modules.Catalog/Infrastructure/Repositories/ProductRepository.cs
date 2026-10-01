@@ -114,6 +114,32 @@ public sealed class ProductRepository : IProductRepository
 
         return affectedRows == 1;
     }
+    public void DetachTrackedVariantAttributeMappings()
+    {
+        _context.ChangeTracker.DetectChanges();
+
+        foreach (var entry in
+                 _context.ChangeTracker
+                     .Entries<VariantAttributeValue>()
+                     .ToList())
+        {
+            /*
+             * Existing VAV rows are synchronized explicitly with
+             * ExecuteDelete/ExecuteUpdate-style operations.
+             *
+             * They must never be persisted as Modified/Deleted
+             * by the final SaveChanges().
+             *
+             * Keep Added entities because new mappings are created
+             * through the aggregate and must be inserted by SaveChanges().
+             */
+            if (entry.State != EntityState.Added)
+            {
+                entry.State =
+                    EntityState.Detached;
+            }
+        }
+    }
     public async Task<Product?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default)

@@ -471,16 +471,22 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
         // ------------------------------------------------------------
 
         await _productRepository.ReplaceProductImagesAsync(
-            product.Id,
-            updateDto.Images,
-            cancellationToken);
+     product.Id,
+     updateDto.Images,
+     cancellationToken);
+
+        // ------------------------------------------------------------
+        // Detach existing VariantAttributeValue graph entries.
+        //
+        // Variant attribute mappings are synchronized explicitly by the
+        // repository. Existing mapping rows must never reach SaveChanges
+        // as Modified/Deleted because bulk SQL is not tracked by EF.
+        // ------------------------------------------------------------
+
+        _productRepository.DetachTrackedVariantAttributeMappings();
 
         // ------------------------------------------------------------
         // Persist
-        //
-        // The product was loaded tracked.
-        // ProductRepository.Update intentionally does not attach the
-        // complete graph.
         // ------------------------------------------------------------
 
         _productRepository.Update(
@@ -490,7 +496,7 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
             cancellationToken);
 
 
-}
+    }
 
 
 
