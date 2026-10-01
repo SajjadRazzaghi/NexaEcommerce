@@ -1079,9 +1079,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
         return slug.Trim('-');
     }
     private async Task SynchronizeVariantsAsync(
-      Product product,
-      IEnumerable<UpdateProductVariantDto>? variantDtos,
-      CancellationToken cancellationToken)
+       Product product,
+       IEnumerable<UpdateProductVariantDto>? variantDtos,
+       CancellationToken cancellationToken)
     {
         var requested =
             (variantDtos ??
@@ -1092,19 +1092,42 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
         // preserve the existing lifecycle for backwards compatibility.
         if (requested.Count == 0)
             return;
+    
+        // ------------------------------------------------------------
+        // IMPORTANT:
+        // Snapshot the variants that existed BEFORE this update.
+        //
+        // A newly created ProductVariant receives a Guid immediately,
+        // but it is not persisted until SaveChanges().
+        //
+        // Therefore new variants must never participate in the
+        // "removed variants" synchronization below.
+        // ------------------------------------------------------------
+
+        var existingVariantIds =
+            product.Variants
+                .Select(
+                    x => x.Id)
+                .Where(
+                    x => x != Guid.Empty)
+                .ToHashSet();
 
         // ------------------------------------------------------------
-        // Validate duplicate variant IDs inside the request.
+        // Validate duplicate variant IDs.
         // ------------------------------------------------------------
 
         var duplicateIds =
             requested
-                .Where(x =>
-                    x.Id.HasValue &&
-                    x.Id.Value != Guid.Empty)
-                .GroupBy(x => x.Id!.Value)
-                .Where(x => x.Count() > 1)
-                .Select(x => x.Key)
+                .Where(
+                    x =>
+                        x.Id.HasValue &&
+                        x.Id.Value != Guid.Empty)
+                .GroupBy(
+                    x => x.Id!.Value)
+                .Where(
+                    x => x.Count() > 1)
+                .Select(
+                    x => x.Key)
                 .ToList();
 
         if (duplicateIds.Count > 0)
@@ -1137,8 +1160,10 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 .GroupBy(
                     x => x,
                     StringComparer.OrdinalIgnoreCase)
-                .Where(x => x.Count() > 1)
-                .Select(x => x.Key)
+                .Where(
+                    x => x.Count() > 1)
+                .Select(
+                    x => x.Key)
                 .ToList();
 
         if (duplicateSkus.Count > 0)
@@ -1148,21 +1173,15 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
         }
 
         // ------------------------------------------------------------
-        // Only synchronize removals when explicit existing IDs exist.
+        // Keep track of persisted variants that were explicitly updated.
         // ------------------------------------------------------------
-
-        var hasExistingIds =
-            requested.Any(
-                x =>
-                    x.Id.HasValue &&
-                    x.Id.Value != Guid.Empty);
 
         var matchedExisting =
             new HashSet<Guid>();
 
-        // ------------------------------------------------------------
-        // Synchronize requested variants.
-        // ------------------------------------------------------------
+        // ============================================================
+        // SYNCHRONIZE REQUESTED VARIANTS
+        // ============================================================
 
         foreach (var dto in requested)
         {
@@ -1178,9 +1197,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                     "Every variant SKU is required.");
             }
 
-            // ============================================================
+            // ========================================================
             // EXISTING VARIANT
-            // ============================================================
+            // ========================================================
 
             if (dto.Id.HasValue &&
                 dto.Id.Value != Guid.Empty)
@@ -1191,10 +1210,19 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 var variant =
                     product.Variants.FirstOrDefault(
                         x =>
-                            x.Id ==
-                            variantId);
+                            x.Id == variantId);
 
                 if (variant is null)
+                {
+                    throw new KeyNotFoundException(
+                        $"Product variant '{variantId}' was not found.");
+                }
+
+                // The ID was supplied as an existing variant ID,
+                // therefore it must also be one of the variants that
+                // existed when this update started.
+                if (!existingVariantIds.Contains(
+                        variantId))
                 {
                     throw new KeyNotFoundException(
                         $"Product variant '{variantId}' was not found.");
@@ -1206,9 +1234,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                         "The specified variant does not belong to this product.");
                 }
 
-                // --------------------------------------------------------
+                // ----------------------------------------------------
                 // SKU uniqueness.
-                // --------------------------------------------------------
+                // ----------------------------------------------------
 
                 if (await _productRepository.ExistsByVariantSkuAsync(
                         sku,
@@ -1219,9 +1247,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                         $"Variant SKU '{sku}' already exists.");
                 }
 
-                // --------------------------------------------------------
+                // ----------------------------------------------------
                 // Update scalar/domain values.
-                // --------------------------------------------------------
+                // ----------------------------------------------------
 
                 variant.ChangeSku(
                     sku);
@@ -1236,9 +1264,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 variant.SetActive(
                     dto.IsActive);
 
-                // --------------------------------------------------------
+                // ----------------------------------------------------
                 // Persist scalar ProductVariant fields directly.
-                // --------------------------------------------------------
+                // ----------------------------------------------------
 
                 var variantUpdated =
                     await _productRepository.UpdateVariantAsync(
@@ -1255,9 +1283,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                         $"Product variant '{variant.Id}' no longer exists.");
                 }
 
-                // --------------------------------------------------------
-                // Synchronize attribute mappings separately.
-                // --------------------------------------------------------
+                // ----------------------------------------------------
+                // Synchronize attribute mappings.
+                // ----------------------------------------------------
 
                 await ReplaceVariantAttributesAsync(
                     product,
@@ -1266,18 +1294,19 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                     persistMappingsExplicitly: true,
                     cancellationToken);
 
+                // This is a persisted/original variant.
                 matchedExisting.Add(
                     variant.Id);
 
                 // IMPORTANT:
-                // Inventory is the source of truth.
-                // Product edit never changes existing stock.
+                // Existing inventory is controlled by Inventory.
+                // Product editing does not modify stock.
                 continue;
             }
 
-            // ============================================================
+            // ========================================================
             // NEW VARIANT
-            // ============================================================
+            // ========================================================
 
             if (await _productRepository.ExistsByVariantSkuAsync(
                     sku,
@@ -1294,18 +1323,18 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                     product.Price,
                     dto.ComparePrice);
 
-            // IMPORTANT:
-            // Inventory is the single source of truth for stock.
-            //
-            // A new variant starts without catalog-managed stock.
-            // Product edit must not write stock quantities.
+            // New variants start without catalog-managed stock.
+            // Inventory is the source of truth.
 
             newVariant.SetActive(
                 dto.IsActive);
 
-            // ------------------------------------------------------------
+            // --------------------------------------------------------
             // New variant attribute mappings.
-            // ------------------------------------------------------------
+            //
+            // The new variant is tracked by EF as part of the Product
+            // aggregate and will be inserted during SaveChanges().
+            // --------------------------------------------------------
 
             await ReplaceVariantAttributesAsync(
                 product,
@@ -1315,67 +1344,68 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 cancellationToken);
         }
 
-        // ================================================================
-        // SYNCHRONIZE REMOVALS
-        // ================================================================
+    
+// ================================================================
+// SYNCHRONIZE REMOVALS
+// ================================================================
 
-        if (hasExistingIds)
+        /*
+         * Only variants that existed before this update can be removed.
+         *
+         * A newly created ProductVariant already has a Guid in memory,
+         * but it has not been inserted into the database yet.
+         *
+         * Therefore a new variant must never be sent to
+         * UpdateVariantAsync() as a removal candidate.
+         */
+
+foreach (var existingVariant in
+         product.Variants
+             .Where(
+                 x =>
+                     existingVariantIds.Contains(
+                         x.Id))
+             .ToList())
         {
-            foreach (var existingVariant
-                     in product.Variants.ToList())
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (matchedExisting.Contains(
+                    existingVariant.Id))
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                continue;
+            }
 
-                if (matchedExisting.Contains(
-                        existingVariant.Id))
-                {
-                    continue;
-                }
+            // Existing variant was removed from the request.
+            // Keep the record and deactivate it.
 
-                var wasExplicitlyRequested =
-                    requested.Any(
-                        x =>
-                            x.Id.HasValue &&
-                            x.Id.Value != Guid.Empty &&
-                            x.Id.Value ==
-                            existingVariant.Id);
+            existingVariant.Deactivate();
 
-                if (wasExplicitlyRequested)
-                {
-                    continue;
-                }
+            var variantUpdated =
+                await _productRepository.UpdateVariantAsync(
+                    existingVariant.Id,
+                    existingVariant.Sku,
+                    existingVariant.PriceOverride,
+                    existingVariant.ComparePrice,
+                    false,
+                    cancellationToken);
 
-                // --------------------------------------------------------
-                // Variant was removed from requested set.
-                // Deactivate instead of deleting.
-                // --------------------------------------------------------
-
-                existingVariant.Deactivate();
-
-                var variantUpdated =
-                    await _productRepository.UpdateVariantAsync(
-                        existingVariant.Id,
-                        existingVariant.Sku,
-                        existingVariant.PriceOverride,
-                        existingVariant.ComparePrice,
-                        false,
-                        cancellationToken);
-
-                if (!variantUpdated)
-                {
-                    throw new KeyNotFoundException(
-                        $"Product variant '{existingVariant.Id}' no longer exists.");
-                }
+            if (!variantUpdated)
+            {
+                throw new KeyNotFoundException(
+                    $"Product variant '{existingVariant.Id}' no longer exists.");
             }
         }
 
-        // ================================================================
+
+
+        // ============================================================
         // FINAL VALIDATION
-        // ================================================================
+        // ============================================================
 
         var activeVariants =
             product.Variants
-                .Where(x => x.IsActive)
+                .Where(
+                    x => x.IsActive)
                 .ToList();
 
         if (activeVariants.Count == 0)

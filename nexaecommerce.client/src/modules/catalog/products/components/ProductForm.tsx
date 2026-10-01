@@ -448,6 +448,7 @@ const emptyValues: FormValues = {
     images: [],
 };
 
+
 function toValues(
     product: Product | undefined,
     catalogAttributes: CatalogAttribute[] | undefined,
@@ -479,13 +480,15 @@ function toValues(
     /* ---------------------------------------------------------------------- */
 
     const normalize =
-        (value?: string | null) =>
+        (value?: string | null): string =>
             value
                 ?.trim()
                 .toLowerCase() ?? '';
 
     const findCatalogAttributeByCode =
-        (code?: string | null) => {
+        (
+            code?: string | null,
+        ): CatalogAttribute | undefined => {
             const normalizedCode =
                 normalize(code);
 
@@ -495,12 +498,19 @@ function toValues(
 
             return availableCatalogAttributes.find(
                 attribute =>
-                    normalize(
-                        attribute.code,
-                    ) === normalizedCode,
+                    normalize(attribute.code) ===
+                    normalizedCode,
             );
         };
 
+    /*
+     * Product-side AttributeValue IDs and Catalog-side
+     * CatalogAttributeValue IDs are different IDs.
+     *
+     * Therefore we only trust the ID when it really belongs
+     * to the current CatalogAttribute. Otherwise we resolve
+     * the value by value/displayValue.
+     */
     const findCatalogValue =
         (
             catalogAttribute: CatalogAttribute,
@@ -514,16 +524,19 @@ function toValues(
                 return undefined;
             }
 
+            const catalogValues =
+                catalogAttribute.values ?? [];
+
             const productValueId =
                 productValue.id;
 
-            /* First try ID only when it is actually a Catalog Value ID. */
+            /* -------------------------------------------------------------- */
+            /* 1. Direct ID match                                            */
+            /* -------------------------------------------------------------- */
+
             if (productValueId) {
                 const byId =
-                    (
-                        catalogAttribute.values ??
-                        []
-                    ).find(
+                    catalogValues.find(
                         value =>
                             value.id ===
                             productValueId,
@@ -533,6 +546,10 @@ function toValues(
                     return byId;
                 }
             }
+
+            /* -------------------------------------------------------------- */
+            /* 2. Text fallback                                               */
+            /* -------------------------------------------------------------- */
 
             const productValueText =
                 normalize(
@@ -544,15 +561,14 @@ function toValues(
                     productValue.displayValue,
                 );
 
-            if (!productValueText &&
-                !productDisplayText) {
+            if (
+                !productValueText &&
+                !productDisplayText
+            ) {
                 return undefined;
             }
 
-            return (
-                catalogAttribute.values ??
-                []
-            ).find(
+            return catalogValues.find(
                 value => {
                     const catalogValueText =
                         normalize(
@@ -565,24 +581,27 @@ function toValues(
                         );
 
                     return (
-                        Boolean(
-                            productValueText,
-                        ) &&
                         (
-                            catalogValueText ===
-                                productValueText ||
-                            catalogDisplayText ===
-                                productValueText
-                        )
-                    ) || (
-                        Boolean(
-                            productDisplayText,
-                        ) &&
+                            Boolean(
+                                productValueText,
+                            ) &&
+                            (
+                                catalogValueText ===
+                                    productValueText ||
+                                catalogDisplayText ===
+                                    productValueText
+                            )
+                        ) ||
                         (
-                            catalogValueText ===
-                                productDisplayText ||
-                            catalogDisplayText ===
-                                productDisplayText
+                            Boolean(
+                                productDisplayText,
+                            ) &&
+                            (
+                                catalogValueText ===
+                                    productDisplayText ||
+                                catalogDisplayText ===
+                                    productDisplayText
+                            )
                         )
                     );
                 },
@@ -590,15 +609,9 @@ function toValues(
         };
 
     /* ---------------------------------------------------------------------- */
-    /* Product Specifications                                                 */
+    /* Detect Variant Dimensions                                             */
     /* ---------------------------------------------------------------------- */
 
-    /*
-     * Product.Attributes contains product-level attributes.
-     *
-     * Variant dimensions are NOT specifications.
-     * They are identified later from Variant Attribute mappings.
-     */
     const variantCodes =
         new Set(
             (
@@ -620,6 +633,14 @@ function toValues(
             ),
         );
 
+    /* ---------------------------------------------------------------------- */
+    /* Product Specifications                                                */
+    /* ---------------------------------------------------------------------- */
+
+    /*
+     * Product-level specifications must not contain
+     * attributes that are being used as Variant dimensions.
+     */
     const specifications =
         productAttributes.flatMap(
             attribute => {
@@ -632,11 +653,6 @@ function toValues(
                     return [];
                 }
 
-                /*
-                 * Attributes used by active variants are managed
-                 * as variant dimensions and must not be loaded
-                 * into the product specification editor.
-                 */
                 const isVariantAttribute =
                     variantCodes.has(
                         productCode,
@@ -667,7 +683,14 @@ function toValues(
                             const catalogValue =
                                 findCatalogValue(
                                     catalogAttribute,
-                                    productValue,
+                                    {
+                                        id:
+                                            productValue.id,
+                                        value:
+                                            productValue.value,
+                                        displayValue:
+                                            productValue.displayValue,
+                                    },
                                 );
 
                             const rawValue =
@@ -677,9 +700,6 @@ function toValues(
                                     ''
                                 ).trim();
 
-                            /*
-                             * Ignore malformed/empty values.
-                             */
                             if (!rawValue) {
                                 return null;
                             }
@@ -792,6 +812,20 @@ function toValues(
             []
         ).map(
             variant => {
+                /*
+                 * Backend returns:
+                 *
+                 * variant.attributes[].attributeValueId
+                 *
+                 * which is the Product-side AttributeValue ID.
+                 *
+                 * The form, however, must hold:
+                 *
+                 * CatalogAttributeValue ID
+                 *
+                 * because PUT /products/{id} expects catalog
+                 * value IDs.
+                 */
                 const attributeValueIds =
                     Array.from(
                         new Set(
@@ -806,20 +840,7 @@ function toValues(
                                                 attribute.attributeCode,
                                             );
 
-
-                                        const attributeValue =
-                                            normalize(
-                                                attribute.value,
-                                            );
-
-                                        const attributeDisplayValue =
-                                            normalize(
-                                                attribute.displayValue,
-                                            );
-
-                                        if (
-                                            !attributeCode
-                                        ) {
+                                        if (!attributeCode) {
                                             return undefined;
                                         }
 
@@ -833,51 +854,29 @@ function toValues(
                                         }
 
                                         const catalogValue =
-                                            (
-                                                catalogAttribute.values ??
-                                                []
-                                            ).find(
-                                                value => {
-                                                    const valueText =
-                                                        normalize(
-                                                            value.value,
-                                                        );
+                                            findCatalogValue(
+                                                catalogAttribute,
+                                                {
+                                                    /*
+                                                     * Do NOT treat
+                                                     * attributeValueId
+                                                     * as catalog value ID.
+                                                     *
+                                                     * It belongs to
+                                                     * ProductAttributeValue.
+                                                     */
+                                                    value:
+                                                        attribute.value,
 
-                                                    const displayText =
-                                                        normalize(
-                                                            value.displayValue,
-                                                        );
-
-                                                    return (
-                                                        (
-                                                            Boolean(
-                                                                attributeValue,
-                                                            ) &&
-                                                            (
-                                                                valueText ===
-                                                                attributeValue ||
-                                                                displayText ===
-                                                                attributeValue
-                                                            )
-                                                        ) ||
-                                                        (
-                                                            Boolean(
-                                                                attributeDisplayValue,
-                                                            ) &&
-                                                            (
-                                                                valueText ===
-                                                                attributeDisplayValue ||
-                                                                displayText ===
-                                                                attributeDisplayValue
-                                                            )
-                                                        )
-                                                    );
+                                                    displayValue:
+                                                        attribute.displayValue,
                                                 },
                                             );
 
-                                        return catalogValue?.id;
-
-
+                                        return (
+                                            catalogValue?.id ??
+                                            undefined
+                                        );
                                     },
                                 )
                                 .filter(
@@ -891,9 +890,10 @@ function toValues(
 
                 return {
                     /*
-                     * This is the real persisted ProductVariant ID.
-                     * useFieldArray internal ID is handled separately
-                     * through keyName: 'fieldId'.
+                     * This is the REAL ProductVariant ID.
+                     *
+                     * It must never be replaced by the
+                     * useFieldArray internal row ID.
                      */
                     id:
                         variant.id,
@@ -907,8 +907,11 @@ function toValues(
                         undefined,
 
                     /*
-                     * Existing stock is display-only here.
-                     * It is intentionally NOT sent back in UPDATE.
+                     * Existing stock is display-only
+                     * on the edit form.
+                     *
+                     * It must not be sent back as part of
+                     * the UPDATE payload.
                      */
                     stockQuantity:
                         variant.stockQuantity ??
@@ -1014,6 +1017,8 @@ function toValues(
         images,
     };
 }
+
+
 
 
 /* -------------------------------------------------------------------------- */
@@ -1706,26 +1711,26 @@ export function ProductForm(
                     ),
             ) ?? '';
 
-
     const setVariantAttributeValue =
         (
-            variantIndex:
-                number,
-
-            attribute:
-                CatalogAttribute,
-
-            nextValueId:
-                string,
+            variantIndex: number,
+            attribute: CatalogAttribute,
+            nextValueId: string,
         ) => {
+            const fieldName =
+                `variants.${variantIndex}.attributeValueIds` as const;
+
             const currentIds =
                 form.getValues(
-                    `variants.${variantIndex}.attributeValueIds`,
+                    fieldName,
                 ) ?? [];
 
             const currentAttributeValueIds =
                 new Set(
-                    attribute.values.map(
+                    (
+                        attribute.values ??
+                        []
+                    ).map(
                         value =>
                             value.id,
                     ),
@@ -1747,25 +1752,103 @@ export function ProductForm(
                     ]
                     : idsWithoutCurrentAttribute;
 
-            form.setValue(
-                `variants.${variantIndex}.attributeValueIds`,
+            const normalizedIds =
                 Array.from(
                     new Set(
                         nextIds,
                     ),
-                ),
+                );
+
+            /*
+             * Do not allow two active variants to use the
+             * exact same attribute combination.
+             */
+            if (
+                hasDuplicateVariantCombination(
+                    variantIndex,
+                    normalizedIds,
+                )
+            ) {
+                /*
+                 * Keep the previous selection.
+                 * The server performs the same validation on Save.
+                 */
+                return;
+            }
+
+            form.setValue(
+                fieldName,
+                normalizedIds,
                 {
-                    shouldDirty:
-                        true,
-
-                    shouldTouch:
-                        true,
-
-                    shouldValidate:
-                        true,
+                    shouldDirty: true,
+                    shouldTouch: true,
+                    shouldValidate: true,
                 },
             );
         };
+    
+const getVariantCombinationSignature =
+    (
+        attributeValueIds: string[],
+    ): string => {
+        return Array.from(
+            new Set(
+                attributeValueIds,
+            ),
+        )
+            .sort()
+            .join('|');
+    };
+
+
+const hasDuplicateVariantCombination =
+    (
+        variantIndex: number,
+        nextIds: string[],
+    ): boolean => {
+        const currentVariants =
+            form.getValues(
+                'variants',
+            ) ?? [];
+
+        const nextSignature =
+            getVariantCombinationSignature(
+                nextIds,
+            );
+
+        return currentVariants.some(
+            (
+                variant,
+                index,
+            ) => {
+                if (
+                    index ===
+                    variantIndex
+                ) {
+                    return false;
+                }
+
+                if (
+                    !variant.isActive
+                ) {
+                    return false;
+                }
+
+                const otherSignature =
+                    getVariantCombinationSignature(
+                        variant.attributeValueIds ??
+                        [],
+                    );
+
+                return (
+                    nextSignature ===
+                    otherSignature
+                );
+            },
+        );
+    };
+
+
 
 
     const sanitizeVariantAttributeValueIds =
