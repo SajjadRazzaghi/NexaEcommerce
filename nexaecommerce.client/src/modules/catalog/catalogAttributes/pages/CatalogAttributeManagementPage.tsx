@@ -566,19 +566,32 @@ export default function CatalogAttributeManagementPage() {
                                         displayType: event.target.value,
                                     }))
                                 }
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                disabled={
+                                    isLoadingDisplayTypes ||
+                                    sortedDisplayTypes.length === 0
+                                }
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                                <option value="select">
-                                    {t(
-                                        'catalogAttributes.form.displayTypeOptions.select',
-                                    )}
+                                <option value="">
+                                    {isLoadingDisplayTypes
+                                        ? t(
+                                            'catalogAttributes.form.loadingDisplayTypes',
+                                        )
+                                        : t(
+                                            'catalogAttributes.form.selectDisplayType',
+                                        )}
                                 </option>
 
-                                <option value="color">
-                                    {t(
-                                        'catalogAttributes.form.displayTypeOptions.color',
-                                    )}
-                                </option>
+                                {sortedDisplayTypes.map((displayType) => (
+                                    <option
+                                        key={displayType.id}
+                                        value={displayType.code}
+                                    >
+                                        {i18n.language.startsWith('fa')
+                                            ? displayType.nameFa
+                                            : displayType.nameEn}
+                                    </option>
+                                ))}
                             </select>
 
                                 <Input

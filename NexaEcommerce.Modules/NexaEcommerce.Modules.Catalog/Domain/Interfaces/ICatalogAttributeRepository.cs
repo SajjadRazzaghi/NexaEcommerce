@@ -26,7 +26,9 @@ public interface ICatalogAttributeRepository
     void Update(CatalogAttribute attribute);
 
     void Remove(CatalogAttribute attribute);
-
+    Task AddValueAsync(
+    CatalogAttributeValue value,
+    CancellationToken cancellationToken = default);
     Task SaveChangesAsync(
         CancellationToken cancellationToken = default);
 }

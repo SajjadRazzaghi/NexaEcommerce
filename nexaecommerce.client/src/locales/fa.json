@@ -15,8 +15,9 @@
       "loadingDisplayTypes": "در حال بارگذاری انواع نمایش...",
       "selectDisplayType": "انتخاب نوع نمایش",
       "title": "فرم ویژگی",
+      "editTitle": "ویرایش ویژگی",
       "description": "یک تعریف قابل استفاده مجدد برای ویژگی محصول ایجاد کنید.",
-      
+
       "name": "نام",
       "code": "کد",
       "displayType": "نوع نمایش",
@@ -37,6 +38,7 @@
     "list": {
       "variant": "تنوع",
       "product": "محصول",
+      "attribute": "ویژگی",
       "edit": "ویرایش",
       "delete": "حذف",
       "addValue": "افزودن مقدار",
@@ -143,6 +145,7 @@
       "description": "مشخصات خود محصول را که بخشی از ترکیب تنوع‌ها نیستند اضافه کنید.",
       "add": "افزودن مشخصه",
       "empty": "هنوز مشخصه‌ای برای محصول اضافه نشده است.",
+      "noAvailableAttributes": "هیچ مشخصه‌ای برای انتخاب در دسترس نیست.",
       "attribute": "مشخصه",
       "selectAttribute": "انتخاب مشخصه",
       "value": "مقدار",
@@ -156,18 +159,46 @@
         "textRequired": "برای «{{attribute}}» مقدار وارد کنید."
       }
     },
+
     "variants": {
+      "title": "تنوع‌ها",
+      "description": "SKU، ویژگی‌های کاتالوگ، قیمت و موجودی تنوع‌ها را مدیریت کنید.",
+      "add": "افزودن تنوع",
+      "remove": "حذف تنوع",
+
       "dimensionsTitle": "ابعاد تنوع محصول",
       "dimensionsDescription": "ویژگی‌های کاتالوگ مورد استفاده برای ایجاد تنوع‌های این محصول را انتخاب کنید.",
+      "noDimensions": "هیچ ویژگی فعالی برای ایجاد تنوع در دسترس نیست.",
+      "selectedDimensions": "{{count}} بُعد برای تنوع انتخاب شده است.",
+
+      "sku": "SKU",
+      "skuPlaceholder": "SKU تنوع",
+      "price": "قیمت تنوع",
+
+      "stock": "موجودی",
+      "existingStock": "موجودی موجود توسط سیستم انبار مدیریت می‌شود.",
+
+      "attributeCount": "ویژگی تنوع",
+      "select": "انتخاب",
+      "selected": "انتخاب‌شده",
+
+      "selectAttribute": "انتخاب {{attribute}}",
+
+      "empty": "هنوز تنوعی اضافه نشده است.",
+      "addHint": "برای افزودن تنوع روی «افزودن تنوع» کلیک کنید.",
+
+      "unnamedVariant": "تنوع بدون نام",
+
       "errors": {
         "noVariantForDimensions": "برای ابعاد انتخاب‌شده حداقل یک تنوع اضافه کنید.",
         "noActiveVariant": "محصول باید حداقل یک تنوع فعال داشته باشد.",
         "missingAttribute": "برای تنوع «{{sku}}» باید مقدار «{{attribute}}» انتخاب شود.",
         "duplicateCombination": "تنوع «{{sku}}» دارای ترکیب ویژگی تکراری است."
-      },
-      "unnamedVariant": "تنوع بدون نام"
+      }
     },
+
     "product": "محصول",
+
     "pageTitle": "ویرایش {{productName}} · {{storeName}}",
     "editTitle": "ویرایش {{productName}}",
     "description": "اطلاعات محصول، تنوع‌ها و تنظیمات کاتالوگ را به‌روزرسانی کنید.",
@@ -180,7 +211,7 @@
 
     "fields": {
       "sku": "کد SKU محصول",
-      "slug": " slug محصول",
+      "slug": "اسلاگ محصول",
       "productName": "نام محصول *",
       "generatedAutomatically": "به‌صورت خودکار تولید می‌شود",
       "productSku": "کد SKU محصول",
@@ -204,22 +235,6 @@
     "brandCategories": {
       "title": "برند و دسته‌بندی‌ها",
       "description": "برند و دسته‌بندی‌های محصول را انتخاب کنید"
-    },
-
-    
-      "title": "تنوع‌ها",
-     
-      "add": "افزودن تنوع",
-      "skuPlaceholder": "SKU تنوع",
-      "sku": "SKU",
-      "stock": "موجودی",
-      "existingStock": "موجودی موجود توسط سیستم انبار مدیریت می‌شود.",
-      "price": "قیمت تنوع",
-      "attributeCount": "ویژگی تنوع",
-      "select": "انتخاب",
-      "selected": "انتخاب‌شده",
-      "empty": "هنوز تنوعی اضافه نشده است.",
-      "addHint": "برای افزودن تنوع روی «افزودن تنوع» کلیک کنید."
     },
 
     "images": {
@@ -257,8 +272,8 @@
       "updated": "محصول با موفقیت به‌روزرسانی شد."
     },
 
-    "optional": "اختیاری",
- 
+    "optional": "اختیاری"
+  },
   "appearance": {
     "loadError": "بارگذاری اطلاعات برند فروشگاه انجام نشد.",
     "retry": "تلاش مجدد",

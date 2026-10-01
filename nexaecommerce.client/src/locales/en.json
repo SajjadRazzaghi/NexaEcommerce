@@ -15,8 +15,9 @@
       "loadingDisplayTypes": "Loading display types...",
       "selectDisplayType": "Select display type",
       "title": "Attribute Form",
+      "editTitle": "Edit Attribute",
       "description": "Create a reusable attribute definition.",
-  
+
       "name": "Name",
       "code": "Code",
       "displayType": "Display type",
@@ -37,6 +38,7 @@
     "list": {
       "variant": "Variant",
       "product": "Product",
+      "attribute": "Attribute",
       "edit": "Edit",
       "delete": "Delete",
       "addValue": "Add Value",
@@ -157,6 +159,10 @@
       }
     },
     "variants": {
+      "brandCategories": {
+        "title": "Brand & Categories",
+        "description": "Select the product brand and categories"
+      },
       "dimensionsTitle": "Variant Dimensions",
       "dimensionsDescription": "Choose which catalog attributes define the variants of this product.",
       "errors": {
@@ -201,38 +207,7 @@
       "description": "Product pricing and discount settings"
     },
 
-    "brandCategories": {
-      "title": "Brand & Categories",
-      "description": "Select the product brand and categories"
-    },
-
-    "variants": {
-      "title": "Variants",
-      "description": "SKU, catalog attributes, variant pricing and availability",
-      "add": "Add Variant",
-      "skuPlaceholder": "Variant SKU",
-      "sku": "SKU",
-      "stock": "Stock",
-      "existingStock": "Existing stock is managed by Inventory.",
-      "price": "Variant Price",
-      "attributeCount": "variant attributes",
-      "select": "Select",
-      "selected": "Selected",
-      "empty": "No variants added yet.",
-      "addHint": "Click \"Add Variant\" to add one.",
-      "dimensionsTitle": "Variant Dimensions",
-      "dimensionsDescription": "Choose which catalog attributes define the variants of this product.",
-      "noDimensions": "No active variant attributes are available.",
-      "selectedDimensions": "{{count}} variant dimensions selected",
-      "selectAttribute": "Select {{attribute}}",
-      "unnamedVariant": "Unnamed variant",
-      "errors": {
-        "noActiveVariant": "The product must have at least one active variant.",
-        "missingAttribute": "Variant \"{{sku}}\" must have a value for {{attribute}}.",
-        "duplicateCombination": "Variant \"{{sku}}\" duplicates another variant attribute combination."
-      }
-    },
-
+    
     "images": {
       "title": "Images",
       "description": "Product images",
@@ -1350,7 +1325,7 @@
       "availableQuantity": "Available quantity",
       "description": "Description",
       "categories": "Categories",
-      "manufacturer": "Manufacturer",
+      "manufacturer": "Manufacturer"
      
     },
 

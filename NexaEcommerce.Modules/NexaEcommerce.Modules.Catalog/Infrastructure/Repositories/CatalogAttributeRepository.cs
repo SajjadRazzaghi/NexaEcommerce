@@ -81,7 +81,14 @@ public class CatalogAttributeRepository : ICatalogAttributeRepository
             attribute,
             cancellationToken);
     }
-
+    public async Task AddValueAsync(
+    CatalogAttributeValue value,
+    CancellationToken cancellationToken = default)
+    {
+        await _context.CatalogAttributeValues.AddAsync(
+            value,
+            cancellationToken);
+    }
     public void Update(CatalogAttribute attribute)
     {
         _context.CatalogAttributes.Update(attribute);

@@ -191,16 +191,22 @@ public sealed class CatalogAttributeService : ICatalogAttributeService
                 $"The value '{value}' already exists for attribute '{attribute.Name}'.");
 
         var attributeValue = attribute.AddValue(
-            value,
-            displayValue,
-            colorHex,
-            dto.DisplayOrder,
-            dto.IsActive);
+     value,
+     displayValue,
+     colorHex,
+     dto.DisplayOrder,
+     dto.IsActive);
 
-        _repository.Update(attribute);
-        await _repository.SaveChangesAsync(cancellationToken);
+        await _repository.AddValueAsync(
+            attributeValue,
+            cancellationToken);
+
+        await _repository.SaveChangesAsync(
+            cancellationToken);
 
         return Map(attributeValue);
+
+        
     }
 
     public async Task<CatalogAttributeValueDto?> UpdateValueAsync(
