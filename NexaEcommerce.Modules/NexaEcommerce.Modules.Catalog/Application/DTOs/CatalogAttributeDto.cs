@@ -63,3 +63,10 @@ public sealed record UpdateCatalogAttributeValueDto(
     int DisplayOrder,
     bool IsActive
 );
+public sealed record CatalogAttributeDisplayTypeDto(
+    Guid Id,
+    string Code,
+    string NameEn,
+    string NameFa,
+    int DisplayOrder
+);

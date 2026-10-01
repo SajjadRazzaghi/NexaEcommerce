@@ -11,7 +11,13 @@ export type CatalogAttributeValue = {
     displayOrder: number;
     isActive: boolean;
 };
-
+export type CatalogAttributeDisplayType = {
+    id: string;
+    code: string;
+    nameEn: string;
+    nameFa: string;
+    displayOrder: number;
+};
 export type CatalogAttribute = {
     id: string;
 
@@ -76,6 +82,15 @@ export const catalogAttributesApi = {
                 signal,
             },
         ),
+    listDisplayTypes: (
+        signal?: AbortSignal,
+    ) =>
+        api.get<CatalogAttributeDisplayType[]>(
+            '/catalog/attribute-display-types',
+            {
+                signal,
+            },
+        ),
 
     get: (id: string) =>
         api.get<CatalogAttribute>(
@@ -130,4 +145,5 @@ export const catalogAttributesApi = {
         api.del<void>(
             `/catalog/attributes/${attributeId}/values/${valueId}`,
         ),
+
 };

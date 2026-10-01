@@ -12,12 +12,11 @@
     "unexpectedError": "خطای غیرمنتظره.",
 
     "form": {
+      "loadingDisplayTypes": "در حال بارگذاری انواع نمایش...",
+      "selectDisplayType": "انتخاب نوع نمایش",
       "title": "فرم ویژگی",
       "description": "یک تعریف قابل استفاده مجدد برای ویژگی محصول ایجاد کنید.",
-      "displayTypeOptions": {
-        "select": "انتخاب معمولی",
-        "color": "رنگ"
-      },
+      
       "name": "نام",
       "code": "کد",
       "displayType": "نوع نمایش",
@@ -207,20 +206,9 @@
       "description": "برند و دسته‌بندی‌های محصول را انتخاب کنید"
     },
 
-    "variants": {
-      "dimensionsTitle": "ویژگی‌های تنوع محصول",
-      "dimensionsDescription": "ویژگی‌های کاتالوگ مورد استفاده برای ایجاد تنوع‌های این محصول را انتخاب کنید.",
-      "noDimensions": "هیچ ویژگی فعال و قابل استفاده برای تنوع وجود ندارد.",
-      "selectedDimensions": "{{count}} ویژگی برای تنوع انتخاب شده است",
-      "selectAttribute": "{{attribute}} را انتخاب کنید",
-      "unnamedVariant": "تنوع بدون نام",
-      "errors": {
-        "noActiveVariant": "محصول باید حداقل یک تنوع فعال داشته باشد.",
-        "missingAttribute": "برای تنوع «{{sku}}» باید مقدار {{attribute}} انتخاب شود.",
-        "duplicateCombination": "تنوع «{{sku}}» دارای ترکیب ویژگی تکراری است."
-      },
+    
       "title": "تنوع‌ها",
-      "description": "SKU، ویژگی‌های کاتالوگ، قیمت و موجودی تنوع‌ها",
+     
       "add": "افزودن تنوع",
       "skuPlaceholder": "SKU تنوع",
       "sku": "SKU",
@@ -269,8 +257,8 @@
       "updated": "محصول با موفقیت به‌روزرسانی شد."
     },
 
-    "optional": "اختیاری"
-  },
+    "optional": "اختیاری",
+ 
   "appearance": {
     "loadError": "بارگذاری اطلاعات برند فروشگاه انجام نشد.",
     "retry": "تلاش مجدد",

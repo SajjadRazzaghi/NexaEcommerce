@@ -12,12 +12,11 @@
     "unexpectedError": "Unexpected error.",
 
     "form": {
+      "loadingDisplayTypes": "Loading display types...",
+      "selectDisplayType": "Select display type",
       "title": "Attribute Form",
       "description": "Create a reusable attribute definition.",
-      "displayTypeOptions": {
-        "select": "Standard select",
-        "color": "Color"
-      },
+  
       "name": "Name",
       "code": "Code",
       "displayType": "Display type",

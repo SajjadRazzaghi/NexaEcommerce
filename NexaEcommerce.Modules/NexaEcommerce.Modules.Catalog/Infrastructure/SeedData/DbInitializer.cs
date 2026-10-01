@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Catalog.Domain.Entities;
-
+using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
 namespace NexaEcommerce.Modules.Catalog.Infrastructure.SeedData;
 
 public static class DbInitializer
@@ -13,6 +13,27 @@ public static class DbInitializer
         // =====================================================
 
         await context.Database.MigrateAsync();
+        // =====================================================
+        // CATALOG ATTRIBUTE DISPLAY TYPES
+        // =====================================================
+
+        if (!await context.CatalogAttributeDisplayTypes.AnyAsync())
+        {
+            await context.CatalogAttributeDisplayTypes.AddRangeAsync(
+                new CatalogAttributeDisplayType(
+                    "select",
+                    "Standard Select",
+                    "انتخاب معمولی",
+                    0),
+
+                new CatalogAttributeDisplayType(
+                    "color",
+                    "Color Swatch",
+                    "نمایش رنگی",
+                    1));
+
+            await context.SaveChangesAsync();
+        }
 
         // =====================================================
         // Prevent duplicate seed

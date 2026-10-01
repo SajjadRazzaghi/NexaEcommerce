@@ -17,12 +17,24 @@ export const catalogAttributeKeys = {
     all: ['catalog-attributes'] as const,
 
     list: (search?: string) =>
-        [...catalogAttributeKeys.all, 'list', search ?? ''] as const,
+        [
+            'catalog-attributes',
+            'list',
+            search ?? '',
+        ] as const,
 
     detail: (id: string) =>
-        [...catalogAttributeKeys.all, 'detail', id] as const,
-};
+        [
+            'catalog-attributes',
+            'detail',
+            id,
+        ] as const,
 
+    displayTypes: [
+        'catalog-attributes',
+        'display-types',
+    ] as const,
+};
 export function useCatalogAttributes(
     search?: string,
 ) {
@@ -36,7 +48,19 @@ export function useCatalogAttributes(
         staleTime: 60_000,
     });
 }
+export function useCatalogAttributeDisplayTypes() {
+    return useQuery({
+        queryKey:
+            catalogAttributeKeys.displayTypes,
 
+        queryFn: ({ signal }) =>
+            catalogAttributesApi.listDisplayTypes(
+                signal,
+            ),
+
+        staleTime: 5 * 60_000,
+    });
+}
 export function useCatalogAttribute(
     id?: string,
 ) {

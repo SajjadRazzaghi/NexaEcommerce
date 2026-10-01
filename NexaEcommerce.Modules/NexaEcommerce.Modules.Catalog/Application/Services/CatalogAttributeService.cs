@@ -8,10 +8,14 @@ namespace NexaEcommerce.Modules.Catalog.Application.Services;
 public sealed class CatalogAttributeService : ICatalogAttributeService
 {
     private readonly ICatalogAttributeRepository _repository;
-
-    public CatalogAttributeService(ICatalogAttributeRepository repository)
+    private readonly ICatalogAttributeDisplayTypeRepository
+    _displayTypeRepository;
+    public CatalogAttributeService(
+     ICatalogAttributeRepository repository,
+     ICatalogAttributeDisplayTypeRepository displayTypeRepository)
     {
         _repository = repository;
+        _displayTypeRepository = displayTypeRepository;
     }
 
     public async Task<IReadOnlyCollection<CatalogAttributeDto>> GetAllAsync(
@@ -55,17 +59,34 @@ public sealed class CatalogAttributeService : ICatalogAttributeService
             throw new InvalidOperationException(
                 $"A catalog attribute with code '{code}' already exists.");
 
-        var attribute = new CatalogAttribute(
-            name,
-            code,
-            NormalizeOptional(dto.Description),
-            NormalizeOptional(dto.DisplayType),
-            dto.IsRequired,
-            dto.IsFilterable,
-            dto.IsVariantAttribute,
-            dto.IsActive,
-            dto.DisplayOrder);
+       
+        var displayType =
+    NormalizeOptional(dto.DisplayType);
 
+        if (displayType is not null)
+        {
+            var displayTypeDefinition =
+                await _displayTypeRepository.GetByCodeAsync(
+                    displayType,
+                    cancellationToken);
+
+            if (displayTypeDefinition is null)
+            {
+                throw new ArgumentException(
+                    $"Unknown catalog attribute display type '{displayType}'.",
+                    nameof(dto.DisplayType));
+            }
+        }
+        var attribute = new CatalogAttribute(
+    name,
+    code,
+    NormalizeOptional(dto.Description),
+    displayType,
+    dto.IsRequired,
+    dto.IsFilterable,
+    dto.IsVariantAttribute,
+    dto.IsActive,
+    dto.DisplayOrder);
         await _repository.AddAsync(attribute, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
 
@@ -92,17 +113,33 @@ public sealed class CatalogAttributeService : ICatalogAttributeService
         if (existing is not null && existing.Id != id)
             throw new InvalidOperationException(
                 $"A catalog attribute with code '{code}' already exists.");
+        var displayType =
+    NormalizeOptional(dto.DisplayType);
 
+        if (displayType is not null)
+        {
+            var displayTypeDefinition =
+                await _displayTypeRepository.GetByCodeAsync(
+                    displayType,
+                    cancellationToken);
+
+            if (displayTypeDefinition is null)
+            {
+                throw new ArgumentException(
+                    $"Unknown catalog attribute display type '{displayType}'.",
+                    nameof(dto.DisplayType));
+            }
+        }
         attribute.Update(
-            name,
-            code,
-            NormalizeOptional(dto.Description),
-            NormalizeOptional(dto.DisplayType),
-            dto.IsRequired,
-            dto.IsFilterable,
-            dto.IsVariantAttribute,
-            dto.IsActive,
-            dto.DisplayOrder);
+        name,
+        code,
+        NormalizeOptional(dto.Description),
+        displayType,
+        dto.IsRequired,
+        dto.IsFilterable,
+        dto.IsVariantAttribute,
+        dto.IsActive,
+        dto.DisplayOrder);
 
         _repository.Update(attribute);
         await _repository.SaveChangesAsync(cancellationToken);

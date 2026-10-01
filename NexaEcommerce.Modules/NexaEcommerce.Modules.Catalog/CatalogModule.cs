@@ -42,6 +42,12 @@ public static class CatalogModule
         services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IBrandRepository, BrandRepository>();
         services.AddScoped<ICatalogAttributeRepository, CatalogAttributeRepository>();
+        services.AddScoped<
+    ICatalogAttributeDisplayTypeRepository,
+    CatalogAttributeDisplayTypeRepository>();
+        services.AddScoped<
+    ICatalogAttributeDisplayTypeService,
+    CatalogAttributeDisplayTypeService>();
         services.AddScoped<ManufacturerRepository>();
 
         services.AddScoped<IProductService, ProductService>();

@@ -61,7 +61,8 @@ public sealed class CatalogDbContext : DbContext
 
     public DbSet<CatalogAttributeValue> CatalogAttributeValues =>
         Set<CatalogAttributeValue>();
-
+    public DbSet<CatalogAttributeDisplayType> CatalogAttributeDisplayTypes =>
+    Set<CatalogAttributeDisplayType>();
     // =========================================================
     // Constructor
     // =========================================================
@@ -120,12 +121,52 @@ public sealed class CatalogDbContext : DbContext
         ConfigureCatalogAttribute(modelBuilder);
 
         ConfigureCatalogAttributeValue(modelBuilder);
+        ConfigureCatalogAttributeDisplayType(modelBuilder);
     }
 
     // =========================================================
     //product
     // =========================================================
+    private static void ConfigureCatalogAttributeDisplayType(
+    ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CatalogAttributeDisplayType>(entity =>
+        {
+            entity.ToTable("CatalogAttributeDisplayTypes");
 
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Code)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(x => x.NameEn)
+                .IsRequired()
+                .HasMaxLength(150);
+
+            entity.Property(x => x.NameFa)
+                .IsRequired()
+                .HasMaxLength(150);
+
+            entity.Property(x => x.DisplayOrder)
+                .IsRequired();
+
+            entity.Property(x => x.IsActive)
+                .IsRequired();
+
+            entity.HasIndex(x => x.Code)
+                .IsUnique();
+
+            entity.HasIndex(x => new
+            {
+                x.IsActive,
+                x.DisplayOrder
+            });
+
+            entity.HasQueryFilter(
+                x => !x.IsDeleted);
+        });
+    }
     private static void ConfigureProduct(
      ModelBuilder modelBuilder)
     {

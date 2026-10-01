@@ -28,6 +28,7 @@ import type {
 } from '@/modules/catalog/api/catalogAttributes';
 import {
     useCatalogAttributes,
+    useCatalogAttributeDisplayTypes,
     useCreateCatalogAttribute,
     useUpdateCatalogAttribute,
     useDeleteCatalogAttribute,
@@ -58,7 +59,7 @@ const emptyAttributeForm: AttributeFormState = {
     name: '',
     code: '',
     description: '',
-    displayType: 'select',
+    displayType: '',
     isRequired: false,
     isFilterable: false,
     isVariantAttribute: true,
@@ -82,7 +83,7 @@ function normalizeCode(value: string) {
 }
 
 export default function CatalogAttributeManagementPage() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
 
     const [search, setSearch] = useState('');
     const [expandedId, setExpandedId] =
@@ -113,7 +114,21 @@ export default function CatalogAttributeManagementPage() {
         isError,
         error,
     } = useCatalogAttributes(search);
-
+    const {
+        data: displayTypes = [],
+        isLoading: isLoadingDisplayTypes,
+    } =
+        useCatalogAttributeDisplayTypes();
+    const sortedDisplayTypes = useMemo(
+        () =>
+            [...displayTypes].sort(
+                (a, b) =>
+                    a.displayOrder -
+                    b.displayOrder ||
+                    a.code.localeCompare(b.code),
+            ),
+        [displayTypes],
+    );
     const createAttribute =
         useCreateCatalogAttribute();
 
@@ -146,8 +161,9 @@ export default function CatalogAttributeManagementPage() {
 
         setAttributeForm({
             ...emptyAttributeForm,
-            displayOrder:
-                attributes.length,
+            displayType:
+                sortedDisplayTypes[0]?.code ?? '',
+            displayOrder: attributes.length,
         });
     };
 
@@ -163,7 +179,8 @@ export default function CatalogAttributeManagementPage() {
                 attribute.description ?? '',
             displayType:
                 attribute.displayType ??
-                'select',
+                sortedDisplayTypes[0]?.code ??
+                '',
             isRequired:
                 attribute.isRequired,
             isFilterable:
@@ -823,19 +840,32 @@ export default function CatalogAttributeManagementPage() {
                                         displayType: event.target.value,
                                     }))
                                 }
-                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                disabled={
+                                    isLoadingDisplayTypes ||
+                                    sortedDisplayTypes.length === 0
+                                }
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                             >
-                                <option value="select">
-                                    {t(
-                                        'catalogAttributes.form.displayTypeOptions.select',
-                                    )}
+                                <option value="">
+                                    {isLoadingDisplayTypes
+                                        ? t(
+                                            'catalogAttributes.form.loadingDisplayTypes',
+                                        )
+                                        : t(
+                                            'catalogAttributes.form.selectDisplayType',
+                                        )}
                                 </option>
 
-                                <option value="color">
-                                    {t(
-                                        'catalogAttributes.form.displayTypeOptions.color',
-                                    )}
-                                </option>
+                                {sortedDisplayTypes.map((displayType) => (
+                                    <option
+                                        key={displayType.id}
+                                        value={displayType.code}
+                                    >
+                                        {i18n.language.startsWith('fa')
+                                            ? displayType.nameFa
+                                            : displayType.nameEn}
+                                    </option>
+                                ))}
                             </select>
 
                             <Input

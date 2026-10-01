@@ -6,6 +6,8 @@
 		<ImplicitUsings>enable</ImplicitUsings>
 	</PropertyGroup>
 
+	
+
 	<ItemGroup>
 		<!-- EF Core -->
 		<PackageReference Include="MailKit" Version="4.17.0" />
