@@ -31,13 +31,58 @@ public sealed class ProductRepository : IProductRepository
     // The tracked entity is then marked Unchanged so SaveChanges()
     // does not issue the same UPDATE again.
     //
+    public async Task DeleteNonVariantProductAttributesAsync(
+    Guid productId,
+    IReadOnlyCollection<string> variantAttributeCodes,
+    CancellationToken cancellationToken = default)
+    {
+        if (productId == Guid.Empty)
+        {
+            return;
+        }
+
+        var query =
+            _context.ProductAttributes
+                .IgnoreQueryFilters()
+                .Where(
+                    x =>
+                        x.ProductId ==
+                        productId);
+
+        if (variantAttributeCodes.Count > 0)
+        {
+            var normalizedCodes =
+                variantAttributeCodes
+                    .Where(
+                        x =>
+                            !string.IsNullOrWhiteSpace(x))
+                    .Select(
+                        x =>
+                            x.Trim())
+                    .Distinct(
+                        StringComparer.OrdinalIgnoreCase)
+                    .ToArray();
+
+            if (normalizedCodes.Length > 0)
+            {
+                query =
+                    query.Where(
+                        x =>
+                            !normalizedCodes.Contains(
+                                x.Code));
+            }
+        }
+
+        await query.ExecuteDeleteAsync(
+            cancellationToken);
+    }
     public async Task<bool> UpdateVariantAsync(
-        Guid variantId,
-        string sku,
-        decimal priceOverride,
-        decimal? comparePrice,
-        bool isActive,
-        CancellationToken cancellationToken = default)
+    Guid variantId,
+    string sku,
+    decimal priceOverride,
+    decimal? comparePrice,
+    bool isActive,
+    CancellationToken cancellationToken = default)
     {
         if (variantId == Guid.Empty)
         {
@@ -102,11 +147,19 @@ public sealed class ProductRepository : IProductRepository
         {
             if (affectedRows == 1)
             {
+                /*
+                 * The SQL UPDATE has already persisted the values.
+                 * Do not let SaveChanges() issue another UPDATE.
+                 */
                 trackedEntry.State =
                     EntityState.Unchanged;
             }
             else
             {
+                /*
+                 * The row does not exist anymore.
+                 * Remove the stale tracked entity.
+                 */
                 trackedEntry.State =
                     EntityState.Detached;
             }
@@ -114,6 +167,35 @@ public sealed class ProductRepository : IProductRepository
 
         return affectedRows == 1;
     }
+
+
+  public void NormalizeTrackedProductVariantStates()
+    {
+        _context.ChangeTracker.DetectChanges();
+
+        foreach (var entry in
+                 _context.ChangeTracker
+                     .Entries<ProductVariant>()
+                     .ToList())
+        {
+            /*
+             * Existing ProductVariant scalar fields are persisted
+             * explicitly through ExecuteUpdateAsync().
+             *
+             * Therefore an existing variant must not remain Modified
+             * when the final SaveChanges() is executed.
+             *
+             * New variants must remain Added so EF Core can INSERT them.
+             */
+            if (entry.State == EntityState.Modified)
+            {
+                entry.State =
+                    EntityState.Unchanged;
+            }
+        }
+    }
+
+
     public void DetachTrackedVariantAttributeMappings()
     {
         _context.ChangeTracker.DetectChanges();
@@ -802,7 +884,91 @@ public sealed class ProductRepository : IProductRepository
             items,
             totalItems);
     }
+    public async Task DeleteProductSpecificationAttributesAsync(
+    Guid productId,
+    IReadOnlyCollection<Guid> protectedAttributeIds,
+    CancellationToken cancellationToken = default)
+    {
+        if (productId == Guid.Empty)
+        {
+            return;
+        }
 
+        var protectedIds =
+            (protectedAttributeIds ?? Array.Empty<Guid>())
+                .Where(x => x != Guid.Empty)
+                .Distinct()
+                .ToArray();
+
+        var attributesToDelete =
+            await _context.ProductAttributes
+                .IgnoreQueryFilters()
+                .Where(
+                    attribute =>
+                        attribute.ProductId == productId &&
+                        !protectedIds.Contains(attribute.Id))
+                .Select(attribute => attribute.Id)
+                .ToListAsync(cancellationToken);
+
+        if (attributesToDelete.Count == 0)
+        {
+            return;
+        }
+
+        var attributeValuesToDelete =
+            await _context.AttributeValues
+                .IgnoreQueryFilters()
+                .Where(
+                    value =>
+                        attributesToDelete.Contains(
+                            value.ProductAttributeId))
+                .Select(value => value.Id)
+                .ToListAsync(cancellationToken);
+
+        foreach (var entry in
+                 _context.ChangeTracker
+                     .Entries<VariantAttributeValue>()
+                     .Where(
+                         entry =>
+                             attributeValuesToDelete.Contains(
+                                 entry.Entity.AttributeValueId))
+                     .ToList())
+        {
+            entry.State = EntityState.Detached;
+        }
+
+        foreach (var entry in
+                 _context.ChangeTracker
+                     .Entries<AttributeValue>()
+                     .Where(
+                         entry =>
+                             attributesToDelete.Contains(
+                                 entry.Entity.ProductAttributeId))
+                     .ToList())
+        {
+            entry.State = EntityState.Detached;
+        }
+
+        foreach (var entry in
+                 _context.ChangeTracker
+                     .Entries<ProductAttribute>()
+                     .Where(
+                         entry =>
+                             attributesToDelete.Contains(
+                                 entry.Entity.Id))
+                     .ToList())
+        {
+            entry.State = EntityState.Detached;
+        }
+
+        await _context.ProductAttributes
+            .IgnoreQueryFilters()
+            .Where(
+                attribute =>
+                    attributesToDelete.Contains(
+                        attribute.Id))
+            .ExecuteDeleteAsync(cancellationToken);
+    }
     // ============================================================
     // Delete Variant Attribute Mappings
     // ============================================================
@@ -1138,7 +1304,10 @@ if (attributeValueIds is null ||
             product,
             cancellationToken);
     }
-  
+    public void ClearTracking()
+    {
+        _context.ChangeTracker.Clear();
+    }
     // ============================================================
     // Update
     // ============================================================

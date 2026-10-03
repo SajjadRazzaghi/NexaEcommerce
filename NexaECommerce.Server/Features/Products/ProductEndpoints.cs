@@ -623,6 +623,7 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     private static async Task<IResult> Create(
         [FromBody] CreateProductDto request,
         [FromServices] IProductService productService,
+        [FromServices] IInventoryService inventoryService,
         ProductInventorySynchronizer inventorySynchronizer,
         [FromServices] ICurrentTenant currentTenant,
         CancellationToken ct)
@@ -634,18 +635,77 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                     request,
                     ct);
 
+            /*
+             * Catalog creates the Product/ProductVariant aggregate,
+             * while Inventory owns the sellable quantity.
+             *
+             * The create request is the place where an admin can
+             * provide an opening stock balance. Apply it to Inventory
+             * immediately after the catalog aggregate exists.
+             */
+            var requestedOpeningStock =
+                (request.Variants ?? [])
+                    .Where(
+                        variant =>
+                            !string.IsNullOrWhiteSpace(
+                                variant.Sku))
+                    .ToDictionary(
+                        variant =>
+                            variant.Sku.Trim(),
+                        variant =>
+                            Math.Max(
+                                0,
+                                variant.StockQuantity),
+                        StringComparer.OrdinalIgnoreCase);
+
+            foreach (
+                var variant
+                in product.Variants)
+            {
+                if (!requestedOpeningStock.TryGetValue(
+                        variant.Sku.Trim(),
+                        out var quantity))
+                {
+                    continue;
+                }
+
+                await inventoryService.SetStockAsync(
+                    currentTenant.Id,
+                    variant.Id,
+                    quantity,
+                    ct);
+            }
+
             await inventorySynchronizer.SyncMissingStockAsync(
                 currentTenant.Id,
                 product,
                 ct);
 
+            /*
+             * Re-read through the inventory-aware product service so
+             * the response contains the real live stock immediately.
+             */
+            var refreshedProduct =
+                await productService.GetByIdAsync(
+                    product.Id,
+                    ct)
+                ?? product;
+
             return Results.Created(
                 $"/api/products/{product.Id}",
-                product);
+                refreshedProduct);
         }
         catch (ArgumentException ex)
         {
             return Results.BadRequest(
+                new
+                {
+                    error = ex.Message
+                });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.Conflict(
                 new
                 {
                     error = ex.Message

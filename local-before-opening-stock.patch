@@ -1,0 +1,1387 @@
+diff --git a/NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/Application/Services/ProductService.cs b/NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/Application/Services/ProductService.cs
+index bf99e6f..4d9eb20 100644
+--- a/NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/Application/Services/ProductService.cs
++++ b/NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/Application/Services/ProductService.cs
+@@ -483,10 +483,23 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+         // as Modified/Deleted because bulk SQL is not tracked by EF.
+         // ------------------------------------------------------------
+ 
+-        _productRepository.DetachTrackedVariantAttributeMappings();
++ 
++// ------------------------------------------------------------
++// VariantAttributeValue mappings are synchronized explicitly
++// through direct SQL for existing rows.
++//
++// Existing ProductVariant scalar fields are also synchronized
++// through ExecuteUpdateAsync(), therefore no existing Variant
++// should remain Modified when SaveChanges() runs.
++// ------------------------------------------------------------
++
++_productRepository.DetachTrackedVariantAttributeMappings();
++
++        _productRepository.NormalizeTrackedProductVariantStates();
+ 
+         // ------------------------------------------------------------
+-        // Persist
++        // ProductRepository.Update intentionally does not call
++        // DbSet.Update(product), because the aggregate is already tracked.
+         // ------------------------------------------------------------
+ 
+         _productRepository.Update(
+@@ -496,6 +509,8 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+             cancellationToken);
+ 
+ 
++
++
+     }
+ 
+ 
+@@ -1078,43 +1093,48 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+ 
+         return slug.Trim('-');
+     }
+-    private async Task SynchronizeVariantsAsync(
+-       Product product,
+-       IEnumerable<UpdateProductVariantDto>? variantDtos,
+-       CancellationToken cancellationToken)
++private async Task SynchronizeVariantsAsync(
++    Product product,
++    IEnumerable<UpdateProductVariantDto>? variantDtos,
++    CancellationToken cancellationToken)
+     {
+         var requested =
+             (variantDtos ??
+              Enumerable.Empty<UpdateProductVariantDto>())
+             .ToList();
+ 
+-        // No variant list means:
+-        // preserve the existing lifecycle for backwards compatibility.
++        // ------------------------------------------------------------
++        // No variant list:
++        //
++        // Keep backward-compatible behavior and do not touch the
++        // existing variants.
++        // ------------------------------------------------------------
++
+         if (requested.Count == 0)
++        {
+             return;
+-    
++        }
++
+         // ------------------------------------------------------------
+         // IMPORTANT:
+-        // Snapshot the variants that existed BEFORE this update.
+         //
+-        // A newly created ProductVariant receives a Guid immediately,
+-        // but it is not persisted until SaveChanges().
++        // Snapshot ONLY variants that existed before this operation.
+         //
+-        // Therefore new variants must never participate in the
+-        // "removed variants" synchronization below.
++        // New ProductVariant objects receive a Guid immediately,
++        // but they do not exist in the database until SaveChanges().
++        //
++        // We must never treat those new objects as removed variants.
+         // ------------------------------------------------------------
+ 
+         var existingVariantIds =
+             product.Variants
+-                .Select(
+-                    x => x.Id)
+-                .Where(
+-                    x => x != Guid.Empty)
++                .Select(x => x.Id)
++                .Where(x => x != Guid.Empty)
+                 .ToHashSet();
+ 
+-        // ------------------------------------------------------------
+-        // Validate duplicate variant IDs.
+-        // ------------------------------------------------------------
++        // ============================================================
++        // 1. Validate duplicate Variant IDs
++        // ============================================================
+ 
+         var duplicateIds =
+             requested
+@@ -1123,11 +1143,14 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+                         x.Id.HasValue &&
+                         x.Id.Value != Guid.Empty)
+                 .GroupBy(
+-                    x => x.Id!.Value)
++                    x =>
++                        x.Id!.Value)
+                 .Where(
+-                    x => x.Count() > 1)
++                    x =>
++                        x.Count() > 1)
+                 .Select(
+-                    x => x.Key)
++                    x =>
++                        x.Key)
+                 .ToList();
+ 
+         if (duplicateIds.Count > 0)
+@@ -1136,9 +1159,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+                 "The same variant cannot appear more than once.");
+         }
+ 
+-        // ------------------------------------------------------------
+-        // Normalize and validate SKUs.
+-        // ------------------------------------------------------------
++        // ============================================================
++        // 2. Normalize and validate SKUs
++        // ============================================================
+ 
+         var normalizedSkus =
+             requested
+@@ -1158,12 +1181,15 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+         var duplicateSkus =
+             normalizedSkus
+                 .GroupBy(
+-                    x => x,
++                    x =>
++                        x,
+                     StringComparer.OrdinalIgnoreCase)
+                 .Where(
+-                    x => x.Count() > 1)
++                    x =>
++                        x.Count() > 1)
+                 .Select(
+-                    x => x.Key)
++                    x =>
++                        x.Key)
+                 .ToList();
+ 
+         if (duplicateSkus.Count > 0)
+@@ -1172,15 +1198,152 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+                 $"Duplicate variant SKU detected: {string.Join(", ", duplicateSkus)}.");
+         }
+ 
+-        // ------------------------------------------------------------
+-        // Keep track of persisted variants that were explicitly updated.
+-        // ------------------------------------------------------------
++        // ============================================================
++        // 3. Load Catalog Attributes once
++        // ============================================================
++
++        var catalogAttributes =
++            await _catalogAttributeRepository.GetAllAsync(
++                cancellationToken);
++
++        // ============================================================
++        // 4. Validate requested Variant combinations BEFORE
++        //    converting Catalog Values into Product Attribute Values.
++        //
++        //    The frontend sends CatalogAttributeValue IDs.
++        //    Therefore this is the most reliable place to detect
++        //    duplicate combinations.
++        // ============================================================
++
++        var requestedCombinationSignatures =
++            new HashSet<string>(
++                StringComparer.OrdinalIgnoreCase);
++
++        foreach (var dto in requested)
++        {
++            cancellationToken.ThrowIfCancellationRequested();
++
++            var requestedValueIds =
++                (dto.AttributeValueIds ??
++                 Enumerable.Empty<Guid>())
++                .Where(
++                    x =>
++                        x != Guid.Empty)
++                .Distinct()
++                .ToList();
++
++            // A variant without generic attribute values is allowed
++            // here. Required-attribute validation is handled by the
++            // existing frontend/backend combination validation later.
++            if (requestedValueIds.Count == 0)
++            {
++                continue;
++            }
++
++            var usedCatalogAttributeIds =
++                new HashSet<Guid>();
++
++            var signatureParts =
++                new List<string>();
++
++            foreach (var valueId in requestedValueIds)
++            {
++                cancellationToken.ThrowIfCancellationRequested();
++
++                var catalogAttribute =
++                    catalogAttributes.FirstOrDefault(
++                        attribute =>
++                            attribute.Values.Any(
++                                value =>
++                                    value.Id ==
++                                    valueId));
++
++                if (catalogAttribute is null)
++                {
++                    throw new ArgumentException(
++                        $"Catalog attribute value '{valueId}' was not found.",
++                        nameof(dto.AttributeValueIds));
++                }
++
++                if (!catalogAttribute.IsActive)
++                {
++                    throw new ArgumentException(
++                        $"Catalog attribute '{catalogAttribute.Name}' is inactive.",
++                        nameof(dto.AttributeValueIds));
++                }
++
++                if (!catalogAttribute.IsVariantAttribute)
++                {
++                    throw new ArgumentException(
++                        $"Catalog attribute '{catalogAttribute.Name}' is not configured as a variant attribute.",
++                        nameof(dto.AttributeValueIds));
++                }
++
++                // One Variant cannot contain two values belonging to
++                // the same Catalog Attribute.
++                if (!usedCatalogAttributeIds.Add(
++                        catalogAttribute.Id))
++                {
++                    throw new ArgumentException(
++                        $"Variant '{dto.Sku}' contains more than one value for attribute '{catalogAttribute.Name}'.");
++                }
++
++                var catalogValue =
++                    catalogAttribute.Values.FirstOrDefault(
++                        value =>
++                            value.Id ==
++                            valueId);
++
++                if (catalogValue is null)
++                {
++                    throw new ArgumentException(
++                        $"Catalog attribute value '{valueId}' was not found.",
++                        nameof(dto.AttributeValueIds));
++                }
++
++                if (!catalogValue.IsActive)
++                {
++                    throw new ArgumentException(
++                        $"Catalog attribute value '{catalogValue.Value}' is inactive.",
++                        nameof(dto.AttributeValueIds));
++                }
++
++                var attributeCode =
++                    catalogAttribute.Code?
++                        .Trim()
++                        .ToLowerInvariant() ??
++                    string.Empty;
++
++                signatureParts.Add(
++                    $"{attributeCode}:{catalogValue.Id}");
++            }
++
++            var signature =
++                string.Join(
++                    "|",
++                    signatureParts
++                        .OrderBy(
++                            x =>
++                                x,
++                            StringComparer.OrdinalIgnoreCase));
++
++            if (!requestedCombinationSignatures.Add(
++                    signature))
++            {
++                throw new ArgumentException(
++                    $"Duplicate variant attribute combination detected for SKU '{dto.Sku}'.");
++            }
++        }
++
++        // ============================================================
++        // 5. Track existing variants explicitly matched by request
++        // ============================================================
+ 
+         var matchedExisting =
+             new HashSet<Guid>();
+ 
+         // ============================================================
+-        // SYNCHRONIZE REQUESTED VARIANTS
++        // 6. Synchronize requested variants
+         // ============================================================
+ 
+         foreach (var dto in requested)
+@@ -1210,7 +1373,8 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+                 var variant =
+                     product.Variants.FirstOrDefault(
+                         x =>
+-                            x.Id == variantId);
++                            x.Id ==
++                            variantId);
+ 
+                 if (variant is null)
+                 {
+@@ -1218,16 +1382,6 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+                         $"Product variant '{variantId}' was not found.");
+                 }
+ 
+-                // The ID was supplied as an existing variant ID,
+-                // therefore it must also be one of the variants that
+-                // existed when this update started.
+-                if (!existingVariantIds.Contains(
+-                        variantId))
+-                {
+-                    throw new KeyNotFoundException(
+-                        $"Product variant '{variantId}' was not found.");
+-                }
+-
+                 if (variant.ProductId != product.Id)
+                 {
+                     throw new InvalidOperationException(
+@@ -1235,7 +1389,7 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+                 }
+ 
+                 // ----------------------------------------------------
+-                // SKU uniqueness.
++                // SKU uniqueness
+                 // ----------------------------------------------------
+ 
+                 if (await _productRepository.ExistsByVariantSkuAsync(
+@@ -1248,7 +1402,7 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+                 }
+ 
+                 // ----------------------------------------------------
+-                // Update scalar/domain values.
++                // Update scalar values in domain
+                 // ----------------------------------------------------
+ 
+                 variant.ChangeSku(
+@@ -1265,7 +1419,7 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+                     dto.IsActive);
+ 
+                 // ----------------------------------------------------
+-                // Persist scalar ProductVariant fields directly.
++                // Persist scalar values directly
+                 // ----------------------------------------------------
+ 
+                 var variantUpdated =
+@@ -1284,7 +1438,7 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+                 }
+ 
+                 // ----------------------------------------------------
+-                // Synchronize attribute mappings.
++                // Replace attribute mappings
+                 // ----------------------------------------------------
+ 
+                 await ReplaceVariantAttributesAsync(
+@@ -1294,13 +1448,10 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+                     persistMappingsExplicitly: true,
+                     cancellationToken);
+ 
+-                // This is a persisted/original variant.
+                 matchedExisting.Add(
+                     variant.Id);
+ 
+-                // IMPORTANT:
+-                // Existing inventory is controlled by Inventory.
+-                // Product editing does not modify stock.
++                // Existing inventory is managed elsewhere.
+                 continue;
+             }
+ 
+@@ -1323,17 +1474,13 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+                     product.Price,
+                     dto.ComparePrice);
+ 
+-            // New variants start without catalog-managed stock.
+-            // Inventory is the source of truth.
+-
++            // New variants start with no catalog-managed stock.
++            // Inventory remains the source of truth.
+             newVariant.SetActive(
+                 dto.IsActive);
+ 
+             // --------------------------------------------------------
+-            // New variant attribute mappings.
+-            //
+-            // The new variant is tracked by EF as part of the Product
+-            // aggregate and will be inserted during SaveChanges().
++            // Create generic attribute mappings
+             // --------------------------------------------------------
+ 
+             await ReplaceVariantAttributesAsync(
+@@ -1344,40 +1491,38 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
+                 cancellationToken);
+         }
+ 
+-    
+-// ================================================================
+-// SYNCHRONIZE REMOVALS
+-// ================================================================
+-
+-        /*
+-         * Only variants that existed before this update can be removed.
+-         *
+-         * A newly created ProductVariant already has a Guid in memory,
+-         * but it has not been inserted into the database yet.
+-         *
+-         * Therefore a new variant must never be sent to
+-         * UpdateVariantAsync() as a removal candidate.
+-         */
+-
+-foreach (var existingVariant in
+-         product.Variants
+-             .Where(
+-                 x =>
+-                     existingVariantIds.Contains(
+-                         x.Id))
+-             .ToList())
++        // ============================================================
++        // 7. Deactivate omitted EXISTING variants
++        // ============================================================
++        //
++        // IMPORTANT:
++        //
++        // We iterate only over IDs captured BEFORE new variants were
++        // added to product.Variants.
++        //
++        // Therefore a new in-memory variant can never be sent to
++        // UpdateVariantAsync() before it has been inserted into DB.
++        // ============================================================
++
++        foreach (var existingVariant in
++                 product.Variants
++                     .Where(
++                         x =>
++                             existingVariantIds.Contains(
++                                 x.Id))
++                     .ToList())
+         {
+             cancellationToken.ThrowIfCancellationRequested();
+ 
++            // This variant is still part of the requested set.
+             if (matchedExisting.Contains(
+                     existingVariant.Id))
+             {
+                 continue;
+             }
+ 
+-            // Existing variant was removed from the request.
+-            // Keep the record and deactivate it.
+-
++            // Variant disappeared from the request:
++            // deactivate instead of hard-delete.
+             existingVariant.Deactivate();
+ 
+             var variantUpdated =
+@@ -1396,17 +1541,14 @@ foreach (var existingVariant in
+             }
+         }
+ 
+-
+-
+         // ============================================================
+-        // FINAL VALIDATION
++        // 8. Final validation
+         // ============================================================
+ 
+         var activeVariants =
+-            product.Variants
+-                .Where(
+-                    x => x.IsActive)
+-                .ToList();
++      product.Variants
++          .Where(x => x.IsActive)
++          .ToList();
+ 
+         if (activeVariants.Count == 0)
+         {
+@@ -1415,8 +1557,11 @@ foreach (var existingVariant in
+         }
+ 
+         ValidateVariantAttributeCombinations(
++            product,
+             activeVariants);
+     }
++
++
+     private async Task ReplaceVariantAttributesAsync(
+   Product product,
+   ProductVariant variant,
+@@ -1709,14 +1854,21 @@ if (!persistMappingsExplicitly)
+         }
+ 
+ 
+-}
++    }
++
+ 
+-    private static void ValidateVariantAttributeCombinations(
+-        IEnumerable<ProductVariant> variants)
++private static void ValidateVariantAttributeCombinations(
++    Product product,
++    IEnumerable<ProductVariant> variants)
+     {
++        ArgumentNullException.ThrowIfNull(product);
++        ArgumentNullException.ThrowIfNull(variants);
++
+         var activeVariants =
+             variants
+-                .Where(v => v.IsActive)
++                .Where(
++                    variant =>
++                        variant.IsActive)
+                 .ToList();
+ 
+         if (activeVariants.Count == 0)
+@@ -1725,8 +1877,57 @@ if (!persistMappingsExplicitly)
+                 "A product must have at least one active variant.");
+         }
+ 
+-        var expectedAttributeCodes =
+-            (HashSet<string>?)null;
++        // ============================================================
++        // Resolve Product AttributeValue information by ID.
++        //
++        // We intentionally do NOT depend on
++        // VariantAttributeValue.AttributeValue navigation because new
++        // mappings created during the current request may not have
++        // that navigation populated yet.
++        // ============================================================
++
++        var attributeValueLookup =
++            product.Attributes
++                .SelectMany(
++                    attribute =>
++                        (
++                            attribute.Values ??
++                            Enumerable.Empty<
++                                NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes.AttributeValue>()
++                        )
++                        .Select(
++                            value =>
++                                new
++                                {
++                                    ValueId =
++                                        value.Id,
++
++                                    AttributeCode =
++                                        attribute.Code?
++                                            .Trim()
++                                            .ToLowerInvariant()
++                                        ?? string.Empty,
++
++                                    AttributeName =
++                                        attribute.Name?
++                                            .Trim()
++                                        ?? string.Empty,
++                                }))
++                .Where(
++                    item =>
++                        item.ValueId != Guid.Empty &&
++                        !string.IsNullOrWhiteSpace(
++                            item.AttributeCode))
++                .ToDictionary(
++                    item =>
++                        item.ValueId);
++
++        // ============================================================
++        // Every active Variant must use the same set of attributes.
++        // ============================================================
++
++        HashSet<string>? expectedAttributeCodes =
++            null;
+ 
+         var signatures =
+             new HashSet<string>(
+@@ -1734,23 +1935,86 @@ if (!persistMappingsExplicitly)
+ 
+         foreach (var variant in activeVariants)
+         {
+-            var mappings =
++            // --------------------------------------------------------
++            // Resolve mappings using AttributeValueId.
++            // --------------------------------------------------------
++
++            var resolvedMappings =
+                 variant.AttributeValues
++                    .Select(
++                        mapping =>
++                        {
++                            if (!attributeValueLookup.TryGetValue(
++                                    mapping.AttributeValueId,
++                                    out var attributeInfo))
++                            {
++                                return null;
++                            }
++
++                            return new
++                            {
++                                AttributeValueId =
++                                    mapping.AttributeValueId,
++
++                                AttributeCode =
++                                    attributeInfo.AttributeCode,
++
++                                AttributeName =
++                                    attributeInfo.AttributeName,
++                            };
++                        })
+                     .Where(
+-                        x =>
+-                            x.AttributeValue != null &&
+-                            x.AttributeValue.ProductAttribute != null)
++                        item =>
++                            item != null)
++                    .ToList();
++
++            // --------------------------------------------------------
++            // Do not silently turn an invalid mapping into an empty
++            // combination.
++            // --------------------------------------------------------
++
++            if (
++                resolvedMappings.Count !=
++                variant.AttributeValues.Count)
++            {
++                throw new InvalidOperationException(
++                    $"Variant '{variant.Sku}' contains an invalid attribute value mapping.");
++            }
++
++            // --------------------------------------------------------
++            // One Variant cannot contain two values from the same
++            // attribute dimension.
++            // --------------------------------------------------------
++
++            var duplicateAttributeCodes =
++                resolvedMappings
++                    .GroupBy(
++                        mapping =>
++                            mapping.AttributeCode,
++                        StringComparer.OrdinalIgnoreCase)
++                    .Where(
++                        group =>
++                            group.Count() > 1)
++                    .Select(
++                        group =>
++                            group.Key)
+                     .ToList();
+ 
++            if (duplicateAttributeCodes.Count > 0)
++            {
++                throw new ArgumentException(
++                    $"Variant '{variant.Sku}' contains more than one value for the same variant attribute.");
++            }
++
++            // --------------------------------------------------------
++            // Determine this Variant's attribute dimensions.
++            // --------------------------------------------------------
++
+             var attributeCodes =
+-                mappings
++                resolvedMappings
+                     .Select(
+-                        x =>
+-                            x.AttributeValue!
+-                                .ProductAttribute
+-                                .Code
+-                                .Trim()
+-                                .ToLowerInvariant())
++                        mapping =>
++                            mapping.AttributeCode)
+                     .ToHashSet(
+                         StringComparer.OrdinalIgnoreCase);
+ 
+@@ -1759,25 +2023,39 @@ if (!persistMappingsExplicitly)
+                 expectedAttributeCodes =
+                     attributeCodes;
+             }
+-            else if (!expectedAttributeCodes.SetEquals(
+-                         attributeCodes))
++            else if (
++                !expectedAttributeCodes.SetEquals(
++                    attributeCodes))
+             {
+                 throw new ArgumentException(
+-                    "All active variants of a product must use the same variant attributes.");
++                    $"All active variants of a product must use the same variant attributes. Variant '{variant.Sku}' has a different attribute set.");
+             }
+ 
++            // --------------------------------------------------------
++            // Build a deterministic combination signature.
++            //
++            // Example:
++            //
++            // color:GUID1|size:GUID2
++            //
++            // Two Variants with different values therefore receive
++            // different signatures.
++            // --------------------------------------------------------
++
+             var signature =
+                 string.Join(
+                     "|",
+-                    mappings
++                    resolvedMappings
+                         .Select(
+-                            x =>
+-                                $"{x.AttributeValue!.ProductAttribute!.Code.ToLowerInvariant()}:{x.AttributeValueId}")
++                            mapping =>
++                                $"{mapping.AttributeCode}:{mapping.AttributeValueId}")
+                         .OrderBy(
+-                            x => x,
++                            value =>
++                                value,
+                             StringComparer.OrdinalIgnoreCase));
+ 
+-            if (!signatures.Add(signature))
++            if (!signatures.Add(
++                    signature))
+             {
+                 throw new ArgumentException(
+                     $"Duplicate variant attribute combination detected for SKU '{variant.Sku}'.");
+@@ -1786,4 +2064,8 @@ if (!persistMappingsExplicitly)
+     }
+ 
+ 
++
++
++
++
+ }
+diff --git a/NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/Domain/Interfaces/IProductRepository.cs b/NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/Domain/Interfaces/IProductRepository.cs
+index 3aa256e..b47b95b 100644
+--- a/NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/Domain/Interfaces/IProductRepository.cs
++++ b/NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/Domain/Interfaces/IProductRepository.cs
+@@ -81,6 +81,9 @@ public interface IProductRepository
+         Guid variantId,
+         IReadOnlyCollection<Guid> attributeValueIds,
+         CancellationToken cancellationToken = default);
++   
++void NormalizeTrackedProductVariantStates();
++
+ 
+     Task AddVariantAttributeMappingsAsync(
+         Guid variantId,
+diff --git a/NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/Infrastructure/Repositories/ProductRepository.cs b/NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/Infrastructure/Repositories/ProductRepository.cs
+index be8dfc6..b621db4 100644
+--- a/NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/Infrastructure/Repositories/ProductRepository.cs
++++ b/NexaEcommerce.Modules/NexaEcommerce.Modules.Catalog/Infrastructure/Repositories/ProductRepository.cs
+@@ -31,13 +31,14 @@ public sealed class ProductRepository : IProductRepository
+     // The tracked entity is then marked Unchanged so SaveChanges()
+     // does not issue the same UPDATE again.
+     //
+-    public async Task<bool> UpdateVariantAsync(
+-        Guid variantId,
+-        string sku,
+-        decimal priceOverride,
+-        decimal? comparePrice,
+-        bool isActive,
+-        CancellationToken cancellationToken = default)
++
++public async Task<bool> UpdateVariantAsync(
++    Guid variantId,
++    string sku,
++    decimal priceOverride,
++    decimal? comparePrice,
++    bool isActive,
++    CancellationToken cancellationToken = default)
+     {
+         if (variantId == Guid.Empty)
+         {
+@@ -102,11 +103,19 @@ public sealed class ProductRepository : IProductRepository
+         {
+             if (affectedRows == 1)
+             {
++                /*
++                 * The SQL UPDATE has already persisted the values.
++                 * Do not let SaveChanges() issue another UPDATE.
++                 */
+                 trackedEntry.State =
+                     EntityState.Unchanged;
+             }
+             else
+             {
++                /*
++                 * The row does not exist anymore.
++                 * Remove the stale tracked entity.
++                 */
+                 trackedEntry.State =
+                     EntityState.Detached;
+             }
+@@ -114,6 +123,35 @@ public sealed class ProductRepository : IProductRepository
+ 
+         return affectedRows == 1;
+     }
++
++
++  public void NormalizeTrackedProductVariantStates()
++    {
++        _context.ChangeTracker.DetectChanges();
++
++        foreach (var entry in
++                 _context.ChangeTracker
++                     .Entries<ProductVariant>()
++                     .ToList())
++        {
++            /*
++             * Existing ProductVariant scalar fields are persisted
++             * explicitly through ExecuteUpdateAsync().
++             *
++             * Therefore an existing variant must not remain Modified
++             * when the final SaveChanges() is executed.
++             *
++             * New variants must remain Added so EF Core can INSERT them.
++             */
++            if (entry.State == EntityState.Modified)
++            {
++                entry.State =
++                    EntityState.Unchanged;
++            }
++        }
++    }
++
++
+     public void DetachTrackedVariantAttributeMappings()
+     {
+         _context.ChangeTracker.DetectChanges();
+diff --git a/nexaecommerce.client/src/modules/catalog/products/components/ProductForm.tsx b/nexaecommerce.client/src/modules/catalog/products/components/ProductForm.tsx
+index 41a641a..6c4c122 100644
+--- a/nexaecommerce.client/src/modules/catalog/products/components/ProductForm.tsx
++++ b/nexaecommerce.client/src/modules/catalog/products/components/ProductForm.tsx
+@@ -748,183 +748,311 @@ function toValues(
+                     );
+             },
+         );
++/* ---------------------------------------------------------------------- */
++/* Selected Variant Dimensions                                            */
++/* ---------------------------------------------------------------------- */
+ 
+-    /* ---------------------------------------------------------------------- */
+-    /* Selected Variant Dimensions                                            */
+-    /* ---------------------------------------------------------------------- */
++const variantAttributeIds =
++    Array.from(
++        new Set(
++            (
++                product.variants ??
++                []
++            ).flatMap(
++                variant => {
++                    const ids: string[] =
++                        [];
+ 
+-    const variantAttributeIds =
+-        Array.from(
+-            new Set(
+-                (
+-                    product.variants ??
+-                    []
+-                )
+-                    .flatMap(
+-                        variant =>
+-                            (
+-                                variant.attributes ??
+-                                []
+-                            ).map(
+-                                attribute => {
+-                                    const code =
+-                                        normalize(
+-                                            attribute.attributeCode,
+-                                        );
++                    /*
++                     * Generic attributes
++                     */
++                    for (
++                        const attribute of
++                        variant.attributes ?? []
++                    ) {
++                        const code =
++                            normalize(
++                                attribute.attributeCode,
++                            );
+ 
+-                                    if (!code) {
+-                                        return undefined;
+-                                    }
++                        if (!code) {
++                            continue;
++                        }
+ 
+-                                    const catalogAttribute =
+-                                        findCatalogAttributeByCode(
+-                                            code,
+-                                        );
++                        const catalogAttribute =
++                            findCatalogAttributeByCode(
++                                code,
++                            );
+ 
+-                                    if (
+-                                        !catalogAttribute ||
+-                                        !catalogAttribute.isActive ||
+-                                        !catalogAttribute.isVariantAttribute
+-                                    ) {
+-                                        return undefined;
+-                                    }
++                        if (
++                            catalogAttribute &&
++                            catalogAttribute.isActive &&
++                            catalogAttribute.isVariantAttribute
++                        ) {
++                            ids.push(
++                                catalogAttribute.id,
++                            );
++                        }
++                    }
+ 
+-                                    return catalogAttribute.id;
+-                                },
+-                            ),
+-                    )
+-                    .filter(
+-                        (
+-                            id,
+-                        ): id is string =>
+-                            Boolean(id),
+-                    ),
+-            ),
+-        );
++                    /*
++                     * Legacy Color
++                     */
++                    if (
++                        variant.color
++                    ) {
++                        const colorAttribute =
++                            findCatalogAttributeByCode(
++                                'color',
++                            );
++
++                        if (
++                            colorAttribute &&
++                            colorAttribute.isActive &&
++                            colorAttribute.isVariantAttribute
++                        ) {
++                            ids.push(
++                                colorAttribute.id,
++                            );
++                        }
++                    }
+ 
++                    /*
++                     * Legacy Size
++                     */
++                    if (
++                        variant.size
++                    ) {
++                        const sizeAttribute =
++                            findCatalogAttributeByCode(
++                                'size',
++                            );
++
++                        if (
++                            sizeAttribute &&
++                            sizeAttribute.isActive &&
++                            sizeAttribute.isVariantAttribute
++                        ) {
++                            ids.push(
++                                sizeAttribute.id,
++                            );
++                        }
++                    }
++
++                    return ids;
++                },
++            ),
++        ),
++    );
+     /* ---------------------------------------------------------------------- */
+     /* Variants                                                               */
+     /* ---------------------------------------------------------------------- */
++const variants =
++    (
++        product.variants ??
++        []
++    ).map(
++        variant => {
++            const resolvedAttributeValueIds: string[] =
++                [];
+ 
+-    const variants =
+-        (
+-            product.variants ??
+-            []
+-        ).map(
+-            variant => {
+-                /*
+-                 * Backend returns:
+-                 *
+-                 * variant.attributes[].attributeValueId
+-                 *
+-                 * which is the Product-side AttributeValue ID.
+-                 *
+-                 * The form, however, must hold:
+-                 *
+-                 * CatalogAttributeValue ID
+-                 *
+-                 * because PUT /products/{id} expects catalog
+-                 * value IDs.
+-                 */
+-                const attributeValueIds =
+-                    Array.from(
+-                        new Set(
+-                            (
+-                                variant.attributes ??
+-                                []
+-                            )
+-                                .map(
+-                                    attribute => {
+-                                        const attributeCode =
+-                                            normalize(
+-                                                attribute.attributeCode,
+-                                            );
++            /*
++             * ------------------------------------------------------------
++             * Generic backend Variant Attributes
++             * ------------------------------------------------------------
++             */
++            for (
++                const attribute of
++                variant.attributes ?? []
++            ) {
++                const attributeCode =
++                    normalize(
++                        attribute.attributeCode,
++                    );
+ 
+-                                        if (!attributeCode) {
+-                                            return undefined;
+-                                        }
++                if (!attributeCode) {
++                    continue;
++                }
+ 
+-                                        const catalogAttribute =
+-                                            findCatalogAttributeByCode(
+-                                                attributeCode,
+-                                            );
++                const catalogAttribute =
++                    findCatalogAttributeByCode(
++                        attributeCode,
++                    );
+ 
+-                                        if (!catalogAttribute) {
+-                                            return undefined;
+-                                        }
++                if (!catalogAttribute) {
++                    continue;
++                }
+ 
+-                                        const catalogValue =
+-                                            findCatalogValue(
+-                                                catalogAttribute,
+-                                                {
+-                                                    /*
+-                                                     * Do NOT treat
+-                                                     * attributeValueId
+-                                                     * as catalog value ID.
+-                                                     *
+-                                                     * It belongs to
+-                                                     * ProductAttributeValue.
+-                                                     */
+-                                                    value:
+-                                                        attribute.value,
+-
+-                                                    displayValue:
+-                                                        attribute.displayValue,
+-                                                },
+-                                            );
++                const catalogValue =
++                    findCatalogValue(
++                        catalogAttribute,
++                        {
++                            /*
++                             * ProductVariantAttribute.attributeValueId
++                             * is a Product-side AttributeValue ID.
++                             *
++                             * Do NOT use it as Catalog Value ID.
++                             */
++                            value:
++                                attribute.value,
+ 
+-                                        return (
+-                                            catalogValue?.id ??
+-                                            undefined
+-                                        );
+-                                    },
+-                                )
+-                                .filter(
+-                                    (
+-                                        id,
+-                                    ): id is string =>
+-                                        Boolean(id),
+-                                ),
++                            displayValue:
++                                attribute.displayValue,
++                        },
++                    );
++
++                if (
++                    catalogValue?.id
++                ) {
++                    resolvedAttributeValueIds.push(
++                        catalogValue.id,
++                    );
++                }
++            }
++
++            /*
++             * ------------------------------------------------------------
++             * Legacy Color fallback
++             * ------------------------------------------------------------
++             *
++             * This keeps older variants editable even when generic
++             * attributes were not returned for some legacy data.
++             */
++            if (
++                !resolvedAttributeValueIds.some(
++                    valueId =>
++                        (
++                            findCatalogAttributeByCode(
++                                'color',
++                            )?.values ?? []
++                        ).some(
++                            value =>
++                                value.id ===
++                                valueId,
+                         ),
++                ) &&
++                variant.color
++            ) {
++                const colorAttribute =
++                    findCatalogAttributeByCode(
++                        'color',
+                     );
+ 
+-                return {
+-                    /*
+-                     * This is the REAL ProductVariant ID.
+-                     *
+-                     * It must never be replaced by the
+-                     * useFieldArray internal row ID.
+-                     */
+-                    id:
+-                        variant.id,
++                const colorValue =
++                    findCatalogValue(
++                        colorAttribute as CatalogAttribute,
++                        {
++                            value:
++                                variant.color,
++                            displayValue:
++                                variant.color,
++                        },
++                    );
+ 
+-                    sku:
+-                        variant.sku ??
+-                        '',
++                if (
++                    colorValue?.id
++                ) {
++                    resolvedAttributeValueIds.push(
++                        colorValue.id,
++                    );
++                }
++            }
+ 
+-                    priceOverride:
+-                        variant.priceOverride ??
+-                        undefined,
++            /*
++             * ------------------------------------------------------------
++             * Legacy Size fallback
++             * ------------------------------------------------------------
++             */
++            if (
++                !resolvedAttributeValueIds.some(
++                    valueId =>
++                        (
++                            findCatalogAttributeByCode(
++                                'size',
++                            )?.values ?? []
++                        ).some(
++                            value =>
++                                value.id ===
++                                valueId,
++                        ),
++                ) &&
++                variant.size
++            ) {
++                const sizeAttribute =
++                    findCatalogAttributeByCode(
++                        'size',
++                    );
+ 
+-                    /*
+-                     * Existing stock is display-only
+-                     * on the edit form.
+-                     *
+-                     * It must not be sent back as part of
+-                     * the UPDATE payload.
+-                     */
+-                    stockQuantity:
+-                        variant.stockQuantity ??
+-                        0,
++                const sizeValue =
++                    findCatalogValue(
++                        sizeAttribute as CatalogAttribute,
++                        {
++                            value:
++                                variant.size,
++                            displayValue:
++                                variant.size,
++                        },
++                    );
+ 
+-                    isActive:
+-                        variant.isActive ??
+-                        true,
++                if (
++                    sizeValue?.id
++                ) {
++                    resolvedAttributeValueIds.push(
++                        sizeValue.id,
++                    );
++                }
++            }
++
++            /*
++             * ------------------------------------------------------------
++             * Remove duplicates while preserving stable order.
++             * ------------------------------------------------------------
++             */
++            const attributeValueIds =
++                Array.from(
++                    new Set(
++                        resolvedAttributeValueIds,
++                    ),
++                );
++
++            return {
++                /*
++                 * REAL persisted ProductVariant ID.
++                 *
++                 * Never replace this with react-hook-form's
++                 * fieldId.
++                 */
++                id:
++                    variant.id,
++
++                sku:
++                    variant.sku ??
++                    '',
++
++                priceOverride:
++                    variant.priceOverride ??
++                    undefined,
++
++                /*
++                 * Existing stock remains display-only.
++                 */
++                stockQuantity:
++                    variant.stockQuantity ??
++                    0,
++
++                isActive:
++                    variant.isActive ??
++                    true,
++
++                /*
++                 * IMPORTANT:
++                 * The form stores CatalogAttributeValue IDs.
++                 */
++                attributeValueIds,
++            };
++        },
++    );
+ 
+-                    attributeValueIds,
+-                };
+-            },
+-        );
+ 
+     /* ---------------------------------------------------------------------- */
+     /* Images                                                                 */
+@@ -1572,20 +1700,55 @@ export function ProductForm(
+     /*                                 Reset                                  */
+     /* ---------------------------------------------------------------------- */
+ 
+-    useEffect(
+-        () => {
+-            form.reset(
+-                toValues(
+-                    product, attributes,
+-                ),
+-            );
+-        },
+-        [
+-            product,
+-            attributes,
+-            form,
+-        ],
+-    );
++  
++useEffect(() => {
++    /*
++     * Create mode can be initialized immediately.
++     */
++    if (mode === 'create') {
++        form.reset(
++            toValues(
++                undefined,
++                attributes,
++            ),
++        );
++
++        return;
++    }
++
++    /*
++     * Edit mode:
++     *
++     * Do NOT reset the form before the Catalog Attributes
++     * are available.
++     *
++     * The Variant form stores CatalogAttributeValue IDs.
++     * Without the catalog data we cannot correctly reconstruct
++     * those IDs from the Product response.
++     */
++    if (
++        mode === 'edit' &&
++        product &&
++        attributes &&
++        attributes.length > 0
++    ) {
++        form.reset(
++            toValues(
++                product,
++                attributes,
++            ),
++        );
++    }
++}, [
++    mode,
++    product?.id,
++    product?.updatedAt,
++    attributes,
++    form,
++]);
++
++
++       
+ 
+ 
+     /* ---------------------------------------------------------------------- */

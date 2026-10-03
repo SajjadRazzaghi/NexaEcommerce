@@ -748,183 +748,311 @@ function toValues(
                     );
             },
         );
+/* ---------------------------------------------------------------------- */
+/* Selected Variant Dimensions                                            */
+/* ---------------------------------------------------------------------- */
 
-    /* ---------------------------------------------------------------------- */
-    /* Selected Variant Dimensions                                            */
-    /* ---------------------------------------------------------------------- */
+const variantAttributeIds =
+    Array.from(
+        new Set(
+            (
+                product.variants ??
+                []
+            ).flatMap(
+                variant => {
+                    const ids: string[] =
+                        [];
 
-    const variantAttributeIds =
-        Array.from(
-            new Set(
-                (
-                    product.variants ??
-                    []
-                )
-                    .flatMap(
-                        variant =>
-                            (
-                                variant.attributes ??
-                                []
-                            ).map(
-                                attribute => {
-                                    const code =
-                                        normalize(
-                                            attribute.attributeCode,
-                                        );
+                    /*
+                     * Generic attributes
+                     */
+                    for (
+                        const attribute of
+                        variant.attributes ?? []
+                    ) {
+                        const code =
+                            normalize(
+                                attribute.attributeCode,
+                            );
 
-                                    if (!code) {
-                                        return undefined;
-                                    }
+                        if (!code) {
+                            continue;
+                        }
 
-                                    const catalogAttribute =
-                                        findCatalogAttributeByCode(
-                                            code,
-                                        );
+                        const catalogAttribute =
+                            findCatalogAttributeByCode(
+                                code,
+                            );
 
-                                    if (
-                                        !catalogAttribute ||
-                                        !catalogAttribute.isActive ||
-                                        !catalogAttribute.isVariantAttribute
-                                    ) {
-                                        return undefined;
-                                    }
+                        if (
+                            catalogAttribute &&
+                            catalogAttribute.isActive &&
+                            catalogAttribute.isVariantAttribute
+                        ) {
+                            ids.push(
+                                catalogAttribute.id,
+                            );
+                        }
+                    }
 
-                                    return catalogAttribute.id;
-                                },
-                            ),
-                    )
-                    .filter(
-                        (
-                            id,
-                        ): id is string =>
-                            Boolean(id),
-                    ),
+                    /*
+                     * Legacy Color
+                     */
+                    if (
+                        variant.color
+                    ) {
+                        const colorAttribute =
+                            findCatalogAttributeByCode(
+                                'color',
+                            );
+
+                        if (
+                            colorAttribute &&
+                            colorAttribute.isActive &&
+                            colorAttribute.isVariantAttribute
+                        ) {
+                            ids.push(
+                                colorAttribute.id,
+                            );
+                        }
+                    }
+
+                    /*
+                     * Legacy Size
+                     */
+                    if (
+                        variant.size
+                    ) {
+                        const sizeAttribute =
+                            findCatalogAttributeByCode(
+                                'size',
+                            );
+
+                        if (
+                            sizeAttribute &&
+                            sizeAttribute.isActive &&
+                            sizeAttribute.isVariantAttribute
+                        ) {
+                            ids.push(
+                                sizeAttribute.id,
+                            );
+                        }
+                    }
+
+                    return ids;
+                },
             ),
-        );
-
+        ),
+    );
     /* ---------------------------------------------------------------------- */
     /* Variants                                                               */
     /* ---------------------------------------------------------------------- */
+const variants =
+    (
+        product.variants ??
+        []
+    ).map(
+        variant => {
+            const resolvedAttributeValueIds: string[] =
+                [];
 
-    const variants =
-        (
-            product.variants ??
-            []
-        ).map(
-            variant => {
-                /*
-                 * Backend returns:
-                 *
-                 * variant.attributes[].attributeValueId
-                 *
-                 * which is the Product-side AttributeValue ID.
-                 *
-                 * The form, however, must hold:
-                 *
-                 * CatalogAttributeValue ID
-                 *
-                 * because PUT /products/{id} expects catalog
-                 * value IDs.
-                 */
-                const attributeValueIds =
-                    Array.from(
-                        new Set(
-                            (
-                                variant.attributes ??
-                                []
-                            )
-                                .map(
-                                    attribute => {
-                                        const attributeCode =
-                                            normalize(
-                                                attribute.attributeCode,
-                                            );
-
-                                        if (!attributeCode) {
-                                            return undefined;
-                                        }
-
-                                        const catalogAttribute =
-                                            findCatalogAttributeByCode(
-                                                attributeCode,
-                                            );
-
-                                        if (!catalogAttribute) {
-                                            return undefined;
-                                        }
-
-                                        const catalogValue =
-                                            findCatalogValue(
-                                                catalogAttribute,
-                                                {
-                                                    /*
-                                                     * Do NOT treat
-                                                     * attributeValueId
-                                                     * as catalog value ID.
-                                                     *
-                                                     * It belongs to
-                                                     * ProductAttributeValue.
-                                                     */
-                                                    value:
-                                                        attribute.value,
-
-                                                    displayValue:
-                                                        attribute.displayValue,
-                                                },
-                                            );
-
-                                        return (
-                                            catalogValue?.id ??
-                                            undefined
-                                        );
-                                    },
-                                )
-                                .filter(
-                                    (
-                                        id,
-                                    ): id is string =>
-                                        Boolean(id),
-                                ),
-                        ),
+            /*
+             * ------------------------------------------------------------
+             * Generic backend Variant Attributes
+             * ------------------------------------------------------------
+             */
+            for (
+                const attribute of
+                variant.attributes ?? []
+            ) {
+                const attributeCode =
+                    normalize(
+                        attribute.attributeCode,
                     );
 
-                return {
-                    /*
-                     * This is the REAL ProductVariant ID.
-                     *
-                     * It must never be replaced by the
-                     * useFieldArray internal row ID.
-                     */
-                    id:
-                        variant.id,
+                if (!attributeCode) {
+                    continue;
+                }
 
-                    sku:
-                        variant.sku ??
-                        '',
+                const catalogAttribute =
+                    findCatalogAttributeByCode(
+                        attributeCode,
+                    );
 
-                    priceOverride:
-                        variant.priceOverride ??
-                        undefined,
+                if (!catalogAttribute) {
+                    continue;
+                }
 
-                    /*
-                     * Existing stock is display-only
-                     * on the edit form.
-                     *
-                     * It must not be sent back as part of
-                     * the UPDATE payload.
-                     */
-                    stockQuantity:
-                        variant.stockQuantity ??
-                        0,
+                const catalogValue =
+                    findCatalogValue(
+                        catalogAttribute,
+                        {
+                            /*
+                             * ProductVariantAttribute.attributeValueId
+                             * is a Product-side AttributeValue ID.
+                             *
+                             * Do NOT use it as Catalog Value ID.
+                             */
+                            value:
+                                attribute.value,
 
-                    isActive:
-                        variant.isActive ??
-                        true,
+                            displayValue:
+                                attribute.displayValue,
+                        },
+                    );
 
-                    attributeValueIds,
-                };
-            },
-        );
+                if (
+                    catalogValue?.id
+                ) {
+                    resolvedAttributeValueIds.push(
+                        catalogValue.id,
+                    );
+                }
+            }
+
+            /*
+             * ------------------------------------------------------------
+             * Legacy Color fallback
+             * ------------------------------------------------------------
+             *
+             * This keeps older variants editable even when generic
+             * attributes were not returned for some legacy data.
+             */
+            if (
+                !resolvedAttributeValueIds.some(
+                    valueId =>
+                        (
+                            findCatalogAttributeByCode(
+                                'color',
+                            )?.values ?? []
+                        ).some(
+                            value =>
+                                value.id ===
+                                valueId,
+                        ),
+                ) &&
+                variant.color
+            ) {
+                const colorAttribute =
+                    findCatalogAttributeByCode(
+                        'color',
+                    );
+
+                const colorValue =
+                    findCatalogValue(
+                        colorAttribute as CatalogAttribute,
+                        {
+                            value:
+                                variant.color,
+                            displayValue:
+                                variant.color,
+                        },
+                    );
+
+                if (
+                    colorValue?.id
+                ) {
+                    resolvedAttributeValueIds.push(
+                        colorValue.id,
+                    );
+                }
+            }
+
+            /*
+             * ------------------------------------------------------------
+             * Legacy Size fallback
+             * ------------------------------------------------------------
+             */
+            if (
+                !resolvedAttributeValueIds.some(
+                    valueId =>
+                        (
+                            findCatalogAttributeByCode(
+                                'size',
+                            )?.values ?? []
+                        ).some(
+                            value =>
+                                value.id ===
+                                valueId,
+                        ),
+                ) &&
+                variant.size
+            ) {
+                const sizeAttribute =
+                    findCatalogAttributeByCode(
+                        'size',
+                    );
+
+                const sizeValue =
+                    findCatalogValue(
+                        sizeAttribute as CatalogAttribute,
+                        {
+                            value:
+                                variant.size,
+                            displayValue:
+                                variant.size,
+                        },
+                    );
+
+                if (
+                    sizeValue?.id
+                ) {
+                    resolvedAttributeValueIds.push(
+                        sizeValue.id,
+                    );
+                }
+            }
+
+            /*
+             * ------------------------------------------------------------
+             * Remove duplicates while preserving stable order.
+             * ------------------------------------------------------------
+             */
+            const attributeValueIds =
+                Array.from(
+                    new Set(
+                        resolvedAttributeValueIds,
+                    ),
+                );
+
+            return {
+                /*
+                 * REAL persisted ProductVariant ID.
+                 *
+                 * Never replace this with react-hook-form's
+                 * fieldId.
+                 */
+                id:
+                    variant.id,
+
+                sku:
+                    variant.sku ??
+                    '',
+
+                priceOverride:
+                    variant.priceOverride ??
+                    undefined,
+
+                /*
+                 * Existing stock remains display-only.
+                 */
+                stockQuantity:
+                    variant.stockQuantity ??
+                    0,
+
+                isActive:
+                    variant.isActive ??
+                    true,
+
+                /*
+                 * IMPORTANT:
+                 * The form stores CatalogAttributeValue IDs.
+                 */
+                attributeValueIds,
+            };
+        },
+    );
+
 
     /* ---------------------------------------------------------------------- */
     /* Images                                                                 */
@@ -1096,6 +1224,7 @@ function buildProductAttributePayload(
         new Map<
             string,
             {
+                catalogAttributeId: string;
                 name: string;
                 code: string;
                 values: Array<{
@@ -1165,6 +1294,9 @@ function buildProductAttributePayload(
 
         if (!group) {
             group = {
+                catalogAttributeId:
+                    catalogAttribute.id,
+
                 name:
                     catalogAttribute.name,
 
@@ -1572,20 +1704,55 @@ export function ProductForm(
     /*                                 Reset                                  */
     /* ---------------------------------------------------------------------- */
 
-    useEffect(
-        () => {
-            form.reset(
-                toValues(
-                    product, attributes,
-                ),
-            );
-        },
-        [
-            product,
-            attributes,
-            form,
-        ],
-    );
+  
+useEffect(() => {
+    /*
+     * Create mode can be initialized immediately.
+     */
+    if (mode === 'create') {
+        form.reset(
+            toValues(
+                undefined,
+                attributes,
+            ),
+        );
+
+        return;
+    }
+
+    /*
+     * Edit mode:
+     *
+     * Do NOT reset the form before the Catalog Attributes
+     * are available.
+     *
+     * The Variant form stores CatalogAttributeValue IDs.
+     * Without the catalog data we cannot correctly reconstruct
+     * those IDs from the Product response.
+     */
+    if (
+        mode === 'edit' &&
+        product &&
+        attributes &&
+        attributes.length > 0
+    ) {
+        form.reset(
+            toValues(
+                product,
+                attributes,
+            ),
+        );
+    }
+}, [
+    mode,
+    product?.id,
+    product?.updatedAt,
+    attributes,
+    form,
+]);
+
+
+       
 
 
     /* ---------------------------------------------------------------------- */

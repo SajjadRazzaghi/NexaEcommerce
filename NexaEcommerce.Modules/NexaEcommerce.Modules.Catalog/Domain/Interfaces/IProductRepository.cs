@@ -70,17 +70,28 @@ public interface IProductRepository
     Task AddAsync(
         Product product,
         CancellationToken cancellationToken = default);
-
+    Task DeleteNonVariantProductAttributesAsync(
+    Guid productId,
+    IReadOnlyCollection<string> variantAttributeCodes,
+    CancellationToken cancellationToken = default);
+    Task DeleteProductSpecificationAttributesAsync(
+    Guid productId,
+    IReadOnlyCollection<Guid> protectedAttributeIds,
+    CancellationToken cancellationToken = default);
     void Update(
         Product product);
-
+    void ClearTracking();
     void Delete(
         Product product);
     void DetachTrackedVariantAttributeMappings();
+    void ResetModifiedAttributeValues();
     Task DeleteVariantAttributeMappingsAsync(
         Guid variantId,
         IReadOnlyCollection<Guid> attributeValueIds,
         CancellationToken cancellationToken = default);
+   
+void NormalizeTrackedProductVariantStates();
+
 
     Task AddVariantAttributeMappingsAsync(
         Guid variantId,

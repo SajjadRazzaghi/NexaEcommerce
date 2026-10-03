@@ -24,17 +24,46 @@ public class ProductAttribute : BaseEntity
         string name,
         string code)
     {
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException(
+                "Attribute name is required.",
+                nameof(name));
+        }
+
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new ArgumentException(
+                "Attribute code is required.",
+                nameof(code));
+        }
+
         ProductId = productId;
-        Name = name;
-        Code = code;
+        Name = name.Trim();
+        Code = code.Trim();
     }
 
     public void Update(
         string name,
         string code)
     {
-        Name = name;
-        Code = code;
+        if (string.IsNullOrWhiteSpace(name))
+        {
+            throw new ArgumentException(
+                "Attribute name is required.",
+                nameof(name));
+        }
+
+        if (string.IsNullOrWhiteSpace(code))
+        {
+            throw new ArgumentException(
+                "Attribute code is required.",
+                nameof(code));
+        }
+
+        Name = name.Trim();
+        Code = code.Trim();
+
         UpdatedAt = DateTime.UtcNow;
     }
 
@@ -43,20 +72,28 @@ public class ProductAttribute : BaseEntity
         string? displayValue = null,
         string? colorHex = null)
     {
-        var attributeValue = new AttributeValue(
-            Id,
-            value,
-            displayValue,
-            colorHex);
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException(
+                "Attribute value is required.",
+                nameof(value));
+        }
 
-        Values.Add(attributeValue);
+        var attributeValue =
+            new AttributeValue(
+                this,
+                value.Trim(),
+                displayValue,
+                colorHex);
+
+        Values.Add(
+            attributeValue);
 
         return attributeValue;
     }
 
-    public void ClearValues()
-    {
-        Values.Clear();
-        UpdatedAt = DateTime.UtcNow;
-    }
+   public void ClearValues()
+{
+    Values.Clear();
+}
 }

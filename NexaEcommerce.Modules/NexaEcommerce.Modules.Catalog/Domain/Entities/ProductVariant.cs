@@ -13,6 +13,12 @@ public class ProductVariant : BaseEntity
 
     public decimal? ComparePrice { get; private set; }
 
+    /*
+     * Legacy catalog stock field.
+     *
+     * Physical/sellable inventory is managed by the Inventory module.
+     * This value is retained for compatibility with the existing model.
+     */
     public int StockQuantity { get; private set; }
 
     public bool IsActive { get; private set; }
@@ -35,6 +41,13 @@ public class ProductVariant : BaseEntity
         decimal price,
         int stockQuantity)
     {
+        if (productId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Product id is required.",
+                nameof(productId));
+        }
+
         if (string.IsNullOrWhiteSpace(sku))
         {
             throw new ArgumentException(
@@ -71,6 +84,7 @@ public class ProductVariant : BaseEntity
         }
 
         Sku = sku.Trim();
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void ChangePrice(decimal price)
@@ -82,6 +96,7 @@ public class ProductVariant : BaseEntity
         }
 
         PriceOverride = price;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void SetComparePrice(
@@ -94,6 +109,7 @@ public class ProductVariant : BaseEntity
         }
 
         ComparePrice = comparePrice;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void ChangeStock(int quantity)
@@ -105,6 +121,7 @@ public class ProductVariant : BaseEntity
         }
 
         StockQuantity = quantity;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void IncreaseStock(int quantity)
@@ -115,7 +132,12 @@ public class ProductVariant : BaseEntity
                 nameof(quantity));
         }
 
-        StockQuantity += quantity;
+        checked
+        {
+            StockQuantity += quantity;
+        }
+
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void DecreaseStock(int quantity)
@@ -133,21 +155,25 @@ public class ProductVariant : BaseEntity
         }
 
         StockQuantity -= quantity;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void Activate()
     {
         IsActive = true;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void Deactivate()
     {
         IsActive = false;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void SetActive(bool isActive)
     {
         IsActive = isActive;
+        UpdatedAt = DateTime.UtcNow;
     }
 
     public void AddAttributeValue(
@@ -155,6 +181,13 @@ public class ProductVariant : BaseEntity
     {
         ArgumentNullException.ThrowIfNull(
             attributeValue);
+
+        if (attributeValue.Id == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Attribute value id is required.",
+                nameof(attributeValue));
+        }
 
         if (AttributeValues.Any(
                 x =>
@@ -164,15 +197,28 @@ public class ProductVariant : BaseEntity
             return;
         }
 
+        /*
+         * IMPORTANT:
+         *
+         * Create the mapping with the full navigation populated.
+         * The Product update pipeline relies on AttributeValue /
+         * ProductAttribute being available while synchronizing
+         * product attributes.
+         */
         AttributeValues.Add(
             new VariantAttributeValue(
                 Id,
-                attributeValue.Id));
+                attributeValue));
     }
 
     public void RemoveAttributeValue(
         Guid attributeValueId)
     {
+        if (attributeValueId == Guid.Empty)
+        {
+            return;
+        }
+
         var existing =
             AttributeValues.FirstOrDefault(
                 x =>
@@ -192,18 +238,33 @@ public class ProductVariant : BaseEntity
         ArgumentNullException.ThrowIfNull(
             attributeValues);
 
-        var desiredIds =
+        var desiredValues =
             attributeValues
-                .Select(x => x.Id)
-                .Distinct()
+                .Where(
+                    value =>
+                        value is not null &&
+                        value.Id != Guid.Empty)
+                .GroupBy(
+                    value =>
+                        value.Id)
+                .Select(
+                    group =>
+                        group.First())
+                .ToList();
+
+        var desiredIds =
+            desiredValues
+                .Select(
+                    value =>
+                        value.Id)
                 .ToHashSet();
 
         /*
-         * Remove only mappings that are no longer required.
+         * Remove mappings which are no longer required.
          *
-         * We do not call Clear() because EF Core can interpret
-         * a required relationship being severed as an invalid
-         * orphan state depending on the tracked graph.
+         * We intentionally do not Clear() the collection because
+         * EF Core can interpret a required relationship being
+         * severed as a conceptual-null/orphan operation.
          */
         var existingMappings =
             AttributeValues.ToList();
@@ -222,24 +283,29 @@ public class ProductVariant : BaseEntity
         var existingIds =
             AttributeValues
                 .Select(
-                    x =>
-                        x.AttributeValueId)
+                    mapping =>
+                        mapping.AttributeValueId)
                 .ToHashSet();
 
         foreach (
             var attributeValue
-            in attributeValues)
+            in desiredValues)
         {
-            if (
-                !existingIds.Contains(
+            if (existingIds.Contains(
                     attributeValue.Id))
             {
-                AttributeValues.Add(
-                    new VariantAttributeValue(
-                        Id,
-                        attributeValue.Id));
+                continue;
             }
+
+            /*
+             * Populate both FK and navigation.
+             */
+            AttributeValues.Add(
+                new VariantAttributeValue(
+                    Id,
+                    attributeValue));
         }
+
+        UpdatedAt = DateTime.UtcNow;
     }
 }
-

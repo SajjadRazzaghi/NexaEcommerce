@@ -30,10 +30,60 @@ public class AttributeValue : BaseEntity
         string? displayValue = null,
         string? colorHex = null)
     {
-        ProductAttributeId = productAttributeId;
-        Value = value;
-        DisplayValue = displayValue;
-        ColorHex = colorHex;
+        if (productAttributeId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Product attribute id is required.",
+                nameof(productAttributeId));
+        }
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException(
+                "Attribute value is required.",
+                nameof(value));
+        }
+
+        ProductAttributeId =
+            productAttributeId;
+
+        Value =
+            value.Trim();
+
+        DisplayValue =
+            string.IsNullOrWhiteSpace(displayValue)
+                ? null
+                : displayValue.Trim();
+
+        ColorHex =
+            string.IsNullOrWhiteSpace(colorHex)
+                ? null
+                : colorHex.Trim();
+    }
+
+    /*
+     * This constructor is used when the value is created
+     * through the ProductAttribute aggregate.
+     *
+     * Keeping the navigation populated is important because
+     * variant synchronization needs to know which ProductAttribute
+     * owns the value.
+     */
+    public AttributeValue(
+        ProductAttribute productAttribute,
+        string value,
+        string? displayValue = null,
+        string? colorHex = null)
+        : this(
+            productAttribute?.Id
+                ?? throw new ArgumentNullException(
+                    nameof(productAttribute)),
+            value,
+            displayValue,
+            colorHex)
+    {
+        ProductAttribute =
+            productAttribute;
     }
 
     public void Update(
@@ -41,8 +91,26 @@ public class AttributeValue : BaseEntity
         string? displayValue,
         string? colorHex)
     {
-        Value = value;
-        DisplayValue = displayValue;
-        ColorHex = colorHex;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException(
+                "Attribute value is required.",
+                nameof(value));
+        }
+
+        Value =
+            value.Trim();
+
+        DisplayValue =
+            string.IsNullOrWhiteSpace(displayValue)
+                ? null
+                : displayValue.Trim();
+
+        ColorHex =
+            string.IsNullOrWhiteSpace(colorHex)
+                ? null
+                : colorHex.Trim();
+
+        UpdatedAt = DateTime.UtcNow;
     }
 }

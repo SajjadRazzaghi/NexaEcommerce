@@ -1,0 +1,209 @@
+--- a/nexaecommerce.client/src/modules/catalog/products/components/ProductForm.tsx
++++ b/nexaecommerce.client/src/modules/catalog/products/components/ProductForm.tsx
+@@ -249,7 +249,17 @@
+                 )
+                 .nullable()
+                 .default(null),
+ 
++        initialStock:
++            z
++                .number()
++                .int()
++                .min(
++                    0,
++                    'Stock cannot be negative.',
++                )
++                .default(0),
++
+         sku:
+             z
+                 .string()
+@@ -391,6 +401,7 @@
+ type FormValues = {
+     price: number;
+     currency: string;
+     comparePrice: number | null;
++    initialStock: number;
+ 
+     sku: string;
+@@ -440,5 +451,6 @@
+     price: 0,
+     currency: 'IRR',
+     comparePrice: null,
++    initialStock: 0,
+ 
+     sku: '',
+@@ -2653,6 +2665,9 @@
+-                                    /*
+-                                     * New Variant stock always starts at 0.
+-                                     * Inventory becomes the stock source.
+-                                     */
++                                    /*
++                                     * On create, this is the opening
++                                     * Inventory balance for the Variant.
++                                     */
+                                     stockQuantity:
+-                                        0,
++                                        Math.max(
++                                            0,
++                                            variant.stockQuantity ?? 0,
++                                        ),
+@@ -2694,5 +2709,8 @@
+                                     stockQuantity:
+-                                        0,
++                                        Math.max(
++                                            0,
++                                            values.initialStock,
++                                        ),
+ 
+                                     attributeValueIds:
+                                         [],
+@@ -3263,3 +3281,50 @@
+                         </FormGrid>
++
++                        {mode === 'create' &&
++                            variantFields.length === 0 &&
++                            selectedVariantAttributeIds.length === 0 && (
++                                <FormField
++                                    control={
++                                        form.control
++                                    }
++                                    name="initialStock"
++                                    render={({
++                                        field,
++                                    }) => (
++                                        <FormItem>
++                                            <FormLabel>
++                                                {t(
++                                                    'productEdit.variants.stock',
++                                                )}
++                                            </FormLabel>
++
++                                            <FormControl>
++                                                <Input
++                                                    type="number"
++                                                    min={0}
++                                                    step={1}
++                                                    value={
++                                                        field.value ?? 0
++                                                    }
++                                                    onChange={event =>
++                                                        field.onChange(
++                                                            Math.max(
++                                                                0,
++                                                                Number(
++                                                                    event
++                                                                        .target
++                                                                        .value,
++                                                                ) || 0,
++                                                            ),
++                                                        )
++                                                    }
++                                                />
++                                            </FormControl>
++
++                                            <FormMessage />
++                                        </FormItem>
++                                    )}
++                                />
++                            )}
+                     </CardContent>
+                 </Card>
+@@ -3996,27 +4061,74 @@
+                                             {/* Stock */}
+ 
+-                                            <div className="mt-4 rounded-md border bg-muted/20 p-3">
+-                                                <div className="flex items-center justify-between gap-3">
+-                                                    <div>
+-                                                        <div className="text-sm font-medium">
+-                                                            {t(
+-                                                                'productEdit.variants.stock',
+-                                                            )}
+-                                                        </div>
+-
+-                                                        <p className="mt-0.5 text-xs text-muted-foreground">
+-                                                            {t(
+-                                                                'productEdit.variants.existingStock',
+-                                                            )}
+-                                                        </p>
+-                                                    </div>
+-
+-                                                    <span className="text-sm font-semibold tabular-nums">
+-                                                        {form.watch(
+-                                                            `variants.${index}.stockQuantity`,
+-                                                        ) ?? 0}
+-                                                    </span>
+-                                                </div>
+-                                            </div>
++                                            {mode === 'create' ? (
++                                                <FormField
++                                                    control={
++                                                        form.control
++                                                    }
++                                                    name={
++                                                        `variants.${index}.stockQuantity`
++                                                    }
++                                                    render={({
++                                                        field,
++                                                    }) => (
++                                                        <FormItem className="mt-4">
++                                                            <FormLabel>
++                                                                {t(
++                                                                    'productEdit.variants.stock',
++                                                                )}
++                                                            </FormLabel>
++
++                                                            <FormControl>
++                                                                <Input
++                                                                    type="number"
++                                                                    min={0}
++                                                                    step={1}
++                                                                    value={
++                                                                        field.value ?? 0
++                                                                    }
++                                                                    onChange={event =>
++                                                                        field.onChange(
++                                                                            Math.max(
++                                                                                0,
++                                                                                Number(
++                                                                                    event
++                                                                                        .target
++                                                                                        .value,
++                                                                                ) || 0,
++                                                                            ),
++                                                                        )
++                                                                    }
++                                                                />
++                                                            </FormControl>
++
++                                                            <FormMessage />
++                                                        </FormItem>
++                                                    )}
++                                                />
++                                            ) : (
++                                                <div className="mt-4 rounded-md border bg-muted/20 p-3">
++                                                    <div className="flex items-center justify-between gap-3">
++                                                        <div>
++                                                            <div className="text-sm font-medium">
++                                                                {t(
++                                                                    'productEdit.variants.stock',
++                                                                )}
++                                                            </div>
++
++                                                            <p className="mt-0.5 text-xs text-muted-foreground">
++                                                                {t(
++                                                                    'productEdit.variants.existingStock',
++                                                                )}
++                                                            </p>
++                                                        </div>
++
++                                                        <span className="text-sm font-semibold tabular-nums">
++                                                            {form.watch(
++                                                                `variants.${index}.stockQuantity`,
++                                                            ) ?? 0}
++                                                        </span>
++                                                    </div>
++                                                </div>
++                                            )}
+ 
+                                             {/* Variant Active */}

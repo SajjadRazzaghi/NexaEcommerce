@@ -343,14 +343,13 @@ public sealed class ProductService : IProductService
     // ============================================================
 
     public async Task UpdateAsync(
-    Guid id,
-    UpdateProductDto updateDto,
-    CancellationToken cancellationToken = default)
+        Guid id,
+        UpdateProductDto updateDto,
+        CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(updateDto);
 
-
-if (string.IsNullOrWhiteSpace(updateDto.Name))
+        if (string.IsNullOrWhiteSpace(updateDto.Name))
         {
             throw new ArgumentException(
                 "Product name is required.",
@@ -364,18 +363,14 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 "Product price cannot be negative.");
         }
 
-        // ------------------------------------------------------------
-        // Load tracked product aggregate
-        // ------------------------------------------------------------
+        // ============================================================
+        // PHASE 1 - Load current product
+        // ============================================================
 
         var product =
             await GetExistingProductAsync(
                 id,
                 cancellationToken);
-
-        // ------------------------------------------------------------
-        // Slug
-        // ------------------------------------------------------------
 
         var normalizedSlug =
             await CreateUniqueSlugAsync(
@@ -383,9 +378,24 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 cancellationToken,
                 id);
 
-        // ------------------------------------------------------------
-        // Basic information
-        // ------------------------------------------------------------
+        // ============================================================
+        // PHASE 1 - Specifications
+        // ============================================================
+        //
+        // This method removes old non-variant ProductAttributes directly
+        // in SQL, clears EF tracking, reloads the aggregate and creates
+        // only the requested specification entities.
+        //
+
+        product =
+            await SynchronizeProductAttributesAsync(
+                product,
+                updateDto.Attributes,
+                cancellationToken);
+
+        // ============================================================
+        // PHASE 1 - Basic information
+        // ============================================================
 
         product.Update(
             updateDto.Name.Trim(),
@@ -399,9 +409,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
         product.SetCurrency(
             updateDto.Currency);
 
-        // ------------------------------------------------------------
-        // Pricing
-        // ------------------------------------------------------------
+        // ============================================================
+        // PHASE 1 - Pricing
+        // ============================================================
 
         product.SetComparePrice(
             updateDto.ComparePrice);
@@ -416,9 +426,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
             product.RemoveDiscount();
         }
 
-        // ------------------------------------------------------------
-        // Status
-        // ------------------------------------------------------------
+        // ============================================================
+        // PHASE 1 - Status
+        // ============================================================
 
         product.SetActive(
             updateDto.IsActive);
@@ -435,9 +445,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
             product.Unpublish();
         }
 
-        // ------------------------------------------------------------
-        // Brand / Manufacturer
-        // ------------------------------------------------------------
+        // ============================================================
+        // PHASE 1 - Brand / Manufacturer
+        // ============================================================
 
         product.SetBrand(
             updateDto.BrandId);
@@ -445,60 +455,62 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
         product.SetManufacturer(
             updateDto.ManufacturerId);
 
-        // ------------------------------------------------------------
-        // Categories
-        // ------------------------------------------------------------
+        // ============================================================
+        // PHASE 1 - Categories
+        // ============================================================
 
         await ReplaceCategoriesAsync(
             product,
             updateDto.CategoryIds,
             cancellationToken);
 
-        // ------------------------------------------------------------
-        // Variants + attribute mappings
-        // ------------------------------------------------------------
+        // ============================================================
+        // PHASE 1 - Save
+        // ============================================================
+
+        await _unitOfWork.SaveChangesAsync(
+            cancellationToken);
+
+        // ============================================================
+        // IMPORTANT
+        // ============================================================
+
+        _productRepository.ClearTracking();
+
+        // Reload completely fresh aggregate.
+        product =
+            await GetExistingProductAsync(
+                id,
+                cancellationToken);
+
+        // ============================================================
+        // PHASE 2 - Variants
+        // ============================================================
 
         await SynchronizeVariantsAsync(
             product,
             updateDto.Variants,
             cancellationToken);
-        await SynchronizeProductAttributesAsync(
-    product,
-    updateDto.Attributes,
-    cancellationToken);
-        // ------------------------------------------------------------
-        // Images
-        // ------------------------------------------------------------
+
+        // ============================================================
+        // PHASE 2 - Images
+        // ============================================================
 
         await _productRepository.ReplaceProductImagesAsync(
-     product.Id,
-     updateDto.Images,
-     cancellationToken);
+            product.Id,
+            updateDto.Images,
+            cancellationToken);
 
-        // ------------------------------------------------------------
-        // Detach existing VariantAttributeValue graph entries.
-        //
-        // Variant attribute mappings are synchronized explicitly by the
-        // repository. Existing mapping rows must never reach SaveChanges
-        // as Modified/Deleted because bulk SQL is not tracked by EF.
-        // ------------------------------------------------------------
-
+        // Existing mapping rows are handled explicitly.
         _productRepository.DetachTrackedVariantAttributeMappings();
 
-        // ------------------------------------------------------------
-        // Persist
-        // ------------------------------------------------------------
-
-        _productRepository.Update(
-            product);
+        // ============================================================
+        // PHASE 2 - Final Save
+        // ============================================================
 
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
-
-
     }
-
-
 
     // ============================================================
     // Stock
@@ -613,22 +625,31 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
     // ============================================================
     // Categories
     // ============================================================
-    private async Task SynchronizeProductAttributesAsync(
-    Product product,
-    IEnumerable<ProductAttributeInputDto>? requestedAttributes,
-    CancellationToken cancellationToken)
+    private async Task<Product> SynchronizeProductAttributesAsync(
+     Product product,
+     IEnumerable<ProductAttributeInputDto>? requestedAttributes,
+     CancellationToken cancellationToken)
     {
         requestedAttributes ??=
             Enumerable.Empty<ProductAttributeInputDto>();
+
+        var requests =
+            requestedAttributes
+                .ToList();
 
         var catalogAttributes =
             await _catalogAttributeRepository.GetAllAsync(
                 cancellationToken);
 
-        var activeVariantCodes =
+        // ============================================================
+        // Identify attributes that are used by variants.
+        // These ProductAttributes must never be deleted/recreated.
+        // ============================================================
+
+        var variantAttributeCodes =
             product.Variants
-                .Where(v => v.IsActive)
-                .SelectMany(v => v.AttributeValues)
+                .SelectMany(
+                    v => v.AttributeValues)
                 .Where(
                     x =>
                         x.AttributeValue != null &&
@@ -640,13 +661,23 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                             .Code
                             .Trim()
                             .ToLowerInvariant())
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                .ToHashSet(
+                    StringComparer.OrdinalIgnoreCase);
+
+        // ============================================================
+        // Validate requested specifications first.
+        // ============================================================
 
         var requestedCodes =
             new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);
 
-        foreach (var request in requestedAttributes)
+        var resolvedRequests =
+            new List<(
+                CatalogAttribute Attribute,
+                List<ProductAttributeValueInputDto> Values)>();
+
+        foreach (var request in requests)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
@@ -658,7 +689,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
 
             var catalogAttribute =
                 catalogAttributes.FirstOrDefault(
-                    x => x.Id == request.CatalogAttributeId);
+                    x =>
+                        x.Id ==
+                        request.CatalogAttributeId);
 
             if (catalogAttribute is null)
             {
@@ -683,41 +716,77 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                     $"Catalog attribute '{catalogAttribute.Name}' was supplied more than once.");
             }
 
-            if (activeVariantCodes.Contains(code))
+            if (variantAttributeCodes.Contains(code))
             {
                 throw new ArgumentException(
-                    $"Catalog attribute '{catalogAttribute.Name}' is already used by an active variant and cannot also be a product specification.");
+                    $"Catalog attribute '{catalogAttribute.Name}' is already used by a variant and cannot also be a product specification.");
             }
 
-            var productAttribute =
-                product.Attributes.FirstOrDefault(
-                    x =>
-                        string.Equals(
-                            x.Code,
-                            catalogAttribute.Code,
-                            StringComparison.OrdinalIgnoreCase));
+            resolvedRequests.Add(
+                (
+                    catalogAttribute,
+                    request.Values ??
+                        new List<ProductAttributeValueInputDto>()
+                ));
+        }
 
-            productAttribute ??=
+        // ============================================================
+        // Remove ALL old non-variant product specifications directly
+        // from the database.
+        //
+        // Variant attributes remain untouched.
+        // ============================================================
+
+        await _productRepository
+            .DeleteNonVariantProductAttributesAsync(
+                product.Id,
+                variantAttributeCodes,
+                cancellationToken);
+
+        // ============================================================
+        // The old tracked graph is now invalid because the previous
+        // specification rows were deleted directly with SQL.
+        // ============================================================
+
+        _productRepository.ClearTracking();
+
+        // ============================================================
+        // Reload fresh aggregate.
+        // ============================================================
+
+        product =
+            await GetExistingProductAsync(
+                product.Id,
+                cancellationToken);
+
+        // ============================================================
+        // Create only the requested specification graph.
+        // ============================================================
+
+        foreach (var item in resolvedRequests)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var catalogAttribute =
+                item.Attribute;
+
+            var productAttribute =
                 product.AddAttribute(
                     catalogAttribute.Name,
                     catalogAttribute.Code);
 
-            productAttribute.Update(
-                catalogAttribute.Name,
-                catalogAttribute.Code);
+            var usedValues =
+                new HashSet<string>(
+                    StringComparer.OrdinalIgnoreCase);
 
-            productAttribute.ClearValues();
-
-            var usedValueIds =
-                new HashSet<Guid>();
-
-            foreach (var requestedValue in
-                     request.Values ??
-                     new List<ProductAttributeValueInputDto>())
+            foreach (var requestedValue in item.Values)
             {
+                cancellationToken.ThrowIfCancellationRequested();
+
                 CatalogAttributeValue? catalogValue = null;
 
-                if (requestedValue.CatalogAttributeValueId.HasValue)
+                if (requestedValue.CatalogAttributeValueId.HasValue &&
+                    requestedValue.CatalogAttributeValueId.Value != Guid.Empty)
                 {
                     catalogValue =
                         catalogAttribute.Values.FirstOrDefault(
@@ -736,18 +805,20 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                         throw new ArgumentException(
                             $"Catalog value '{catalogValue.Value}' is inactive.");
                     }
-
-                    if (!usedValueIds.Add(catalogValue.Id))
-                    {
-                        continue;
-                    }
                 }
 
                 var value =
-                    catalogValue?.Value ??
-                    requestedValue.Value?.Trim();
+                    (
+                        catalogValue?.Value ??
+                        requestedValue.Value
+                    )?.Trim();
 
                 if (string.IsNullOrWhiteSpace(value))
+                {
+                    continue;
+                }
+
+                if (!usedValues.Add(value))
                 {
                     continue;
                 }
@@ -761,28 +832,7 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
             }
         }
 
-        // Remove specifications which no longer exist in the request.
-        // Variant attributes are preserved because they are managed by
-        // VariantAttributeValue mappings.
-        foreach (var existingAttribute in
-                 product.Attributes.ToList())
-        {
-            var code =
-                existingAttribute.Code
-                    .Trim()
-                    .ToLowerInvariant();
-
-            if (activeVariantCodes.Contains(code))
-            {
-                continue;
-            }
-
-            if (!requestedCodes.Contains(code))
-            {
-                product.Attributes.Remove(
-                    existingAttribute);
-            }
-        }
+        return product;
     }
     private async Task ReplaceCategoriesAsync(
         Product product,
@@ -1078,43 +1128,48 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
 
         return slug.Trim('-');
     }
-    private async Task SynchronizeVariantsAsync(
-       Product product,
-       IEnumerable<UpdateProductVariantDto>? variantDtos,
-       CancellationToken cancellationToken)
+private async Task SynchronizeVariantsAsync(
+    Product product,
+    IEnumerable<UpdateProductVariantDto>? variantDtos,
+    CancellationToken cancellationToken)
     {
         var requested =
             (variantDtos ??
              Enumerable.Empty<UpdateProductVariantDto>())
             .ToList();
 
-        // No variant list means:
-        // preserve the existing lifecycle for backwards compatibility.
+        // ------------------------------------------------------------
+        // No variant list:
+        //
+        // Keep backward-compatible behavior and do not touch the
+        // existing variants.
+        // ------------------------------------------------------------
+
         if (requested.Count == 0)
+        {
             return;
-    
+        }
+
         // ------------------------------------------------------------
         // IMPORTANT:
-        // Snapshot the variants that existed BEFORE this update.
         //
-        // A newly created ProductVariant receives a Guid immediately,
-        // but it is not persisted until SaveChanges().
+        // Snapshot ONLY variants that existed before this operation.
         //
-        // Therefore new variants must never participate in the
-        // "removed variants" synchronization below.
+        // New ProductVariant objects receive a Guid immediately,
+        // but they do not exist in the database until SaveChanges().
+        //
+        // We must never treat those new objects as removed variants.
         // ------------------------------------------------------------
 
         var existingVariantIds =
             product.Variants
-                .Select(
-                    x => x.Id)
-                .Where(
-                    x => x != Guid.Empty)
+                .Select(x => x.Id)
+                .Where(x => x != Guid.Empty)
                 .ToHashSet();
 
-        // ------------------------------------------------------------
-        // Validate duplicate variant IDs.
-        // ------------------------------------------------------------
+        // ============================================================
+        // 1. Validate duplicate Variant IDs
+        // ============================================================
 
         var duplicateIds =
             requested
@@ -1123,11 +1178,14 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                         x.Id.HasValue &&
                         x.Id.Value != Guid.Empty)
                 .GroupBy(
-                    x => x.Id!.Value)
+                    x =>
+                        x.Id!.Value)
                 .Where(
-                    x => x.Count() > 1)
+                    x =>
+                        x.Count() > 1)
                 .Select(
-                    x => x.Key)
+                    x =>
+                        x.Key)
                 .ToList();
 
         if (duplicateIds.Count > 0)
@@ -1136,9 +1194,9 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 "The same variant cannot appear more than once.");
         }
 
-        // ------------------------------------------------------------
-        // Normalize and validate SKUs.
-        // ------------------------------------------------------------
+        // ============================================================
+        // 2. Normalize and validate SKUs
+        // ============================================================
 
         var normalizedSkus =
             requested
@@ -1158,12 +1216,15 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
         var duplicateSkus =
             normalizedSkus
                 .GroupBy(
-                    x => x,
+                    x =>
+                        x,
                     StringComparer.OrdinalIgnoreCase)
                 .Where(
-                    x => x.Count() > 1)
+                    x =>
+                        x.Count() > 1)
                 .Select(
-                    x => x.Key)
+                    x =>
+                        x.Key)
                 .ToList();
 
         if (duplicateSkus.Count > 0)
@@ -1172,15 +1233,152 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 $"Duplicate variant SKU detected: {string.Join(", ", duplicateSkus)}.");
         }
 
-        // ------------------------------------------------------------
-        // Keep track of persisted variants that were explicitly updated.
-        // ------------------------------------------------------------
+        // ============================================================
+        // 3. Load Catalog Attributes once
+        // ============================================================
+
+        var catalogAttributes =
+            await _catalogAttributeRepository.GetAllAsync(
+                cancellationToken);
+
+        // ============================================================
+        // 4. Validate requested Variant combinations BEFORE
+        //    converting Catalog Values into Product Attribute Values.
+        //
+        //    The frontend sends CatalogAttributeValue IDs.
+        //    Therefore this is the most reliable place to detect
+        //    duplicate combinations.
+        // ============================================================
+
+        var requestedCombinationSignatures =
+            new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
+
+        foreach (var dto in requested)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var requestedValueIds =
+                (dto.AttributeValueIds ??
+                 Enumerable.Empty<Guid>())
+                .Where(
+                    x =>
+                        x != Guid.Empty)
+                .Distinct()
+                .ToList();
+
+            // A variant without generic attribute values is allowed
+            // here. Required-attribute validation is handled by the
+            // existing frontend/backend combination validation later.
+            if (requestedValueIds.Count == 0)
+            {
+                continue;
+            }
+
+            var usedCatalogAttributeIds =
+                new HashSet<Guid>();
+
+            var signatureParts =
+                new List<string>();
+
+            foreach (var valueId in requestedValueIds)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var catalogAttribute =
+                    catalogAttributes.FirstOrDefault(
+                        attribute =>
+                            attribute.Values.Any(
+                                value =>
+                                    value.Id ==
+                                    valueId));
+
+                if (catalogAttribute is null)
+                {
+                    throw new ArgumentException(
+                        $"Catalog attribute value '{valueId}' was not found.",
+                        nameof(dto.AttributeValueIds));
+                }
+
+                if (!catalogAttribute.IsActive)
+                {
+                    throw new ArgumentException(
+                        $"Catalog attribute '{catalogAttribute.Name}' is inactive.",
+                        nameof(dto.AttributeValueIds));
+                }
+
+                if (!catalogAttribute.IsVariantAttribute)
+                {
+                    throw new ArgumentException(
+                        $"Catalog attribute '{catalogAttribute.Name}' is not configured as a variant attribute.",
+                        nameof(dto.AttributeValueIds));
+                }
+
+                // One Variant cannot contain two values belonging to
+                // the same Catalog Attribute.
+                if (!usedCatalogAttributeIds.Add(
+                        catalogAttribute.Id))
+                {
+                    throw new ArgumentException(
+                        $"Variant '{dto.Sku}' contains more than one value for attribute '{catalogAttribute.Name}'.");
+                }
+
+                var catalogValue =
+                    catalogAttribute.Values.FirstOrDefault(
+                        value =>
+                            value.Id ==
+                            valueId);
+
+                if (catalogValue is null)
+                {
+                    throw new ArgumentException(
+                        $"Catalog attribute value '{valueId}' was not found.",
+                        nameof(dto.AttributeValueIds));
+                }
+
+                if (!catalogValue.IsActive)
+                {
+                    throw new ArgumentException(
+                        $"Catalog attribute value '{catalogValue.Value}' is inactive.",
+                        nameof(dto.AttributeValueIds));
+                }
+
+                var attributeCode =
+                    catalogAttribute.Code?
+                        .Trim()
+                        .ToLowerInvariant() ??
+                    string.Empty;
+
+                signatureParts.Add(
+                    $"{attributeCode}:{catalogValue.Id}");
+            }
+
+            var signature =
+                string.Join(
+                    "|",
+                    signatureParts
+                        .OrderBy(
+                            x =>
+                                x,
+                            StringComparer.OrdinalIgnoreCase));
+
+            if (!requestedCombinationSignatures.Add(
+                    signature))
+            {
+                throw new ArgumentException(
+                    $"Duplicate variant attribute combination detected for SKU '{dto.Sku}'.");
+            }
+        }
+
+        // ============================================================
+        // 5. Track existing variants explicitly matched by request
+        // ============================================================
 
         var matchedExisting =
             new HashSet<Guid>();
 
         // ============================================================
-        // SYNCHRONIZE REQUESTED VARIANTS
+        // 6. Synchronize requested variants
         // ============================================================
 
         foreach (var dto in requested)
@@ -1210,19 +1408,10 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 var variant =
                     product.Variants.FirstOrDefault(
                         x =>
-                            x.Id == variantId);
+                            x.Id ==
+                            variantId);
 
                 if (variant is null)
-                {
-                    throw new KeyNotFoundException(
-                        $"Product variant '{variantId}' was not found.");
-                }
-
-                // The ID was supplied as an existing variant ID,
-                // therefore it must also be one of the variants that
-                // existed when this update started.
-                if (!existingVariantIds.Contains(
-                        variantId))
                 {
                     throw new KeyNotFoundException(
                         $"Product variant '{variantId}' was not found.");
@@ -1235,7 +1424,7 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 }
 
                 // ----------------------------------------------------
-                // SKU uniqueness.
+                // SKU uniqueness
                 // ----------------------------------------------------
 
                 if (await _productRepository.ExistsByVariantSkuAsync(
@@ -1248,7 +1437,7 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 }
 
                 // ----------------------------------------------------
-                // Update scalar/domain values.
+                // Update scalar values in domain
                 // ----------------------------------------------------
 
                 variant.ChangeSku(
@@ -1265,7 +1454,7 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                     dto.IsActive);
 
                 // ----------------------------------------------------
-                // Persist scalar ProductVariant fields directly.
+                // Persist scalar values directly
                 // ----------------------------------------------------
 
                 var variantUpdated =
@@ -1284,7 +1473,7 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 }
 
                 // ----------------------------------------------------
-                // Synchronize attribute mappings.
+                // Replace attribute mappings
                 // ----------------------------------------------------
 
                 await ReplaceVariantAttributesAsync(
@@ -1294,13 +1483,10 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                     persistMappingsExplicitly: true,
                     cancellationToken);
 
-                // This is a persisted/original variant.
                 matchedExisting.Add(
                     variant.Id);
 
-                // IMPORTANT:
-                // Existing inventory is controlled by Inventory.
-                // Product editing does not modify stock.
+                // Existing inventory is managed elsewhere.
                 continue;
             }
 
@@ -1323,17 +1509,13 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                     product.Price,
                     dto.ComparePrice);
 
-            // New variants start without catalog-managed stock.
-            // Inventory is the source of truth.
-
+            // New variants start with no catalog-managed stock.
+            // Inventory remains the source of truth.
             newVariant.SetActive(
                 dto.IsActive);
 
             // --------------------------------------------------------
-            // New variant attribute mappings.
-            //
-            // The new variant is tracked by EF as part of the Product
-            // aggregate and will be inserted during SaveChanges().
+            // Create generic attribute mappings
             // --------------------------------------------------------
 
             await ReplaceVariantAttributesAsync(
@@ -1344,40 +1526,38 @@ if (string.IsNullOrWhiteSpace(updateDto.Name))
                 cancellationToken);
         }
 
-    
-// ================================================================
-// SYNCHRONIZE REMOVALS
-// ================================================================
+        // ============================================================
+        // 7. Deactivate omitted EXISTING variants
+        // ============================================================
+        //
+        // IMPORTANT:
+        //
+        // We iterate only over IDs captured BEFORE new variants were
+        // added to product.Variants.
+        //
+        // Therefore a new in-memory variant can never be sent to
+        // UpdateVariantAsync() before it has been inserted into DB.
+        // ============================================================
 
-        /*
-         * Only variants that existed before this update can be removed.
-         *
-         * A newly created ProductVariant already has a Guid in memory,
-         * but it has not been inserted into the database yet.
-         *
-         * Therefore a new variant must never be sent to
-         * UpdateVariantAsync() as a removal candidate.
-         */
-
-foreach (var existingVariant in
-         product.Variants
-             .Where(
-                 x =>
-                     existingVariantIds.Contains(
-                         x.Id))
-             .ToList())
+        foreach (var existingVariant in
+                 product.Variants
+                     .Where(
+                         x =>
+                             existingVariantIds.Contains(
+                                 x.Id))
+                     .ToList())
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            // This variant is still part of the requested set.
             if (matchedExisting.Contains(
                     existingVariant.Id))
             {
                 continue;
             }
 
-            // Existing variant was removed from the request.
-            // Keep the record and deactivate it.
-
+            // Variant disappeared from the request:
+            // deactivate instead of hard-delete.
             existingVariant.Deactivate();
 
             var variantUpdated =
@@ -1396,17 +1576,14 @@ foreach (var existingVariant in
             }
         }
 
-
-
         // ============================================================
-        // FINAL VALIDATION
+        // 8. Final validation
         // ============================================================
 
         var activeVariants =
-            product.Variants
-                .Where(
-                    x => x.IsActive)
-                .ToList();
+      product.Variants
+          .Where(x => x.IsActive)
+          .ToList();
 
         if (activeVariants.Count == 0)
         {
@@ -1415,8 +1592,11 @@ foreach (var existingVariant in
         }
 
         ValidateVariantAttributeCombinations(
+            product,
             activeVariants);
     }
+
+
     private async Task ReplaceVariantAttributesAsync(
   Product product,
   ProductVariant variant,
@@ -1709,14 +1889,21 @@ if (!persistMappingsExplicitly)
         }
 
 
-}
+    }
 
-    private static void ValidateVariantAttributeCombinations(
-        IEnumerable<ProductVariant> variants)
+
+private static void ValidateVariantAttributeCombinations(
+    Product product,
+    IEnumerable<ProductVariant> variants)
     {
+        ArgumentNullException.ThrowIfNull(product);
+        ArgumentNullException.ThrowIfNull(variants);
+
         var activeVariants =
             variants
-                .Where(v => v.IsActive)
+                .Where(
+                    variant =>
+                        variant.IsActive)
                 .ToList();
 
         if (activeVariants.Count == 0)
@@ -1725,8 +1912,57 @@ if (!persistMappingsExplicitly)
                 "A product must have at least one active variant.");
         }
 
-        var expectedAttributeCodes =
-            (HashSet<string>?)null;
+        // ============================================================
+        // Resolve Product AttributeValue information by ID.
+        //
+        // We intentionally do NOT depend on
+        // VariantAttributeValue.AttributeValue navigation because new
+        // mappings created during the current request may not have
+        // that navigation populated yet.
+        // ============================================================
+
+        var attributeValueLookup =
+            product.Attributes
+                .SelectMany(
+                    attribute =>
+                        (
+                            attribute.Values ??
+                            Enumerable.Empty<
+                                NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes.AttributeValue>()
+                        )
+                        .Select(
+                            value =>
+                                new
+                                {
+                                    ValueId =
+                                        value.Id,
+
+                                    AttributeCode =
+                                        attribute.Code?
+                                            .Trim()
+                                            .ToLowerInvariant()
+                                        ?? string.Empty,
+
+                                    AttributeName =
+                                        attribute.Name?
+                                            .Trim()
+                                        ?? string.Empty,
+                                }))
+                .Where(
+                    item =>
+                        item.ValueId != Guid.Empty &&
+                        !string.IsNullOrWhiteSpace(
+                            item.AttributeCode))
+                .ToDictionary(
+                    item =>
+                        item.ValueId);
+
+        // ============================================================
+        // Every active Variant must use the same set of attributes.
+        // ============================================================
+
+        HashSet<string>? expectedAttributeCodes =
+            null;
 
         var signatures =
             new HashSet<string>(
@@ -1734,23 +1970,86 @@ if (!persistMappingsExplicitly)
 
         foreach (var variant in activeVariants)
         {
-            var mappings =
+            // --------------------------------------------------------
+            // Resolve mappings using AttributeValueId.
+            // --------------------------------------------------------
+
+            var resolvedMappings =
                 variant.AttributeValues
+                    .Select(
+                        mapping =>
+                        {
+                            if (!attributeValueLookup.TryGetValue(
+                                    mapping.AttributeValueId,
+                                    out var attributeInfo))
+                            {
+                                return null;
+                            }
+
+                            return new
+                            {
+                                AttributeValueId =
+                                    mapping.AttributeValueId,
+
+                                AttributeCode =
+                                    attributeInfo.AttributeCode,
+
+                                AttributeName =
+                                    attributeInfo.AttributeName,
+                            };
+                        })
                     .Where(
-                        x =>
-                            x.AttributeValue != null &&
-                            x.AttributeValue.ProductAttribute != null)
+                        item =>
+                            item != null)
                     .ToList();
 
-            var attributeCodes =
-                mappings
+            // --------------------------------------------------------
+            // Do not silently turn an invalid mapping into an empty
+            // combination.
+            // --------------------------------------------------------
+
+            if (
+                resolvedMappings.Count !=
+                variant.AttributeValues.Count)
+            {
+                throw new InvalidOperationException(
+                    $"Variant '{variant.Sku}' contains an invalid attribute value mapping.");
+            }
+
+            // --------------------------------------------------------
+            // One Variant cannot contain two values from the same
+            // attribute dimension.
+            // --------------------------------------------------------
+
+            var duplicateAttributeCodes =
+                resolvedMappings
+                    .GroupBy(
+                        mapping =>
+                            mapping.AttributeCode,
+                        StringComparer.OrdinalIgnoreCase)
+                    .Where(
+                        group =>
+                            group.Count() > 1)
                     .Select(
-                        x =>
-                            x.AttributeValue!
-                                .ProductAttribute
-                                .Code
-                                .Trim()
-                                .ToLowerInvariant())
+                        group =>
+                            group.Key)
+                    .ToList();
+
+            if (duplicateAttributeCodes.Count > 0)
+            {
+                throw new ArgumentException(
+                    $"Variant '{variant.Sku}' contains more than one value for the same variant attribute.");
+            }
+
+            // --------------------------------------------------------
+            // Determine this Variant's attribute dimensions.
+            // --------------------------------------------------------
+
+            var attributeCodes =
+                resolvedMappings
+                    .Select(
+                        mapping =>
+                            mapping.AttributeCode)
                     .ToHashSet(
                         StringComparer.OrdinalIgnoreCase);
 
@@ -1759,31 +2058,49 @@ if (!persistMappingsExplicitly)
                 expectedAttributeCodes =
                     attributeCodes;
             }
-            else if (!expectedAttributeCodes.SetEquals(
-                         attributeCodes))
+            else if (
+                !expectedAttributeCodes.SetEquals(
+                    attributeCodes))
             {
                 throw new ArgumentException(
-                    "All active variants of a product must use the same variant attributes.");
+                    $"All active variants of a product must use the same variant attributes. Variant '{variant.Sku}' has a different attribute set.");
             }
+
+            // --------------------------------------------------------
+            // Build a deterministic combination signature.
+            //
+            // Example:
+            //
+            // color:GUID1|size:GUID2
+            //
+            // Two Variants with different values therefore receive
+            // different signatures.
+            // --------------------------------------------------------
 
             var signature =
                 string.Join(
                     "|",
-                    mappings
+                    resolvedMappings
                         .Select(
-                            x =>
-                                $"{x.AttributeValue!.ProductAttribute!.Code.ToLowerInvariant()}:{x.AttributeValueId}")
+                            mapping =>
+                                $"{mapping.AttributeCode}:{mapping.AttributeValueId}")
                         .OrderBy(
-                            x => x,
+                            value =>
+                                value,
                             StringComparer.OrdinalIgnoreCase));
 
-            if (!signatures.Add(signature))
+            if (!signatures.Add(
+                    signature))
             {
                 throw new ArgumentException(
                     $"Duplicate variant attribute combination detected for SKU '{variant.Sku}'.");
             }
         }
     }
+
+
+
+
 
 
 }
