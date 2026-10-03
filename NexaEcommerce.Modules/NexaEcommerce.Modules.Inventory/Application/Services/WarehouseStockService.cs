@@ -7,6 +7,7 @@ namespace NexaEcommerce.Modules.Inventory.Application.Services;
 public sealed class WarehouseStockService(
     IWarehouseStockRepository stockRepository,
     IWarehouseRepository warehouseRepository,
+    IInventoryRepository inventoryRepository,
     IInventoryUnitOfWork unitOfWork)
     : IWarehouseStockService
 {
@@ -188,6 +189,14 @@ public sealed class WarehouseStockService(
                 stock.Id.ToString(),
                 "Opening warehouse stock.",
                 cancellationToken);
+
+            await SynchronizeGlobalStockAsync(
+                normalizedTenantId,
+                request.ProductVariantId,
+                request.OnHandQuantity,
+                stock.Id.ToString(),
+                "Opening warehouse stock.",
+                cancellationToken);
         }
 
         await unitOfWork.SaveChangesAsync(
@@ -307,6 +316,16 @@ public sealed class WarehouseStockService(
                     ? "Opening warehouse stock."
                     : "Manual warehouse stock correction.",
                 cancellationToken);
+
+            await SynchronizeGlobalStockAsync(
+                normalizedTenantId,
+                request.ProductVariantId,
+                onHandDelta,
+                stock.Id.ToString(),
+                wasCreated
+                    ? "Opening warehouse stock."
+                    : "Manual warehouse stock correction.",
+                cancellationToken);
         }
 
         await unitOfWork.SaveChangesAsync(
@@ -391,6 +410,15 @@ public sealed class WarehouseStockService(
                 request.Reason,
                 cancellationToken);
         }
+
+        await SynchronizeGlobalStockAsync(
+            normalizedTenantId,
+            request.ProductVariantId,
+            request.Quantity,
+            stock.Id.ToString(),
+            request.Reason ??
+            "Warehouse stock adjustment.",
+            cancellationToken);
 
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
@@ -477,6 +505,15 @@ public sealed class WarehouseStockService(
             request.Reason,
             cancellationToken);
 
+        await SynchronizeGlobalStockAsync(
+            normalizedTenantId,
+            request.ProductVariantId,
+            request.Quantity,
+            stock.Id.ToString(),
+            request.Reason ??
+            "Warehouse stock received.",
+            cancellationToken);
+
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
 
@@ -540,6 +577,15 @@ public sealed class WarehouseStockService(
             "WarehouseStock.Damage",
             stock.Id.ToString(),
             request.Reason,
+            cancellationToken);
+
+        await SynchronizeGlobalStockAsync(
+            normalizedTenantId,
+            request.ProductVariantId,
+            -request.Quantity,
+            stock.Id.ToString(),
+            request.Reason ??
+            "Warehouse stock damaged.",
             cancellationToken);
 
         await unitOfWork.SaveChangesAsync(
@@ -630,6 +676,88 @@ public sealed class WarehouseStockService(
             cancellationToken);
 
         return stock;
+    }
+
+    private async Task SynchronizeGlobalStockAsync(
+        string tenantId,
+        Guid productVariantId,
+        int onHandDelta,
+        string referenceId,
+        string reason,
+        CancellationToken cancellationToken)
+    {
+        if (onHandDelta == 0)
+        {
+            return;
+        }
+
+        var globalStock =
+            await inventoryRepository.GetStockAsync(
+                tenantId,
+                productVariantId,
+                cancellationToken);
+
+        if (globalStock is null)
+        {
+            if (onHandDelta < 0)
+            {
+                throw new InvalidOperationException(
+                    "Global inventory stock is missing and cannot absorb a warehouse stock decrease.");
+            }
+
+            globalStock =
+                StockItem.Create(
+                    tenantId,
+                    productVariantId,
+                    onHandDelta);
+
+            await inventoryRepository.AddStockAsync(
+                globalStock,
+                cancellationToken);
+
+            await inventoryRepository.AddMovementAsync(
+                InventoryMovement.Create(
+                    tenantId,
+                    globalStock.Id,
+                    productVariantId,
+                    InventoryMovementType.OpeningBalance,
+                    onHandDelta,
+                    0,
+                    globalStock.AvailableQuantity,
+                    globalStock.ReservedQuantity,
+                    "WarehouseStock",
+                    referenceId,
+                    reason),
+                cancellationToken);
+
+            return;
+        }
+
+        if (onHandDelta > 0)
+        {
+            globalStock.Add(
+                onHandDelta);
+        }
+        else
+        {
+            globalStock.Remove(
+                checked(-onHandDelta));
+        }
+
+        await inventoryRepository.AddMovementAsync(
+            InventoryMovement.Create(
+                tenantId,
+                globalStock.Id,
+                productVariantId,
+                InventoryMovementType.Correction,
+                onHandDelta,
+                0,
+                globalStock.AvailableQuantity,
+                globalStock.ReservedQuantity,
+                "WarehouseStock",
+                referenceId,
+                reason),
+            cancellationToken);
     }
 
     private async Task AddMovementAsync(
