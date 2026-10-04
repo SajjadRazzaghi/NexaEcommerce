@@ -89,8 +89,8 @@ public interface IProductRepository
         Guid variantId,
         IReadOnlyCollection<Guid> attributeValueIds,
         CancellationToken cancellationToken = default);
-   
-void NormalizeTrackedProductVariantStates();
+    void NormalizeTrackedProductAttributeStates();
+    void NormalizeTrackedProductVariantStates();
 
 
     Task AddVariantAttributeMappingsAsync(

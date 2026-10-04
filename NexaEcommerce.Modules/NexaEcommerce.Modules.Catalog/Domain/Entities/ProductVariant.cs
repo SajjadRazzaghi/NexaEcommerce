@@ -206,9 +206,9 @@ public class ProductVariant : BaseEntity
          * product attributes.
          */
         AttributeValues.Add(
-            new VariantAttributeValue(
-                Id,
-                attributeValue));
+    new VariantAttributeValue(
+        Id,
+        attributeValue.Id));
     }
 
     public void RemoveAttributeValue(

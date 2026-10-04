@@ -76,6 +76,44 @@ public sealed class ProductRepository : IProductRepository
         await query.ExecuteDeleteAsync(
             cancellationToken);
     }
+    public void NormalizeTrackedProductAttributeStates()
+    {
+        _context.ChangeTracker.DetectChanges();
+
+        foreach (var entry in
+                 _context.ChangeTracker
+                     .Entries<ProductAttribute>()
+                     .ToList())
+        {
+            /*
+             * Existing ProductAttribute rows are metadata.
+             * They are never updated by the Variant synchronization phase.
+             *
+             * Only newly-created attributes must remain Added.
+             */
+            if (entry.State != EntityState.Added)
+            {
+                entry.State = EntityState.Unchanged;
+            }
+        }
+
+        foreach (var entry in
+                 _context.ChangeTracker
+                     .Entries<AttributeValue>()
+                     .ToList())
+        {
+            /*
+             * Existing AttributeValue rows are also metadata.
+             * They must never reach the final SaveChanges as Modified.
+             *
+             * Newly-created values must remain Added so EF can INSERT them.
+             */
+            if (entry.State != EntityState.Added)
+            {
+                entry.State = EntityState.Unchanged;
+            }
+        }
+    }
     public async Task<bool> UpdateVariantAsync(
     Guid variantId,
     string sku,
@@ -885,9 +923,9 @@ public sealed class ProductRepository : IProductRepository
             totalItems);
     }
     public async Task DeleteProductSpecificationAttributesAsync(
-    Guid productId,
-    IReadOnlyCollection<Guid> protectedAttributeIds,
-    CancellationToken cancellationToken = default)
+        Guid productId,
+        IReadOnlyCollection<Guid> protectedAttributeIds,
+        CancellationToken cancellationToken = default)
     {
         if (productId == Guid.Empty)
         {
@@ -900,15 +938,47 @@ public sealed class ProductRepository : IProductRepository
                 .Distinct()
                 .ToArray();
 
+        /*
+         * A ProductAttribute can be deleted only when:
+         *
+         * 1. It is not explicitly protected by the caller.
+         * 2. None of its AttributeValues is referenced by an active
+         *    Variant belonging to this Product.
+         *
+         * The second condition is the database-level safety net.
+         * It prevents localized/legacy ProductAttribute.Code values
+         * such as "سایز" from ever causing a Variant attribute to be
+         * deleted accidentally.
+         */
         var attributesToDelete =
             await _context.ProductAttributes
                 .IgnoreQueryFilters()
                 .Where(
                     attribute =>
                         attribute.ProductId == productId &&
-                        !protectedIds.Contains(attribute.Id))
-                .Select(attribute => attribute.Id)
-                .ToListAsync(cancellationToken);
+                        !protectedIds.Contains(attribute.Id) &&
+                        !_context.AttributeValues
+                            .Any(
+                                value =>
+                                    value.ProductAttributeId ==
+                                        attribute.Id &&
+                                    _context.VariantAttributeValues
+                                        .Any(
+                                            mapping =>
+                                                mapping.AttributeValueId ==
+                                                    value.Id &&
+                                                _context.ProductVariants
+                                                    .Any(
+                                                        variant =>
+                                                            variant.Id ==
+                                                                mapping.ProductVariantId &&
+                                                            variant.ProductId ==
+                                                                productId))))
+                .Select(
+                    attribute =>
+                        attribute.Id)
+                .ToListAsync(
+                    cancellationToken);
 
         if (attributesToDelete.Count == 0)
         {
@@ -922,8 +992,15 @@ public sealed class ProductRepository : IProductRepository
                     value =>
                         attributesToDelete.Contains(
                             value.ProductAttributeId))
-                .Select(value => value.Id)
-                .ToListAsync(cancellationToken);
+                .Select(
+                    value =>
+                        value.Id)
+                .ToListAsync(
+                    cancellationToken);
+
+        // ------------------------------------------------------------
+        // Detach tracked entities which will be removed by ExecuteDelete
+        // ------------------------------------------------------------
 
         foreach (var entry in
                  _context.ChangeTracker
@@ -934,7 +1011,8 @@ public sealed class ProductRepository : IProductRepository
                                  entry.Entity.AttributeValueId))
                      .ToList())
         {
-            entry.State = EntityState.Detached;
+            entry.State =
+                EntityState.Detached;
         }
 
         foreach (var entry in
@@ -946,7 +1024,8 @@ public sealed class ProductRepository : IProductRepository
                                  entry.Entity.ProductAttributeId))
                      .ToList())
         {
-            entry.State = EntityState.Detached;
+            entry.State =
+                EntityState.Detached;
         }
 
         foreach (var entry in
@@ -958,8 +1037,13 @@ public sealed class ProductRepository : IProductRepository
                                  entry.Entity.Id))
                      .ToList())
         {
-            entry.State = EntityState.Detached;
+            entry.State =
+                EntityState.Detached;
         }
+
+        // ------------------------------------------------------------
+        // Delete only true specification attributes
+        // ------------------------------------------------------------
 
         await _context.ProductAttributes
             .IgnoreQueryFilters()
@@ -967,7 +1051,8 @@ public sealed class ProductRepository : IProductRepository
                 attribute =>
                     attributesToDelete.Contains(
                         attribute.Id))
-            .ExecuteDeleteAsync(cancellationToken);
+            .ExecuteDeleteAsync(
+                cancellationToken);
     }
     // ============================================================
     // Delete Variant Attribute Mappings

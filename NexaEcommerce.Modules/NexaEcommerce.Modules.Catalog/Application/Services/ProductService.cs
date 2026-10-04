@@ -504,6 +504,15 @@ public sealed class ProductService : IProductService
         // Existing mapping rows are handled explicitly.
         _productRepository.DetachTrackedVariantAttributeMappings();
 
+        // Existing ProductAttribute / AttributeValue entities are
+        // metadata only during variant synchronization.
+        // Only newly created entities should reach SaveChanges().
+        _productRepository.NormalizeTrackedProductAttributeStates();
+
+        // Existing ProductVariant scalar fields are persisted through
+        // ExecuteUpdateAsync().
+        _productRepository.NormalizeTrackedProductVariantStates();
+
         // ============================================================
         // PHASE 2 - Final Save
         // ============================================================
@@ -646,23 +655,21 @@ public sealed class ProductService : IProductService
         // These ProductAttributes must never be deleted/recreated.
         // ============================================================
 
-        var variantAttributeCodes =
-            product.Variants
-                .SelectMany(
-                    v => v.AttributeValues)
-                .Where(
-                    x =>
-                        x.AttributeValue != null &&
-                        x.AttributeValue.ProductAttribute != null)
-                .Select(
-                    x =>
-                        x.AttributeValue!
-                            .ProductAttribute
-                            .Code
-                            .Trim()
-                            .ToLowerInvariant())
-                .ToHashSet(
-                    StringComparer.OrdinalIgnoreCase);
+        var protectedVariantAttributeIds =
+      product.Variants
+          .SelectMany(
+              v => v.AttributeValues)
+          .Where(
+              x =>
+                  x.AttributeValue != null &&
+                  x.AttributeValue.ProductAttribute != null &&
+                  x.AttributeValue.ProductAttribute.Id != Guid.Empty)
+          .Select(
+              x =>
+                  x.AttributeValue!
+                      .ProductAttribute
+                      .Id)
+          .ToHashSet();
 
         // ============================================================
         // Validate requested specifications first.
@@ -716,11 +723,7 @@ public sealed class ProductService : IProductService
                     $"Catalog attribute '{catalogAttribute.Name}' was supplied more than once.");
             }
 
-            if (variantAttributeCodes.Contains(code))
-            {
-                throw new ArgumentException(
-                    $"Catalog attribute '{catalogAttribute.Name}' is already used by a variant and cannot also be a product specification.");
-            }
+           
 
             resolvedRequests.Add(
                 (
@@ -738,10 +741,10 @@ public sealed class ProductService : IProductService
         // ============================================================
 
         await _productRepository
-            .DeleteNonVariantProductAttributesAsync(
-                product.Id,
-                variantAttributeCodes,
-                cancellationToken);
+     .DeleteProductSpecificationAttributesAsync(
+         product.Id,
+         protectedVariantAttributeIds,
+         cancellationToken);
 
         // ============================================================
         // The old tracked graph is now invalid because the previous
