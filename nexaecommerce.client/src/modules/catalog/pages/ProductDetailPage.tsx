@@ -624,32 +624,10 @@ export default function ProductDetailPage() {
         };
 
     const getAttributeName = (
-        code: string,
+        _code: string,
         fallback: string,
     ) => {
-        const normalizedCode =
-            code
-                .trim()
-                .toLowerCase();
-
-        const translationKey =
-            ATTRIBUTE_TRANSLATION_KEYS[
-            normalizedCode
-            ];
-
-        if (
-            !translationKey
-        ) {
-            return fallback;
-        }
-
-        return t(
-            translationKey,
-            {
-                defaultValue:
-                    fallback,
-            },
-        );
+        return fallback?.trim() || '';
     };
 
     const isAttributeValueAvailable =

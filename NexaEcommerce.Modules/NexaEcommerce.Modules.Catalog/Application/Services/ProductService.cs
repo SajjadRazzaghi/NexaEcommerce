@@ -635,16 +635,15 @@ public sealed class ProductService : IProductService
     // Categories
     // ============================================================
     private async Task<Product> SynchronizeProductAttributesAsync(
-     Product product,
-     IEnumerable<ProductAttributeInputDto>? requestedAttributes,
-     CancellationToken cancellationToken)
+    Product product,
+    IEnumerable<ProductAttributeInputDto>? requestedAttributes,
+    CancellationToken cancellationToken)
     {
         requestedAttributes ??=
             Enumerable.Empty<ProductAttributeInputDto>();
 
         var requests =
-            requestedAttributes
-                .ToList();
+            requestedAttributes.ToList();
 
         var catalogAttributes =
             await _catalogAttributeRepository.GetAllAsync(
@@ -656,23 +655,23 @@ public sealed class ProductService : IProductService
         // ============================================================
 
         var protectedVariantAttributeIds =
-      product.Variants
-          .SelectMany(
-              v => v.AttributeValues)
-          .Where(
-              x =>
-                  x.AttributeValue != null &&
-                  x.AttributeValue.ProductAttribute != null &&
-                  x.AttributeValue.ProductAttribute.Id != Guid.Empty)
-          .Select(
-              x =>
-                  x.AttributeValue!
-                      .ProductAttribute
-                      .Id)
-          .ToHashSet();
+            product.Variants
+                .SelectMany(
+                    v => v.AttributeValues)
+                .Where(
+                    x =>
+                        x.AttributeValue != null &&
+                        x.AttributeValue.ProductAttribute != null &&
+                        x.AttributeValue.ProductAttribute.Id != Guid.Empty)
+                .Select(
+                    x =>
+                        x.AttributeValue!
+                            .ProductAttribute
+                            .Id)
+                .ToHashSet();
 
         // ============================================================
-        // Validate requested specifications first.
+        // Validate requested attributes
         // ============================================================
 
         var requestedCodes =
@@ -694,6 +693,9 @@ public sealed class ProductService : IProductService
                     "Catalog attribute is required.");
             }
 
+            // IMPORTANT:
+            // Resolve the attribute by ID from the database.
+            // Do not use translated/frontend names.
             var catalogAttribute =
                 catalogAttributes.FirstOrDefault(
                     x =>
@@ -712,18 +714,25 @@ public sealed class ProductService : IProductService
                     $"Catalog attribute '{catalogAttribute.Name}' is inactive.");
             }
 
-            var code =
+            // Code is the real CatalogAttribute.Code from DB.
+            var attributeCode =
                 catalogAttribute.Code
-                    .Trim()
-                    .ToLowerInvariant();
+                    .Trim();
 
-            if (!requestedCodes.Add(code))
+            if (string.IsNullOrWhiteSpace(attributeCode))
+            {
+                throw new ArgumentException(
+                    $"Catalog attribute '{catalogAttribute.Id}' has an empty code.");
+            }
+
+            var normalizedCode =
+                attributeCode.ToLowerInvariant();
+
+            if (!requestedCodes.Add(normalizedCode))
             {
                 throw new ArgumentException(
                     $"Catalog attribute '{catalogAttribute.Name}' was supplied more than once.");
             }
-
-           
 
             resolvedRequests.Add(
                 (
@@ -734,27 +743,19 @@ public sealed class ProductService : IProductService
         }
 
         // ============================================================
-        // Remove ALL old non-variant product specifications directly
-        // from the database.
-        //
-        // Variant attributes remain untouched.
+        // Remove old non-variant specification attributes
         // ============================================================
 
         await _productRepository
-     .DeleteProductSpecificationAttributesAsync(
-         product.Id,
-         protectedVariantAttributeIds,
-         cancellationToken);
-
-        // ============================================================
-        // The old tracked graph is now invalid because the previous
-        // specification rows were deleted directly with SQL.
-        // ============================================================
+            .DeleteProductSpecificationAttributesAsync(
+                product.Id,
+                protectedVariantAttributeIds,
+                cancellationToken);
 
         _productRepository.ClearTracking();
 
         // ============================================================
-        // Reload fresh aggregate.
+        // Reload fresh aggregate
         // ============================================================
 
         product =
@@ -763,7 +764,7 @@ public sealed class ProductService : IProductService
                 cancellationToken);
 
         // ============================================================
-        // Create only the requested specification graph.
+        // Recreate requested specifications
         // ============================================================
 
         foreach (var item in resolvedRequests)
@@ -773,10 +774,21 @@ public sealed class ProductService : IProductService
             var catalogAttribute =
                 item.Attribute;
 
+            // IMPORTANT:
+            // Name comes ONLY from CatalogAttribute.Name in database.
+            // It is NOT translated and it is NOT resolved by code.
+            var attributeName =
+                catalogAttribute.Name
+                    .Trim();
+
+            var attributeCode =
+                catalogAttribute.Code
+                    .Trim();
+
             var productAttribute =
                 product.AddAttribute(
-                    catalogAttribute.Name,
-                    catalogAttribute.Code);
+                    attributeName,
+                    attributeCode);
 
             var usedValues =
                 new HashSet<string>(
@@ -810,6 +822,9 @@ public sealed class ProductService : IProductService
                     }
                 }
 
+                // IMPORTANT:
+                // Real value comes from CatalogAttributeValue.Value.
+                // DisplayValue is only the optional display text.
                 var value =
                     (
                         catalogValue?.Value ??
@@ -826,10 +841,17 @@ public sealed class ProductService : IProductService
                     continue;
                 }
 
+                var displayValue =
+                    (
+                        catalogValue?.DisplayValue ??
+                        requestedValue.DisplayValue
+                    )?.Trim();
+
                 productAttribute.AddValue(
                     value,
-                    catalogValue?.DisplayValue ??
-                    requestedValue.DisplayValue,
+                    string.IsNullOrWhiteSpace(displayValue)
+                        ? null
+                        : displayValue,
                     catalogValue?.ColorHex ??
                     requestedValue.ColorHex);
             }

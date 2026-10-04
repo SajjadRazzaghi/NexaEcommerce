@@ -353,23 +353,25 @@ export default function ProductVariantPickerDialog({
                 .trim()
                 .toLowerCase();
 
-        const translationKey =
-            ATTRIBUTE_TRANSLATION_KEYS[
-            normalizedCode
-            ];
+        const productAttribute =
+            product?.variants
+                ?.flatMap(
+                    variant =>
+                        variant.attributes ?? [],
+                )
+                .find(
+                    attribute =>
+                        attribute.attributeCode
+                            ?.trim()
+                            .toLowerCase() ===
+                        normalizedCode,
+                );
 
-        if (
-            !translationKey
-        ) {
-            return fallback;
-        }
-
-        return t(
-            translationKey,
-            {
-                defaultValue:
-                    fallback,
-            },
+        return (
+            productAttribute?.attributeName
+                ?.trim() ||
+            fallback?.trim() ||
+            ''
         );
     };
 
