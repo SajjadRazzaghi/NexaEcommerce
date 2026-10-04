@@ -1,9 +1,7 @@
 import {
-    useEffect,
     useMemo,
     useState,
 } from 'react';
-
 import {
     Button,
     Chip,
@@ -46,28 +44,6 @@ type AttributeOption = {
     colorHex?: string | null;
 };
 
-const ATTRIBUTE_TRANSLATION_KEYS: Record<
-    string,
-    string
-> = {
-    color:
-        'storefront.productDetail.attributes.color',
-
-    colour:
-        'storefront.productDetail.attributes.color',
-
-    size:
-        'storefront.productDetail.attributes.size',
-
-    material:
-        'storefront.productDetail.attributes.material',
-
-    fabric:
-        'storefront.productDetail.attributes.material',
-
-    pattern:
-        'storefront.productDetail.attributes.pattern',
-};
 
 function getVariantAttributeOptions(
     product: Product,
@@ -382,14 +358,7 @@ export default function ProductVariantPickerDialog({
         Record<string, string>
     >({});
 
-    useEffect(() => {
-        if (!open) {
-            setSelection({});
-        }
-    }, [
-        open,
-        product?.id,
-    ]);
+   
 
     const attributeOptions =
         useMemo(

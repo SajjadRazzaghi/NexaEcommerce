@@ -364,7 +364,7 @@ public sealed class ProductService : IProductService
         }
 
         // ============================================================
-        // PHASE 1 - Load current product
+        // Load current aggregate
         // ============================================================
 
         var product =
@@ -379,22 +379,7 @@ public sealed class ProductService : IProductService
                 id);
 
         // ============================================================
-        // PHASE 1 - Specifications
-        // ============================================================
-        //
-        // This method removes old non-variant ProductAttributes directly
-        // in SQL, clears EF tracking, reloads the aggregate and creates
-        // only the requested specification entities.
-        //
-
-        product =
-            await SynchronizeProductAttributesAsync(
-                product,
-                updateDto.Attributes,
-                cancellationToken);
-
-        // ============================================================
-        // PHASE 1 - Basic information
+        // Basic information
         // ============================================================
 
         product.Update(
@@ -410,7 +395,7 @@ public sealed class ProductService : IProductService
             updateDto.Currency);
 
         // ============================================================
-        // PHASE 1 - Pricing
+        // Pricing
         // ============================================================
 
         product.SetComparePrice(
@@ -427,7 +412,7 @@ public sealed class ProductService : IProductService
         }
 
         // ============================================================
-        // PHASE 1 - Status
+        // Status
         // ============================================================
 
         product.SetActive(
@@ -446,7 +431,7 @@ public sealed class ProductService : IProductService
         }
 
         // ============================================================
-        // PHASE 1 - Brand / Manufacturer
+        // Brand / Manufacturer
         // ============================================================
 
         product.SetBrand(
@@ -456,7 +441,20 @@ public sealed class ProductService : IProductService
             updateDto.ManufacturerId);
 
         // ============================================================
-        // PHASE 1 - Categories
+        // Product Attributes
+        //
+        // IMPORTANT:
+        // Existing ProductAttribute / AttributeValue IDs are preserved.
+        // No Delete/Recreate happens here.
+        // ============================================================
+
+        await SynchronizeProductAttributesAsync(
+            product,
+            updateDto.Attributes,
+            cancellationToken);
+
+        // ============================================================
+        // Categories
         // ============================================================
 
         await ReplaceCategoriesAsync(
@@ -465,26 +463,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
 
         // ============================================================
-        // PHASE 1 - Save
-        // ============================================================
-
-        await _unitOfWork.SaveChangesAsync(
-            cancellationToken);
-
-        // ============================================================
-        // IMPORTANT
-        // ============================================================
-
-        _productRepository.ClearTracking();
-
-        // Reload completely fresh aggregate.
-        product =
-            await GetExistingProductAsync(
-                id,
-                cancellationToken);
-
-        // ============================================================
-        // PHASE 2 - Variants
+        // Variants
         // ============================================================
 
         await SynchronizeVariantsAsync(
@@ -493,7 +472,7 @@ public sealed class ProductService : IProductService
             cancellationToken);
 
         // ============================================================
-        // PHASE 2 - Images
+        // Images
         // ============================================================
 
         await _productRepository.ReplaceProductImagesAsync(
@@ -501,25 +480,16 @@ public sealed class ProductService : IProductService
             updateDto.Images,
             cancellationToken);
 
-        // Existing mapping rows are handled explicitly.
+        // ============================================================
+        // Existing VariantAttributeValue rows are synchronized
+        // explicitly by repository SQL operations.
+        // ============================================================
+
         _productRepository.DetachTrackedVariantAttributeMappings();
-
-        // Existing ProductAttribute / AttributeValue entities are
-        // metadata only during variant synchronization.
-        // Only newly created entities should reach SaveChanges().
-        _productRepository.NormalizeTrackedProductAttributeStates();
-
-        // Existing ProductVariant scalar fields are persisted through
-        // ExecuteUpdateAsync().
-        _productRepository.NormalizeTrackedProductVariantStates();
-
-        // ============================================================
-        // PHASE 2 - Final Save
-        // ============================================================
-
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
     }
+
 
     // ============================================================
     // Stock
@@ -635,10 +605,12 @@ public sealed class ProductService : IProductService
     // Categories
     // ============================================================
     private async Task<Product> SynchronizeProductAttributesAsync(
-    Product product,
-    IEnumerable<ProductAttributeInputDto>? requestedAttributes,
-    CancellationToken cancellationToken)
+        Product product,
+        IEnumerable<ProductAttributeInputDto>? requestedAttributes,
+        CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(product);
+
         requestedAttributes ??=
             Enumerable.Empty<ProductAttributeInputDto>();
 
@@ -650,38 +622,41 @@ public sealed class ProductService : IProductService
                 cancellationToken);
 
         // ============================================================
-        // Identify attributes that are used by variants.
-        // These ProductAttributes must never be deleted/recreated.
+        // Identify ProductAttributes currently used by variants.
+        //
+        // These attributes must not be removed while variants still
+        // reference one of their values.
         // ============================================================
 
         var protectedVariantAttributeIds =
             product.Variants
                 .SelectMany(
-                    v => v.AttributeValues)
+                    variant =>
+                        variant.AttributeValues)
                 .Where(
-                    x =>
-                        x.AttributeValue != null &&
-                        x.AttributeValue.ProductAttribute != null &&
-                        x.AttributeValue.ProductAttribute.Id != Guid.Empty)
+                    mapping =>
+                        mapping.AttributeValue != null &&
+                        mapping.AttributeValue.ProductAttribute != null &&
+                        mapping.AttributeValue.ProductAttribute.Id != Guid.Empty)
                 .Select(
-                    x =>
-                        x.AttributeValue!
+                    mapping =>
+                        mapping.AttributeValue!
                             .ProductAttribute
                             .Id)
                 .ToHashSet();
 
         // ============================================================
-        // Validate requested attributes
+        // Validate requested catalog attributes
         // ============================================================
-
-        var requestedCodes =
-            new HashSet<string>(
-                StringComparer.OrdinalIgnoreCase);
 
         var resolvedRequests =
             new List<(
                 CatalogAttribute Attribute,
                 List<ProductAttributeValueInputDto> Values)>();
+
+        var requestedCodes =
+            new HashSet<string>(
+                StringComparer.OrdinalIgnoreCase);
 
         foreach (var request in requests)
         {
@@ -693,13 +668,10 @@ public sealed class ProductService : IProductService
                     "Catalog attribute is required.");
             }
 
-            // IMPORTANT:
-            // Resolve the attribute by ID from the database.
-            // Do not use translated/frontend names.
             var catalogAttribute =
                 catalogAttributes.FirstOrDefault(
-                    x =>
-                        x.Id ==
+                    attribute =>
+                        attribute.Id ==
                         request.CatalogAttributeId);
 
             if (catalogAttribute is null)
@@ -714,10 +686,8 @@ public sealed class ProductService : IProductService
                     $"Catalog attribute '{catalogAttribute.Name}' is inactive.");
             }
 
-            // Code is the real CatalogAttribute.Code from DB.
             var attributeCode =
-                catalogAttribute.Code
-                    .Trim();
+                catalogAttribute.Code.Trim();
 
             if (string.IsNullOrWhiteSpace(attributeCode))
             {
@@ -728,7 +698,8 @@ public sealed class ProductService : IProductService
             var normalizedCode =
                 attributeCode.ToLowerInvariant();
 
-            if (!requestedCodes.Add(normalizedCode))
+            if (!requestedCodes.Add(
+                    normalizedCode))
             {
                 throw new ArgumentException(
                     $"Catalog attribute '{catalogAttribute.Name}' was supplied more than once.");
@@ -743,58 +714,109 @@ public sealed class ProductService : IProductService
         }
 
         // ============================================================
-        // Remove old non-variant specification attributes
+        // Existing ProductAttributes by Code
+        //
+        // This preserves ProductAttribute.Id.
         // ============================================================
 
-        await _productRepository
-            .DeleteProductSpecificationAttributesAsync(
-                product.Id,
-                protectedVariantAttributeIds,
-                cancellationToken);
-
-        _productRepository.ClearTracking();
-
-        // ============================================================
-        // Reload fresh aggregate
-        // ============================================================
-
-        product =
-            await GetExistingProductAsync(
-                product.Id,
-                cancellationToken);
+        var existingAttributesByCode =
+            product.Attributes
+                .Where(
+                    attribute =>
+                        !string.IsNullOrWhiteSpace(
+                            attribute.Code))
+                .ToDictionary(
+                    attribute =>
+                        attribute.Code.Trim(),
+                    attribute =>
+                        attribute,
+                    StringComparer.OrdinalIgnoreCase);
 
         // ============================================================
-        // Recreate requested specifications
+        // Synchronize requested attributes
         // ============================================================
 
-        foreach (var item in resolvedRequests)
+        foreach (var request in resolvedRequests)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var catalogAttribute =
-                item.Attribute;
+                request.Attribute;
 
-            // IMPORTANT:
-            // Name comes ONLY from CatalogAttribute.Name in database.
-            // It is NOT translated and it is NOT resolved by code.
             var attributeName =
-                catalogAttribute.Name
-                    .Trim();
+                catalogAttribute.Name.Trim();
 
             var attributeCode =
-                catalogAttribute.Code
-                    .Trim();
+                catalogAttribute.Code.Trim();
 
-            var productAttribute =
-                product.AddAttribute(
-                    attributeName,
-                    attributeCode);
+            var normalizedCode =
+                attributeCode.ToLowerInvariant();
 
-            var usedValues =
-                new HashSet<string>(
+            existingAttributesByCode.TryGetValue(
+                normalizedCode,
+                out var productAttribute);
+
+            // --------------------------------------------------------
+            // CREATE only when missing.
+            // --------------------------------------------------------
+
+            if (productAttribute is null)
+            {
+                productAttribute =
+                    product.AddAttribute(
+                        attributeName,
+                        attributeCode);
+
+                existingAttributesByCode[
+                    normalizedCode] =
+                    productAttribute;
+            }
+            else
+            {
+                // ----------------------------------------------------
+                // Existing Id remains untouched.
+                // ----------------------------------------------------
+
+                if (!string.Equals(
+                        productAttribute.Name,
+                        attributeName,
+                        StringComparison.Ordinal) ||
+                    !string.Equals(
+                        productAttribute.Code,
+                        attributeCode,
+                        StringComparison.Ordinal))
+                {
+                    productAttribute.Update(
+                        attributeName,
+                        attributeCode);
+                }
+            }
+
+            // --------------------------------------------------------
+            // Variant-owned attributes are managed by variant logic.
+            // --------------------------------------------------------
+
+            if (protectedVariantAttributeIds.Contains(
+                    productAttribute.Id))
+            {
+                continue;
+            }
+
+            // ========================================================
+            // Requested values
+            // ========================================================
+
+            var requestedValues =
+                new Dictionary<
+                    string,
+                    (
+                        string Value,
+                        string? DisplayValue,
+                        string? ColorHex,
+                        int DisplayOrder)>(
                     StringComparer.OrdinalIgnoreCase);
 
-            foreach (var requestedValue in item.Values)
+            foreach (var requestedValue in request.Values)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
@@ -805,8 +827,8 @@ public sealed class ProductService : IProductService
                 {
                     catalogValue =
                         catalogAttribute.Values.FirstOrDefault(
-                            x =>
-                                x.Id ==
+                            value =>
+                                value.Id ==
                                 requestedValue.CatalogAttributeValueId.Value);
 
                     if (catalogValue is null)
@@ -822,9 +844,11 @@ public sealed class ProductService : IProductService
                     }
                 }
 
-                // IMPORTANT:
-                // Real value comes from CatalogAttributeValue.Value.
-                // DisplayValue is only the optional display text.
+                // ----------------------------------------------------
+                // Value always comes from database catalog when an
+                // id was supplied.
+                // ----------------------------------------------------
+
                 var value =
                     (
                         catalogValue?.Value ??
@@ -836,29 +860,181 @@ public sealed class ProductService : IProductService
                     continue;
                 }
 
-                if (!usedValues.Add(value))
-                {
-                    continue;
-                }
-
                 var displayValue =
                     (
                         catalogValue?.DisplayValue ??
                         requestedValue.DisplayValue
                     )?.Trim();
 
+                var colorHex =
+                    (
+                        catalogValue?.ColorHex ??
+                        requestedValue.ColorHex
+                    )?.Trim();
+
+                if (!requestedValues.ContainsKey(
+                        value))
+                {
+                    requestedValues[value] =
+                        (
+                            value,
+                            string.IsNullOrWhiteSpace(
+                                displayValue)
+                                ? null
+                                : displayValue,
+                            string.IsNullOrWhiteSpace(
+                                colorHex)
+                                ? null
+                                : colorHex,
+                            requestedValue.DisplayOrder
+                        );
+                }
+            }
+
+            // ========================================================
+            // Existing AttributeValues by Value
+            //
+            // This preserves AttributeValue.Id.
+            // ========================================================
+
+            var existingValuesByValue =
+                productAttribute.Values
+                    .Where(
+                        value =>
+                            !string.IsNullOrWhiteSpace(
+                                value.Value))
+                    .ToDictionary(
+                        value =>
+                            value.Value.Trim(),
+                        value =>
+                            value,
+                        StringComparer.OrdinalIgnoreCase);
+
+            // ========================================================
+            // Add / Update requested values
+            // ========================================================
+
+            foreach (var requestedValue in requestedValues.Values)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var normalizedValue =
+                    requestedValue.Value.Trim();
+
+                existingValuesByValue.TryGetValue(
+                    normalizedValue,
+                    out var existingValue);
+
+                if (existingValue is not null)
+                {
+                    // ------------------------------------------------
+                    // Preserve AttributeValue.Id.
+                    // ------------------------------------------------
+
+                    if (!string.Equals(
+                            existingValue.DisplayValue,
+                            requestedValue.DisplayValue,
+                            StringComparison.Ordinal) ||
+                        !string.Equals(
+                            existingValue.ColorHex,
+                            requestedValue.ColorHex,
+                            StringComparison.Ordinal))
+                    {
+                        existingValue.Update(
+                            existingValue.Value,
+                            requestedValue.DisplayValue,
+                            requestedValue.ColorHex);
+                    }
+
+                    continue;
+                }
+
+                // ----------------------------------------------------
+                // New AttributeValue
+                // ----------------------------------------------------
+
                 productAttribute.AddValue(
-                    value,
-                    string.IsNullOrWhiteSpace(displayValue)
-                        ? null
-                        : displayValue,
-                    catalogValue?.ColorHex ??
+                    requestedValue.Value,
+                    requestedValue.DisplayValue,
                     requestedValue.ColorHex);
             }
+
+            // ========================================================
+            // Remove values no longer requested
+            // ========================================================
+
+            foreach (var existingValue in
+                     productAttribute.Values.ToList())
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var normalizedExistingValue =
+                    existingValue.Value.Trim();
+
+                if (requestedValues.ContainsKey(
+                        normalizedExistingValue))
+                {
+                    continue;
+                }
+
+                // ----------------------------------------------------
+                // Do not remove a value used by any variant.
+                // ----------------------------------------------------
+
+                var isUsedByVariant =
+                    product.Variants
+                        .SelectMany(
+                            variant =>
+                                variant.AttributeValues)
+                        .Any(
+                            mapping =>
+                                mapping.AttributeValueId ==
+                                existingValue.Id);
+
+                if (isUsedByVariant)
+                {
+                    continue;
+                }
+
+                productAttribute.Values.Remove(
+                    existingValue);
+            }
+        }
+
+        // ============================================================
+        // Remove ProductAttributes no longer requested
+        // ============================================================
+
+        foreach (var existingAttribute in
+                 product.Attributes.ToList())
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            // Variant-owned attribute must stay.
+            if (protectedVariantAttributeIds.Contains(
+                    existingAttribute.Id))
+            {
+                continue;
+            }
+
+            var existingCode =
+                existingAttribute.Code
+                    .Trim()
+                    .ToLowerInvariant();
+
+            if (requestedCodes.Contains(
+                    existingCode))
+            {
+                continue;
+            }
+
+            product.Attributes.Remove(
+                existingAttribute);
         }
 
         return product;
     }
+
     private async Task ReplaceCategoriesAsync(
         Product product,
         IEnumerable<Guid>? categoryIds,

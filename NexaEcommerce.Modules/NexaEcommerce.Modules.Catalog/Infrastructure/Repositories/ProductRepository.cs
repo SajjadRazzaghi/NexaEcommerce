@@ -76,6 +76,212 @@ public sealed class ProductRepository : IProductRepository
         await query.ExecuteDeleteAsync(
             cancellationToken);
     }
+    public async Task RepairTrackedProductAttributeStatesAsync(
+      CancellationToken cancellationToken = default)
+    {
+        _context.ChangeTracker.DetectChanges();
+
+        // ============================================================
+        // ProductAttributes
+        // ============================================================
+
+        var productAttributeEntries =
+            _context.ChangeTracker
+                .Entries<ProductAttribute>()
+                .Where(
+                    entry =>
+                        entry.State != EntityState.Detached)
+                .ToList();
+
+        var productAttributeIds =
+            productAttributeEntries
+                .Select(
+                    entry =>
+                        entry.Entity.Id)
+                .Where(
+                    id =>
+                        id != Guid.Empty)
+                .Distinct()
+                .ToArray();
+
+        var existingProductAttributeIds =
+            productAttributeIds.Length == 0
+                ? new HashSet<Guid>()
+                : (
+                    await _context.ProductAttributes
+                        .IgnoreQueryFilters()
+                        .Where(
+                            attribute =>
+                                productAttributeIds.Contains(
+                                    attribute.Id))
+                        .Select(
+                            attribute =>
+                                attribute.Id)
+                        .ToListAsync(
+                            cancellationToken)
+                  ).ToHashSet();
+
+        foreach (var entry in productAttributeEntries)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (entry.State == EntityState.Added)
+            {
+                // New entity must remain Added.
+                continue;
+            }
+
+            var id =
+                entry.Entity.Id;
+
+            var existsInDatabase =
+                existingProductAttributeIds.Contains(
+                    id);
+
+            if (entry.State == EntityState.Deleted)
+            {
+                // If the row is already gone, there is nothing to delete.
+                if (!existsInDatabase)
+                {
+                    entry.State =
+                        EntityState.Detached;
+                }
+
+                continue;
+            }
+
+            if (entry.State != EntityState.Modified)
+            {
+                continue;
+            }
+
+            var hasActualChanges =
+                entry.Properties.Any(
+                    property =>
+                        !Equals(
+                            property.CurrentValue,
+                            property.OriginalValue));
+
+            if (!hasActualChanges)
+            {
+                entry.State =
+                    existsInDatabase
+                        ? EntityState.Unchanged
+                        : EntityState.Added;
+
+                continue;
+            }
+
+            // The object contains changes but the database row no longer
+            // exists. Treat it as a new row instead of generating an
+            // UPDATE affecting zero rows.
+            if (!existsInDatabase)
+            {
+                entry.State =
+                    EntityState.Added;
+            }
+        }
+
+        // ============================================================
+        // AttributeValues
+        // ============================================================
+
+        var attributeValueEntries =
+            _context.ChangeTracker
+                .Entries<AttributeValue>()
+                .Where(
+                    entry =>
+                        entry.State != EntityState.Detached)
+                .ToList();
+
+        var attributeValueIds =
+            attributeValueEntries
+                .Select(
+                    entry =>
+                        entry.Entity.Id)
+                .Where(
+                    id =>
+                        id != Guid.Empty)
+                .Distinct()
+                .ToArray();
+
+        var existingAttributeValueIds =
+            attributeValueIds.Length == 0
+                ? new HashSet<Guid>()
+                : (
+                    await _context.AttributeValues
+                        .IgnoreQueryFilters()
+                        .Where(
+                            value =>
+                                attributeValueIds.Contains(
+                                    value.Id))
+                        .Select(
+                            value =>
+                                value.Id)
+                        .ToListAsync(
+                            cancellationToken)
+                  ).ToHashSet();
+
+        foreach (var entry in attributeValueEntries)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (entry.State == EntityState.Added)
+            {
+                // New entity must remain Added.
+                continue;
+            }
+
+            var id =
+                entry.Entity.Id;
+
+            var existsInDatabase =
+                existingAttributeValueIds.Contains(
+                    id);
+
+            if (entry.State == EntityState.Deleted)
+            {
+                // Already deleted outside EF.
+                if (!existsInDatabase)
+                {
+                    entry.State =
+                        EntityState.Detached;
+                }
+
+                continue;
+            }
+
+            if (entry.State != EntityState.Modified)
+            {
+                continue;
+            }
+
+            var hasActualChanges =
+                entry.Properties.Any(
+                    property =>
+                        !Equals(
+                            property.CurrentValue,
+                            property.OriginalValue));
+
+            if (!hasActualChanges)
+            {
+                entry.State =
+                    existsInDatabase
+                        ? EntityState.Unchanged
+                        : EntityState.Added;
+
+                continue;
+            }
+
+            // Database row is missing but the entity still exists in the
+            // aggregate. Reinsert it rather than sending UPDATE ... WHERE Id.
+            if (!existsInDatabase)
+            {
+                entry.State =
+                    EntityState.Added;
+            }
+        }
+    }
     public void NormalizeTrackedProductAttributeStates()
     {
         _context.ChangeTracker.DetectChanges();

@@ -44,8 +44,8 @@ public class ProductAttribute : BaseEntity
     }
 
     public void Update(
-        string name,
-        string code)
+       string name,
+       string code)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -61,10 +61,32 @@ public class ProductAttribute : BaseEntity
                 nameof(code));
         }
 
-        Name = name.Trim();
-        Code = code.Trim();
+        var normalizedName =
+            name.Trim();
 
-        UpdatedAt = DateTime.UtcNow;
+        var normalizedCode =
+            code.Trim();
+
+        if (string.Equals(
+                Name,
+                normalizedName,
+                StringComparison.Ordinal) &&
+            string.Equals(
+                Code,
+                normalizedCode,
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        Name =
+            normalizedName;
+
+        Code =
+            normalizedCode;
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
     public AttributeValue AddValue(

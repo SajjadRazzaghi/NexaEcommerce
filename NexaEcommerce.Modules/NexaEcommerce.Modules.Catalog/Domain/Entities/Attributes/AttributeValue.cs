@@ -98,19 +98,46 @@ public class AttributeValue : BaseEntity
                 nameof(value));
         }
 
-        Value =
+        var normalizedValue =
             value.Trim();
 
-        DisplayValue =
+        var normalizedDisplayValue =
             string.IsNullOrWhiteSpace(displayValue)
                 ? null
                 : displayValue.Trim();
 
-        ColorHex =
+        var normalizedColorHex =
             string.IsNullOrWhiteSpace(colorHex)
                 ? null
                 : colorHex.Trim();
 
-        UpdatedAt = DateTime.UtcNow;
+        // Nothing really changed.
+        if (string.Equals(
+                Value,
+                normalizedValue,
+                StringComparison.Ordinal) &&
+            string.Equals(
+                DisplayValue,
+                normalizedDisplayValue,
+                StringComparison.Ordinal) &&
+            string.Equals(
+                ColorHex,
+                normalizedColorHex,
+                StringComparison.Ordinal))
+        {
+            return;
+        }
+
+        Value =
+            normalizedValue;
+
+        DisplayValue =
+            normalizedDisplayValue;
+
+        ColorHex =
+            normalizedColorHex;
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 }

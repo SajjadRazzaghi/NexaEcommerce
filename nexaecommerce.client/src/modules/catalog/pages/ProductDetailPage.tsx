@@ -66,28 +66,6 @@ type SelectedAttributes = Record<
     string
 >;
 
-const ATTRIBUTE_TRANSLATION_KEYS: Record<
-    string,
-    string
-> = {
-    color:
-        'storefront.productDetail.attributes.color',
-
-    colour:
-        'storefront.productDetail.attributes.color',
-
-    size:
-        'storefront.productDetail.attributes.size',
-
-    material:
-        'storefront.productDetail.attributes.material',
-
-    fabric:
-        'storefront.productDetail.attributes.material',
-
-    pattern:
-        'storefront.productDetail.attributes.pattern',
-};
 
 function getAttributeValue(
     variant: ProductVariant,
