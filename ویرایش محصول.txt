@@ -1,0 +1,25 @@
+ProductEditPage
+      ↓
+ProductForm
+      ↓
+specifications
+      ↓
+buildProductAttributePayload
+      ↓
+PUT /products/{id}
+      ↓
+ProductService.UpdateAsync
+      ↓
+SynchronizeProductAttributesAsync
+      ↓
+Add ProductAttribute / Add AttributeValue
+      ↓
+SynchronizeVariantsAsync
+      ↓
+DetachTrackedVariantAttributeMappings
+      ↓
+RepairTrackedProductAttributeStatesAsync   ← مهم
+      ↓
+NormalizeTrackedProductVariantStates
+      ↓
+SaveChanges

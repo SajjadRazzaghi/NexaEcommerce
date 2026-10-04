@@ -82,7 +82,7 @@ public sealed class ProductRepository : IProductRepository
         _context.ChangeTracker.DetectChanges();
 
         // ============================================================
-        // ProductAttributes
+        // ProductAttribute
         // ============================================================
 
         var productAttributeEntries =
@@ -125,9 +125,12 @@ public sealed class ProductRepository : IProductRepository
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            // --------------------------------------------------------
+            // New entity: leave it Added.
+            // --------------------------------------------------------
+
             if (entry.State == EntityState.Added)
             {
-                // New entity must remain Added.
                 continue;
             }
 
@@ -138,9 +141,12 @@ public sealed class ProductRepository : IProductRepository
                 existingProductAttributeIds.Contains(
                     id);
 
+            // --------------------------------------------------------
+            // Deleted entity which is already gone.
+            // --------------------------------------------------------
+
             if (entry.State == EntityState.Deleted)
             {
-                // If the row is already gone, there is nothing to delete.
                 if (!existsInDatabase)
                 {
                     entry.State =
@@ -149,6 +155,10 @@ public sealed class ProductRepository : IProductRepository
 
                 continue;
             }
+
+            // --------------------------------------------------------
+            // Only repair Modified entities.
+            // --------------------------------------------------------
 
             if (entry.State != EntityState.Modified)
             {
@@ -162,6 +172,10 @@ public sealed class ProductRepository : IProductRepository
                             property.CurrentValue,
                             property.OriginalValue));
 
+            // --------------------------------------------------------
+            // Existing database row but nothing actually changed.
+            // --------------------------------------------------------
+
             if (!hasActualChanges)
             {
                 entry.State =
@@ -172,9 +186,13 @@ public sealed class ProductRepository : IProductRepository
                 continue;
             }
 
-            // The object contains changes but the database row no longer
-            // exists. Treat it as a new row instead of generating an
-            // UPDATE affecting zero rows.
+            // --------------------------------------------------------
+            // Object has changes but its row does not exist.
+            //
+            // This is a newly-created entity which was incorrectly
+            // promoted to Modified.
+            // --------------------------------------------------------
+
             if (!existsInDatabase)
             {
                 entry.State =
@@ -183,7 +201,7 @@ public sealed class ProductRepository : IProductRepository
         }
 
         // ============================================================
-        // AttributeValues
+        // AttributeValue
         // ============================================================
 
         var attributeValueEntries =
@@ -226,9 +244,12 @@ public sealed class ProductRepository : IProductRepository
         {
             cancellationToken.ThrowIfCancellationRequested();
 
+            // --------------------------------------------------------
+            // New entity: leave it Added.
+            // --------------------------------------------------------
+
             if (entry.State == EntityState.Added)
             {
-                // New entity must remain Added.
                 continue;
             }
 
@@ -239,9 +260,12 @@ public sealed class ProductRepository : IProductRepository
                 existingAttributeValueIds.Contains(
                     id);
 
+            // --------------------------------------------------------
+            // Already deleted from DB.
+            // --------------------------------------------------------
+
             if (entry.State == EntityState.Deleted)
             {
-                // Already deleted outside EF.
                 if (!existsInDatabase)
                 {
                     entry.State =
@@ -250,6 +274,10 @@ public sealed class ProductRepository : IProductRepository
 
                 continue;
             }
+
+            // --------------------------------------------------------
+            // Only repair Modified entities.
+            // --------------------------------------------------------
 
             if (entry.State != EntityState.Modified)
             {
@@ -263,6 +291,10 @@ public sealed class ProductRepository : IProductRepository
                             property.CurrentValue,
                             property.OriginalValue));
 
+            // --------------------------------------------------------
+            // Existing row with no actual changes.
+            // --------------------------------------------------------
+
             if (!hasActualChanges)
             {
                 entry.State =
@@ -273,8 +305,10 @@ public sealed class ProductRepository : IProductRepository
                 continue;
             }
 
-            // Database row is missing but the entity still exists in the
-            // aggregate. Reinsert it rather than sending UPDATE ... WHERE Id.
+            // --------------------------------------------------------
+            // New row incorrectly marked Modified.
+            // --------------------------------------------------------
+
             if (!existsInDatabase)
             {
                 entry.State =

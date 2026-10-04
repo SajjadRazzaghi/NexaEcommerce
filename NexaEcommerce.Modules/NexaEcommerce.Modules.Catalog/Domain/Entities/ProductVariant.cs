@@ -197,18 +197,10 @@ public class ProductVariant : BaseEntity
             return;
         }
 
-        /*
-         * IMPORTANT:
-         *
-         * Create the mapping with the full navigation populated.
-         * The Product update pipeline relies on AttributeValue /
-         * ProductAttribute being available while synchronizing
-         * product attributes.
-         */
         AttributeValues.Add(
-    new VariantAttributeValue(
-        Id,
-        attributeValue.Id));
+            new VariantAttributeValue(
+                Id,
+                attributeValue));
     }
 
     public void RemoveAttributeValue(

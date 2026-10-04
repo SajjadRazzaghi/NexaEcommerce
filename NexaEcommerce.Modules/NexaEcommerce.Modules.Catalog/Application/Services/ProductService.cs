@@ -343,9 +343,9 @@ public sealed class ProductService : IProductService
     // ============================================================
 
     public async Task UpdateAsync(
-        Guid id,
-        UpdateProductDto updateDto,
-        CancellationToken cancellationToken = default)
+     Guid id,
+     UpdateProductDto updateDto,
+     CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(updateDto);
 
@@ -364,7 +364,7 @@ public sealed class ProductService : IProductService
         }
 
         // ============================================================
-        // Load current aggregate
+        // Load current tracked aggregate
         // ============================================================
 
         var product =
@@ -441,11 +441,7 @@ public sealed class ProductService : IProductService
             updateDto.ManufacturerId);
 
         // ============================================================
-        // Product Attributes
-        //
-        // IMPORTANT:
-        // Existing ProductAttribute / AttributeValue IDs are preserved.
-        // No Delete/Recreate happens here.
+        // Product Specifications
         // ============================================================
 
         await SynchronizeProductAttributesAsync(
@@ -481,15 +477,50 @@ public sealed class ProductService : IProductService
             cancellationToken);
 
         // ============================================================
-        // Existing VariantAttributeValue rows are synchronized
-        // explicitly by repository SQL operations.
+        // Existing VariantAttributeValue rows are persisted directly
+        // through repository SQL operations.
         // ============================================================
 
         _productRepository.DetachTrackedVariantAttributeMappings();
+
+        // ============================================================
+        // IMPORTANT
+        //
+        // ProductAttribute / AttributeValue can be newly-created
+        // during this request. If some other EF graph operation
+        // accidentally promoted them to Modified, repair their state
+        // before SaveChanges().
+        //
+        // Existing rows:
+        //     Modified with no actual change -> Unchanged
+        //
+        // New rows:
+        //     Modified but not present in DB -> Added
+        //
+        // This prevents UPDATE ... WHERE Id = new-guid
+        // and therefore prevents false concurrency exceptions.
+        // ============================================================
+
+        await _productRepository
+            .RepairTrackedProductAttributeStatesAsync(
+                cancellationToken);
+
+        // ============================================================
+        // Existing ProductVariant scalar changes are already persisted
+        // with ExecuteUpdateAsync().
+        //
+        // New ProductVariants must remain Added.
+        // ============================================================
+
+        _productRepository.NormalizeTrackedProductVariantStates();
+
+        // ============================================================
+        // Final save
+        // ============================================================
+
         await _unitOfWork.SaveChangesAsync(
             cancellationToken);
     }
-
 
     // ============================================================
     // Stock
