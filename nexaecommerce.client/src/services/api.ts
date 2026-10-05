@@ -1,4 +1,3 @@
-// nexaecommerce.client/src/services/api.ts
 import axios, {
     type AxiosError,
     type AxiosResponse,
@@ -13,31 +12,51 @@ const api = axios.create({
         'Content-Type': 'application/json',
     },
     timeout: 30000,
-    withCredentials: true, // ✅ فعال‌سازی برای پشتیبانی از Cookie سبد خرید مهمان
+    withCredentials: true,
 });
 
 api.interceptors.request.use(
-    (config: InternalAxiosRequestConfig): InternalAxiosRequestConfig => {
-        const token = localStorage.getItem('accessToken');
-        if (token && config.headers) {
-            config.headers.Authorization = `Bearer ${token}`;
-        }
+    (
+        config: InternalAxiosRequestConfig,
+    ): InternalAxiosRequestConfig => {
+        /*
+         * Authentication is cookie-based in the application.
+         *
+         * Never read access tokens from localStorage.
+         */
         return config;
     },
-    (error: AxiosError): Promise<AxiosError> => Promise.reject(error)
+    (
+        error: AxiosError,
+    ): Promise<AxiosError> =>
+        Promise.reject(error),
 );
 
 api.interceptors.response.use(
-    (response: AxiosResponse): AxiosResponse => response,
-    (error: AxiosError): Promise<AxiosError> => {
-        if (error.response?.status === 401) {
-            // جلوگیری از ریدایرکت بی‌پایان اگر خودش در صفحه لاگین است
-            if (!window.location.pathname.includes('/login')) {
-                window.location.href = '/login';
+    (
+        response: AxiosResponse,
+    ): AxiosResponse =>
+        response,
+    (
+        error: AxiosError,
+    ): Promise<AxiosError> => {
+        if (
+            error.response?.status === 401
+        ) {
+            if (
+                !window.location.pathname.includes(
+                    '/login',
+                )
+            ) {
+                window.location.href =
+                    '/login';
             }
         }
-        return Promise.reject(error);
-    }
+
+        return Promise.reject(
+            error,
+        );
+    },
 );
 
 export default api;

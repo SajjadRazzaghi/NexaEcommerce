@@ -1,6 +1,6 @@
 ﻿using NexaEcommerce.Modules.Catalog.Domain.Entities;
 using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
-using NexaEcommerce.Modules.Catalog.Domain.Enums;
+
 
 namespace NexaEcommerce.Modules.Catalog.Application.DTOs;
 

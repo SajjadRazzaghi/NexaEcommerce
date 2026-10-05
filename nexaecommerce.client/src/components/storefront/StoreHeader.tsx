@@ -23,7 +23,9 @@ import {
     UserRound,
 } from 'lucide-react';
 
-import { appearanceApi } from '@/lib/api/appearance';
+import {
+    appearanceApi,
+} from '@/lib/api/appearance';
 
 import {
     useAuth,
@@ -45,7 +47,8 @@ const DEFAULT_STORE_NAME =
     'NexaECommerce';
 
 export default function StoreHeader() {
-    const navigate = useNavigate();
+    const navigate =
+        useNavigate();
 
     const {
         i18n,
@@ -86,7 +89,8 @@ export default function StoreHeader() {
 
     const {
         data: cart,
-        isLoading: cartLoading,
+        isLoading:
+        cartLoading,
     } = useCart();
 
     const storeName =
@@ -147,13 +151,10 @@ export default function StoreHeader() {
         }
 
         navigate(
-            `/products ? search = ${ encodeURIComponent(value) } `,
+            `/products?search=${encodeURIComponent(value)}`,
         );
     };
 
-    /*
-     * Translated labels
-     */
     const searchPlaceholder =
         t(
             'storefront.header.searchProducts',
@@ -216,7 +217,9 @@ export default function StoreHeader() {
             );
 
     return (
-        <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
+        <header
+            className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur"
+        >
             <div
                 className="mx-auto flex max-w-7xl items-center gap-3 px-4 py-3 sm:px-6"
                 dir={
@@ -225,7 +228,6 @@ export default function StoreHeader() {
                         : 'ltr'
                 }
             >
-                {/* Store logo /name */}
                 <Link
                     to="/"
                     className="flex shrink-0 items-center gap-2"
@@ -258,7 +260,6 @@ export default function StoreHeader() {
                     </div>
                 </Link>
 
-                {/* Search */}
                 <form
                     onSubmit={
                         submitSearch
@@ -291,29 +292,26 @@ export default function StoreHeader() {
 
                         <button
                             type="submit"
-                            className="hidden rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 sm:block"
+                            className="hidden rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 sm:block"
                         >
                             {searchButton}
                         </button>
                     </div>
                 </form>
 
-                {/* Products */}
                 <Link
                     to="/products"
-                    className="hidden rounded-xl border px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted lg:block"
+                    className="hidden rounded-xl border px-4 py-2 text-sm font-semibold transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 lg:block"
                 >
                     {productsLabel}
                 </Link>
 
-                {/* Cart */}
                 <Link
                     to="/cart"
-                    className={`relative flex size - 11 shrink - 0 items - center justify - center rounded - xl border transition - colors hover: bg - muted ${
-    hasCartItems
-        ? 'border-primary/50 bg-primary/5'
-        : 'text-muted-foreground'
-} `}
+                    className={`relative flex size-11 shrink-0 items-center justify-center rounded-xl border transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${hasCartItems
+                            ? 'border-primary/50 bg-primary/5'
+                            : 'text-muted-foreground'
+                        }`}
                     aria-label={
                         cartLabel
                     }
@@ -322,11 +320,10 @@ export default function StoreHeader() {
                     }
                 >
                     <ShoppingBag
-                        className={`size - 5 ${
-    hasCartItems
-        ? 'text-primary'
-        : ''
-} `}
+                        className={`size-5 ${hasCartItems
+                                ? 'text-primary'
+                                : ''
+                            }`}
                     />
 
                     {hasCartItems && (
@@ -335,7 +332,7 @@ export default function StoreHeader() {
                             aria-hidden="true"
                         >
                             {cartItemCount >
-                            99
+                                99
                                 ? '99+'
                                 : cartItemCount}
                         </span>
@@ -349,21 +346,18 @@ export default function StoreHeader() {
                     )}
                 </Link>
 
-                {/* Language */}
                 <LanguageToggle />
 
-                {/* Theme */}
                 <ModeToggle />
 
-                {/* User */}
                 {isAuthenticated ? (
                     <Link
                         to="/profile"
-                        className="flex min-w-0 shrink-0 items-center gap-2 rounded-xl border px-2 py-2 transition-colors hover:bg-muted md:px-3"
+                        className="flex min-w-0 shrink-0 items-center gap-2 rounded-xl border px-2 py-2 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 md:px-3"
                         aria-label={
                             isFa
-                                ? `باز کردن پروفایل ${ userName } `
-                                : `Open profile for ${ userName }`
+                                ? `باز کردن پروفایل ${userName}`
+                                : `Open profile for ${userName}`
                         }
                         title={
                             profileLabel
@@ -403,7 +397,7 @@ export default function StoreHeader() {
                 ) : (
                     <Link
                         to="/login"
-                        className="hidden rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 md:block"
+                        className="hidden rounded-xl bg-primary px-4 py-2 text-sm font-bold text-primary-foreground transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 md:block"
                     >
                         {signInLabel}
                     </Link>
@@ -412,4 +406,3 @@ export default function StoreHeader() {
         </header>
     );
 }
-

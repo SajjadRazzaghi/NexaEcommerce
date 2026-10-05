@@ -1,4 +1,4 @@
-import api from '@/services/api';
+import { api } from '@/lib/api/client';
 
 import type {
     PaymentAttemptDto,
@@ -81,19 +81,16 @@ export async function startPayment(
             idempotencyKey,
         );
 
-    const { data } =
-        await api.post<CreatePaymentResultDto>(
-            '/orders/payment/start',
-            request,
-            {
-                headers: {
-                    'Idempotency-Key':
-                        key,
-                },
+    return api.post<CreatePaymentResultDto>(
+        '/orders/payment/start',
+        request,
+        {
+            headers: {
+                'Idempotency-Key':
+                    key,
             },
-        );
-
-    return data;
+        },
+    );
 }
 
 export async function createPaymentAttempt(
@@ -105,19 +102,16 @@ export async function createPaymentAttempt(
             idempotencyKey,
         );
 
-    const { data } =
-        await api.post<PaymentAttemptDto>(
-            '/orders/payment-attempts',
-            request,
-            {
-                headers: {
-                    'Idempotency-Key':
-                        key,
-                },
+    return api.post<PaymentAttemptDto>(
+        '/orders/payment-attempts',
+        request,
+        {
+            headers: {
+                'Idempotency-Key':
+                    key,
             },
-        );
-
-    return data;
+        },
+    );
 }
 
 export async function getPaymentAttempt(
@@ -129,48 +123,36 @@ export async function getPaymentAttempt(
             'Payment attempt id',
         );
 
-    const { data } =
-        await api.get<PaymentAttemptDto>(
-            `/orders/payment-attempts/${normalizedId}`,
-        );
-
-    return data;
+    return api.get<PaymentAttemptDto>(
+        `/orders/payment-attempts/${normalizedId}`,
+    );
 }
 
 export async function verifyPayment(
     request: VerifyPaymentRequest,
 ): Promise<PaymentAttemptDto> {
-    const { data } =
-        await api.post<PaymentAttemptDto>(
-            '/orders/payment/verify',
-            request,
-        );
-
-    return data;
+    return api.post<PaymentAttemptDto>(
+        '/orders/payment/verify',
+        request,
+    );
 }
 
 export async function completePayment(
     request: CompletePaymentRequest,
 ): Promise<PaymentAttemptDto> {
-    const { data } =
-        await api.post<PaymentAttemptDto>(
-            '/orders/payment/complete',
-            request,
-        );
-
-    return data;
+    return api.post<PaymentAttemptDto>(
+        '/orders/payment/complete',
+        request,
+    );
 }
 
 export async function failPayment(
     request: FailPaymentRequest,
 ): Promise<unknown> {
-    const { data } =
-        await api.post(
-            '/orders/payment/fail',
-            request,
-        );
-
-    return data;
+    return api.post(
+        '/orders/payment/fail',
+        request,
+    );
 }
 
 export async function retryPayment(
@@ -188,20 +170,17 @@ export async function retryPayment(
             idempotencyKey,
         );
 
-    const { data } =
-        await api.post<PaymentAttemptDto>(
-            '/orders/payment/retry',
-            {
-                orderId:
-                    normalizedOrderId,
+    return api.post<PaymentAttemptDto>(
+        '/orders/payment/retry',
+        {
+            orderId:
+                normalizedOrderId,
+        },
+        {
+            headers: {
+                'Idempotency-Key':
+                    key,
             },
-            {
-                headers: {
-                    'Idempotency-Key':
-                        key,
-                },
-            },
-        );
-
-    return data;
+        },
+    );
 }
