@@ -4,24 +4,39 @@ public sealed class CreateProductVariantDto
 {
     public string Sku { get; set; } = string.Empty;
 
-    // Backward compatible fields.
+    public string? Barcode { get; set; }
+
+    public decimal? PriceOverride { get; set; }
+
+    public decimal? ComparePrice { get; set; }
+
+    /*
+     * IDs belong to ProductAttributeValue records.
+     *
+     * Only values whose ProductAttribute.Role contains
+     * VariantDefining are allowed here.
+     */
+    public List<Guid> AttributeValueIds { get; set; } = new();
+
+    /*
+     * Optional variant-specific media.
+     */
+    public List<string> Images { get; set; } = new();
+
+    /*
+     * Legacy compatibility.
+     *
+     * These fields are no longer used as the canonical source.
+     * They may remain temporarily for old clients.
+     */
     public string? Color { get; set; }
 
     public string? Size { get; set; }
 
-    public decimal? PriceOverride { get; set; }
-
+    /*
+     * Legacy compatibility only.
+     *
+     * Inventory is the source of truth for stock.
+     */
     public int StockQuantity { get; set; }
-
-    // Generic catalog attribute values selected for this variant.
-    //
-    // Example:
-    // Color = Red  -> catalog attribute value id
-    // Size  = XL   -> catalog attribute value id
-    // Material = Cotton -> catalog attribute value id
-    //
-    // This allows the product system to support any future
-    // variant attribute without changing this DTO again.
-    public List<Guid> AttributeValueIds { get; set; } = new();
 }
-

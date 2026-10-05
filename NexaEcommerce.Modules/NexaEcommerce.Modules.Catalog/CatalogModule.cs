@@ -57,7 +57,9 @@ public static class CatalogModule
         services.AddScoped<IManufacturerService, ManufacturerService>();
 
         services.AddScoped<IUnitOfWork, UnitOfWork<CatalogDbContext>>();
-
+        services.AddScoped<
+    ICatalogDataIntegrityService,
+    CatalogDataIntegrityService>();
         services.AddAutoMapper(
             typeof(ProductProfile).Assembly);
 

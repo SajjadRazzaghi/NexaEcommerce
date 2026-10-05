@@ -505,38 +505,130 @@ public sealed class ProductRepository : IProductRepository
         CancellationToken cancellationToken = default)
     {
         return await _context.Products
-            .AsSplitQuery()
+     .AsSplitQuery()
 
-            .Include(p => p.ProductCategories)
-                .ThenInclude(pc => pc.Category)
+     .Include(x => x.ProductCategories)
+    .ThenInclude(x => x.Category)
 
-            .Include(p => p.Images)
+.Include(x => x.Images)
 
-            .Include(p => p.Variants)
-                .ThenInclude(v => v.AttributeValues)
-                    .ThenInclude(vav => vav.AttributeValue)
-                        .ThenInclude(av => av.ProductAttribute)
+.Include(x => x.Reviews)
 
-            .Include(p => p.Attributes)
-                .ThenInclude(a => a.Values)
+.Include(x => x.Brand)
 
-            .Include(p => p.Reviews)
+.Include(x => x.Manufacturer)
 
-            .Include(p => p.Brand)
+.Include(x => x.Attributes)
+    .ThenInclude(x => x.CatalogAttribute)
 
-            .Include(p => p.Manufacturer)
+.Include(x => x.Attributes)
+    .ThenInclude(x => x.Values)
+        .ThenInclude(x => x.CatalogAttributeValue)
 
-            .FirstOrDefaultAsync(
-                p =>
-                    p.Id == id &&
-                    !p.IsDeleted,
-                cancellationToken);
+.Include(x => x.Variants)
+    .ThenInclude(x => x.AttributeValues)
+        .ThenInclude(x => x.AttributeValue)
+            .ThenInclude(x => x.ProductAttribute)
+
+.Include(x => x.Variants)
+    .ThenInclude(x => x.AttributeValues)
+        .ThenInclude(x => x.AttributeValue)
+            .ThenInclude(x => x.CatalogAttributeValue)
+
+.Include(x => x.Variants)
+    .ThenInclude(x => x.Images)
+
+     .FirstOrDefaultAsync(
+         p =>
+             p.Id == id &&
+             !p.IsDeleted,
+         cancellationToken);
     }
 
     // ============================================================
     // Get By Slug
     // ============================================================
+    public async Task<bool> ExistsByVariantCombinationAsync(
+        Guid productId,
+        string combinationKey,
+        Guid? excludeVariantId = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(combinationKey))
+        {
+            return false;
+        }
 
+        var query =
+            _context.ProductVariants
+                .AsNoTracking()
+                .Where(
+                    x =>
+                        x.ProductId == productId &&
+                        x.CombinationKey == combinationKey &&
+                        !x.IsDeleted);
+
+        if (excludeVariantId.HasValue)
+        {
+            query =
+                query.Where(
+                    x =>
+                        x.Id != excludeVariantId.Value);
+        }
+
+        return await query.AnyAsync(
+            cancellationToken);
+    }
+    public async Task ReplaceVariantImagesAsync(
+     Guid variantId,
+     IReadOnlyCollection<string>? imageUrls,
+     CancellationToken cancellationToken = default)
+    {
+        var existingImages =
+            await _context.ProductVariantImages
+                .Where(
+                    x =>
+                        x.ProductVariantId ==
+                        variantId)
+                .ToListAsync(
+                    cancellationToken);
+
+        if (existingImages.Count > 0)
+        {
+            _context.ProductVariantImages.RemoveRange(
+                existingImages);
+        }
+
+        var urls =
+            (imageUrls ?? Array.Empty<string>())
+                .Where(
+                    x =>
+                        !string.IsNullOrWhiteSpace(x))
+                .Select(
+                    x => x.Trim())
+                .ToList();
+
+        if (urls.Count == 0)
+        {
+            return;
+        }
+
+        var newImages =
+            urls
+                .Select(
+                    (url, index) =>
+                        new ProductVariantImage(
+                            variantId,
+                            url,
+                            null,
+                            index,
+                            index == 0))
+                .ToList();
+
+        await _context.ProductVariantImages.AddRangeAsync(
+            newImages,
+            cancellationToken);
+    }
     public async Task<Product?> GetBySlugAsync(
         string slug,
         CancellationToken cancellationToken = default)
@@ -561,24 +653,36 @@ public sealed class ProductRepository : IProductRepository
                     p.IsActive &&
                     p.IsPublished)
 
-            .Include(p => p.ProductCategories)
-                .ThenInclude(pc => pc.Category)
+         .Include(x => x.ProductCategories)
+    .ThenInclude(x => x.Category)
 
-            .Include(p => p.Images)
+.Include(x => x.Images)
 
-            .Include(p => p.Variants)
-                .ThenInclude(v => v.AttributeValues)
-                    .ThenInclude(vav => vav.AttributeValue)
-                        .ThenInclude(av => av.ProductAttribute)
+.Include(x => x.Reviews)
 
-            .Include(p => p.Attributes)
-                .ThenInclude(a => a.Values)
+.Include(x => x.Brand)
 
-            .Include(p => p.Reviews)
+.Include(x => x.Manufacturer)
 
-            .Include(p => p.Brand)
+.Include(x => x.Attributes)
+    .ThenInclude(x => x.CatalogAttribute)
 
-            .Include(p => p.Manufacturer)
+.Include(x => x.Attributes)
+    .ThenInclude(x => x.Values)
+        .ThenInclude(x => x.CatalogAttributeValue)
+
+.Include(x => x.Variants)
+    .ThenInclude(x => x.AttributeValues)
+        .ThenInclude(x => x.AttributeValue)
+            .ThenInclude(x => x.ProductAttribute)
+
+.Include(x => x.Variants)
+    .ThenInclude(x => x.AttributeValues)
+        .ThenInclude(x => x.AttributeValue)
+            .ThenInclude(x => x.CatalogAttributeValue)
+
+.Include(x => x.Variants)
+    .ThenInclude(x => x.Images)
 
             .FirstOrDefaultAsync(
                 cancellationToken);

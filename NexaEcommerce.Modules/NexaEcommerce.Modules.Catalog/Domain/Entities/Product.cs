@@ -331,6 +331,7 @@ public class Product : AggregateRoot
     public ProductVariant AddVariant(
         string sku,
         decimal price,
+        int stockQuantity = 0,
         decimal? comparePrice = null)
     {
         var variant =
@@ -338,15 +339,11 @@ public class Product : AggregateRoot
                 Id,
                 sku,
                 price,
-                0);
+                stockQuantity,
+                comparePrice);
 
-        if (comparePrice.HasValue)
-        {
-            variant.SetComparePrice(
-                comparePrice.Value);
-        }
-
-        Variants.Add(variant);
+        Variants.Add(
+            variant);
 
         return variant;
     }
@@ -433,8 +430,12 @@ public class Product : AggregateRoot
     // =========================================================
 
     public ProductAttribute AddAttribute(
-        string name,
-        string code)
+       string name,
+       string code,
+       Guid? catalogAttributeId = null,
+       AttributeRole role = AttributeRole.Descriptive,
+       bool isRequired = false,
+       int displayOrder = 0)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -450,15 +451,47 @@ public class Product : AggregateRoot
                 nameof(code));
         }
 
+        if (role == AttributeRole.None)
+        {
+            throw new ArgumentException(
+                "Attribute role is required.",
+                nameof(role));
+        }
+
+        if (displayOrder < 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(displayOrder));
+        }
+
         var existing =
             Attributes.FirstOrDefault(
                 x =>
-                    x.Code.Equals(
-                        code,
-                        StringComparison.OrdinalIgnoreCase));
+                    (
+                        catalogAttributeId.HasValue &&
+                        x.CatalogAttributeId ==
+                            catalogAttributeId.Value
+                    )
+                    ||
+                    (
+                        !catalogAttributeId.HasValue &&
+                        x.Code.Equals(
+                            code,
+                            StringComparison.OrdinalIgnoreCase)
+                    ));
 
-        if (existing != null)
+        if (existing is not null)
         {
+            if (catalogAttributeId.HasValue)
+            {
+                existing.SetCatalogAttribute(
+                    catalogAttributeId.Value);
+            }
+
+            existing.SetRole(role);
+            existing.SetRequired(isRequired);
+            existing.SetDisplayOrder(displayOrder);
+
             return existing;
         }
 
@@ -466,13 +499,16 @@ public class Product : AggregateRoot
             new ProductAttribute(
                 Id,
                 name,
-                code);
+                code,
+                catalogAttributeId,
+                role,
+                isRequired,
+                displayOrder);
 
         Attributes.Add(attribute);
 
         return attribute;
     }
-
     // =========================================================
     // Slug
     // =========================================================

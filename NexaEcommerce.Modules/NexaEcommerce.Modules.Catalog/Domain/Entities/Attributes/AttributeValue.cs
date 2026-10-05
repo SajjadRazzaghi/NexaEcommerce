@@ -6,6 +6,13 @@ public class AttributeValue : BaseEntity
 {
     public Guid ProductAttributeId { get; private set; }
 
+    /*
+     * Optional reference to the controlled catalog value.
+     *
+     * Null means product-specific/custom value.
+     */
+    public Guid? CatalogAttributeValueId { get; private set; }
+
     public string Value { get; private set; } = null!;
 
     public string? DisplayValue { get; private set; }
@@ -13,6 +20,12 @@ public class AttributeValue : BaseEntity
     public string? ColorHex { get; private set; }
 
     public ProductAttribute ProductAttribute { get; private set; } = null!;
+
+    public CatalogAttributeValue? CatalogAttributeValue
+    {
+        get;
+        private set;
+    }
 
     public ICollection<VariantAttributeValue> VariantAttributeValues
     {
@@ -28,7 +41,8 @@ public class AttributeValue : BaseEntity
         Guid productAttributeId,
         string value,
         string? displayValue = null,
-        string? colorHex = null)
+        string? colorHex = null,
+        Guid? catalogAttributeValueId = null)
     {
         if (productAttributeId == Guid.Empty)
         {
@@ -44,46 +58,72 @@ public class AttributeValue : BaseEntity
                 nameof(value));
         }
 
+        if (catalogAttributeValueId.HasValue &&
+            catalogAttributeValueId.Value == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Catalog attribute value id cannot be empty.",
+                nameof(catalogAttributeValueId));
+        }
+
         ProductAttributeId =
             productAttributeId;
+
+        CatalogAttributeValueId =
+            catalogAttributeValueId;
 
         Value =
             value.Trim();
 
         DisplayValue =
-            string.IsNullOrWhiteSpace(displayValue)
-                ? null
-                : displayValue.Trim();
+            NormalizeNullable(displayValue);
 
         ColorHex =
-            string.IsNullOrWhiteSpace(colorHex)
-                ? null
-                : colorHex.Trim();
+            NormalizeNullable(colorHex);
     }
 
-    /*
-     * This constructor is used when the value is created
-     * through the ProductAttribute aggregate.
-     *
-     * Keeping the navigation populated is important because
-     * variant synchronization needs to know which ProductAttribute
-     * owns the value.
-     */
     public AttributeValue(
         ProductAttribute productAttribute,
         string value,
         string? displayValue = null,
-        string? colorHex = null)
+        string? colorHex = null,
+        Guid? catalogAttributeValueId = null)
         : this(
             productAttribute?.Id
                 ?? throw new ArgumentNullException(
                     nameof(productAttribute)),
             value,
             displayValue,
-            colorHex)
+            colorHex,
+            catalogAttributeValueId)
     {
         ProductAttribute =
             productAttribute;
+    }
+
+    public void SetCatalogValue(
+        Guid catalogAttributeValueId)
+    {
+        if (catalogAttributeValueId == Guid.Empty)
+        {
+            throw new ArgumentException(
+                "Catalog attribute value id is required.",
+                nameof(catalogAttributeValueId));
+        }
+
+        CatalogAttributeValueId =
+            catalogAttributeValueId;
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
+
+    public void ClearCatalogValue()
+    {
+        CatalogAttributeValueId = null;
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
     public void Update(
@@ -102,16 +142,11 @@ public class AttributeValue : BaseEntity
             value.Trim();
 
         var normalizedDisplayValue =
-            string.IsNullOrWhiteSpace(displayValue)
-                ? null
-                : displayValue.Trim();
+            NormalizeNullable(displayValue);
 
         var normalizedColorHex =
-            string.IsNullOrWhiteSpace(colorHex)
-                ? null
-                : colorHex.Trim();
+            NormalizeNullable(colorHex);
 
-        // Nothing really changed.
         if (string.Equals(
                 Value,
                 normalizedValue,
@@ -139,5 +174,13 @@ public class AttributeValue : BaseEntity
 
         UpdatedAt =
             DateTime.UtcNow;
+    }
+
+    private static string? NormalizeNullable(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
     }
 }

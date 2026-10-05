@@ -9,15 +9,26 @@ public class ProductVariant : BaseEntity
 
     public string Sku { get; private set; } = null!;
 
+    public string? Barcode { get; private set; }
+
+    /*
+     * Deterministic representation of the variant-defining
+     * ProductAttributeValue combination.
+     *
+     * Nullable during the migration phase because existing
+     * variants do not have this value yet.
+     */
+    public string? CombinationKey { get; private set; }
+
     public decimal PriceOverride { get; private set; }
 
     public decimal? ComparePrice { get; private set; }
 
     /*
-     * Legacy catalog stock field.
+     * Legacy compatibility field.
      *
-     * Physical/sellable inventory is managed by the Inventory module.
-     * This value is retained for compatibility with the existing model.
+     * Inventory will become the only source of truth in the
+     * inventory migration phase.
      */
     public int StockQuantity { get; private set; }
 
@@ -31,6 +42,12 @@ public class ProductVariant : BaseEntity
         private set;
     } = new List<VariantAttributeValue>();
 
+    public ICollection<ProductVariantImage> Images
+    {
+        get;
+        private set;
+    } = new List<ProductVariantImage>();
+
     private ProductVariant()
     {
     }
@@ -39,42 +56,50 @@ public class ProductVariant : BaseEntity
         Guid productId,
         string sku,
         decimal price,
-        int stockQuantity)
+        int stockQuantity = 0,
+        decimal? comparePrice = null)
     {
-        if (productId == Guid.Empty)
-        {
-            throw new ArgumentException(
-                "Product id is required.",
-                nameof(productId));
-        }
+        ProductId = productId;
 
-        if (string.IsNullOrWhiteSpace(sku))
-        {
-            throw new ArgumentException(
-                "SKU is required.",
+        Sku =
+            sku?.Trim()
+            ?? throw new ArgumentNullException(
                 nameof(sku));
-        }
 
         if (price < 0)
         {
             throw new ArgumentOutOfRangeException(
-                nameof(price));
+                nameof(price),
+                "Variant price cannot be negative.");
         }
 
         if (stockQuantity < 0)
         {
             throw new ArgumentOutOfRangeException(
-                nameof(stockQuantity));
+                nameof(stockQuantity),
+                "Variant stock quantity cannot be negative.");
         }
 
-        ProductId = productId;
-        Sku = sku.Trim();
         PriceOverride = price;
-        StockQuantity = stockQuantity;
-        IsActive = true;
+
+        StockQuantity =
+            stockQuantity;
+
+        ComparePrice =
+            comparePrice;
+
+        IsActive =
+            true;
+
+        AttributeValues =
+            new List<VariantAttributeValue>();
+
+        Images =
+            new List<ProductVariantImage>();
     }
 
-    public void ChangeSku(string sku)
+    public void ChangeSku(
+        string sku)
     {
         if (string.IsNullOrWhiteSpace(sku))
         {
@@ -84,10 +109,33 @@ public class ProductVariant : BaseEntity
         }
 
         Sku = sku.Trim();
-        UpdatedAt = DateTime.UtcNow;
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
-    public void ChangePrice(decimal price)
+    public void SetBarcode(
+        string? barcode)
+    {
+        Barcode =
+            NormalizeNullable(barcode);
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
+
+    public void SetCombinationKey(
+        string? combinationKey)
+    {
+        CombinationKey =
+            NormalizeNullable(combinationKey);
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
+
+    public void ChangePrice(
+        decimal price)
     {
         if (price < 0)
         {
@@ -96,7 +144,9 @@ public class ProductVariant : BaseEntity
         }
 
         PriceOverride = price;
-        UpdatedAt = DateTime.UtcNow;
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
     public void SetComparePrice(
@@ -109,10 +159,18 @@ public class ProductVariant : BaseEntity
         }
 
         ComparePrice = comparePrice;
-        UpdatedAt = DateTime.UtcNow;
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
-    public void ChangeStock(int quantity)
+    /*
+     * Legacy only.
+     *
+     * New Inventory code must never use this method.
+     */
+    public void ChangeStock(
+        int quantity)
     {
         if (quantity < 0)
         {
@@ -121,10 +179,16 @@ public class ProductVariant : BaseEntity
         }
 
         StockQuantity = quantity;
-        UpdatedAt = DateTime.UtcNow;
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
-    public void IncreaseStock(int quantity)
+    /*
+     * Legacy only.
+     */
+    public void IncreaseStock(
+        int quantity)
     {
         if (quantity <= 0)
         {
@@ -137,10 +201,15 @@ public class ProductVariant : BaseEntity
             StockQuantity += quantity;
         }
 
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
-    public void DecreaseStock(int quantity)
+    /*
+     * Legacy only.
+     */
+    public void DecreaseStock(
+        int quantity)
     {
         if (quantity <= 0)
         {
@@ -155,25 +224,34 @@ public class ProductVariant : BaseEntity
         }
 
         StockQuantity -= quantity;
-        UpdatedAt = DateTime.UtcNow;
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
     public void Activate()
     {
         IsActive = true;
-        UpdatedAt = DateTime.UtcNow;
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
     public void Deactivate()
     {
         IsActive = false;
-        UpdatedAt = DateTime.UtcNow;
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
-    public void SetActive(bool isActive)
+    public void SetActive(
+        bool isActive)
     {
         IsActive = isActive;
-        UpdatedAt = DateTime.UtcNow;
+
+        UpdatedAt =
+            DateTime.UtcNow;
     }
 
     public void AddAttributeValue(
@@ -251,18 +329,10 @@ public class ProductVariant : BaseEntity
                         value.Id)
                 .ToHashSet();
 
-        /*
-         * Remove mappings which are no longer required.
-         *
-         * We intentionally do not Clear() the collection because
-         * EF Core can interpret a required relationship being
-         * severed as a conceptual-null/orphan operation.
-         */
         var existingMappings =
             AttributeValues.ToList();
 
-        foreach (
-            var mapping in existingMappings)
+        foreach (var mapping in existingMappings)
         {
             if (!desiredIds.Contains(
                     mapping.AttributeValueId))
@@ -279,9 +349,7 @@ public class ProductVariant : BaseEntity
                         mapping.AttributeValueId)
                 .ToHashSet();
 
-        foreach (
-            var attributeValue
-            in desiredValues)
+        foreach (var attributeValue in desiredValues)
         {
             if (existingIds.Contains(
                     attributeValue.Id))
@@ -289,15 +357,21 @@ public class ProductVariant : BaseEntity
                 continue;
             }
 
-            /*
-             * Populate both FK and navigation.
-             */
             AttributeValues.Add(
                 new VariantAttributeValue(
                     Id,
                     attributeValue));
         }
 
-        UpdatedAt = DateTime.UtcNow;
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
+
+    private static string? NormalizeNullable(
+        string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? null
+            : value.Trim();
     }
 }

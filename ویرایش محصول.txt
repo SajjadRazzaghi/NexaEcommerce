@@ -23,3 +23,81 @@ RepairTrackedProductAttributeStatesAsync   ← مهم
 NormalizeTrackedProductVariantStates
       ↓
 SaveChanges
+
+
+
+تبدیل به
+
+
+                         ┌───────────────────────┐
+                         │   CatalogAttribute    │
+                         │      Definition       │
+                         └───────────┬───────────┘
+                                     │
+                         ┌───────────▼───────────┐
+                         │ CatalogAttributeValue │
+                         └───────────┬───────────┘
+                                     │
+                              ┌──────▼──────┐
+                              │   Category  │
+                              └──────┬──────┘
+                                     │
+                          CategoryAttribute
+                                     │
+                                     ▼
+                              ┌────────────┐
+                              │  Product   │
+                              └─────┬──────┘
+                                    │
+                    ┌───────────────┼────────────────┐
+                    │               │                │
+                    ▼               ▼                ▼
+             ProductAttribute   ProductVariant   ProductImage
+                    │               │
+                    ▼               ▼
+          ProductAttributeValue  VariantAttributeValue
+                                    │
+                                    │
+                                    ▼
+                              ProductVariant
+                                    │
+                                    ▼
+                                Inventory
+                                    │
+                       ┌────────────┼─────────────┐
+                       ▼            ▼             ▼
+                    Stock       Warehouse      Reservation
+
+
+
+
+
+✅ CatalogAttribute = Definition سراسری
+
+✅ CatalogAttributeValue = Value استاندارد سراسری
+
+✅ CategoryAttribute = Default برای Category
+
+✅ ProductAttribute = Usage واقعی در Product
+
+✅ AttributeRole = Filterable / Descriptive / VariantDefining
+
+✅ ProductAttributeValue = مقدار واقعی Product
+
+✅ ProductVariant = واحد قابل فروش / SKU
+
+✅ VariantAttributeValue = انتخاب‌های Variant
+
+✅ CombinationKey = جلوگیری از Duplicate Combination
+
+✅ ProductVariantId = اتصال استاندارد به Inventory
+
+✅ Inventory = تنها Source of Truth موجودی
+
+✅ ProductImage = تصاویر عمومی
+
+✅ ProductVariantImage = تصاویر Variant
+
+✅ Brand / Manufacturer = Entity مستقل
+
+

@@ -4,9 +4,19 @@ public sealed class ProductAttributeDto
 {
     public Guid Id { get; set; }
 
+    public Guid? CatalogAttributeId { get; set; }
+
     public string Name { get; set; } = string.Empty;
 
     public string Code { get; set; } = string.Empty;
+
+    public string? Role { get; set; }
+
+    public int RoleValue { get; set; }
+
+    public bool IsRequired { get; set; }
+
+    public int DisplayOrder { get; set; }
 
     public List<ProductAttributeValueDto> Values { get; set; } = new();
 }
@@ -14,6 +24,8 @@ public sealed class ProductAttributeDto
 public sealed class ProductAttributeValueDto
 {
     public Guid Id { get; set; }
+
+    public Guid? CatalogAttributeValueId { get; set; }
 
     public string Value { get; set; } = string.Empty;
 
@@ -26,7 +38,16 @@ public sealed class ProductAttributeInputDto
 {
     public Guid CatalogAttributeId { get; set; }
 
-    public List<ProductAttributeValueInputDto> Values { get; set; } = new();
+    public string? Role { get; set; }
+
+    public int? RoleValue { get; set; }
+
+    public bool? IsRequired { get; set; }
+
+    public int DisplayOrder { get; set; }
+
+    public List<ProductAttributeValueInputDto> Values { get; set; }
+        = new();
 }
 
 public sealed class ProductAttributeValueInputDto
@@ -42,12 +63,103 @@ public sealed class ProductAttributeValueInputDto
     public int DisplayOrder { get; set; }
 }
 
+public sealed class ProductVariantAttributeDto
+{
+    public Guid AttributeValueId { get; set; }
+
+    public Guid ProductAttributeId { get; set; }
+
+    public Guid? CatalogAttributeId { get; set; }
+
+    public string AttributeCode { get; set; } = string.Empty;
+
+    public string AttributeName { get; set; } = string.Empty;
+
+    public string? Role { get; set; }
+
+    public int RoleValue { get; set; }
+
+    public string Value { get; set; } = string.Empty;
+
+    public string? DisplayValue { get; set; }
+
+    public string? ColorHex { get; set; }
+}
+
+public sealed class ProductVariantDto
+{
+    public Guid Id { get; set; }
+
+    public Guid ProductId { get; set; }
+
+    public string Sku { get; set; } = string.Empty;
+
+    public string? Barcode { get; set; }
+
+    public string? CombinationKey { get; set; }
+
+    public decimal PriceOverride { get; set; }
+
+    public decimal? ComparePrice { get; set; }
+
+    public bool IsActive { get; set; }
+
+    /*
+     * Legacy response fields.
+     *
+     * These will eventually be removed from API contracts.
+     */
+    public string? Color { get; set; }
+
+    public string? Size { get; set; }
+
+    public int StockQuantity { get; set; }
+
+    public List<ProductVariantAttributeDto> Attributes { get; set; }
+        = new();
+
+    public List<ProductVariantImageDto> Images { get; set; }
+        = new();
+}
+
+public sealed class ProductVariantImageDto
+{
+    public Guid Id { get; set; }
+
+    public string ImageUrl { get; set; } = string.Empty;
+
+    public string? AltText { get; set; }
+
+    public int DisplayOrder { get; set; }
+
+    public bool IsPrimary { get; set; }
+}
+
+public sealed class ProductImageDto
+{
+    public Guid Id { get; set; }
+
+    public string ImageUrl { get; set; } = null!;
+
+    public string? AltText { get; set; }
+
+    public int DisplayOrder { get; set; }
+
+    [System.Text.Json.Serialization.JsonPropertyName("isMain")]
+    public bool IsPrimary { get; set; }
+}
+
 public sealed class ProductDto
 {
     public Guid Id { get; set; }
 
     public string Name { get; set; } = string.Empty;
 
+    /*
+     * Temporary compatibility field.
+     *
+     * The canonical sellable SKU lives on ProductVariant.
+     */
     public string Sku { get; set; } = string.Empty;
 
     public string Slug { get; set; } = string.Empty;
@@ -74,6 +186,9 @@ public sealed class ProductDto
 
     public bool IsInStock { get; set; }
 
+    /*
+     * Temporary compatibility fields.
+     */
     public int StockQuantity { get; set; }
 
     public Guid? BrandId { get; set; }

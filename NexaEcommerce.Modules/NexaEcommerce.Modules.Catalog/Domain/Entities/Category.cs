@@ -1,4 +1,5 @@
-﻿using NexaEcommerce.SharedKernel.Domain;
+﻿using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
+using NexaEcommerce.SharedKernel.Domain;
 
 namespace NexaEcommerce.Modules.Catalog.Domain.Entities;
 
@@ -51,10 +52,16 @@ public class Category : AggregateRoot
     public Category? ParentCategory { get; private set; }
 
     public ICollection<Category> SubCategories { get; private set; }
-        = new List<Category>();
+     = new List<Category>();
 
     public ICollection<ProductCategory> ProductCategories { get; private set; }
         = new List<ProductCategory>();
+
+    public ICollection<CategoryAttribute> Attributes
+    {
+        get;
+        private set;
+    } = new List<CategoryAttribute>();
 
     // =========================================================
     // EF Constructor

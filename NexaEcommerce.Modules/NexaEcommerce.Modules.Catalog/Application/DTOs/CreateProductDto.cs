@@ -8,6 +8,11 @@ public sealed class CreateProductDto
 
     public string? Currency { get; set; } = "IRR";
 
+    /*
+     * Legacy technical product code.
+     *
+     * Real sellable SKU belongs to ProductVariant.
+     */
     public string? Sku { get; set; }
 
     public string? Description { get; set; }

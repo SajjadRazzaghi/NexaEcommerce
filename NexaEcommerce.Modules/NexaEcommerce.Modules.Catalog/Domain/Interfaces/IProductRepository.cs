@@ -7,7 +7,7 @@ public interface IProductRepository
     Task<Product?> GetByIdAsync(
     Guid id,
     CancellationToken cancellationToken = default);
-
+  
     Task<bool> UpdateVariantAsync(
         Guid variantId,
         string sku,
@@ -89,7 +89,17 @@ public interface IProductRepository
         Guid variantId,
         IReadOnlyCollection<Guid> attributeValueIds,
         CancellationToken cancellationToken = default);
-  
+   
+    Task<bool> ExistsByVariantCombinationAsync(
+     Guid productId,
+     string combinationKey,
+     Guid? excludeVariantId = null,
+     CancellationToken cancellationToken = default);
+
+    Task ReplaceVariantImagesAsync(
+        Guid variantId,
+        IReadOnlyCollection<string>? imageUrls,
+        CancellationToken cancellationToken = default);
     void NormalizeTrackedProductAttributeStates();
     void NormalizeTrackedProductVariantStates();
     Task RepairTrackedProductAttributeStatesAsync(

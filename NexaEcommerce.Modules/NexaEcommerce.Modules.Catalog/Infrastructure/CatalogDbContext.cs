@@ -63,6 +63,12 @@ public sealed class CatalogDbContext : DbContext
         Set<CatalogAttributeValue>();
     public DbSet<CatalogAttributeDisplayType> CatalogAttributeDisplayTypes =>
     Set<CatalogAttributeDisplayType>();
+
+    public DbSet<CategoryAttribute> CategoryAttributes =>
+    Set<CategoryAttribute>();
+
+    public DbSet<ProductVariantImage> ProductVariantImages =>
+        Set<ProductVariantImage>();
     // =========================================================
     // Constructor
     // =========================================================
@@ -89,6 +95,7 @@ public sealed class CatalogDbContext : DbContext
 
         ConfigureProduct(modelBuilder);
         ConfigureCategory(modelBuilder);
+        ConfigureCategoryAttribute(modelBuilder);
         ConfigureBrand(modelBuilder);
         ConfigureManufacturer(modelBuilder);
 
@@ -101,7 +108,7 @@ public sealed class CatalogDbContext : DbContext
         ConfigureProductVariant(modelBuilder);
 
         ConfigureProductImage(modelBuilder);
-
+        ConfigureProductVariantImage(modelBuilder);
         ConfigureProductReview(modelBuilder);
 
         // =====================================================
@@ -654,7 +661,11 @@ public sealed class CatalogDbContext : DbContext
             entity.Property(x => x.Sku)
                 .IsRequired()
                 .HasMaxLength(100);
+            entity.Property(x => x.Barcode)
+    .HasMaxLength(100);
 
+            entity.Property(x => x.CombinationKey)
+                .HasMaxLength(1000);
             entity.Property(x => x.PriceOverride)
                 .HasPrecision(18, 2);
 
@@ -669,7 +680,19 @@ public sealed class CatalogDbContext : DbContext
 
             entity.HasIndex(x => x.Sku)
                 .IsUnique();
-
+            /*
+ * CombinationKey is nullable during the migration phase.
+ * It will become required after all legacy variants have been
+ * backfilled with deterministic combinations.
+ */
+            entity.HasIndex(x => new
+            {
+                x.ProductId,
+                x.CombinationKey
+            })
+            .IsUnique()
+            .HasFilter(
+                "[CombinationKey] IS NOT NULL");
             entity.HasOne(x => x.Product)
                 .WithMany(x => x.Variants)
                 .HasForeignKey(x => x.ProductId)
@@ -679,11 +702,55 @@ public sealed class CatalogDbContext : DbContext
                 x => !x.IsDeleted);
         });
     }
+    private static void ConfigureProductVariantImage(
+    ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ProductVariantImage>(entity =>
+        {
+            entity.ToTable("ProductVariantImages");
 
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.ProductVariantId)
+                .IsRequired();
+
+            entity.Property(x => x.ImageUrl)
+                .IsRequired()
+                .HasMaxLength(1000);
+
+            entity.Property(x => x.AltText)
+                .HasMaxLength(300);
+
+            entity.Property(x => x.DisplayOrder)
+                .IsRequired();
+
+            entity.Property(x => x.IsPrimary)
+                .IsRequired();
+
+            entity.HasIndex(x => new
+            {
+                x.ProductVariantId,
+                x.DisplayOrder
+            });
+
+            entity.HasIndex(x => new
+            {
+                x.ProductVariantId,
+                x.IsPrimary
+            });
+
+            entity.HasOne(x => x.ProductVariant)
+                .WithMany(x => x.Images)
+                .HasForeignKey(x => x.ProductVariantId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(
+                x => !x.IsDeleted);
+        });
+    }
     // =========================================================
     //product Attribute
     // =========================================================
-
     private static void ConfigureProductAttribute(
         ModelBuilder modelBuilder)
     {
@@ -693,6 +760,12 @@ public sealed class CatalogDbContext : DbContext
 
             entity.HasKey(x => x.Id);
 
+            entity.Property(x => x.ProductId)
+                .IsRequired();
+
+            entity.Property(x => x.CatalogAttributeId)
+                .IsRequired(false);
+
             entity.Property(x => x.Name)
                 .IsRequired()
                 .HasMaxLength(100);
@@ -701,6 +774,15 @@ public sealed class CatalogDbContext : DbContext
                 .IsRequired()
                 .HasMaxLength(100);
 
+            entity.Property(x => x.Role)
+                .IsRequired();
+
+            entity.Property(x => x.IsRequired)
+                .IsRequired();
+
+            entity.Property(x => x.DisplayOrder)
+                .IsRequired();
+
             entity.HasIndex(x => new
             {
                 x.ProductId,
@@ -708,10 +790,21 @@ public sealed class CatalogDbContext : DbContext
             })
             .IsUnique();
 
+            entity.HasIndex(x => new
+            {
+                x.ProductId,
+                x.CatalogAttributeId
+            });
+
             entity.HasOne(x => x.Product)
                 .WithMany(x => x.Attributes)
                 .HasForeignKey(x => x.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.CatalogAttribute)
+                .WithMany()
+                .HasForeignKey(x => x.CatalogAttributeId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasQueryFilter(
                 x => !x.IsDeleted);
@@ -723,13 +816,19 @@ public sealed class CatalogDbContext : DbContext
     // =========================================================
 
     private static void ConfigureAttributeValue(
-        ModelBuilder modelBuilder)
+       ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<AttributeValue>(entity =>
         {
             entity.ToTable("AttributeValues");
 
             entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.ProductAttributeId)
+                .IsRequired();
+
+            entity.Property(x => x.CatalogAttributeValueId)
+                .IsRequired(false);
 
             entity.Property(x => x.Value)
                 .IsRequired()
@@ -748,10 +847,21 @@ public sealed class CatalogDbContext : DbContext
             })
             .IsUnique();
 
+            entity.HasIndex(x => new
+            {
+                x.ProductAttributeId,
+                x.CatalogAttributeValueId
+            });
+
             entity.HasOne(x => x.ProductAttribute)
                 .WithMany(x => x.Values)
                 .HasForeignKey(x => x.ProductAttributeId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.CatalogAttributeValue)
+                .WithMany()
+                .HasForeignKey(x => x.CatalogAttributeValueId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasQueryFilter(
                 x => !x.IsDeleted);
@@ -761,7 +871,7 @@ public sealed class CatalogDbContext : DbContext
     // =========================================================
     // Variant Attribute Value
     // =========================================================
-private static void ConfigureVariantAttributeValue(
+    private static void ConfigureVariantAttributeValue(
     ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<VariantAttributeValue>(
@@ -830,7 +940,7 @@ private static void ConfigureVariantAttributeValue(
     // =========================================================
 
     private static void ConfigureCatalogAttribute(
-        ModelBuilder modelBuilder)
+       ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<CatalogAttribute>(entity =>
         {
@@ -846,6 +956,36 @@ private static void ConfigureVariantAttributeValue(
                 .IsRequired()
                 .HasMaxLength(100);
 
+            entity.Property(x => x.Description)
+                .HasMaxLength(1000);
+
+            entity.Property(x => x.DisplayType)
+                .HasMaxLength(100);
+
+            entity.Property(x => x.DataType)
+                .IsRequired();
+
+            entity.Property(x => x.IsRequired)
+                .IsRequired();
+
+            entity.Property(x => x.IsFilterable)
+                .IsRequired();
+
+            /*
+             * Legacy compatibility.
+             *
+             * This property will be retired after ProductService
+             * has fully migrated to ProductAttribute.Role.
+             */
+            entity.Property(x => x.IsVariantAttribute)
+                .IsRequired();
+
+            entity.Property(x => x.IsActive)
+                .IsRequired();
+
+            entity.Property(x => x.DisplayOrder)
+                .IsRequired();
+
             entity.HasIndex(x => x.Code)
                 .IsUnique();
 
@@ -855,7 +995,6 @@ private static void ConfigureVariantAttributeValue(
                 x => !x.IsDeleted);
         });
     }
-
     // =========================================================
     // Catalog Attribute Value
     // =========================================================
@@ -950,6 +1089,64 @@ private static void ConfigureVariantAttributeValue(
                 .WithMany(x => x.Reviews)
                 .HasForeignKey(x => x.ProductId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasQueryFilter(
+                x => !x.IsDeleted);
+        });
+    }
+    private static void ConfigureCategoryAttribute(
+    ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<CategoryAttribute>(entity =>
+        {
+            entity.ToTable("CategoryAttributes");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.CategoryId)
+                .IsRequired();
+
+            entity.Property(x => x.CatalogAttributeId)
+                .IsRequired();
+
+            entity.Property(x => x.Role)
+                .IsRequired();
+
+            entity.Property(x => x.IsRequired)
+                .IsRequired();
+
+            entity.Property(x => x.DisplayOrder)
+                .IsRequired();
+
+            entity.Property(x => x.IsActive)
+                .IsRequired();
+
+            /*
+             * One CatalogAttribute can be attached only once
+             * to one Category.
+             */
+            entity.HasIndex(x => new
+            {
+                x.CategoryId,
+                x.CatalogAttributeId
+            })
+            .IsUnique();
+
+            entity.HasIndex(x => new
+            {
+                x.CategoryId,
+                x.DisplayOrder
+            });
+
+            entity.HasOne(x => x.Category)
+                .WithMany(x => x.Attributes)
+                .HasForeignKey(x => x.CategoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(x => x.CatalogAttribute)
+                .WithMany(x => x.CategoryAttributes)
+                .HasForeignKey(x => x.CatalogAttributeId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasQueryFilter(
                 x => !x.IsDeleted);
