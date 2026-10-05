@@ -7,6 +7,7 @@ type Method = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
 interface RequestOptions {
   signal?: AbortSignal;
   params?: Record<string, unknown>;
+  headers?: Record<string, string>;
 }
 
 function buildUrl(
@@ -51,6 +52,7 @@ function buildUrl(
         ? `${BASE}${path}${separator}${query}`
         : `${BASE}${path}`;
 }
+
 function isRecord(
   value: unknown,
 ): value is Record<string, unknown> {
@@ -186,6 +188,19 @@ async function request<T>(
   body?: unknown,
   options?: RequestOptions,
 ): Promise<T> {
+  const headers: Record<string, string> = {
+    Accept:
+      'application/json',
+    ...options?.headers,
+  };
+
+  if (
+    body !== undefined
+  ) {
+    headers['Content-Type'] =
+      'application/json';
+  }
+
   const response =
     await fetch(
       buildUrl(
@@ -195,18 +210,7 @@ async function request<T>(
       {
         method,
         credentials: 'include',
-        headers:
-          body !== undefined
-            ? {
-                'Content-Type':
-                  'application/json',
-                Accept:
-                  'application/json',
-              }
-            : {
-                Accept:
-                  'application/json',
-              },
+        headers,
         body:
           body !== undefined
             ? JSON.stringify(body)
@@ -325,4 +329,3 @@ export const api = {
       options,
     ),
 };
-
