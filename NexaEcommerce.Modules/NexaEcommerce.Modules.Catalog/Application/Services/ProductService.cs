@@ -874,25 +874,23 @@ public sealed class ProductService : IProductService
         // ============================================================
 
         await SynchronizeProductAttributesAsync(
-            product,
-            updateDto.Attributes,
-            cancellationToken);
-
-        // ============================================================
-        // Variants
-        //
-        // Product Attributes must exist before Variant AttributeValue
-        // mappings are resolved.
-        // ============================================================
+      product,
+      updateDto.Attributes,
+      cancellationToken);
 
         await SynchronizeVariantsAsync(
             product,
             updateDto.Variants,
             cancellationToken);
 
-        // ============================================================
-        // Final validation
-        // ============================================================
+        // Second pass:
+        // Variant mappings are now final, so previously protected
+        // VariantDefining attributes can safely be removed when they
+        // are no longer requested.
+        await SynchronizeProductAttributesAsync(
+            product,
+            updateDto.Attributes,
+            cancellationToken);
 
         ValidateRequiredProductAttributes(
             product);
@@ -1055,9 +1053,9 @@ public sealed class ProductService : IProductService
     // Categories
     // ============================================================
     private async Task<Product> SynchronizeProductAttributesAsync(
-       Product product,
-       IEnumerable<ProductAttributeInputDto>? requestedAttributes,
-       CancellationToken cancellationToken)
+      Product product,
+      IEnumerable<ProductAttributeInputDto>? requestedAttributes,
+      CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(product);
 
@@ -1065,17 +1063,19 @@ public sealed class ProductService : IProductService
             Enumerable.Empty<ProductAttributeInputDto>();
 
         var requests =
-            requestedAttributes.ToList();
+            requestedAttributes
+                .ToList();
 
         var catalogAttributes =
             await _catalogAttributeRepository.GetAllAsync(
                 cancellationToken);
 
         // ============================================================
-        // Identify ProductAttributes currently used by variants.
+        // Attributes currently referenced by existing variants.
         //
-        // These attributes must not be deleted while their values
-        // are still referenced by ProductVariants.
+        // These attributes must survive the first synchronization pass.
+        // Variant synchronization runs immediately afterwards and may
+        // remove their mappings.
         // ============================================================
 
         var protectedVariantAttributeIds =
@@ -1096,7 +1096,7 @@ public sealed class ProductService : IProductService
                 .ToHashSet();
 
         // ============================================================
-        // Resolve and validate requested Catalog Attributes.
+        // Resolve requested Catalog Attributes.
         // ============================================================
 
         var resolvedRequests =
@@ -1166,9 +1166,9 @@ public sealed class ProductService : IProductService
         }
 
         // ============================================================
-        // Existing ProductAttributes by Code.
+        // Existing ProductAttributes by code.
         //
-        // ProductAttribute.Id is preserved.
+        // ProductAttribute IDs are intentionally preserved.
         // ============================================================
 
         var existingAttributesByCode =
@@ -1236,7 +1236,7 @@ public sealed class ProductService : IProductService
                 out var productAttribute);
 
             // --------------------------------------------------------
-            // Create ProductAttribute when missing.
+            // Create ProductAttribute.
             // --------------------------------------------------------
 
             if (productAttribute is null)
@@ -1257,7 +1257,7 @@ public sealed class ProductService : IProductService
             else
             {
                 // ----------------------------------------------------
-                // Preserve existing ProductAttribute.Id.
+                // Preserve ProductAttribute.Id.
                 // ----------------------------------------------------
 
                 if (!string.Equals(
@@ -1287,21 +1287,16 @@ public sealed class ProductService : IProductService
                     displayOrder);
             }
 
-            // --------------------------------------------------------
-            // Variant-owned attributes are synchronized by the
-            // Variant synchronization logic.
-            //
-            // But their metadata above MUST still be synchronized.
-            // --------------------------------------------------------
-
-            if (protectedVariantAttributeIds.Contains(
-                    productAttribute.Id))
-            {
-                continue;
-            }
-
             // ========================================================
-            // Requested values
+            // IMPORTANT
+            //
+            // Do NOT skip VariantDefining attributes here.
+            //
+            // Variant synchronization only creates/removes
+            // VariantAttributeValue mappings.
+            //
+            // The ProductAttribute and its AttributeValue rows must
+            // already exist before variant mappings are resolved.
             // ========================================================
 
             var requestedValues =
@@ -1341,14 +1336,27 @@ public sealed class ProductService : IProductService
 
                     if (!catalogValue.IsActive)
                     {
-                        throw new ArgumentException(
-                            $"Catalog value '{catalogValue.Value}' is inactive.");
+                        /*
+                         * An inactive catalog value may still be present
+                         * in an existing product/variant during migration.
+                         *
+                         * It is accepted only when it is already used by
+                         * the product. New selections of inactive values
+                         * are rejected.
+                         */
+                        var existingCatalogValue =
+                            productAttribute.Values.Any(
+                                value =>
+                                    value.CatalogAttributeValueId ==
+                                    catalogValue.Id);
+
+                        if (!existingCatalogValue)
+                        {
+                            throw new ArgumentException(
+                                $"Catalog value '{catalogValue.Value}' is inactive.");
+                        }
                     }
                 }
-
-                // ----------------------------------------------------
-                // Controlled catalog value takes priority.
-                // ----------------------------------------------------
 
                 var value =
                     (
@@ -1398,7 +1406,7 @@ public sealed class ProductService : IProductService
             }
 
             // ========================================================
-            // Existing Product AttributeValues by Value.
+            // Existing Product AttributeValues by value.
             // ========================================================
 
             var existingValuesByValue =
@@ -1415,7 +1423,7 @@ public sealed class ProductService : IProductService
                         StringComparer.OrdinalIgnoreCase);
 
             // ========================================================
-            // Add / Update requested values.
+            // Add / update requested values.
             // ========================================================
 
             foreach (var requestedValue in
@@ -1452,18 +1460,21 @@ public sealed class ProductService : IProductService
                     }
 
                     // ------------------------------------------------
-                    // Synchronize CatalogAttributeValue reference.
+                    // Synchronize CatalogAttributeValueId.
                     // ------------------------------------------------
 
-                    if (requestedValue.CatalogAttributeValueId.HasValue &&
-                        requestedValue.CatalogAttributeValueId.Value != Guid.Empty)
+                    var requestedCatalogValueId =
+                        requestedValue.CatalogAttributeValueId;
+
+                    if (requestedCatalogValueId.HasValue &&
+                        requestedCatalogValueId.Value != Guid.Empty)
                     {
                         if (
                             existingValue.CatalogAttributeValueId !=
-                            requestedValue.CatalogAttributeValueId.Value)
+                            requestedCatalogValueId.Value)
                         {
                             existingValue.SetCatalogValue(
-                                requestedValue.CatalogAttributeValueId.Value);
+                                requestedCatalogValueId.Value);
                         }
                     }
                     else if (
@@ -1476,7 +1487,7 @@ public sealed class ProductService : IProductService
                 }
 
                 // ----------------------------------------------------
-                // New AttributeValue.
+                // New Product AttributeValue.
                 // ----------------------------------------------------
 
                 productAttribute.AddValue(
@@ -1487,7 +1498,10 @@ public sealed class ProductService : IProductService
             }
 
             // ========================================================
-            // Remove values no longer requested.
+            // Remove values that are no longer requested.
+            //
+            // Never remove a value that is still referenced by a
+            // VariantAttributeValue mapping.
             // ========================================================
 
             foreach (var existingValue in
@@ -1503,11 +1517,6 @@ public sealed class ProductService : IProductService
                 {
                     continue;
                 }
-
-                // ----------------------------------------------------
-                // Do not remove an AttributeValue that is used by
-                // any Variant.
-                // ----------------------------------------------------
 
                 var isUsedByVariant =
                     product.Variants
@@ -1530,18 +1539,17 @@ public sealed class ProductService : IProductService
         }
 
         // ============================================================
-        // Remove ProductAttributes no longer requested.
+        // Remove ProductAttributes that are no longer requested.
+        //
+        // Existing variant references protect them during this first
+        // pass. UpdateAsync performs a second synchronization after
+        // variants have been reconciled.
         // ============================================================
 
         foreach (var existingAttribute in
                  product.Attributes.ToList())
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            // --------------------------------------------------------
-            // Variant-owned attributes must remain until Variant
-            // synchronization has finished.
-            // --------------------------------------------------------
 
             if (protectedVariantAttributeIds.Contains(
                     existingAttribute.Id))
@@ -1991,7 +1999,37 @@ public sealed class ProductService : IProductService
             if (!requestedVariantIds.Contains(
                     existingVariant.Id))
             {
-                existingVariant.Deactivate();
+                if (!requestedVariantIds.Contains(
+        existingVariant.Id))
+                {
+                    var existingAttributeValueIds =
+                        existingVariant.AttributeValues
+                            .Select(
+                                mapping =>
+                                    mapping.AttributeValueId)
+                            .Distinct()
+                            .ToArray();
+
+                    if (existingAttributeValueIds.Length > 0)
+                    {
+                        await _productRepository
+                            .DeleteVariantAttributeMappingsAsync(
+                                existingVariant.Id,
+                                existingAttributeValueIds,
+                                cancellationToken);
+
+                        foreach (
+                            var attributeValueId
+                            in existingAttributeValueIds)
+                        {
+                            existingVariant.RemoveAttributeValue(
+                                attributeValueId);
+                        }
+                    }
+
+                    existingVariant.Deactivate();
+                }
+               
             }
         }
 
@@ -2043,9 +2081,9 @@ public sealed class ProductService : IProductService
                 .Sum(x => x.StockQuantity);
     }
     private async Task<List<AttributeValue>> ResolveVariantAttributeValuesAsync(
-        Product product,
-        IEnumerable<Guid>? attributeValueIds,
-        CancellationToken cancellationToken)
+     Product product,
+     IEnumerable<Guid>? attributeValueIds,
+     CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(product);
 
@@ -2060,7 +2098,22 @@ public sealed class ProductService : IProductService
             return new List<AttributeValue>();
         }
 
-        var lookup =
+        /*
+         * Frontend sends CatalogAttributeValue IDs.
+         *
+         * The VariantAttributeValue table, however, points to the
+         * Product-side AttributeValue ID.
+         *
+         * Therefore both identities are accepted:
+         *
+         *   Product AttributeValue.Id
+         *   CatalogAttributeValue.Id
+         *
+         * Existing callers which already send Product AttributeValue
+         * IDs remain compatible.
+         */
+
+        var values =
             product.Attributes
                 .SelectMany(
                     attribute =>
@@ -2071,8 +2124,31 @@ public sealed class ProductService : IProductService
                                     Attribute = attribute,
                                     Value = value
                                 }))
+                .ToList();
+
+        var byProductValueId =
+            values
+                .Where(
+                    x =>
+                        x.Value.Id != Guid.Empty)
                 .ToDictionary(
-                    x => x.Value.Id);
+                    x =>
+                        x.Value.Id);
+
+        var byCatalogValueId =
+            values
+                .Where(
+                    x =>
+                        x.Value.CatalogAttributeValueId.HasValue &&
+                        x.Value.CatalogAttributeValueId.Value != Guid.Empty)
+                .GroupBy(
+                    x =>
+                        x.Value.CatalogAttributeValueId!.Value)
+                .ToDictionary(
+                    group =>
+                        group.Key,
+                    group =>
+                        group.First());
 
         var result =
             new List<AttributeValue>();
@@ -2081,9 +2157,12 @@ public sealed class ProductService : IProductService
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (!lookup.TryGetValue(
+            if (!byProductValueId.TryGetValue(
                     id,
-                    out var resolved))
+                    out var resolved) &&
+                !byCatalogValueId.TryGetValue(
+                    id,
+                    out resolved))
             {
                 throw new ArgumentException(
                     $"Attribute value '{id}' does not belong to this product.");

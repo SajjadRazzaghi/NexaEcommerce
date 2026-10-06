@@ -623,6 +623,14 @@ function toValues(
                         variant.attributes ??
                         []
                     )
+                        .filter(
+                            attribute =>
+                                attribute.roleValue === 4 ||
+                                normalize(
+                                    attribute.role,
+                                ) ===
+                                'variantdefining',
+                        )
                         .map(
                             attribute =>
                                 normalize(
@@ -786,8 +794,7 @@ const variantAttributeIds =
 
                         if (
                             catalogAttribute &&
-                            catalogAttribute.isActive &&
-                            catalogAttribute.isVariantAttribute
+                            catalogAttribute.isActive
                         ) {
                             ids.push(
                                 catalogAttribute.id,
@@ -808,8 +815,7 @@ const variantAttributeIds =
 
                         if (
                             colorAttribute &&
-                            colorAttribute.isActive &&
-                            colorAttribute.isVariantAttribute
+                            colorAttribute.isActive
                         ) {
                             ids.push(
                                 colorAttribute.id,
@@ -827,11 +833,9 @@ const variantAttributeIds =
                             findCatalogAttributeByCode(
                                 'size',
                             );
-
                         if (
                             sizeAttribute &&
-                            sizeAttribute.isActive &&
-                            sizeAttribute.isVariantAttribute
+                            sizeAttribute.isActive
                         ) {
                             ids.push(
                                 sizeAttribute.id,
@@ -1165,13 +1169,30 @@ const variants =
  */
 type ProductAttributeRecord = {
     id?: string;
+
+    catalogAttributeId?: string | null;
+
     name?: string | null;
+
     code?: string | null;
+
+    role?: string | null;
+
+    roleValue?: number;
+
+    isRequired?: boolean;
+
+    displayOrder?: number;
 
     values?: Array<{
         id?: string;
+
+        catalogAttributeValueId?: string | null;
+
         value?: string | null;
+
         displayValue?: string | null;
+
         colorHex?: string | null;
     }>;
 };
@@ -1209,31 +1230,125 @@ function buildProductAttributePayload(
     specifications:
         FormValues['specifications'],
 
+    variantAttributeIds:
+        string[],
+
+    variants:
+        FormValues['variants'],
+
     catalogAttributes:
         | CatalogAttribute[]
         | undefined,
 ): CreateProductDto['attributes'] {
     if (
-        !specifications.length ||
         !catalogAttributes?.length
     ) {
         return [];
     }
 
-    const groups =
+    const result =
         new Map<
             string,
-            {
-                catalogAttributeId: string;
-                name: string;
-                code: string;
-                values: Array<{
-                    value: string;
-                    displayValue?: string;
-                    colorHex?: string;
-                }>;
-            }
+            CreateProductDto['attributes'][number]
         >();
+
+    const normalize =
+        (value?: string | null) =>
+            value
+                ?.trim()
+                .toLowerCase() ?? '';
+
+    // ============================================================
+    // 1. VariantDefining Attributes
+    //
+    // roleValue = 4
+    // ============================================================
+
+    for (
+        const catalogAttribute
+        of catalogAttributes
+    ) {
+        if (
+            !variantAttributeIds.includes(
+                catalogAttribute.id,
+            )
+        ) {
+            continue;
+        }
+
+        const usedValueIds =
+            new Set(
+                variants.flatMap(
+                    variant =>
+                        variant.attributeValueIds ??
+                        [],
+                ),
+            );
+
+        const values =
+            (
+                catalogAttribute.values ??
+                []
+            )
+                .filter(
+                    value =>
+                        usedValueIds.has(
+                            value.id,
+                        ),
+                )
+                .map(
+                    (
+                        value,
+                        index,
+                    ) => ({
+                        catalogAttributeValueId:
+                            value.id,
+
+                        value:
+                            value.value,
+
+                        displayValue:
+                            value.displayValue ??
+                            value.value,
+
+                        colorHex:
+                            value.colorHex ??
+                            undefined,
+
+                        displayOrder:
+                            value.displayOrder ??
+                            index,
+                    }),
+                );
+
+        result.set(
+            catalogAttribute.id,
+            {
+                catalogAttributeId:
+                    catalogAttribute.id,
+
+                role:
+                    'VariantDefining',
+
+                roleValue:
+                    4,
+
+                isRequired:
+                    catalogAttribute.isRequired,
+
+                displayOrder:
+                    catalogAttribute.displayOrder,
+
+                values,
+            },
+        );
+    }
+
+    // ============================================================
+    // 2. Product Specifications
+    //
+    // roleValue = 2
+    // ============================================================
 
     for (
         const specification
@@ -1252,23 +1367,43 @@ function buildProductAttributePayload(
             continue;
         }
 
+        /*
+         * A VariantDefining attribute must never also be sent
+         * as a descriptive specification.
+         */
+        if (
+            variantAttributeIds.includes(
+                catalogAttribute.id,
+            )
+        ) {
+            continue;
+        }
+
+        const rawValue =
+            (
+                specification.value ??
+                ''
+            ).trim();
+
         const selectedValue =
             specification.catalogAttributeValueId
-                ? catalogAttribute.values.find(
+                ? (
+                    catalogAttribute.values ??
+                    []
+                ).find(
                     value =>
                         value.id ===
                         specification.catalogAttributeValueId,
                 )
                 : undefined;
 
-        const rawValue =
+        const finalValue =
             (
                 selectedValue?.value ??
-                specification.value ??
-                ''
+                rawValue
             ).trim();
 
-        if (!rawValue) {
+        if (!finalValue) {
             continue;
         }
 
@@ -1276,85 +1411,100 @@ function buildProductAttributePayload(
             (
                 selectedValue?.displayValue ??
                 specification.displayValue ??
-                rawValue
+                finalValue
             ).trim();
 
-        const code =
-            catalogAttribute.code
-                .trim();
+        const colorHex =
+            (
+                selectedValue?.colorHex ??
+                specification.colorHex ??
+                ''
+            ).trim();
 
-        if (!code) {
-            continue;
-        }
-
-        let group =
-            groups.get(
-                code.toLowerCase(),
+        const catalogValueId =
+            selectedValue?.id ??
+            (
+                specification.catalogAttributeValueId ||
+                undefined
             );
 
-        if (!group) {
-            group = {
+        let existing =
+            result.get(
+                catalogAttribute.id,
+            );
+
+        if (!existing) {
+            existing = {
                 catalogAttributeId:
                     catalogAttribute.id,
 
-                name:
-                    catalogAttribute.name,
+                role:
+                    'Descriptive',
 
-                code,
+                roleValue:
+                    2,
+
+                isRequired:
+                    catalogAttribute.isRequired,
+
+                displayOrder:
+                    catalogAttribute.displayOrder,
 
                 values: [],
             };
 
-            groups.set(
-                code.toLowerCase(),
-                group,
+            result.set(
+                catalogAttribute.id,
+                existing,
             );
         }
 
         const alreadyExists =
-            group.values.some(
-                item =>
-                    item.value
-                        .trim()
-                        .toLowerCase() ===
-                    rawValue
-                        .trim()
-                        .toLowerCase(),
+            existing.values.some(
+                value =>
+                    normalize(
+                        value.value,
+                    ) ===
+                    normalize(
+                        finalValue,
+                    ),
             );
 
         if (
             !alreadyExists
         ) {
-            group.values.push({
+            existing.values.push({
+                catalogAttributeValueId:
+                    catalogValueId,
+
                 value:
-                    rawValue,
+                    finalValue,
 
                 displayValue:
                     displayValue ||
                     undefined,
 
                 colorHex:
-                    selectedValue?.colorHex ??
-                    specification.colorHex ??
+                    colorHex ||
                     undefined,
+
+                displayOrder:
+                    specification.displayOrder,
             });
         }
     }
 
-    /*
-     * The local DTO type is already defined in products.ts.
-     *
-     * The structural payload above matches the ProductAttributeInput
-     * shape indicated by the compiler (`name`, `code`, `values`).
-     *
-     * `unknown` is used only to bridge any extra compile-time
-     * fields added in the local working tree.
-     */
     return Array.from(
-        groups.values(),
-    ) as unknown as CreateProductDto['attributes'];
+        result.values(),
+    ).sort(
+        (
+            a,
+            b,
+        ) =>
+            a.displayOrder -
+            b.displayOrder,
+    );
 }
-
 
 /* -------------------------------------------------------------------------- */
 /*                              Props Types                                  */
@@ -2472,14 +2622,12 @@ const hasDuplicateVariantCombination =
                 [];
 
             /*
-             * Once dimensions are selected,
-             * there must be at least one Variant row.
+             * Once at least one Variant dimension is selected,
+             * the product must contain at least one Variant.
              */
             if (
-                selectedAttributes.length >
-                0 &&
-                variants.length ===
-                0
+                selectedAttributes.length > 0 &&
+                variants.length === 0
             ) {
                 throw new Error(
                     t(
@@ -2489,12 +2637,10 @@ const hasDuplicateVariantCombination =
             }
 
             /*
-             * There must always be at least one active Variant
-             * when Variant rows exist.
+             * If Variant rows exist, at least one must remain active.
              */
             if (
-                variants.length >
-                0 &&
+                variants.length > 0 &&
                 !variants.some(
                     variant =>
                         variant.isActive,
@@ -2524,6 +2670,14 @@ const hasDuplicateVariantCombination =
                     variant.attributeValueIds ??
                     [];
 
+                /*
+                 * Backend ValidateVariantDefinitions requires
+                 * exactly one value for EVERY VariantDefining
+                 * attribute.
+                 *
+                 * Therefore a selected Variant dimension is always
+                 * required here, regardless of CatalogAttribute.IsRequired.
+                 */
                 const combination =
                     selectedAttributes.map(
                         attribute => {
@@ -2533,14 +2687,7 @@ const hasDuplicateVariantCombination =
                                     selectedIds,
                                 );
 
-                            /*
-                             * Required Variant Attributes must
-                             * have a value.
-                             */
-                            if (
-                                !valueId &&
-                                attribute.isRequired
-                            ) {
+                            if (!valueId) {
                                 throw new Error(
                                     t(
                                         'productEdit.variants.errors.missingAttribute',
@@ -2558,30 +2705,19 @@ const hasDuplicateVariantCombination =
                                 );
                             }
 
-                            return (
-                                valueId ||
-                                ''
-                            );
+                            return valueId;
                         },
                     );
 
                 /*
-                 * Empty combination is allowed only for a
-                 * product with no Variant dimensions.
+                 * A product with Variant dimensions cannot have two
+                 * active variants with the same exact combination.
                  */
                 if (
-                    selectedAttributes.length >
-                    0
+                    selectedAttributes.length > 0
                 ) {
-                    /*
-                     * If there are selected dimensions but at
-                     * least one optional dimension is empty,
-                     * we still need a deterministic signature.
-                     */
                     const signature =
-                        combination.join(
-                            '|',
-                        );
+                        combination.join('|');
 
                     if (
                         signatures.has(
@@ -2608,7 +2744,6 @@ const hasDuplicateVariantCombination =
                 }
             }
         };
-
 
     /* ---------------------------------------------------------------------- */
     /*                            Image Helpers                                */
@@ -2784,7 +2919,9 @@ const hasDuplicateVariantCombination =
                     const productAttributes =
                         buildProductAttributePayload(
                             values.specifications,
-                            specificationAttributes,
+                            values.variantAttributeIds,
+                            values.variants,
+                            attributes,
                         );
 
                     /* ---------------------------------------------------------- */

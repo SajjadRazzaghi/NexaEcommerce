@@ -2,54 +2,108 @@ import { api } from '@/lib/api/client';
 
 export type ProductAttributeValue = {
     id: string;
+
+    catalogAttributeValueId?: string | null;
+
     value: string;
+
     displayValue?: string | null;
+
     colorHex?: string | null;
 };
 
 export type ProductAttribute = {
     id: string;
+
+    catalogAttributeId?: string | null;
+
     name: string;
+
     code: string;
+
+    role?: string | null;
+
+    roleValue?: number;
+
+    isRequired?: boolean;
+
+    displayOrder?: number;
+
     values: ProductAttributeValue[];
 };
 
 export type ProductAttributeValueInput = {
     catalogAttributeValueId?: string | null;
+
     value?: string | null;
+
     displayValue?: string | null;
+
     colorHex?: string | null;
+
     displayOrder: number;
 };
 
 export type ProductAttributeInput = {
     catalogAttributeId: string;
+
+    role?: string | null;
+
+    roleValue?: number | null;
+
+    isRequired?: boolean | null;
+
+    displayOrder: number;
+
     values: ProductAttributeValueInput[];
 };
 
 export type ProductVariantAttribute = {
     attributeValueId: string;
+
+    productAttributeId?: string;
+
+    catalogAttributeId?: string | null;
+
     attributeCode: string;
+
     attributeName: string;
+
+    role?: string;
+
+    roleValue?: number;
+
     value: string;
+
     displayValue?: string | null;
+
     colorHex?: string | null;
 };
 
 export type ProductVariant = {
     id: string;
+
     sku: string;
 
+    barcode?: string | null;
+
+    combinationKey?: string | null;
+
     color?: string | null;
+
     size?: string | null;
 
     priceOverride?: number | null;
+
     comparePrice?: number | null;
 
     stockQuantity: number;
+
     isActive: boolean;
 
     attributes?: ProductVariantAttribute[];
+
+    images?: ProductImage[];
 };
 
 export type ProductImage = {
