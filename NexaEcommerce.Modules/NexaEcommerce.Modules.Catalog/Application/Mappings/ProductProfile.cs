@@ -193,65 +193,9 @@ public sealed class ProductProfile : Profile
                                 })
                         .OrderBy(x => x.AttributeName)
                         .ThenBy(x => x.Value)
-                        .ToList()))
-
-            /*
-             * Legacy response properties are derived only from
-             * VariantDefining attributes whose code happens to be
-             * color/size.
-             *
-             * This is compatibility only; the frontend should use
-             * Attributes instead.
-             */
-            .ForMember(
-                dest => dest.Color,
-                opt => opt.MapFrom(
-                    src => src.AttributeValues
-                        .Where(
-                            x =>
-                                x.AttributeValue != null &&
-                                x.AttributeValue.ProductAttribute != null &&
-                                x.AttributeValue.ProductAttribute.Role
-                                    .HasFlag(
-                                        AttributeRole.VariantDefining))
-                        .Where(
-                            x =>
-                                string.Equals(
-                                    x.AttributeValue!
-                                        .ProductAttribute
-                                        .Code,
-                                    "color",
-                                    StringComparison.OrdinalIgnoreCase))
-                        .Select(
-                            x =>
-                                x.AttributeValue!.DisplayValue ??
-                                x.AttributeValue!.Value)
-                        .FirstOrDefault()))
-
-            .ForMember(
-                dest => dest.Size,
-                opt => opt.MapFrom(
-                    src => src.AttributeValues
-                        .Where(
-                            x =>
-                                x.AttributeValue != null &&
-                                x.AttributeValue.ProductAttribute != null &&
-                                x.AttributeValue.ProductAttribute.Role
-                                    .HasFlag(
-                                        AttributeRole.VariantDefining))
-                        .Where(
-                            x =>
-                                string.Equals(
-                                    x.AttributeValue!
-                                        .ProductAttribute
-                                        .Code,
-                                    "size",
-                                    StringComparison.OrdinalIgnoreCase))
-                        .Select(
-                            x =>
-                                x.AttributeValue!.DisplayValue ??
-                                x.AttributeValue!.Value)
-                        .FirstOrDefault()));
+                        .ToList()
+                        )
+                       );
 
         // =========================================================
         // Product Variant Image

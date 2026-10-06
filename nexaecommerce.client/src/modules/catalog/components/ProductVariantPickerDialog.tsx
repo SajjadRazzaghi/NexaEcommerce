@@ -115,107 +115,8 @@ function getVariantAttributeOptions(
         }
     }
 
-    const hasColorAttribute =
-        Array.from(
-            result.keys(),
-        ).some(
-            key =>
-                key
-                    .trim()
-                    .toLowerCase() ===
-                'color',
-        );
-
-    if (
-        !hasColorAttribute
-    ) {
-        const colors =
-            product.variants
-                .filter(
-                    variant =>
-                        variant.isActive &&
-                        variant.stockQuantity >
-                        0 &&
-                        !!variant.color?.trim(),
-                )
-                .map(
-                    variant =>
-                        variant.color!.trim(),
-                );
-
-        const uniqueColors =
-            Array.from(
-                new Set(colors),
-            );
-
-        if (
-            uniqueColors.length > 0
-        ) {
-            result.set(
-                'color',
-                uniqueColors.map(
-                    value => ({
-                        value,
-                        displayValue:
-                            value,
-                    }),
-                ),
-            );
-        }
-    }
-
-    const hasSizeAttribute =
-        Array.from(
-            result.keys(),
-        ).some(
-            key =>
-                key
-                    .trim()
-                    .toLowerCase() ===
-                'size',
-        );
-
-    if (
-        !hasSizeAttribute
-    ) {
-        const sizes =
-            product.variants
-                .filter(
-                    variant =>
-                        variant.isActive &&
-                        variant.stockQuantity >
-                        0 &&
-                        !!variant.size?.trim(),
-                )
-                .map(
-                    variant =>
-                        variant.size!.trim(),
-                );
-
-        const uniqueSizes =
-            Array.from(
-                new Set(sizes),
-            );
-
-        if (
-            uniqueSizes.length > 0
-        ) {
-            result.set(
-                'size',
-                uniqueSizes.map(
-                    value => ({
-                        value,
-                        displayValue:
-                            value,
-                    }),
-                ),
-            );
-        }
-    }
-
     return result;
 }
-
 function variantMatchesSelection(
     variant: ProductVariant,
     selection: Record<
@@ -245,51 +146,20 @@ function variantMatchesSelection(
                         .toLowerCase(),
             );
 
-        if (attribute) {
-            if (
-                attribute.value !==
-                selectedValue
-            ) {
-                return false;
-            }
-
-            continue;
+        if (!attribute) {
+            return false;
         }
 
         if (
-            key
-                .trim()
-                .toLowerCase() ===
-            'color'
+            attribute.value !==
+            selectedValue
         ) {
-            if (
-                variant.color?.trim() !==
-                selectedValue
-            ) {
-                return false;
-            }
-
-            continue;
-        }
-
-        if (
-            key
-                .trim()
-                .toLowerCase() ===
-            'size'
-        ) {
-            if (
-                variant.size?.trim() !==
-                selectedValue
-            ) {
-                return false;
-            }
+            return false;
         }
     }
 
     return true;
 }
-
 export default function ProductVariantPickerDialog({
     open,
     product,

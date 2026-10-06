@@ -1,4 +1,4 @@
-import { api } from '@/lib/api/client';
+﻿import { api } from '@/lib/api/client';
 
 export type ProductAttributeValue = {
     id: string;
@@ -88,10 +88,6 @@ export type ProductVariant = {
     barcode?: string | null;
 
     combinationKey?: string | null;
-
-    color?: string | null;
-
-    size?: string | null;
 
     priceOverride?: number | null;
 
@@ -229,9 +225,6 @@ export type ProductFilter = {
 export type CreateProductVariantDto = {
     sku: string;
 
-    color?: string;
-    size?: string;
-
     priceOverride?: number;
     stockQuantity: number;
 
@@ -264,9 +257,6 @@ export type UpdateProductVariantDto = {
     id?: string;
 
     sku: string;
-
-    color?: string | null;
-    size?: string | null;
 
     priceOverride?: number | null;
     comparePrice?: number | null;
@@ -423,3 +413,4 @@ export const productsApi = {
             `/products/${id}`,
         ),
 };
+

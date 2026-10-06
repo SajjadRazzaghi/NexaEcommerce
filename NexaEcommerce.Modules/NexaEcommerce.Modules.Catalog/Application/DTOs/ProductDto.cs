@@ -102,18 +102,7 @@ public sealed class ProductVariantDto
 
     public decimal? ComparePrice { get; set; }
 
-    public bool IsActive { get; set; }
-
-    /*
-     * Legacy response fields.
-     *
-     * These will eventually be removed from API contracts.
-     */
-    public string? Color { get; set; }
-
-    public string? Size { get; set; }
-
-    public int StockQuantity { get; set; }
+    public bool IsActive { get; set; }public int StockQuantity { get; set; }
 
     public List<ProductVariantAttributeDto> Attributes { get; set; }
         = new();

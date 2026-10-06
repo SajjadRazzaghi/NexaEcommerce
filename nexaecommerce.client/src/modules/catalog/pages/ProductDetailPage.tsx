@@ -88,40 +88,19 @@ function getAttributeValue(
 function getVariantLabel(
     variant: ProductVariant,
 ) {
-    const genericAttributes =
-        variant.attributes ?? [];
-
-    if (
-        genericAttributes.length >
-        0
-    ) {
-        return genericAttributes
+    const values =
+        (variant.attributes ?? [])
             .map(
                 attribute =>
                     attribute.displayValue ||
                     attribute.value,
             )
-            .filter(Boolean)
-            .join(' / ');
-    }
+            .filter(Boolean);
 
-    const legacyParts = [
-        variant.color?.trim(),
-        variant.size?.trim(),
-    ].filter(Boolean);
-
-    if (
-        legacyParts.length >
-        0
-    ) {
-        return legacyParts.join(
-            ' / ',
-        );
-    }
-
-    return variant.sku;
+    return values.length > 0
+        ? values.join(' / ')
+        : variant.sku;
 }
-
 export default function ProductDetailPage() {
     const {
         slug,

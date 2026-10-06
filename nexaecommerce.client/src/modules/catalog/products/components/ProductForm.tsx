@@ -447,8 +447,6 @@ const emptyValues: FormValues = {
 
     images: [],
 };
-
-
 function toValues(
     product: Product | undefined,
     catalogAttributes: CatalogAttribute[] | undefined,
@@ -479,209 +477,253 @@ function toValues(
     /* Helpers                                                                */
     /* ---------------------------------------------------------------------- */
 
-    const normalize =
-        (value?: string | null): string =>
-            value
-                ?.trim()
-                .toLowerCase() ?? '';
+    const normalize = (
+        value?: string | null,
+    ): string =>
+        value
+            ?.trim()
+            .toLowerCase() ?? '';
 
-    const findCatalogAttributeByCode =
-        (
-            code?: string | null,
-        ): CatalogAttribute | undefined => {
-            const normalizedCode =
-                normalize(code);
+    const findCatalogAttributeByCode = (
+        code?: string | null,
+    ): CatalogAttribute | undefined => {
+        const normalizedCode =
+            normalize(code);
 
-            if (!normalizedCode) {
-                return undefined;
-            }
+        if (!normalizedCode) {
+            return undefined;
+        }
 
-            return availableCatalogAttributes.find(
-                attribute =>
-                    normalize(attribute.code) ===
-                    normalizedCode,
-            );
-        };
+        return availableCatalogAttributes.find(
+            attribute =>
+                normalize(attribute.code) ===
+                normalizedCode,
+        );
+    };
+
+    const findCatalogAttributeById = (
+        id?: string | null,
+    ): CatalogAttribute | undefined => {
+        if (!id) {
+            return undefined;
+        }
+
+        return availableCatalogAttributes.find(
+            attribute =>
+                attribute.id === id,
+        );
+    };
 
     /*
-     * Product-side AttributeValue IDs and Catalog-side
-     * CatalogAttributeValue IDs are different IDs.
+     * IMPORTANT:
      *
-     * Therefore we only trust the ID when it really belongs
-     * to the current CatalogAttribute. Otherwise we resolve
-     * the value by value/displayValue.
+     * Product-side AttributeValue IDs and
+     * Catalog-side CatalogAttributeValue IDs
+     * are different IDs.
+     *
+     * Therefore:
+     *
+     * 1. First try direct match against the catalog values.
+     * 2. If not found, resolve by value/displayValue.
      */
-    const findCatalogValue =
-        (
-            catalogAttribute: CatalogAttribute,
-            productValue?: {
-                id?: string;
-                value?: string | null;
-                displayValue?: string | null;
-            },
-        ) => {
-            if (!productValue) {
-                return undefined;
-            }
+    const findCatalogValue = (
+        catalogAttribute: CatalogAttribute,
+        productValue?: {
+            id?: string;
+            value?: string | null;
+            displayValue?: string | null;
+        },
+    ) => {
+        if (!productValue) {
+            return undefined;
+        }
 
-            const catalogValues =
-                catalogAttribute.values ?? [];
+        const catalogValues =
+            catalogAttribute.values ?? [];
 
-            const productValueId =
-                productValue.id;
+        const productValueId =
+            productValue.id;
 
-            /* -------------------------------------------------------------- */
-            /* 1. Direct ID match                                            */
-            /* -------------------------------------------------------------- */
+        /* ------------------------------------------------------------------ */
+        /* 1. Direct ID match                                                 */
+        /* ------------------------------------------------------------------ */
 
-            if (productValueId) {
-                const byId =
-                    catalogValues.find(
-                        value =>
-                            value.id ===
-                            productValueId,
-                    );
-
-                if (byId) {
-                    return byId;
-                }
-            }
-
-            /* -------------------------------------------------------------- */
-            /* 2. Text fallback                                               */
-            /* -------------------------------------------------------------- */
-
-            const productValueText =
-                normalize(
-                    productValue.value,
+        if (productValueId) {
+            const byId =
+                catalogValues.find(
+                    value =>
+                        value.id ===
+                        productValueId,
                 );
 
-            const productDisplayText =
-                normalize(
-                    productValue.displayValue,
-                );
-
-            if (
-                !productValueText &&
-                !productDisplayText
-            ) {
-                return undefined;
+            if (byId) {
+                return byId;
             }
+        }
 
-            return catalogValues.find(
-                value => {
-                    const catalogValueText =
-                        normalize(
-                            value.value,
-                        );
+        /* ------------------------------------------------------------------ */
+        /* 2. Text fallback                                                    */
+        /* ------------------------------------------------------------------ */
 
-                    const catalogDisplayText =
-                        normalize(
-                            value.displayValue,
-                        );
-
-                    return (
-                        (
-                            Boolean(
-                                productValueText,
-                            ) &&
-                            (
-                                catalogValueText ===
-                                    productValueText ||
-                                catalogDisplayText ===
-                                    productValueText
-                            )
-                        ) ||
-                        (
-                            Boolean(
-                                productDisplayText,
-                            ) &&
-                            (
-                                catalogValueText ===
-                                    productDisplayText ||
-                                catalogDisplayText ===
-                                    productDisplayText
-                            )
-                        )
-                    );
-                },
+        const productValueText =
+            normalize(
+                productValue.value,
             );
-        };
+
+        const productDisplayText =
+            normalize(
+                productValue.displayValue,
+            );
+
+        if (
+            !productValueText &&
+            !productDisplayText
+        ) {
+            return undefined;
+        }
+
+        return catalogValues.find(
+            value => {
+                const catalogValueText =
+                    normalize(
+                        value.value,
+                    );
+
+                const catalogDisplayText =
+                    normalize(
+                        value.displayValue,
+                    );
+
+                return (
+                    (
+                        Boolean(
+                            productValueText,
+                        ) &&
+                        (
+                            catalogValueText ===
+                            productValueText ||
+                            catalogDisplayText ===
+                            productValueText
+                        )
+                    ) ||
+                    (
+                        Boolean(
+                            productDisplayText,
+                        ) &&
+                        (
+                            catalogValueText ===
+                            productDisplayText ||
+                            catalogDisplayText ===
+                            productDisplayText
+                        )
+                    )
+                );
+            },
+        );
+    };
 
     /* ---------------------------------------------------------------------- */
     /* Detect Variant Dimensions                                             */
     /* ---------------------------------------------------------------------- */
 
-    const variantCodes =
+    /*
+     * ProductAttribute.roleValue / role is the authoritative source
+     * for deciding whether an attribute is VariantDefining.
+     *
+     * We intentionally DO NOT infer this from product.variants.
+     */
+    const variantAttributeCatalogIds =
         new Set(
-            (
-                product.variants ??
-                []
-            ).flatMap(
-                variant =>
+            productAttributes
+                .filter(
+                    attribute => {
+                        const roleValue =
+                            attribute.roleValue;
+
+                        const role =
+                            normalize(
+                                attribute.role,
+                            );
+
+                        return (
+                            roleValue === 4 ||
+                            String(roleValue) === '4' ||
+                            role ===
+                            'variantdefining'
+                        );
+                    },
+                )
+                .map(
+                    attribute =>
+                        attribute.catalogAttributeId ??
+                        findCatalogAttributeByCode(
+                            attribute.code,
+                        )?.id,
+                )
+                .filter(
                     (
-                        variant.attributes ??
-                        []
-                    )
-                        .filter(
-                            attribute =>
-                                attribute.roleValue === 4 ||
-                                normalize(
-                                    attribute.role,
-                                ) ===
-                                'variantdefining',
-                        )
-                        .map(
-                            attribute =>
-                                normalize(
-                                    attribute.attributeCode,
-                                ),
-                        )
-                        .filter(Boolean),
-            ),
+                        id,
+                    ): id is string =>
+                        Boolean(id),
+                ),
         );
+
+    /*
+     * ProductForm expects CatalogAttribute IDs here.
+     */
+    const variantAttributeIds =
+        availableCatalogAttributes
+            .filter(
+                attribute =>
+                    variantAttributeCatalogIds.has(
+                        attribute.id,
+                    ),
+            )
+            .map(
+                attribute =>
+                    attribute.id,
+            );
 
     /* ---------------------------------------------------------------------- */
     /* Product Specifications                                                */
     /* ---------------------------------------------------------------------- */
 
     /*
-     * Product-level specifications must not contain
-     * attributes that are being used as Variant dimensions.
+     * VariantDefining attributes MUST NOT be rebuilt
+     * as normal product specifications.
+     *
+     * Each specification is normalized against the current
+     * CatalogAttribute / CatalogAttributeValue definitions.
      */
     const specifications =
         productAttributes.flatMap(
             attribute => {
-                const productCode =
-                    normalize(
-                        attribute.code,
-                    );
-
-                if (!productCode) {
-                    return [];
-                }
-
-                const isVariantAttribute =
-                    variantCodes.has(
-                        productCode,
-                    );
-
-                if (isVariantAttribute) {
-                    return [];
-                }
-
                 const catalogAttribute =
+                    findCatalogAttributeById(
+                        attribute.catalogAttributeId,
+                    ) ??
                     findCatalogAttributeByCode(
-                        productCode,
+                        attribute.code,
                     );
 
                 if (!catalogAttribute) {
                     return [];
                 }
 
+                /*
+                 * VariantDefining attributes belong exclusively
+                 * to the Variant section.
+                 */
+                if (
+                    variantAttributeCatalogIds.has(
+                        catalogAttribute.id,
+                    )
+                ) {
+                    return [];
+                }
+
                 return (
-                    attribute.values ??
-                    []
+                    attribute.values ?? []
                 )
                     .map(
                         (
@@ -694,13 +736,20 @@ function toValues(
                                     {
                                         id:
                                             productValue.id,
+
                                         value:
                                             productValue.value,
+
                                         displayValue:
                                             productValue.displayValue,
                                     },
                                 );
 
+                            /*
+                             * Prefer catalog value, then
+                             * fall back to the persisted
+                             * Product AttributeValue.
+                             */
                             const rawValue =
                                 (
                                     catalogValue?.value ??
@@ -732,6 +781,7 @@ function toValues(
 
                                 catalogAttributeValueId:
                                     catalogValue?.id ??
+                                    productValue.catalogAttributeValueId ??
                                     '',
 
                                 value:
@@ -756,307 +806,233 @@ function toValues(
                     );
             },
         );
-/* ---------------------------------------------------------------------- */
-/* Selected Variant Dimensions                                            */
-/* ---------------------------------------------------------------------- */
 
-const variantAttributeIds =
-    Array.from(
-        new Set(
-            (
-                product.variants ??
-                []
-            ).flatMap(
-                variant => {
-                    const ids: string[] =
-                        [];
-
-                    /*
-                     * Generic attributes
-                     */
-                    for (
-                        const attribute of
-                        variant.attributes ?? []
-                    ) {
-                        const code =
-                            normalize(
-                                attribute.attributeCode,
-                            );
-
-                        if (!code) {
-                            continue;
-                        }
-
-                        const catalogAttribute =
-                            findCatalogAttributeByCode(
-                                code,
-                            );
-
-                        if (
-                            catalogAttribute &&
-                            catalogAttribute.isActive
-                        ) {
-                            ids.push(
-                                catalogAttribute.id,
-                            );
-                        }
-                    }
-
-                    /*
-                     * Legacy Color
-                     */
-                    if (
-                        variant.color
-                    ) {
-                        const colorAttribute =
-                            findCatalogAttributeByCode(
-                                'color',
-                            );
-
-                        if (
-                            colorAttribute &&
-                            colorAttribute.isActive
-                        ) {
-                            ids.push(
-                                colorAttribute.id,
-                            );
-                        }
-                    }
-
-                    /*
-                     * Legacy Size
-                     */
-                    if (
-                        variant.size
-                    ) {
-                        const sizeAttribute =
-                            findCatalogAttributeByCode(
-                                'size',
-                            );
-                        if (
-                            sizeAttribute &&
-                            sizeAttribute.isActive
-                        ) {
-                            ids.push(
-                                sizeAttribute.id,
-                            );
-                        }
-                    }
-
-                    return ids;
-                },
-            ),
-        ),
-    );
     /* ---------------------------------------------------------------------- */
     /* Variants                                                               */
     /* ---------------------------------------------------------------------- */
-const variants =
-    (
-        product.variants ??
-        []
-    ).map(
-        variant => {
-            const resolvedAttributeValueIds: string[] =
-                [];
 
-            /*
-             * ------------------------------------------------------------
-             * Generic backend Variant Attributes
-             * ------------------------------------------------------------
-             */
-            for (
-                const attribute of
-                variant.attributes ?? []
-            ) {
-                const attributeCode =
-                    normalize(
-                        attribute.attributeCode,
-                    );
+    const variants =
+        (
+            product.variants ?? []
+        ).map(
+            variant => {
+                const resolvedAttributeValueIds: string[] =
+                    [];
 
-                if (!attributeCode) {
-                    continue;
-                }
-
-                const catalogAttribute =
-                    findCatalogAttributeByCode(
-                        attributeCode,
-                    );
-
-                if (!catalogAttribute) {
-                    continue;
-                }
-
-                const catalogValue =
-                    findCatalogValue(
-                        catalogAttribute,
-                        {
-                            /*
-                             * ProductVariantAttribute.attributeValueId
-                             * is a Product-side AttributeValue ID.
-                             *
-                             * Do NOT use it as Catalog Value ID.
-                             */
-                            value:
-                                attribute.value,
-
-                            displayValue:
-                                attribute.displayValue,
-                        },
-                    );
-
-                if (
-                    catalogValue?.id
-                ) {
-                    resolvedAttributeValueIds.push(
-                        catalogValue.id,
-                    );
-                }
-            }
-
-            /*
-             * ------------------------------------------------------------
-             * Legacy Color fallback
-             * ------------------------------------------------------------
-             *
-             * This keeps older variants editable even when generic
-             * attributes were not returned for some legacy data.
-             */
-            if (
-                !resolvedAttributeValueIds.some(
-                    valueId =>
-                        (
-                            findCatalogAttributeByCode(
-                                'color',
-                            )?.values ?? []
-                        ).some(
-                            value =>
-                                value.id ===
-                                valueId,
-                        ),
-                ) &&
-                variant.color
-            ) {
-                const colorAttribute =
-                    findCatalogAttributeByCode(
-                        'color',
-                    );
-
-                const colorValue =
-                    findCatalogValue(
-                        colorAttribute as CatalogAttribute,
-                        {
-                            value:
-                                variant.color,
-                            displayValue:
-                                variant.color,
-                        },
-                    );
-
-                if (
-                    colorValue?.id
-                ) {
-                    resolvedAttributeValueIds.push(
-                        colorValue.id,
-                    );
-                }
-            }
-
-            /*
-             * ------------------------------------------------------------
-             * Legacy Size fallback
-             * ------------------------------------------------------------
-             */
-            if (
-                !resolvedAttributeValueIds.some(
-                    valueId =>
-                        (
-                            findCatalogAttributeByCode(
-                                'size',
-                            )?.values ?? []
-                        ).some(
-                            value =>
-                                value.id ===
-                                valueId,
-                        ),
-                ) &&
-                variant.size
-            ) {
-                const sizeAttribute =
-                    findCatalogAttributeByCode(
-                        'size',
-                    );
-
-                const sizeValue =
-                    findCatalogValue(
-                        sizeAttribute as CatalogAttribute,
-                        {
-                            value:
-                                variant.size,
-                            displayValue:
-                                variant.size,
-                        },
-                    );
-
-                if (
-                    sizeValue?.id
-                ) {
-                    resolvedAttributeValueIds.push(
-                        sizeValue.id,
-                    );
-                }
-            }
-
-            /*
-             * ------------------------------------------------------------
-             * Remove duplicates while preserving stable order.
-             * ------------------------------------------------------------
-             */
-            const attributeValueIds =
-                Array.from(
-                    new Set(
-                        resolvedAttributeValueIds,
-                    ),
-                );
-
-            return {
                 /*
-                 * REAL persisted ProductVariant ID.
+                 * Resolve every Variant attribute through:
                  *
-                 * Never replace this with react-hook-form's
-                 * fieldId.
+                 * ProductVariantAttribute
+                 *          ↓
+                 * ProductAttribute
+                 *          ↓
+                 * Product AttributeValue
+                 *          ↓
+                 * CatalogAttributeValue
+                 *
+                 * Product-side IDs and Catalog-side IDs
+                 * are not interchangeable.
                  */
-                id:
-                    variant.id,
+                for (
+                    const attribute of
+                    variant.attributes ?? []
+                ) {
+                    const normalizedCode =
+                        normalize(
+                            attribute.attributeCode,
+                        );
 
-                sku:
-                    variant.sku ??
-                    '',
+                    /* ------------------------------------------------------ */
+                    /* 1. Resolve ProductAttribute                          */
+                    /* ------------------------------------------------------ */
 
-                priceOverride:
-                    variant.priceOverride ??
-                    undefined,
+                    const productAttribute =
+                        (
+                            attribute.productAttributeId
+                                ? productAttributes.find(
+                                    productAttribute =>
+                                        productAttribute.id ===
+                                        attribute.productAttributeId,
+                                )
+                                : undefined
+                        ) ??
+                        productAttributes.find(
+                            productAttribute =>
+                                normalize(
+                                    productAttribute.code,
+                                ) ===
+                                normalizedCode,
+                        );
+
+                    /* ------------------------------------------------------ */
+                    /* 2. Resolve CatalogAttribute                          */
+                    /* ------------------------------------------------------ */
+
+                    const catalogAttribute =
+                        (
+                            attribute.catalogAttributeId
+                                ? availableCatalogAttributes.find(
+                                    catalog =>
+                                        catalog.id ===
+                                        attribute.catalogAttributeId,
+                                )
+                                : undefined
+                        ) ??
+                        (
+                            productAttribute?.catalogAttributeId
+                                ? availableCatalogAttributes.find(
+                                    catalog =>
+                                        catalog.id ===
+                                        productAttribute.catalogAttributeId,
+                                )
+                                : undefined
+                        ) ??
+                        findCatalogAttributeByCode(
+                            attribute.attributeCode,
+                        );
+
+                    if (!catalogAttribute) {
+                        continue;
+                    }
+
+                    /*
+                     * Make sure this CatalogAttribute is actually
+                     * one of the VariantDefining attributes of the
+                     * current product.
+                     *
+                     * This prevents unrelated ProductAttributes
+                     * from accidentally entering a variant.
+                     */
+                    if (
+                        !variantAttributeCatalogIds.has(
+                            catalogAttribute.id,
+                        )
+                    ) {
+                        continue;
+                    }
+
+                    /* ------------------------------------------------------ */
+                    /* 3. Resolve Product-side AttributeValue                */
+                    /* ------------------------------------------------------ */
+
+                    const productAttributeValue =
+                        (
+                            attribute.attributeValueId &&
+                                productAttribute?.values
+                                ? productAttribute.values.find(
+                                    value =>
+                                        value.id ===
+                                        attribute.attributeValueId,
+                                )
+                                : undefined
+                        );
+
+                    /* ------------------------------------------------------ */
+                    /* 4. Best case: Product AttributeValue already points   */
+                    /*    to the CatalogAttributeValue                       */
+                    /* ------------------------------------------------------ */
+
+                    let catalogValue =
+                        productAttributeValue?.catalogAttributeValueId
+                            ? catalogAttribute.values?.find(
+                                value =>
+                                    value.id ===
+                                    productAttributeValue.catalogAttributeValueId,
+                            )
+                            : undefined;
+
+                    /* ------------------------------------------------------ */
+                    /* 5. Legacy / incomplete response fallback              */
+                    /* ------------------------------------------------------ */
+
+                    if (!catalogValue) {
+                        catalogValue =
+                            findCatalogValue(
+                                catalogAttribute,
+                                {
+                                    /*
+                                     * IMPORTANT:
+                                     *
+                                     * We intentionally pass the
+                                     * Product-side AttributeValue ID
+                                     * only as a fallback lookup key.
+                                     *
+                                     * The returned ID MUST be the
+                                     * CatalogAttributeValue ID.
+                                     */
+                                    id:
+                                        productAttributeValue?.id,
+
+                                    value:
+                                        productAttributeValue?.value ??
+                                        attribute.value,
+
+                                    displayValue:
+                                        productAttributeValue?.displayValue ??
+                                        attribute.displayValue,
+                                },
+                            );
+                    }
+
+                    /* ------------------------------------------------------ */
+                    /* 6. Store CatalogAttributeValue ID                     */
+                    /* ------------------------------------------------------ */
+
+                    if (catalogValue?.id) {
+                        resolvedAttributeValueIds.push(
+                            catalogValue.id,
+                        );
+                    }
+                }
 
                 /*
-                 * Existing stock remains display-only.
+                 * Remove duplicate CatalogAttributeValue IDs
+                 * while preserving their original order.
                  */
-                stockQuantity:
-                    variant.stockQuantity ??
-                    0,
+                const attributeValueIds =
+                    Array.from(
+                        new Set(
+                            resolvedAttributeValueIds,
+                        ),
+                    );
 
-                isActive:
-                    variant.isActive ??
-                    true,
+                return {
+                    /*
+                     * Real persisted ProductVariant ID.
+                     */
+                    id:
+                        variant.id,
 
-                /*
-                 * IMPORTANT:
-                 * The form stores CatalogAttributeValue IDs.
-                 */
-                attributeValueIds,
-            };
-        },
-    );
+                    sku:
+                        variant.sku ??
+                        '',
 
+                    priceOverride:
+                        variant.priceOverride ??
+                        undefined,
+
+                    /*
+                     * Existing stock is display-only
+                     * in this form mapping.
+                     */
+                    stockQuantity:
+                        variant.stockQuantity ??
+                        0,
+
+                    isActive:
+                        variant.isActive ??
+                        true,
+
+                    /*
+                     * IMPORTANT:
+                     *
+                     * These IDs are CatalogAttributeValue IDs,
+                     * not Product AttributeValue IDs.
+                     */
+                    attributeValueIds,
+                };
+            },
+        );
 
     /* ---------------------------------------------------------------------- */
     /* Images                                                                 */
@@ -1064,8 +1040,7 @@ const variants =
 
     const images =
         (
-            product.images ??
-            []
+            product.images ?? []
         ).map(
             image => ({
                 imageUrl:
@@ -1140,17 +1115,28 @@ const variants =
             product.discountPercentage ??
             null,
 
+        /*
+         * CatalogAttribute IDs that are VariantDefining.
+         */
         variantAttributeIds,
 
+        /*
+         * Normal non-variant specifications.
+         */
         specifications,
 
+        /*
+         * Existing product variants mapped to
+         * CatalogAttributeValue IDs.
+         */
         variants,
 
+        /*
+         * Existing product images.
+         */
         images,
     };
 }
-
-
 
 
 /* -------------------------------------------------------------------------- */
@@ -1601,8 +1587,7 @@ export function ProductForm(
                 )
                     .filter(
                         attribute =>
-                            attribute.isActive &&
-                            attribute.isVariantAttribute,
+                            attribute.isActive,
                     )
                     .map(
                         attribute => ({

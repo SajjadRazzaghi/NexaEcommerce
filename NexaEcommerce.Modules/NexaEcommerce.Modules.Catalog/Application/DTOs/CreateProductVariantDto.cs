@@ -21,19 +21,7 @@ public sealed class CreateProductVariantDto
     /*
      * Optional variant-specific media.
      */
-    public List<string> Images { get; set; } = new();
-
-    /*
-     * Legacy compatibility.
-     *
-     * These fields are no longer used as the canonical source.
-     * They may remain temporarily for old clients.
-     */
-    public string? Color { get; set; }
-
-    public string? Size { get; set; }
-
-    /*
+    public List<string> Images { get; set; } = new();/*
      * Legacy compatibility only.
      *
      * Inventory is the source of truth for stock.

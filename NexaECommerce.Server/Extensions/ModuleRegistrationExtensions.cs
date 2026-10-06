@@ -5,6 +5,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Catalog;
+using NexaEcommerce.Modules.Catalog.Domain.Interfaces;
 using NexaEcommerce.Modules.Catalog.Infrastructure;
 using NexaEcommerce.Modules.Customers;
 using NexaEcommerce.Modules.Inventory;
@@ -110,6 +111,10 @@ public static class ModuleRegistrationExtensions
         // Cross-module readers
         // ========================================================
 
+        // ========================================================
+        // Cross-module readers
+        // ========================================================
+
         services.AddScoped<
             IOrderProductReader,
             CatalogOrderProductReader>();
@@ -117,6 +122,10 @@ public static class ModuleRegistrationExtensions
         services.AddScoped<
             IProductVariantReader,
             CatalogProductVariantReader>();
+
+        services.AddScoped<
+            IProductStockReader,
+            ProductStockReaderAdapter>();
 
         services.AddScoped<
             ProductInventorySynchronizer>();

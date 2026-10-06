@@ -188,41 +188,137 @@ public sealed class InventoryAwareProductService(
         }
     }
 
-    private static CreateProductDto SanitizeCreate(CreateProductDto source)
+    private static CreateProductDto SanitizeCreate(
+        CreateProductDto source)
     {
         ArgumentNullException.ThrowIfNull(source);
 
         return new CreateProductDto
         {
-            Name = source.Name,
-            Price = source.Price,
-            Currency = source.Currency,
-            Sku = source.Sku,
-            Description = source.Description,
-            ShortDescription = source.ShortDescription,
-            BrandId = source.BrandId,
-            ManufacturerId = source.ManufacturerId,
-            CategoryIds = source.CategoryIds?.ToList() ?? [],
-            Images = source.Images?.ToList() ?? [],
-            Variants = (source.Variants ?? [])
-                .Select(x => new CreateProductVariantDto
-                {
-                    Sku = x.Sku,
-                    Color = x.Color,
-                    Size = x.Size,
-                    PriceOverride = x.PriceOverride,
-                    StockQuantity = 0,
-                    AttributeValueIds = x.AttributeValueIds?.ToList() ?? []
-                })
-                .ToList()
+            Name =
+                source.Name,
+
+            Price =
+                source.Price,
+
+            Currency =
+                source.Currency,
+
+            Sku =
+                source.Sku,
+
+            Description =
+                source.Description,
+
+            ShortDescription =
+                source.ShortDescription,
+
+            BrandId =
+                source.BrandId,
+
+            ManufacturerId =
+                source.ManufacturerId,
+
+            CategoryIds =
+                source.CategoryIds?.ToList() ??
+                [],
+
+            Attributes =
+                source.Attributes?
+                    .Select(
+                        attribute =>
+                            new ProductAttributeInputDto
+                            {
+                                CatalogAttributeId =
+                                    attribute.CatalogAttributeId,
+
+                                Role =
+                                    attribute.Role,
+
+                                RoleValue =
+                                    attribute.RoleValue,
+
+                                IsRequired =
+                                    attribute.IsRequired,
+
+                                DisplayOrder =
+                                    attribute.DisplayOrder,
+
+                                Values =
+                                    attribute.Values?
+                                        .Select(
+                                            value =>
+                                                new ProductAttributeValueInputDto
+                                                {
+                                                    CatalogAttributeValueId =
+                                                        value.CatalogAttributeValueId,
+
+                                                    Value =
+                                                        value.Value,
+
+                                                    DisplayValue =
+                                                        value.DisplayValue,
+
+                                                    ColorHex =
+                                                        value.ColorHex,
+
+                                                    DisplayOrder =
+                                                        value.DisplayOrder
+                                                })
+                                        .ToList()
+                                    ??
+                                    []
+                            })
+                    .ToList()
+                ??
+                [],
+
+            Images =
+                source.Images?.ToList() ??
+                [],
+
+            Variants =
+                (source.Variants ?? [])
+                    .Select(
+                        x =>
+                            new CreateProductVariantDto
+                            {
+                                Sku =
+                                    x.Sku,
+
+                                Barcode =
+                                    x.Barcode,
+
+                                PriceOverride =
+                                    x.PriceOverride,
+
+                                ComparePrice =
+                                    x.ComparePrice,
+
+                                AttributeValueIds =
+                                    x.AttributeValueIds?.ToList() ??
+                                    [],
+
+                                Images =
+                                    x.Images?.ToList() ??
+                                    [],
+
+                                /*
+                                 * Stock is managed by Inventory.
+                                 *
+                                 * New variants always start with zero stock
+                                 * in this service.
+                                 */
+                                StockQuantity =
+                                    0
+                            })
+                    .ToList()
         };
     }
-
     private static UpdateProductDto SanitizeUpdate(
-     UpdateProductDto source)
+        UpdateProductDto source)
     {
-        ArgumentNullException.ThrowIfNull(
-            source);
+        ArgumentNullException.ThrowIfNull(source);
 
         return new UpdateProductDto
         {
@@ -257,10 +353,61 @@ public sealed class InventoryAwareProductService(
                 source.CategoryIds?.ToList() ??
                 [],
 
-            // IMPORTANT:
-            // The image list is part of the desired product state.
+            /*
+             * The image list is part of the desired product state.
+             */
             Images =
                 source.Images?.ToList() ??
+                [],
+
+            Attributes =
+                source.Attributes?
+                    .Select(
+                        attribute =>
+                            new ProductAttributeInputDto
+                            {
+                                CatalogAttributeId =
+                                    attribute.CatalogAttributeId,
+
+                                Role =
+                                    attribute.Role,
+
+                                RoleValue =
+                                    attribute.RoleValue,
+
+                                IsRequired =
+                                    attribute.IsRequired,
+
+                                DisplayOrder =
+                                    attribute.DisplayOrder,
+
+                                Values =
+                                    attribute.Values?
+                                        .Select(
+                                            value =>
+                                                new ProductAttributeValueInputDto
+                                                {
+                                                    CatalogAttributeValueId =
+                                                        value.CatalogAttributeValueId,
+
+                                                    Value =
+                                                        value.Value,
+
+                                                    DisplayValue =
+                                                        value.DisplayValue,
+
+                                                    ColorHex =
+                                                        value.ColorHex,
+
+                                                    DisplayOrder =
+                                                        value.DisplayOrder
+                                                })
+                                        .ToList()
+                                    ??
+                                    []
+                            })
+                    .ToList()
+                ??
                 [],
 
             IsActive =
@@ -284,11 +431,8 @@ public sealed class InventoryAwareProductService(
                                 Sku =
                                     x.Sku,
 
-                                Color =
-                                    x.Color,
-
-                                Size =
-                                    x.Size,
+                                Barcode =
+                                    x.Barcode,
 
                                 PriceOverride =
                                     x.PriceOverride,
@@ -296,6 +440,10 @@ public sealed class InventoryAwareProductService(
                                 ComparePrice =
                                     x.ComparePrice,
 
+                                /*
+                                 * Existing variant stock is managed
+                                 * exclusively through Inventory.
+                                 */
                                 StockQuantity =
                                     null,
 
@@ -304,6 +452,10 @@ public sealed class InventoryAwareProductService(
 
                                 AttributeValueIds =
                                     x.AttributeValueIds?.ToList() ??
+                                    [],
+
+                                Images =
+                                    x.Images?.ToList() ??
                                     []
                             })
                     .ToList()

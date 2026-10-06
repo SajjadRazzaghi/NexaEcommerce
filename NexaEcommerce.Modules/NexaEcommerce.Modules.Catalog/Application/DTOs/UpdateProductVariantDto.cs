@@ -26,16 +26,7 @@ public sealed class UpdateProductVariantDto
 
     public List<string> Images { get; set; } = new();
 
-    public bool IsActive { get; set; } = true;
-
-    /*
-     * Legacy compatibility.
-     */
-    public string? Color { get; set; }
-
-    public string? Size { get; set; }
-
-    /*
+    public bool IsActive { get; set; } = true;/*
      * New variants may still receive this temporarily for backward
      * compatibility. Existing variant stock must be changed through
      * Inventory.

@@ -1,8 +1,6 @@
 export type ProductVariant = {
     id: string;
     sku: string;
-    color?: string;
-    size?: string;
     priceOverride?: number;
     stockQuantity: number;
     isActive: boolean;
@@ -60,8 +58,6 @@ export interface Category {
 
 export interface CreateProductVariantDto {
     sku: string;
-    color?: string;
-    size?: string;
     priceOverride?: number;
     stockQuantity: number;
 }

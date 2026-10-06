@@ -554,11 +554,15 @@ export default function ProductInventoryManager({
                                                 value={variant.id}
                                             >
                                                 {variant.sku}
-                                                {variant.color
-                                                    ? ` — ${variant.color}`
-                                                    : ''}
-                                                {variant.size
-                                                    ? ` — ${variant.size}`
+                                                {variant.attributes?.length
+                                                    ? ` — ${variant.attributes
+                                                        .map(
+                                                            attribute =>
+                                                                attribute.displayValue ||
+                                                                attribute.value,
+                                                        )
+                                                        .filter(Boolean)
+                                                        .join(' — ')}`
                                                     : ''}
                                             </option>
                                         ),
