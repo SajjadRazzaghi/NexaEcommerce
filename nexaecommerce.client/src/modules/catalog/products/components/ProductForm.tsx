@@ -529,7 +529,7 @@ function toValues(
     const findCatalogValue = (
         catalogAttribute: CatalogAttribute,
         productValue?: {
-            id?: string;
+            catalogAttributeValueId?: string | null;
             value?: string | null;
             displayValue?: string | null;
         },
@@ -541,19 +541,22 @@ function toValues(
         const catalogValues =
             catalogAttribute.values ?? [];
 
-        const productValueId =
-            productValue.id;
+        /*
+         * --------------------------------------------------------------
+         * 1. Explicit CatalogAttributeValueId
+         *
+         * This is now the canonical resolution path.
+         * --------------------------------------------------------------
+         */
+        const catalogAttributeValueId =
+            productValue.catalogAttributeValueId;
 
-        /* ------------------------------------------------------------------ */
-        /* 1. Direct ID match                                                 */
-        /* ------------------------------------------------------------------ */
-
-        if (productValueId) {
+        if (catalogAttributeValueId) {
             const byId =
                 catalogValues.find(
                     value =>
                         value.id ===
-                        productValueId,
+                        catalogAttributeValueId,
                 );
 
             if (byId) {
@@ -561,9 +564,13 @@ function toValues(
             }
         }
 
-        /* ------------------------------------------------------------------ */
-        /* 2. Text fallback                                                    */
-        /* ------------------------------------------------------------------ */
+        /*
+         * --------------------------------------------------------------
+         * 2. Text fallback
+         *
+         * Needed for legacy / incomplete records.
+         * --------------------------------------------------------------
+         */
 
         const productValueText =
             normalize(
@@ -602,6 +609,7 @@ function toValues(
                         (
                             catalogValueText ===
                             productValueText ||
+
                             catalogDisplayText ===
                             productValueText
                         )
@@ -613,6 +621,7 @@ function toValues(
                         (
                             catalogValueText ===
                             productDisplayText ||
+
                             catalogDisplayText ===
                             productDisplayText
                         )
@@ -621,7 +630,6 @@ function toValues(
             },
         );
     };
-
     /* ---------------------------------------------------------------------- */
     /* Detect Variant Dimensions                                             */
     /* ---------------------------------------------------------------------- */
@@ -638,18 +646,34 @@ function toValues(
                 .filter(
                     attribute => {
                         const roleValue =
-                            attribute.roleValue;
+                            Number(
+                                attribute.roleValue,
+                            );
 
                         const role =
                             normalize(
                                 attribute.role,
                             );
 
-                        return (
-                            roleValue === 4 ||
-                            String(roleValue) === '4' ||
+                        const isVariantDefining =
+                            Number.isInteger(
+                                roleValue,
+                            ) &&
+                            (
+                                roleValue &
+                                4
+                            ) === 4;
+
+                        const isVariantDefiningByName =
                             role ===
-                            'variantdefining'
+                            'variantdefining' ||
+                            role.includes(
+                                'variantdefining',
+                            );
+
+                        return (
+                            isVariantDefining ||
+                            isVariantDefiningByName
                         );
                     },
                 )
@@ -734,8 +758,8 @@ function toValues(
                                 findCatalogValue(
                                     catalogAttribute,
                                     {
-                                        id:
-                                            productValue.id,
+                                        catalogAttributeValueId:
+                                            productValue.catalogAttributeValueId,
 
                                         value:
                                             productValue.value,
@@ -820,19 +844,18 @@ function toValues(
                     [];
 
                 /*
-                 * Resolve every Variant attribute through:
+                 * ==========================================================
+                 * Resolve each persisted Variant attribute.
                  *
-                 * ProductVariantAttribute
-                 *          ↓
-                 * ProductAttribute
-                 *          ↓
-                 * Product AttributeValue
-                 *          ↓
-                 * CatalogAttributeValue
+                 * Canonical order:
                  *
-                 * Product-side IDs and Catalog-side IDs
-                 * are not interchangeable.
+                 * 1. Direct CatalogAttributeValueId from API
+                 * 2. Product AttributeValue -> CatalogAttributeValueId
+                 * 3. Text fallback
+                 * 4. CombinationKey fallback
+                 * ==========================================================
                  */
+
                 for (
                     const attribute of
                     variant.attributes ?? []
@@ -842,8 +865,12 @@ function toValues(
                             attribute.attributeCode,
                         );
 
+                    if (!normalizedCode) {
+                        continue;
+                    }
+
                     /* ------------------------------------------------------ */
-                    /* 1. Resolve ProductAttribute                          */
+                    /* 1. Resolve CatalogAttribute                            */
                     /* ------------------------------------------------------ */
 
                     const productAttribute =
@@ -863,10 +890,6 @@ function toValues(
                                 ) ===
                                 normalizedCode,
                         );
-
-                    /* ------------------------------------------------------ */
-                    /* 2. Resolve CatalogAttribute                          */
-                    /* ------------------------------------------------------ */
 
                     const catalogAttribute =
                         (
@@ -896,12 +919,8 @@ function toValues(
                     }
 
                     /*
-                     * Make sure this CatalogAttribute is actually
-                     * one of the VariantDefining attributes of the
-                     * current product.
-                     *
-                     * This prevents unrelated ProductAttributes
-                     * from accidentally entering a variant.
+                     * Only VariantDefining attributes are allowed
+                     * into Variant attributeValueIds.
                      */
                     if (
                         !variantAttributeCatalogIds.has(
@@ -912,7 +931,27 @@ function toValues(
                     }
 
                     /* ------------------------------------------------------ */
-                    /* 3. Resolve Product-side AttributeValue                */
+                    /* 2. BEST CASE                                             */
+                    /* Direct CatalogAttributeValueId from API                */
+                    /* ------------------------------------------------------ */
+
+                    let catalogValue =
+                        findCatalogValue(
+                            catalogAttribute,
+                            {
+                                catalogAttributeValueId:
+                                    attribute.catalogAttributeValueId,
+
+                                value:
+                                    attribute.value,
+
+                                displayValue:
+                                    attribute.displayValue,
+                            },
+                        );
+
+                    /* ------------------------------------------------------ */
+                    /* 3. Product AttributeValue bridge                        */
                     /* ------------------------------------------------------ */
 
                     const productAttributeValue =
@@ -927,41 +966,13 @@ function toValues(
                                 : undefined
                         );
 
-                    /* ------------------------------------------------------ */
-                    /* 4. Best case: Product AttributeValue already points   */
-                    /*    to the CatalogAttributeValue                       */
-                    /* ------------------------------------------------------ */
-
-                    let catalogValue =
-                        productAttributeValue?.catalogAttributeValueId
-                            ? catalogAttribute.values?.find(
-                                value =>
-                                    value.id ===
-                                    productAttributeValue.catalogAttributeValueId,
-                            )
-                            : undefined;
-
-                    /* ------------------------------------------------------ */
-                    /* 5. Legacy / incomplete response fallback              */
-                    /* ------------------------------------------------------ */
-
                     if (!catalogValue) {
                         catalogValue =
                             findCatalogValue(
                                 catalogAttribute,
                                 {
-                                    /*
-                                     * IMPORTANT:
-                                     *
-                                     * We intentionally pass the
-                                     * Product-side AttributeValue ID
-                                     * only as a fallback lookup key.
-                                     *
-                                     * The returned ID MUST be the
-                                     * CatalogAttributeValue ID.
-                                     */
-                                    id:
-                                        productAttributeValue?.id,
+                                    catalogAttributeValueId:
+                                        productAttributeValue?.catalogAttributeValueId,
 
                                     value:
                                         productAttributeValue?.value ??
@@ -975,10 +986,112 @@ function toValues(
                     }
 
                     /* ------------------------------------------------------ */
-                    /* 6. Store CatalogAttributeValue ID                     */
+                    /* 4. CombinationKey fallback                               */
+                    /*
+                     * Backend stores:
+                     *
+                     * size:<ProductAttributeValueId>
+                     * color:<ProductAttributeValueId>
+                     *
+                     * This allows us to recover legacy/incomplete
+                     * Variant mappings.
+                     */
                     /* ------------------------------------------------------ */
 
-                    if (catalogValue?.id) {
+                    if (
+                        !catalogValue &&
+                        variant.combinationKey &&
+                        productAttribute
+                    ) {
+                        const combinationParts =
+                            variant.combinationKey
+                                .split('|')
+                                .map(
+                                    part =>
+                                        part.trim(),
+                                )
+                                .filter(
+                                    Boolean,
+                                );
+
+                        const matchingPart =
+                            combinationParts.find(
+                                part => {
+                                    const separatorIndex =
+                                        part.indexOf(':');
+
+                                    if (
+                                        separatorIndex <=
+                                        0
+                                    ) {
+                                        return false;
+                                    }
+
+                                    const code =
+                                        normalize(
+                                            part.slice(
+                                                0,
+                                                separatorIndex,
+                                            ),
+                                        );
+
+                                    return (
+                                        code ===
+                                        normalizedCode
+                                    );
+                                },
+                            );
+
+                        if (matchingPart) {
+                            const separatorIndex =
+                                matchingPart.indexOf(':');
+
+                            const productAttributeValueId =
+                                matchingPart
+                                    .slice(
+                                        separatorIndex + 1,
+                                    )
+                                    .trim();
+
+                            if (
+                                productAttributeValueId
+                            ) {
+                                const combinationValue =
+                                    productAttribute.values?.find(
+                                        value =>
+                                            value.id ===
+                                            productAttributeValueId,
+                                    );
+
+                                if (
+                                    combinationValue
+                                ) {
+                                    catalogValue =
+                                        findCatalogValue(
+                                            catalogAttribute,
+                                            {
+                                                catalogAttributeValueId:
+                                                    combinationValue.catalogAttributeValueId,
+
+                                                value:
+                                                    combinationValue.value,
+
+                                                displayValue:
+                                                    combinationValue.displayValue,
+                                            },
+                                        );
+                                }
+                            }
+                        }
+                    }
+
+                    /* ------------------------------------------------------ */
+                    /* 5. Store CatalogAttributeValue ID                       */
+                    /* ------------------------------------------------------ */
+
+                    if (
+                        catalogValue?.id
+                    ) {
                         resolvedAttributeValueIds.push(
                             catalogValue.id,
                         );
@@ -986,8 +1099,7 @@ function toValues(
                 }
 
                 /*
-                 * Remove duplicate CatalogAttributeValue IDs
-                 * while preserving their original order.
+                 * Remove duplicate IDs while preserving order.
                  */
                 const attributeValueIds =
                     Array.from(
@@ -998,7 +1110,7 @@ function toValues(
 
                 return {
                     /*
-                     * Real persisted ProductVariant ID.
+                     * REAL persisted ProductVariant ID.
                      */
                     id:
                         variant.id,
@@ -1011,10 +1123,6 @@ function toValues(
                         variant.priceOverride ??
                         undefined,
 
-                    /*
-                     * Existing stock is display-only
-                     * in this form mapping.
-                     */
                     stockQuantity:
                         variant.stockQuantity ??
                         0,
@@ -1024,10 +1132,8 @@ function toValues(
                         true,
 
                     /*
-                     * IMPORTANT:
-                     *
-                     * These IDs are CatalogAttributeValue IDs,
-                     * not Product AttributeValue IDs.
+                     * Form always stores
+                     * CatalogAttributeValue IDs.
                      */
                     attributeValueIds,
                 };
@@ -1839,55 +1945,47 @@ export function ProductForm(
     /*                                 Reset                                  */
     /* ---------------------------------------------------------------------- */
 
-  
-useEffect(() => {
-    /*
-     * Create mode can be initialized immediately.
-     */
-    if (mode === 'create') {
-        form.reset(
-            toValues(
-                undefined,
-                attributes,
-            ),
-        );
+    useEffect(() => {
+        /*
+         * Create mode can be initialized immediately.
+         */
+        if (mode === 'create') {
+            form.reset(
+                toValues(
+                    undefined,
+                    attributes,
+                ),
+            );
 
-        return;
-    }
+            return;
+        }
 
-    /*
-     * Edit mode:
-     *
-     * Do NOT reset the form before the Catalog Attributes
-     * are available.
-     *
-     * The Variant form stores CatalogAttributeValue IDs.
-     * Without the catalog data we cannot correctly reconstruct
-     * those IDs from the Product response.
-     */
-    if (
-        mode === 'edit' &&
-        product &&
-        attributes &&
-        attributes.length > 0
-    ) {
-        form.reset(
-            toValues(
-                product,
-                attributes,
-            ),
-        );
-    }
-}, [
-    mode,
-    product?.id,
-    product?.updatedAt,
-    attributes,
-    form,
-]);
-
-
-       
+        /*
+         * Edit mode:
+         *
+         * Catalog Attributes must be loaded before the
+         * existing Variant CatalogAttributeValue IDs
+         * can be reconstructed.
+         */
+        if (
+            mode === 'edit' &&
+            product &&
+            attributes &&
+            attributes.length > 0
+        ) {
+            form.reset(
+                toValues(
+                    product,
+                    attributes,
+                ),
+            );
+        }
+    }, [
+        mode,
+        product,
+        attributes,
+        form,
+    ]);
 
 
     /* ---------------------------------------------------------------------- */

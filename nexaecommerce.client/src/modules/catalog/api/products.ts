@@ -59,11 +59,30 @@ export type ProductAttributeInput = {
 };
 
 export type ProductVariantAttribute = {
+    /*
+     * Real persisted Product-side AttributeValue ID.
+     */
     attributeValueId: string;
 
+    /*
+     * ProductAttribute ID.
+     */
     productAttributeId?: string;
 
+    /*
+     * Catalog Attribute definition ID.
+     */
     catalogAttributeId?: string | null;
+
+    /*
+     * IMPORTANT:
+     *
+     * Direct CatalogAttributeValue ID.
+     *
+     * ProductForm uses this ID when restoring
+     * an existing Variant selection.
+     */
+    catalogAttributeValueId?: string | null;
 
     attributeCode: string;
 
@@ -79,7 +98,6 @@ export type ProductVariantAttribute = {
 
     colorHex?: string | null;
 };
-
 export type ProductVariant = {
     id: string;
 
