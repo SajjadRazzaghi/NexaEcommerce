@@ -1381,7 +1381,42 @@ export default function AdminOrderDetailsPage() {
                                                 }
                                             </div>
 
+                                            {item.attributes?.length > 0 && (
+                                                <div className="mt-3 flex flex-wrap gap-2">
+                                                    {item.attributes.map(
+                                                        attribute => (
+                                                            <span
+                                                                key={`${item.productVariantId}-${attribute.attributeValueId}`}
+                                                                className="inline-flex items-center gap-1 rounded-lg border bg-muted/40 px-2.5 py-1 text-xs"
+                                                            >
+                                                                <span className="font-semibold">
+                                                                    {
+                                                                        attribute.attributeName
+                                                                    }
+                                                                    :
+                                                                </span>
 
+                                                                <span>
+                                                                    {
+                                                                        attribute.displayValue ??
+                                                                        attribute.value
+                                                                    }
+                                                                </span>
+
+                                                                {attribute.colorHex && (
+                                                                    <span
+                                                                        className="size-3 rounded-full border"
+                                                                        style={{
+                                                                            backgroundColor:
+                                                                                attribute.colorHex,
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                            </span>
+                                                        ),
+                                                    )}
+                                                </div>
+                                            )}
                                             <div className="mt-2 text-sm">
                                                 ×{' '}
                                                 {

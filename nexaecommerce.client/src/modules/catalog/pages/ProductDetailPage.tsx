@@ -59,13 +59,54 @@ import {
 
 import type {
     ProductVariant,
+    ProductVariantAttribute,
 } from '../api/products';
-
 type SelectedAttributes = Record<
     string,
     string
 >;
+function isVariantDefiningAttribute(
+    attribute: ProductVariantAttribute,
+): boolean {
+    const roleValue =
+        Number(attribute.roleValue);
 
+    if (
+        Number.isInteger(roleValue)
+    ) {
+        return (
+            (roleValue & 4) === 4
+        );
+    }
+
+    const normalizedRole =
+        attribute.role
+            ?.trim()
+            .toLowerCase()
+            .replace(
+                /[\s_-]/g,
+                '',
+            );
+
+    if (
+        normalizedRole
+    ) {
+        return (
+            normalizedRole ===
+            'variantdefining' ||
+            normalizedRole.includes(
+                'variantdefining',
+            )
+        );
+    }
+
+    /*
+     * Legacy data:
+     * اگر Role موجود نباشد، برای جلوگیری از شکستن
+     * اطلاعات قدیمی Attribute را VariantDefining فرض می‌کنیم.
+     */
+    return true;
+}
 
 function getVariantValueId(
     variant: ProductVariant,
@@ -79,6 +120,9 @@ function getVariantValueId(
     const attribute =
         variant.attributes?.find(
             item =>
+                isVariantDefiningAttribute(
+                    item,
+                ) &&
                 item.attributeCode
                     ?.trim()
                     .toLowerCase() ===
@@ -89,12 +133,6 @@ function getVariantValueId(
         return null;
     }
 
-    /*
-     * UI uses CatalogAttributeValue.Id.
-     *
-     * Fallback to Product AttributeValue.Id only for
-     * legacy/incomplete records.
-     */
     return (
         attribute.catalogAttributeValueId ??
         attribute.attributeValueId ??
@@ -106,6 +144,12 @@ function getVariantLabel(
 ) {
     const values =
         (variant.attributes ?? [])
+            .filter(
+                attribute =>
+                    isVariantDefiningAttribute(
+                        attribute,
+                    ),
+            )
             .map(
                 attribute =>
                     attribute.displayValue ||
@@ -239,9 +283,14 @@ export default function ProductDetailPage() {
         availableVariants.some(
             variant =>
                 (
-                    variant.attributes
-                        ?.length ?? 0
-                ) > 0,
+                    variant.attributes ??
+                    []
+                ).some(
+                    attribute =>
+                        isVariantDefiningAttribute(
+                            attribute,
+                        ),
+                ),
         );
 
     const attributeGroups =
@@ -278,6 +327,14 @@ export default function ProductDetailPage() {
                         variant.attributes ??
                         []
                     ) {
+                        if (
+                            !isVariantDefiningAttribute(
+                                attribute,
+                            )
+                        ) {
+                            continue;
+                        }
+
                         const key =
                             attribute.attributeCode
                                 .trim()
@@ -308,9 +365,7 @@ export default function ProductDetailPage() {
                                 key,
                             );
 
-                        if (
-                            !group
-                        ) {
+                        if (!group) {
                             continue;
                         }
 
@@ -331,7 +386,7 @@ export default function ProductDetailPage() {
                             group.values.push(
                                 {
                                     id:
-                                        attribute.attributeValueId,
+                                        variantValueId,
 
                                     label:
                                         attribute.displayValue ||
@@ -446,9 +501,7 @@ export default function ProductDetailPage() {
 
     const activeVariant =
         genericVariantMode
-            ? matchingVariant ??
-            availableVariants[0] ??
-            null
+            ? matchingVariant
             : activeLegacyVariant;
 
     const hasCompleteGenericSelection =
@@ -470,14 +523,21 @@ export default function ProductDetailPage() {
         Boolean(
             activeVariant?.id,
         ) &&
+
         Boolean(
             activeVariant &&
             activeVariant.stockQuantity >
             0,
         ) &&
+
         (
             !genericVariantMode ||
-            hasCompleteGenericSelection
+            (
+                hasCompleteGenericSelection &&
+                Boolean(
+                    matchingVariant?.id,
+                )
+            )
         );
 
     const images =
@@ -501,7 +561,6 @@ export default function ProductDetailPage() {
 
     const maxQuantity =
         activeVariant?.stockQuantity ??
-        product?.stockQuantity ??
         0;
 
     const baseVariantPrice =

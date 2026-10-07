@@ -1386,7 +1386,77 @@ export default function CheckoutPage() {
                         )}
                     </div>
                 </section>
+                <div className="mt-5 space-y-3">
+                    {cart.items.map(
+                        item => (
+                            <div
+                                key={
+                                    item.productVariantId
+                                }
+                                className="rounded-xl border bg-background p-4"
+                            >
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="min-w-0">
+                                        <div className="font-medium">
+                                            {
+                                                item.productName
+                                            }
+                                        </div>
 
+                                        <div className="mt-1 text-xs text-muted-foreground">
+                                            SKU:{' '}
+                                            {
+                                                item.sku
+                                            }
+                                        </div>
+
+                                        {item.attributes?.length > 0 && (
+                                            <div className="mt-3 flex flex-wrap gap-2">
+                                                {item.attributes.map(
+                                                    attribute => (
+                                                        <span
+                                                            key={`${item.productVariantId}-${attribute.attributeValueId}`}
+                                                            className="inline-flex items-center gap-1 rounded-lg border bg-muted/40 px-2 py-1 text-xs"
+                                                        >
+                                                            <span className="font-semibold">
+                                                                {
+                                                                    attribute.attributeName
+                                                                }
+                                                                :
+                                                            </span>
+
+                                                            <span>
+                                                                {
+                                                                    attribute.displayValue ??
+                                                                    attribute.value
+                                                                }
+                                                            </span>
+                                                        </span>
+                                                    ),
+                                                )}
+                                            </div>
+                                        )}
+
+                                        <div className="mt-2 text-xs text-muted-foreground">
+                                            ×{' '}
+                                            {
+                                                item.quantity
+                                            }
+                                        </div>
+                                    </div>
+
+                                    <div className="shrink-0 text-sm font-semibold">
+                                        {formatMoney(
+                                            item.lineTotal,
+                                            cart.currency,
+                                            i18n.language,
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ),
+                    )}
+                </div>
                 <aside className="h-fit rounded-2xl border bg-card p-5 md:p-6 lg:sticky lg:top-6">
                     <h2 className="text-lg font-semibold">
                         {getText(

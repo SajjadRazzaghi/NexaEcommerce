@@ -67,11 +67,26 @@ public sealed class CatalogOrderProductReader(
 
         var attributes =
             variant.AttributeValues
-                .Where(
-                    mapping =>
-                        !mapping.IsDeleted &&
-                        mapping.AttributeValue != null &&
-                        mapping.AttributeValue.ProductAttribute != null)
+               .Where(
+    mapping =>
+        !mapping.IsDeleted &&
+
+        mapping.AttributeValue !=
+            null &&
+
+        mapping.AttributeValue
+            .ProductAttribute !=
+            null &&
+
+        (
+            (
+                (int)
+                mapping.AttributeValue!
+                    .ProductAttribute!
+                    .Role
+            )
+            & 4
+        ) == 4)
                 .Select(
                     mapping =>
                         new OrderProductAttributeSnapshot(

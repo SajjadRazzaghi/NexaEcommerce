@@ -11,6 +11,18 @@ public sealed record SetCartItemQuantityDto(
 public sealed record RemoveCartItemDto(
     Guid ProductVariantId);
 
+public sealed record CartItemAttributeDto(
+    Guid AttributeValueId,
+    Guid ProductAttributeId,
+    Guid? CatalogAttributeId,
+    Guid? CatalogAttributeValueId,
+    string AttributeCode,
+    string AttributeName,
+    int RoleValue,
+    string Value,
+    string? DisplayValue,
+    string? ColorHex);
+
 public sealed record CartItemDto(
     Guid ProductVariantId,
     string Sku,
@@ -19,7 +31,8 @@ public sealed record CartItemDto(
     int Quantity,
     decimal UnitPrice,
     decimal LineTotal,
-    int AvailableStock);
+    int AvailableStock,
+    IReadOnlyList<CartItemAttributeDto> Attributes);
 
 public sealed record CartDto(
     Guid Id,

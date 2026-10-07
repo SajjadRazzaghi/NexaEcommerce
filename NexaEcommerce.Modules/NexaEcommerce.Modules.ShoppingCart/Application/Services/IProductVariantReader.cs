@@ -7,6 +7,18 @@ public interface IProductVariantReader
         CancellationToken cancellationToken = default);
 }
 
+public sealed record ProductVariantAttributeSnapshot(
+    Guid AttributeValueId,
+    Guid ProductAttributeId,
+    Guid? CatalogAttributeId,
+    Guid? CatalogAttributeValueId,
+    string AttributeCode,
+    string AttributeName,
+    int RoleValue,
+    string Value,
+    string? DisplayValue,
+    string? ColorHex);
+
 public sealed record ProductVariantSnapshot(
     Guid Id,
     string Sku,
@@ -15,4 +27,5 @@ public sealed record ProductVariantSnapshot(
     string ProductName,
     string? ImageUrl,
     bool IsActive,
-    bool IsPublished);
+    bool IsPublished,
+    IReadOnlyList<ProductVariantAttributeSnapshot> Attributes);

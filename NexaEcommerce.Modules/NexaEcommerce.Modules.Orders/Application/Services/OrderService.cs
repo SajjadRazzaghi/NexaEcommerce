@@ -137,10 +137,7 @@ request.ShippingMethodId);
 
        
 
-            orderItem.SetVariantAttributesSnapshot(
-                JsonSerializer.Serialize(
-                    attributeSnapshot,
-                    VariantAttributeJsonOptions));
+          
 
            
         

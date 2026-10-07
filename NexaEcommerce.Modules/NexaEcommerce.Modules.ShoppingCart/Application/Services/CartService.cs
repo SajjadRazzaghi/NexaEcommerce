@@ -750,15 +750,17 @@ public sealed class CartService(
     }
 
     private async Task<CartDto> Map(
-        Cart cart,
-        CancellationToken cancellationToken)
+      Cart cart,
+      CancellationToken cancellationToken)
     {
         var items =
             new List<CartItemDto>();
 
         foreach (
             var item in cart.Items
-                .Where(x => !x.IsDeleted))
+                .Where(
+                    x =>
+                        !x.IsDeleted))
         {
             var variant =
                 await productVariantReader
@@ -766,16 +768,38 @@ public sealed class CartService(
                         item.ProductVariantId,
                         cancellationToken);
 
+            var attributes =
+                variant?.Attributes
+                    .Select(
+                        attribute =>
+                            new CartItemAttributeDto(
+                                attribute.AttributeValueId,
+                                attribute.ProductAttributeId,
+                                attribute.CatalogAttributeId,
+                                attribute.CatalogAttributeValueId,
+                                attribute.AttributeCode,
+                                attribute.AttributeName,
+                                attribute.RoleValue,
+                                attribute.Value,
+                                attribute.DisplayValue,
+                                attribute.ColorHex))
+                    .ToList()
+                ??
+                [];
+
             items.Add(
                 new CartItemDto(
                     item.ProductVariantId,
-                    variant?.Sku ?? string.Empty,
+                    variant?.Sku ??
+                        string.Empty,
                     item.ProductName,
                     item.ImageUrl,
                     item.Quantity,
                     item.UnitPrice,
                     item.LineTotal,
-                    variant?.StockQuantity ?? 0));
+                    variant?.StockQuantity ??
+                        0,
+                    attributes));
         }
 
         var subtotal =
