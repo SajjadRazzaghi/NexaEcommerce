@@ -7,6 +7,18 @@ public interface IOrderProductReader
         CancellationToken cancellationToken = default);
 }
 
+public sealed record OrderProductAttributeSnapshot(
+    Guid AttributeValueId,
+    Guid ProductAttributeId,
+    Guid? CatalogAttributeId,
+    Guid? CatalogAttributeValueId,
+    string AttributeCode,
+    string AttributeName,
+    int RoleValue,
+    string Value,
+    string? DisplayValue,
+    string? ColorHex);
+
 public sealed record OrderProductSnapshot(
     Guid Id,
     string Sku,
@@ -14,4 +26,5 @@ public sealed record OrderProductSnapshot(
     decimal Price,
     int StockQuantity,
     bool IsActive,
-    bool IsPublished);
+    bool IsPublished,
+    IReadOnlyList<OrderProductAttributeSnapshot> Attributes);

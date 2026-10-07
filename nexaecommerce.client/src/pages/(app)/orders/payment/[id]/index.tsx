@@ -6,7 +6,9 @@ import {
     LockKeyhole,
     ShieldCheck,
 } from 'lucide-react';
-
+import {
+    ShoppingBag,
+} from 'lucide-react';
 import {
     Link,
     useNavigate,
@@ -737,7 +739,104 @@ export default function PaymentPage() {
                         )}
                     </div>
                 </section>
+                <section className="rounded-2xl border bg-card p-5 md:p-6">
+                    <div className="flex items-center gap-3">
+                        <ShoppingBag className="size-5" />
 
+                        <div>
+                            <h2 className="font-semibold">
+                                {getText(
+                                    'storefront.payment.items',
+                                    'Order items',
+                                )}
+                            </h2>
+
+                            <p className="text-sm text-muted-foreground">
+                                {getText(
+                                    'storefront.payment.itemsHint',
+                                    'Review the products and selected options for this order.',
+                                )}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mt-5 space-y-3">
+                        {order.items.map(
+                            item => (
+                                <div
+                                    key={
+                                        item.productVariantId
+                                    }
+                                    className="rounded-xl border p-4"
+                                >
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <div className="font-semibold">
+                                                {
+                                                    item.productName
+                                                }
+                                            </div>
+
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                SKU:{' '}
+                                                {
+                                                    item.sku
+                                                }
+                                            </div>
+
+                                            {item.attributes?.length >
+                                                0 && (
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        {item.attributes.map(
+                                                            attribute => (
+                                                                <span
+                                                                    key={`${item.productVariantId}-${attribute.attributeValueId}`}
+                                                                    className="inline-flex items-center gap-1 rounded-lg border bg-muted/40 px-2 py-1 text-xs"
+                                                                >
+                                                                    <span className="font-semibold">
+                                                                        {
+                                                                            attribute.attributeName
+                                                                        }
+                                                                        :
+                                                                    </span>
+
+                                                                    <span>
+                                                                        {
+                                                                            attribute.displayValue ??
+                                                                            attribute.value
+                                                                        }
+                                                                    </span>
+                                                                </span>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                            <div className="mt-2 text-sm text-muted-foreground">
+                                                {getText(
+                                                    'storefront.payment.quantity',
+                                                    'Quantity',
+                                                )}
+                                                :{' '}
+                                                {
+                                                    item.quantity
+                                                }
+                                            </div>
+                                        </div>
+
+                                        <div className="shrink-0 text-end font-semibold">
+                                            {formatMoney(
+                                                item.lineTotal,
+                                                order.currency,
+                                                i18n.language,
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ),
+                        )}
+                    </div>
+                </section>
                 <aside className="h-fit rounded-2xl border p-6 lg:sticky lg:top-6">
                     <div className="flex items-center gap-3">
                         <CheckCircle2 className="size-5" />

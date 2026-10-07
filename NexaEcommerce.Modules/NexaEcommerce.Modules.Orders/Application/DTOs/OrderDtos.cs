@@ -15,13 +15,26 @@ public sealed record CheckoutRequest(
     string? CouponCode = null,
     Guid? TaxRateId = null);
 
+public sealed record OrderItemAttributeDto(
+    Guid AttributeValueId,
+    Guid ProductAttributeId,
+    Guid? CatalogAttributeId,
+    Guid? CatalogAttributeValueId,
+    string AttributeCode,
+    string AttributeName,
+    int RoleValue,
+    string Value,
+    string? DisplayValue,
+    string? ColorHex);
+
 public sealed record OrderItemDto(
     Guid ProductVariantId,
     string Sku,
     string ProductName,
     decimal UnitPrice,
     int Quantity,
-    decimal LineTotal);
+    decimal LineTotal,
+    IReadOnlyList<OrderItemAttributeDto> Attributes);
 
 public sealed record OrderDto(
     Guid Id,

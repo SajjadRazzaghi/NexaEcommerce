@@ -1584,9 +1584,9 @@ if (attributeValueIds is null ||
     // ============================================================
 
     public async Task AddVariantAttributeMappingsAsync(
-        Guid variantId,
-        IReadOnlyCollection<Guid> attributeValueIds,
-        CancellationToken cancellationToken = default)
+      Guid variantId,
+      IReadOnlyCollection<Guid> attributeValueIds,
+      CancellationToken cancellationToken = default)
     {
         if (variantId == Guid.Empty)
         {
@@ -1595,7 +1595,8 @@ if (attributeValueIds is null ||
                 nameof(variantId));
         }
 
-        if (attributeValueIds.Count == 0)
+        if (attributeValueIds is null ||
+            attributeValueIds.Count == 0)
         {
             return;
         }
@@ -1613,10 +1614,14 @@ if (attributeValueIds is null ||
             return;
         }
 
-        // --------------------------------------------------------
-        // Verify variant
-        // --------------------------------------------------------
-
+        /*
+         * ------------------------------------------------------------
+         * Verify Variant
+         * ------------------------------------------------------------
+         *
+         * This method is used only for variants that already exist
+         * in the database.
+         */
         var variantExists =
             await _context
                 .Set<ProductVariant>()
@@ -1634,10 +1639,11 @@ if (attributeValueIds is null ||
                 $"Product variant '{variantId}' was not found.");
         }
 
-        // --------------------------------------------------------
-        // Verify AttributeValue records
-        // --------------------------------------------------------
-
+        /*
+         * ------------------------------------------------------------
+         * Verify AttributeValue records
+         * ------------------------------------------------------------
+         */
         var existingAttributeValueIds =
             await _context
                 .Set<AttributeValue>()
@@ -1648,7 +1654,8 @@ if (attributeValueIds is null ||
                         ids.Contains(
                             x.Id))
                 .Select(
-                    x => x.Id)
+                    x =>
+                        x.Id)
                 .ToListAsync(
                     cancellationToken);
 
@@ -1664,10 +1671,11 @@ if (attributeValueIds is null ||
                 $"The following attribute values were not found: {string.Join(", ", missingIds)}");
         }
 
-        // --------------------------------------------------------
-        // Find existing mappings
-        // --------------------------------------------------------
-
+        /*
+         * ------------------------------------------------------------
+         * Existing persisted mappings
+         * ------------------------------------------------------------
+         */
         var existingMappings =
             await _context
                 .Set<VariantAttributeValue>()
@@ -1689,12 +1697,41 @@ if (attributeValueIds is null ||
         var existingIds =
             existingMappings.ToHashSet();
 
+        /*
+         * ------------------------------------------------------------
+         * IMPORTANT:
+         *
+         * ProductService may already have added a new
+         * VariantAttributeValue to variant.AttributeValues.
+         *
+         * That mapping may already be tracked as Added.
+         *
+         * Do not create a second DB entity for it.
+         * ------------------------------------------------------------
+         */
+        var trackedAddedIds =
+            _context
+                .ChangeTracker
+                .Entries<VariantAttributeValue>()
+                .Where(
+                    entry =>
+                        entry.State ==
+                        EntityState.Added &&
+
+                        entry.Entity.ProductVariantId ==
+                        variantId)
+                .Select(
+                    entry =>
+                        entry.Entity.AttributeValueId)
+                .ToHashSet();
+
         var newIds =
             ids
                 .Where(
                     id =>
-                        !existingIds.Contains(
-                            id))
+                        !existingIds.Contains(id) &&
+
+                        !trackedAddedIds.Contains(id))
                 .ToArray();
 
         if (newIds.Length == 0)

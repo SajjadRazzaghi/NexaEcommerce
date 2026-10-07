@@ -41,34 +41,26 @@ public sealed class ProductAttributeValueInputDto
 }
 public sealed class ProductVariantAttributeDto
 {
-    /*
-     * REAL persisted Product-side AttributeValue ID.
-     */
-    public Guid AttributeValueId {get; set;}
-    /*
-     * ProductAttribute owning the AttributeValue.
-     */
-    public Guid ProductAttributeId {get; set;}
-    /*
-     * Catalog Attribute definition.
-     */
-    public Guid? CatalogAttributeId {get; set;}
-    /*
-     * Catalog Attribute Value definition.
-     *
-     * This is the ID that ProductForm actually needs
-     * when restoring a Variant selection.
-     *
-     * It is intentionally exposed directly instead of forcing
-     * the frontend to reconstruct it through Product.Attributes.
-     */
-    public Guid? CatalogAttributeValueId {get; set;}
-    public string AttributeCode {get; set;} = string.Empty;
-    public string AttributeName {get; set;} = string.Empty;
+    public Guid AttributeValueId { get; set; }
+
+    public Guid ProductAttributeId { get; set; }
+
+    public Guid? CatalogAttributeId { get; set; }
+
+    public Guid? CatalogAttributeValueId { get; set; }
+
+    public string AttributeCode { get; set; } = string.Empty;
+
+    public string AttributeName { get; set; } = string.Empty;
+
     public string? Role { get; set; }
+
     public int RoleValue { get; set; }
+
     public string Value { get; set; } = string.Empty;
+
     public string? DisplayValue { get; set; }
+
     public string? ColorHex { get; set; }
 }
 public sealed class ProductVariantDto

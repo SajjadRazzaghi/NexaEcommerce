@@ -1971,12 +1971,12 @@ public sealed class ProductService : IProductService
                 variantDto.IsActive);
 
             await _productRepository.UpdateVariantAsync(
-                variant.Id,
-                variant.Sku,
-                variant.PriceOverride,
-                variant.ComparePrice,
-                variant.IsActive,
-                cancellationToken);
+        variant.Id,
+        variant.Sku,
+        variant.PriceOverride,
+        variant.ComparePrice,
+        variant.IsActive,
+        cancellationToken);
 
             await ReplaceVariantAttributeMappingsAsync(
                 product,
@@ -1985,10 +1985,37 @@ public sealed class ProductService : IProductService
                 combinationKey,
                 cancellationToken);
 
+            /*
+             * ------------------------------------------------------------
+             * Explicitly persist missing VariantAttributeValue mappings
+             * for existing variants.
+             *
+             * ReplaceVariantAttributeMappingsAsync keeps the aggregate
+             * synchronized for validation/read purposes.
+             *
+             * The repository call below guarantees that every desired
+             * Product AttributeValue that is not already persisted gets
+             * inserted into VariantAttributeValues.
+             *
+             * Already Added mappings are detected and are not duplicated.
+             * ------------------------------------------------------------
+             */
+            await _productRepository.AddVariantAttributeMappingsAsync(
+                variant.Id,
+
+                attributeValues
+                    .Select(
+                        attributeValue =>
+                            attributeValue.Id)
+                    .ToArray(),
+
+                cancellationToken);
+
             await _productRepository.ReplaceVariantImagesAsync(
                 variant.Id,
                 variantDto.Images,
                 cancellationToken);
+
             requestedVariantIds.Add(
                 variant.Id);
         }

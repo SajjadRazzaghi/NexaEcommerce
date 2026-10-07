@@ -67,24 +67,40 @@ type SelectedAttributes = Record<
 >;
 
 
-function getAttributeValue(
+function getVariantValueId(
     variant: ProductVariant,
     code: string,
-) {
-    return (
+): string | null {
+    const normalizedCode =
+        code
+            .trim()
+            .toLowerCase();
+
+    const attribute =
         variant.attributes?.find(
-            attribute =>
-                attribute.attributeCode
-                    .trim()
+            item =>
+                item.attributeCode
+                    ?.trim()
                     .toLowerCase() ===
-                code
-                    .trim()
-                    .toLowerCase(),
-        )?.attributeValueId ??
+                normalizedCode,
+        );
+
+    if (!attribute) {
+        return null;
+    }
+
+    /*
+     * UI uses CatalogAttributeValue.Id.
+     *
+     * Fallback to Product AttributeValue.Id only for
+     * legacy/incomplete records.
+     */
+    return (
+        attribute.catalogAttributeValueId ??
+        attribute.attributeValueId ??
         null
     );
 }
-
 function getVariantLabel(
     variant: ProductVariant,
 ) {
@@ -298,11 +314,15 @@ export default function ProductDetailPage() {
                             continue;
                         }
 
+                        const variantValueId =
+                            attribute.catalogAttributeValueId ??
+                            attribute.attributeValueId;
+
                         const exists =
                             group.values.some(
                                 value =>
                                     value.id ===
-                                    attribute.attributeValueId,
+                                    variantValueId,
                             );
 
                         if (
@@ -366,7 +386,7 @@ export default function ProductDetailPage() {
                                     valueId,
                                 ],
                             ) =>
-                                getAttributeValue(
+                                getVariantValueId(
                                     variant,
                                     code,
                                 ) ===
@@ -595,7 +615,7 @@ export default function ProductDetailPage() {
             availableVariants.some(
                 variant => {
                     if (
-                        getAttributeValue(
+                        getVariantValueId(
                             variant,
                             code,
                         ) !==
@@ -621,7 +641,7 @@ export default function ProductDetailPage() {
                                 selectedCode,
                                 selectedValueId,
                             ]) =>
-                                getAttributeValue(
+                                getVariantValueId(
                                     variant,
                                     selectedCode,
                                 ) ===

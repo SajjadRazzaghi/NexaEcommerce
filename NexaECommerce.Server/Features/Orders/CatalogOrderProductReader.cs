@@ -15,25 +15,30 @@ public sealed class CatalogOrderProductReader(
         var variant =
             await catalog.ProductVariants
                 .AsNoTracking()
-                .Where(x =>
-                    x.Id == productVariantId &&
-                    !x.IsDeleted)
-                .Select(x => new
-                {
-                    x.Id,
-                    x.Sku,
-                    ProductName = x.Product.Name,
-                    BasePrice = x.PriceOverride,
-                    DiscountPercentage =
-                        x.Product.DiscountPercentage,
-                    x.StockQuantity,
-                    x.IsActive,
-                    IsPublished =
-                        x.Product.IsPublished &&
-                        x.Product.IsActive &&
-                        !x.Product.IsDeleted
-                })
+
+                .Include(
+                    x => x.Product)
+
+                .Include(
+                    x => x.AttributeValues)
+                    .ThenInclude(
+                        x => x.AttributeValue)
+                        .ThenInclude(
+                            x => x.ProductAttribute)
+
+                .Include(
+                    x => x.AttributeValues)
+                    .ThenInclude(
+                        x => x.AttributeValue)
+                        .ThenInclude(
+                            x => x.CatalogAttributeValue)
+
                 .FirstOrDefaultAsync(
+                    x =>
+                        x.Id ==
+                            productVariantId &&
+
+                        !x.IsDeleted,
                     cancellationToken);
 
         if (variant is null)
@@ -41,27 +46,82 @@ public sealed class CatalogOrderProductReader(
             return null;
         }
 
+        var isPublished =
+            variant.Product.IsPublished &&
+            variant.Product.IsActive &&
+            !variant.Product.IsDeleted;
+
         var discountPercentage =
             Math.Clamp(
-                variant.DiscountPercentage,
+                variant.Product.DiscountPercentage,
                 0m,
                 100m);
 
         var price =
-            variant.BasePrice -
+            variant.PriceOverride -
             (
-                variant.BasePrice *
+                variant.PriceOverride *
                 discountPercentage /
                 100m
             );
 
+        var attributes =
+            variant.AttributeValues
+                .Where(
+                    mapping =>
+                        !mapping.IsDeleted &&
+                        mapping.AttributeValue != null &&
+                        mapping.AttributeValue.ProductAttribute != null)
+                .Select(
+                    mapping =>
+                        new OrderProductAttributeSnapshot(
+                            mapping.AttributeValueId,
+
+                            mapping.AttributeValue!
+                                .ProductAttributeId,
+
+                            mapping.AttributeValue!
+                                .ProductAttribute
+                                .CatalogAttributeId,
+
+                            mapping.AttributeValue!
+                                .CatalogAttributeValueId,
+
+                            mapping.AttributeValue!
+                                .ProductAttribute
+                                .Code,
+
+                            mapping.AttributeValue!
+                                .ProductAttribute
+                                .Name,
+
+                            (int)
+                            mapping.AttributeValue!
+                                .ProductAttribute
+                                .Role,
+
+                            mapping.AttributeValue!
+                                .Value,
+
+                            mapping.AttributeValue!
+                                .DisplayValue,
+
+                            mapping.AttributeValue!
+                                .ColorHex))
+                .OrderBy(
+                    x => x.AttributeName)
+                .ThenBy(
+                    x => x.Value)
+                .ToList();
+
         return new OrderProductSnapshot(
             variant.Id,
             variant.Sku,
-            variant.ProductName,
+            variant.Product.Name,
             price,
             variant.StockQuantity,
             variant.IsActive,
-            variant.IsPublished);
+            isPublished,
+            attributes);
     }
 }

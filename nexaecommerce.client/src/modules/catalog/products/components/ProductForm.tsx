@@ -1683,7 +1683,6 @@ export function ProductForm(
     /* ---------------------------------------------------------------------- */
     /*                         Variant Attributes                              */
     /* ---------------------------------------------------------------------- */
-
     const variantAttributes =
         useMemo(
             () =>
@@ -1699,15 +1698,21 @@ export function ProductForm(
                         attribute => ({
                             ...attribute,
 
+                            /*
+                             * Keep inactive values in the option list.
+                             *
+                             * This is important for existing products which
+                             * still reference a catalog value that was later
+                             * deactivated.
+                             *
+                             * The inactive option is disabled in the Select,
+                             * but remains visible when it is already selected.
+                             */
                             values:
-                                (
-                                    attribute.values ??
-                                    []
-                                )
-                                    .filter(
-                                        value =>
-                                            value.isActive,
-                                    )
+                                [
+                                    ...(attribute.values ??
+                                        []),
+                                ]
                                     .sort(
                                         (
                                             a,
@@ -1733,8 +1738,6 @@ export function ProductForm(
                     ),
             [attributes],
         );
-
-
 
 
     /* ---------------------------------------------------------------------- */
@@ -4388,13 +4391,14 @@ const hasDuplicateVariantCombination =
                                                                     attribute,
                                                                     selectedIds,
                                                                 );
-
+                                                          
                                                             const selectedValue =
                                                                 attribute.values.find(
                                                                     value =>
                                                                         value.id ===
                                                                         selectedValueId,
                                                                 );
+                                                            
 
                                                             return (
                                                                 <div

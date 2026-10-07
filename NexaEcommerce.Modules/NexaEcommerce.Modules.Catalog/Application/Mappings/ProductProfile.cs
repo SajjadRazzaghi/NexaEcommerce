@@ -134,96 +134,74 @@ public sealed class ProductProfile : Profile
         // =========================================================
 
         CreateMap<ProductVariant, ProductVariantDto>()
-     .ForMember(
-         dest => dest.Attributes,
-         opt => opt.MapFrom(
-             src => src.AttributeValues
-                 .Where(
-                     x =>
-                         x.AttributeValue != null &&
-                         x.AttributeValue.ProductAttribute != null)
-                 .Select(
-                     x =>
-                         new ProductVariantAttributeDto
-                         {
-                             /*
-                              * REAL persisted Product-side AttributeValue ID.
-                              */
-                             AttributeValueId =
-                                 x.AttributeValueId,
+         .ForMember(
+             dest => dest.Attributes,
+             opt => opt.MapFrom(
+                 src => src.AttributeValues
+                     .Where(
+                         x =>
+                             x.AttributeValue != null &&
+                             x.AttributeValue.ProductAttribute != null)
+                     .Select(
+                         x =>
+                             new ProductVariantAttributeDto
+                             {
+                                 AttributeValueId =
+                                     x.AttributeValueId,
 
-                             /*
-                              * ProductAttribute ID.
-                              */
-                             ProductAttributeId =
-                                 x.AttributeValue!
-                                     .ProductAttributeId,
+                                 ProductAttributeId =
+                                     x.AttributeValue!
+                                         .ProductAttributeId,
 
-                             /*
-                              * Catalog Attribute ID.
-                              */
-                             CatalogAttributeId =
-                                 x.AttributeValue!
-                                     .ProductAttribute
-                                     .CatalogAttributeId,
+                                 CatalogAttributeId =
+                                     x.AttributeValue!
+                                         .ProductAttribute
+                                         .CatalogAttributeId,
 
-                             /*
-                              * IMPORTANT:
-                              *
-                              * Return the CatalogAttributeValue ID
-                              * directly.
-                              *
-                              * AttributeValue already stores this
-                              * relationship, so the frontend should
-                              * not have to infer it again.
-                              */
-                             CatalogAttributeValueId =
-                                 x.AttributeValue!
-                                     .CatalogAttributeValueId,
+                                 CatalogAttributeValueId =
+                                     x.AttributeValue!
+                                         .CatalogAttributeValueId,
 
-                             AttributeCode =
-                                 x.AttributeValue!
-                                     .ProductAttribute
-                                     .Code,
+                                 AttributeCode =
+                                     x.AttributeValue!
+                                         .ProductAttribute
+                                         .Code,
 
-                             AttributeName =
-                                 x.AttributeValue!
-                                     .ProductAttribute
-                                     .Name,
+                                 AttributeName =
+                                     x.AttributeValue!
+                                         .ProductAttribute
+                                         .Name,
 
-                             Role =
-                                 x.AttributeValue!
-                                     .ProductAttribute
-                                     .Role
-                                     .ToString(),
+                                 Role =
+                                     x.AttributeValue!
+                                         .ProductAttribute
+                                         .Role
+                                         .ToString(),
 
-                             RoleValue =
-                                 (int)
-                                 x.AttributeValue!
-                                     .ProductAttribute
-                                     .Role,
+                                 RoleValue =
+                                     (int)
+                                     x.AttributeValue!
+                                         .ProductAttribute
+                                         .Role,
 
-                             Value =
-                                 x.AttributeValue!
-                                     .Value,
+                                 Value =
+                                     x.AttributeValue!
+                                         .Value,
 
-                             DisplayValue =
-                                 x.AttributeValue!
-                                     .DisplayValue,
-
-                             ColorHex =
-                                 x.AttributeValue!
-                                     .ColorHex,
-                         })
-                 .OrderBy(
-                     x =>
-                         x.AttributeName)
-                 .ThenBy(
-                     x =>
-                         x.Value)
-                 .ToList()
-                 )
-     );
+                                 DisplayValue =
+                                     x.AttributeValue!
+                                         .DisplayValue,
+                                 ColorHex =
+                                     x.AttributeValue!
+                                         .ColorHex,
+                             })
+                     .OrderBy(
+                         x => x.AttributeName)
+                     .ThenBy(
+                         x => x.Value)
+                     .ToList()
+             )
+         );
 
         // =========================================================
         // Product Variant Image

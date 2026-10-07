@@ -480,32 +480,37 @@ modelBuilder.Entity<ShippingMethod>(
             });
 
         modelBuilder.Entity<OrderItem>(
-            entity =>
-            {
-                entity.ToTable(
-                    "OrderItems");
+     entity =>
+     {
+         entity.ToTable(
+             "OrderItems");
 
-                entity.HasKey(
-                    x => x.Id);
+         entity.HasKey(
+             x => x.Id);
 
-                entity.Property(
-                    x => x.Sku)
-                    .IsRequired()
-                    .HasMaxLength(100);
+         entity.Property(
+             x => x.Sku)
+             .IsRequired()
+             .HasMaxLength(100);
 
-                entity.Property(
-                    x => x.ProductName)
-                    .IsRequired()
-                    .HasMaxLength(300);
+         entity.Property(
+             x => x.ProductName)
+             .IsRequired()
+             .HasMaxLength(300);
 
-                entity.Property(
-                    x => x.UnitPrice)
-                    .HasPrecision(18, 2);
+         entity.Property(
+             x => x.UnitPrice)
+             .HasPrecision(
+                 18,
+                 2);
 
-                entity.Property(
-                    x => x.Quantity)
-                    .IsRequired();
-            });
+         entity.Property(
+             x => x.Quantity)
+             .IsRequired();
+
+         entity.Property(
+             x => x.VariantAttributesJson);
+     });
 
         modelBuilder.Entity<OrderInventoryReservation>(
             entity =>

@@ -17,45 +17,128 @@ public sealed class OrderItem : BaseEntity
         int quantity)
     {
         if (orderId == Guid.Empty)
-            throw new ArgumentException(nameof(orderId));
+        {
+            throw new ArgumentException(
+                nameof(orderId));
+        }
 
         if (productVariantId == Guid.Empty)
-            throw new ArgumentException(nameof(productVariantId));
+        {
+            throw new ArgumentException(
+                nameof(productVariantId));
+        }
 
         if (string.IsNullOrWhiteSpace(sku))
-            throw new ArgumentException(nameof(sku));
+        {
+            throw new ArgumentException(
+                nameof(sku));
+        }
 
         if (string.IsNullOrWhiteSpace(productName))
-            throw new ArgumentException(nameof(productName));
+        {
+            throw new ArgumentException(
+                nameof(productName));
+        }
 
         if (unitPrice < 0)
-            throw new ArgumentOutOfRangeException(nameof(unitPrice));
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(unitPrice));
+        }
 
         if (quantity <= 0)
-            throw new ArgumentOutOfRangeException(nameof(quantity));
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(quantity));
+        }
 
-        OrderId = orderId;
-        ProductVariantId = productVariantId;
-        Sku = sku.Trim();
-        ProductName = productName.Trim();
-        UnitPrice = unitPrice;
-        Quantity = quantity;
+        OrderId =
+            orderId;
+
+        ProductVariantId =
+            productVariantId;
+
+        Sku =
+            sku.Trim();
+
+        ProductName =
+            productName.Trim();
+
+        UnitPrice =
+            unitPrice;
+
+        Quantity =
+            quantity;
     }
 
-    public Guid OrderId { get; private set; }
+    public Guid OrderId
+    {
+        get;
+        private set;
+    }
 
-    public Guid ProductVariantId { get; private set; }
+    public Guid ProductVariantId
+    {
+        get;
+        private set;
+    }
 
-    public string Sku { get; private set; } = null!;
+    public string Sku
+    {
+        get;
+        private set;
+    } = null!;
 
-    public string ProductName { get; private set; } = null!;
+    public string ProductName
+    {
+        get;
+        private set;
+    } = null!;
 
-    public decimal UnitPrice { get; private set; }
+    public decimal UnitPrice
+    {
+        get;
+        private set;
+    }
 
-    public int Quantity { get; private set; }
+    public int Quantity
+    {
+        get;
+        private set;
+    }
+
+    /*
+     * Snapshot of the VariantDefining attributes
+     * at the exact moment the order is created.
+     *
+     * This prevents historical orders from changing
+     * when Catalog data changes later.
+     */
+    public string? VariantAttributesJson
+    {
+        get;
+        private set;
+    }
 
     public decimal LineTotal =>
-        UnitPrice * Quantity;
+        UnitPrice *
+        Quantity;
 
-    public Order Order { get; private set; } = null!;
+    public Order Order
+    {
+        get;
+        private set;
+    } = null!;
+
+    internal void SetVariantAttributesSnapshot(
+        string? json)
+    {
+        VariantAttributesJson =
+            string.IsNullOrWhiteSpace(json)
+                ? null
+                : json;
+
+        UpdatedAt =
+            DateTime.UtcNow;
+    }
 }

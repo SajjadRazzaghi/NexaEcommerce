@@ -2,7 +2,7 @@ using NexaEcommerce.Modules.Orders.Application.DTOs;
 using NexaEcommerce.Modules.Orders.Application.Pricing;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
-
+using System.Text.Json;
 namespace NexaEcommerce.Modules.Orders.Application.Services;
 
 public sealed class OrderService(
@@ -16,6 +16,10 @@ public sealed class OrderService(
     IOrderConcurrencyService orderConcurrency)
     : IOrderService
 {
+    private static readonly JsonSerializerOptions
+        VariantAttributeJsonOptions =
+            new(
+                JsonSerializerDefaults.Web);
     public async Task<OrderDto> CreateFromCheckoutAsync(
         string tenantId,
         string userId,
@@ -99,12 +103,47 @@ request.ShippingMethodId);
                     $"Product variant {line.ProductVariantId} has an invalid price.");
             }
 
-            order.AddItem(
-                product.Id,
-                product.Sku,
-                product.ProductName,
-                product.Price,
-                line.Quantity);
+            var orderItem =
+        order.AddItem(
+            product.Id,
+            product.Sku,
+            product.ProductName,
+            product.Price,
+            line.Quantity);
+
+            var attributeSnapshot =
+                product.Attributes
+                    .Select(
+                        attribute =>
+                            new OrderItemAttributeDto(
+                                attribute.AttributeValueId,
+                                attribute.ProductAttributeId,
+                                attribute.CatalogAttributeId,
+                                attribute.CatalogAttributeValueId,
+                                attribute.AttributeCode,
+                                attribute.AttributeName,
+                                attribute.RoleValue,
+                                attribute.Value,
+                                attribute.DisplayValue,
+                                attribute.ColorHex))
+                    .ToList();
+
+            orderItem.SetVariantAttributesSnapshot(
+                JsonSerializer.Serialize(
+                    attributeSnapshot,
+                    VariantAttributeJsonOptions));
+
+         
+
+       
+
+            orderItem.SetVariantAttributesSnapshot(
+                JsonSerializer.Serialize(
+                    attributeSnapshot,
+                    VariantAttributeJsonOptions));
+
+           
+        
         }
 
         /*
@@ -758,9 +797,37 @@ request.ShippingMethodId);
         return
             $"NX-{DateTime.UtcNow:yyyyMMddHHmmss}-{Random.Shared.Next(1000, 9999)}";
     }
+    private static IReadOnlyList<OrderItemAttributeDto>
+    ReadVariantAttributes(
+        OrderItem item)
+    {
+        if (
+            string.IsNullOrWhiteSpace(
+                item.VariantAttributesJson))
+        {
+            return [];
+        }
 
+        try
+        {
+            return
+                JsonSerializer.Deserialize<
+                    List<OrderItemAttributeDto>>(
+                    item.VariantAttributesJson,
+                    VariantAttributeJsonOptions)
+                ?? [];
+        }
+        catch
+        {
+            /*
+             * A malformed historical snapshot must never
+             * prevent the customer from opening the order.
+             */
+            return [];
+        }
+    }
     private static OrderDto Map(
-        Order order)
+     Order order)
     {
         return new OrderDto(
             order.Id,
@@ -785,11 +852,19 @@ request.ShippingMethodId);
                     x =>
                         new OrderItemDto(
                             x.ProductVariantId,
+
                             x.Sku,
+
                             x.ProductName,
+
                             x.UnitPrice,
+
                             x.Quantity,
-                            x.LineTotal))
+
+                            x.LineTotal,
+
+                            ReadVariantAttributes(
+                                x)))
                 .ToList());
     }
 }
