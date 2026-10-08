@@ -1758,7 +1758,21 @@ if (attributeValueIds is null ||
     // ============================================================
     // Add
     // ============================================================
+    // ============================================================
+    // Add Variant
+    // ============================================================
 
+    public async Task AddVariantAsync(
+        ProductVariant variant,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(
+            variant);
+
+        await _context.ProductVariants.AddAsync(
+            variant,
+            cancellationToken);
+    }
     public async Task AddAsync(
         Product product,
         CancellationToken cancellationToken = default)

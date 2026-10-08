@@ -7,7 +7,9 @@ public interface IProductRepository
     Task<Product?> GetByIdAsync(
     Guid id,
     CancellationToken cancellationToken = default);
-  
+    Task AddVariantAsync(
+      ProductVariant variant,
+      CancellationToken cancellationToken = default);
     Task<bool> UpdateVariantAsync(
         Guid variantId,
         string sku,

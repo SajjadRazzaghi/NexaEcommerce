@@ -1801,50 +1801,40 @@ public sealed class ProductService : IProductService
     }
 
     private async Task ReplaceVariantAttributeMappingsAsync(
-    Product product,
-    ProductVariant variant,
-    IReadOnlyCollection<AttributeValue> desiredValues,
-    string combinationKey,
-    CancellationToken cancellationToken)
+      Product product,
+      ProductVariant variant,
+      IReadOnlyCollection<AttributeValue> desiredValues,
+      string combinationKey,
+      CancellationToken cancellationToken)
     {
-        var desiredIds =
-            desiredValues
-                .Select(x => x.Id)
-                .ToHashSet();
-
-        var currentIds =
+        var existingAttributeValueIds =
             variant.AttributeValues
-                .Select(x => x.AttributeValueId)
-                .ToHashSet();
-
-        var idsToDelete =
-            currentIds
-                .Except(desiredIds)
+                .Select(
+                    mapping =>
+                        mapping.AttributeValueId)
+                .Distinct()
                 .ToArray();
 
-        if (idsToDelete.Length > 0)
+        if (existingAttributeValueIds.Length > 0)
         {
             await _productRepository
                 .DeleteVariantAttributeMappingsAsync(
                     variant.Id,
-                    idsToDelete,
+                    existingAttributeValueIds,
                     cancellationToken);
-
-            foreach (var id in idsToDelete)
-            {
-                variant.RemoveAttributeValue(id);
-            }
         }
 
-        foreach (var value in desiredValues)
-        {
-            if (!currentIds.Contains(
-                    value.Id))
-            {
-                variant.AddAttributeValue(
-                    value);
-            }
-        }
+        /*
+         * مهم:
+         *
+         * ReplaceAttributeValues باعث می‌شود aggregate هم دقیقاً
+         * همان Mappingهای مطلوب را داشته باشد.
+         *
+         * بنابراین اگر قبلاً Mapping تکراری وجود داشته باشد،
+         * دیگر در validation باقی نمی‌ماند.
+         */
+        variant.ReplaceAttributeValues(
+            desiredValues);
 
         variant.SetCombinationKey(
             combinationKey);
@@ -1927,7 +1917,7 @@ public sealed class ProductService : IProductService
                         sku,
                         variantDto.PriceOverride ??
                         product.Price,
-                        variantDto.StockQuantity ?? 0,
+                        0,
                         variantDto.ComparePrice);
 
                 newVariant.SetBarcode(
@@ -1945,12 +1935,27 @@ public sealed class ProductService : IProductService
                         attributeValue);
                 }
 
+                /*
+                 * IMPORTANT:
+                 *
+                 * This is a newly-created ProductVariant.
+                 *
+                 * Do not rely on EF Core relationship discovery here.
+                 * Explicitly mark the new Variant as Added so the final
+                 * SaveChanges() always inserts it into Catalog.ProductVariants.
+                 *
+                 * The AttributeValue mappings are already attached to the
+                 * new Variant above and will be persisted with it.
+                 */
+                await _productRepository.AddVariantAsync(
+                    newVariant,
+                    cancellationToken);
+
                 requestedVariantIds.Add(
                     newVariant.Id);
 
                 continue;
             }
-
             variant.ChangeSku(
       sku);
 

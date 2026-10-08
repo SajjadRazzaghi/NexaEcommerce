@@ -840,8 +840,11 @@ function toValues(
             product.variants ?? []
         ).map(
             variant => {
-                const resolvedAttributeValueIds: string[] =
-                    [];
+                const resolvedAttributeValueIdsByAttributeId =
+                    new Map<
+                        string,
+                        string
+                    >();
 
                 /*
                  * ==========================================================
@@ -1090,9 +1093,13 @@ function toValues(
                     /* ------------------------------------------------------ */
 
                     if (
-                        catalogValue?.id
+                        catalogValue?.id &&
+                        !resolvedAttributeValueIdsByAttributeId.has(
+                            catalogAttribute.id,
+                        )
                     ) {
-                        resolvedAttributeValueIds.push(
+                        resolvedAttributeValueIdsByAttributeId.set(
+                            catalogAttribute.id,
                             catalogValue.id,
                         );
                     }
@@ -1103,9 +1110,7 @@ function toValues(
                  */
                 const attributeValueIds =
                     Array.from(
-                        new Set(
-                            resolvedAttributeValueIds,
-                        ),
+                        resolvedAttributeValueIdsByAttributeId.values(),
                     );
 
                 return {
@@ -2266,19 +2271,68 @@ const hasDuplicateVariantCombination =
                 return [];
             }
 
-            return Array.from(
-                new Set(
-                    valueIds.filter(
+            const allowedIds =
+                Array.from(
+                    new Set(
+                        valueIds.filter(
+                            valueId =>
+                                selectedVariantValueIds.has(
+                                    valueId,
+                                ),
+                        ),
+                    ),
+                );
+
+            /*
+             * A Variant may contain exactly ONE value
+             * from each VariantDefining attribute.
+             *
+             * Example:
+             *
+             * Size   -> Medium
+             * Color  -> Black
+             *
+             * It must never contain:
+             *
+             * Size -> Medium
+             * Size -> Small
+             */
+            const normalizedIds: string[] = [];
+
+            for (
+                const attribute
+                of activeVariantAttributes
+            ) {
+                const attributeValueIds =
+                    new Set(
+                        (
+                            attribute.values ??
+                            []
+                        ).map(
+                            value =>
+                                value.id,
+                        ),
+                    );
+
+                const selectedValueId =
+                    allowedIds.find(
                         valueId =>
-                            selectedVariantValueIds.has(
+                            attributeValueIds.has(
                                 valueId,
                             ),
-                    ),
-                ),
-            );
+                    );
+
+                if (
+                    selectedValueId
+                ) {
+                    normalizedIds.push(
+                        selectedValueId,
+                    );
+                }
+            }
+
+            return normalizedIds;
         };
-
-
     /* ---------------------------------------------------------------------- */
     /*                         Specification Helpers                          */
     /* ---------------------------------------------------------------------- */
