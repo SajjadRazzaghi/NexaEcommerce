@@ -7,11 +7,72 @@ using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 using NexaECommerce.Server.Features.Inventory;
 using NSubstitute;
 using Shouldly;
-
+using Microsoft.Extensions.Logging.Abstractions;
+using NexaECommerce.Server.Features.Orders;
 namespace NexaECommerce.Tests.Unit.Features.Inventory;
 
 public sealed class InventoryOrderReconciliationServiceTests
 {
+    private static IOrderConcurrencyService CreateInlineOrderConcurrency()
+    {
+        var concurrency =
+            Substitute.For<IOrderConcurrencyService>();
+
+        concurrency.ExecuteAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<Func<CancellationToken, Task>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(
+                callInfo =>
+                {
+                    var action =
+                        callInfo.ArgAt<
+                            Func<CancellationToken, Task>>(2);
+
+                    var cancellationToken =
+                        callInfo.ArgAt<CancellationToken>(3);
+
+                    return action(cancellationToken);
+                });
+
+        return concurrency;
+    }
+    private static PaymentReservationOrchestrator
+     CreatePaymentReservations(
+         IOrderRepository repository,
+         IOrderUnitOfWork unitOfWork,
+         IInventoryService inventory)
+    {
+        var paymentAttemptRepository =
+            Substitute.For<IPaymentAttemptRepository>();
+
+        /*
+         * These reconciliation tests are not intended to test
+         * stale pending-payment order cancellation.
+         *
+         * Return an empty batch so the reservation orchestrator
+         * can complete its final stale-order check without
+         * introducing unrelated behavior into these tests.
+         */
+        repository
+            .GetPendingPaymentOrdersOlderThanAsync(
+                Arg.Any<string>(),
+                Arg.Any<DateTimeOffset>(),
+                Arg.Any<int>(),
+                Arg.Any<CancellationToken>())
+            .Returns(
+                (IReadOnlyList<Order>)
+                    Array.Empty<Order>());
+
+        return new PaymentReservationOrchestrator(
+            repository,
+            unitOfWork,
+            paymentAttemptRepository,
+            inventory,
+            CreateInlineOrderConcurrency(),
+            NullLogger<PaymentReservationOrchestrator>.Instance);
+    }
     private static Order CreateOrder()
     {
         return Order.Create(
@@ -83,11 +144,16 @@ public sealed class InventoryOrderReconciliationServiceTests
             .Returns(1);
 
         var sut =
-            new InventoryOrderReconciliationService(
-                repository,
-                unitOfWork,
-                inventory,
-                logger);
+     new InventoryOrderReconciliationService(
+         repository,
+         unitOfWork,
+         inventory,
+         CreateInlineOrderConcurrency(),
+         CreatePaymentReservations(
+             repository,
+             unitOfWork,
+             inventory),
+         logger);
 
         var result =
             await sut.ReconcileAsync(
@@ -169,11 +235,16 @@ public sealed class InventoryOrderReconciliationServiceTests
             .Returns(1);
 
         var sut =
-            new InventoryOrderReconciliationService(
-                repository,
-                unitOfWork,
-                inventory,
-                logger);
+      new InventoryOrderReconciliationService(
+          repository,
+          unitOfWork,
+          inventory,
+          CreateInlineOrderConcurrency(),
+          CreatePaymentReservations(
+              repository,
+              unitOfWork,
+              inventory),
+          logger);
 
         var result =
             await sut.ReconcileAsync(
@@ -265,11 +336,16 @@ public sealed class InventoryOrderReconciliationServiceTests
                     reservation.ExpiresAt));
 
         var sut =
-            new InventoryOrderReconciliationService(
-                repository,
-                unitOfWork,
-                inventory,
-                logger);
+       new InventoryOrderReconciliationService(
+           repository,
+           unitOfWork,
+           inventory,
+           CreateInlineOrderConcurrency(),
+           CreatePaymentReservations(
+               repository,
+               unitOfWork,
+               inventory),
+           logger);
 
         var result =
             await sut.ReconcileAsync(
@@ -340,11 +416,16 @@ public sealed class InventoryOrderReconciliationServiceTests
                     StockReservationDto?>(null));
 
         var sut =
-            new InventoryOrderReconciliationService(
-                repository,
-                unitOfWork,
-                inventory,
-                logger);
+      new InventoryOrderReconciliationService(
+          repository,
+          unitOfWork,
+          inventory,
+          CreateInlineOrderConcurrency(),
+          CreatePaymentReservations(
+              repository,
+              unitOfWork,
+              inventory),
+          logger);
 
         var result =
             await sut.ReconcileAsync(

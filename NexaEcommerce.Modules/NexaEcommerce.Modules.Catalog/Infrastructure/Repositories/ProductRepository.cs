@@ -1709,6 +1709,20 @@ if (attributeValueIds is null ||
          * Do not create a second DB entity for it.
          * ------------------------------------------------------------
          */
+        /*
+   * ------------------------------------------------------------
+   * IMPORTANT:
+   *
+   * ProductService may already have added a new
+   * VariantAttributeValue to variant.AttributeValues.
+   *
+   * DetectChanges() is required here because the entity may have
+   * been added through the aggregate navigation and not yet appear
+   * in ChangeTracker.Entries<T>().
+   * ------------------------------------------------------------
+   */
+        _context.ChangeTracker.DetectChanges();
+
         var trackedAddedIds =
             _context
                 .ChangeTracker
@@ -1717,7 +1731,6 @@ if (attributeValueIds is null ||
                     entry =>
                         entry.State ==
                         EntityState.Added &&
-
                         entry.Entity.ProductVariantId ==
                         variantId)
                 .Select(
@@ -1730,7 +1743,6 @@ if (attributeValueIds is null ||
                 .Where(
                     id =>
                         !existingIds.Contains(id) &&
-
                         !trackedAddedIds.Contains(id))
                 .ToArray();
 

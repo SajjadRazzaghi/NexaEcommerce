@@ -1801,20 +1801,39 @@ public sealed class ProductService : IProductService
     }
 
     private async Task ReplaceVariantAttributeMappingsAsync(
-      Product product,
-      ProductVariant variant,
-      IReadOnlyCollection<AttributeValue> desiredValues,
-      string combinationKey,
-      CancellationToken cancellationToken)
+        Product product,
+        ProductVariant variant,
+        IReadOnlyCollection<AttributeValue> desiredValues,
+        string combinationKey,
+        CancellationToken cancellationToken)
     {
-        var existingAttributeValueIds =
+        ArgumentNullException.ThrowIfNull(
+            product);
+
+        ArgumentNullException.ThrowIfNull(
+            variant);
+
+        ArgumentNullException.ThrowIfNull(
+            desiredValues);
+
+        var existingMappings =
             variant.AttributeValues
+                .ToList();
+
+        var existingAttributeValueIds =
+            existingMappings
                 .Select(
                     mapping =>
                         mapping.AttributeValueId)
+                .Where(
+                    id =>
+                        id != Guid.Empty)
                 .Distinct()
                 .ToArray();
 
+        /*
+         * Delete all persisted mappings for this Variant.
+         */
         if (existingAttributeValueIds.Length > 0)
         {
             await _productRepository
@@ -1825,13 +1844,28 @@ public sealed class ProductService : IProductService
         }
 
         /*
-         * مهم:
+         * IMPORTANT:
          *
-         * ReplaceAttributeValues باعث می‌شود aggregate هم دقیقاً
-         * همان Mappingهای مطلوب را داشته باشد.
+         * DeleteVariantAttributeMappingsAsync also detaches the
+         * tracked mapping entities from EF Core.
          *
-         * بنابراین اگر قبلاً Mapping تکراری وجود داشته باشد،
-         * دیگر در validation باقی نمی‌ماند.
+         * Therefore the old mapping objects must also be removed
+         * from the Variant navigation collection.
+         *
+         * Otherwise a detached old mapping and a new Added mapping
+         * can coexist in variant.AttributeValues.
+         */
+        foreach (var mapping in existingMappings)
+        {
+            variant.AttributeValues.Remove(
+                mapping);
+        }
+
+        /*
+         * Rebuild the navigation collection from the desired values.
+         *
+         * ReplaceAttributeValues also removes duplicate AttributeValue
+         * IDs from desiredValues.
          */
         variant.ReplaceAttributeValues(
             desiredValues);

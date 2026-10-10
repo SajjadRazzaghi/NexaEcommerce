@@ -40,14 +40,38 @@ public sealed class PaymentFailureOrchestratorTests
         IInventoryService inventory,
         IWarehouseReservationOrchestrator warehouseReservation)
     {
+        var orderConcurrency =
+    Substitute.For<IOrderConcurrencyService>();
+
+        orderConcurrency.ExecuteAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<Func<
+                    CancellationToken,
+                    Task<PaymentFailureResult>>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(
+                callInfo =>
+                {
+                    var action =
+                        callInfo.ArgAt<Func<
+                            CancellationToken,
+                            Task<PaymentFailureResult>>>(2);
+
+                    var cancellationToken =
+                        callInfo.ArgAt<CancellationToken>(3);
+
+                    return action(cancellationToken);
+                });
         return new PaymentFailureOrchestrator(
-            paymentAttempts,
-            paymentAttemptRepository,
-            orderRepository,
-            orderUnitOfWork,
-            inventory,
-            warehouseReservation,
-            NullLogger<PaymentFailureOrchestrator>.Instance);
+     paymentAttempts,
+     paymentAttemptRepository,
+     orderRepository,
+     orderUnitOfWork,
+     inventory,
+     warehouseReservation,
+     orderConcurrency,
+     NullLogger<PaymentFailureOrchestrator>.Instance);
     }
 
     [Fact]

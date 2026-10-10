@@ -7,11 +7,36 @@ using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Domain.Interfaces;
 using NexaECommerce.Server.Features.Orders;
 using Shouldly;
-
+using Microsoft.Extensions.Logging.Abstractions;
 namespace NexaECommerce.Tests.Unit.Features.Orders;
 
 public sealed class PaymentRetryOrchestratorTests
 {
+    private static IOrderConcurrencyService CreateInlineOrderConcurrency()
+    {
+        var concurrency =
+            Substitute.For<IOrderConcurrencyService>();
+
+        concurrency.ExecuteAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<Func<CancellationToken, Task>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(
+                callInfo =>
+                {
+                    var action =
+                        callInfo.ArgAt<
+                            Func<CancellationToken, Task>>(2);
+
+                    var cancellationToken =
+                        callInfo.ArgAt<CancellationToken>(3);
+
+                    return action(cancellationToken);
+                });
+
+        return concurrency;
+    }
     private static Order CreateOrder()
     {
         return Order.Create(
@@ -118,12 +143,20 @@ public sealed class PaymentRetryOrchestratorTests
             .Returns(
                 Task.FromResult(
                     paymentResult));
+        var paymentAttemptRepository =
+    Substitute.For<IPaymentAttemptRepository>();
 
-        var sut =
-            new PaymentRetryOrchestrator(
+        var paymentReservations =
+            new PaymentReservationOrchestrator(
                 orderRepository,
                 orderUnitOfWork,
+                paymentAttemptRepository,
                 inventory,
+                CreateInlineOrderConcurrency(),
+                NullLogger<PaymentReservationOrchestrator>.Instance);
+        var sut =
+            new PaymentRetryOrchestrator(
+                paymentReservations,
                 paymentAttempts);
 
         var result =
@@ -235,13 +268,21 @@ public sealed class PaymentRetryOrchestratorTests
                         null,
                         DateTimeOffset.UtcNow,
                         null)));
+        var paymentAttemptRepository =
+            Substitute.For<IPaymentAttemptRepository>();
 
-        var sut =
-            new PaymentRetryOrchestrator(
+        var paymentReservations =
+            new PaymentReservationOrchestrator(
                 orderRepository,
                 orderUnitOfWork,
+                paymentAttemptRepository,
                 inventory,
-                paymentAttempts);
+                CreateInlineOrderConcurrency(),
+                NullLogger<PaymentReservationOrchestrator>.Instance);
+        var sut =
+      new PaymentRetryOrchestrator(
+          paymentReservations,
+          paymentAttempts);
 
         await sut.RetryAsync(
             "tenant-1",

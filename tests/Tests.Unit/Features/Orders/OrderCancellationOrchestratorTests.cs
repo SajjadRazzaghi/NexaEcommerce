@@ -10,6 +10,31 @@ namespace NexaECommerce.Tests.Unit.Features.Orders;
 
 public sealed class OrderCancellationOrchestratorTests
 {
+    private static IOrderConcurrencyService CreateInlineOrderConcurrency()
+    {
+        var concurrency =
+            Substitute.For<IOrderConcurrencyService>();
+
+        concurrency.ExecuteAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<Func<CancellationToken, Task>>(),
+                Arg.Any<CancellationToken>())
+            .Returns(
+                callInfo =>
+                {
+                    var action =
+                        callInfo.ArgAt<
+                            Func<CancellationToken, Task>>(2);
+
+                    var cancellationToken =
+                        callInfo.ArgAt<CancellationToken>(3);
+
+                    return action(cancellationToken);
+                });
+
+        return concurrency;
+    }
     private static Order CreateOrder()
     {
         return Order.Create(
@@ -68,10 +93,12 @@ public sealed class OrderCancellationOrchestratorTests
             .Returns(1);
 
         var sut =
-            new OrderCancellationOrchestrator(
-                repository,
-                unitOfWork,
-                warehouseReservation);
+        
+    new OrderCancellationOrchestrator(
+        repository,
+        unitOfWork,
+        CreateInlineOrderConcurrency(),
+        warehouseReservation);
 
         await sut.CancelAsync(
             "tenant-1",
@@ -134,10 +161,12 @@ public sealed class OrderCancellationOrchestratorTests
             .Returns(1);
 
         var sut =
-            new OrderCancellationOrchestrator(
-                repository,
-                unitOfWork,
-                warehouseReservation);
+         
+    new OrderCancellationOrchestrator(
+        repository,
+        unitOfWork,
+        CreateInlineOrderConcurrency(),
+        warehouseReservation);
 
         await sut.CancelAsync(
             "tenant-1",
@@ -185,10 +214,12 @@ public sealed class OrderCancellationOrchestratorTests
                 Task.FromResult<Order?>(null));
 
         var sut =
-            new OrderCancellationOrchestrator(
-                repository,
-                unitOfWork,
-                warehouseReservation);
+
+    new OrderCancellationOrchestrator(
+        repository,
+        unitOfWork,
+        CreateInlineOrderConcurrency(),
+        warehouseReservation);
 
         await Should.ThrowAsync<KeyNotFoundException>(
             () =>
@@ -238,10 +269,12 @@ public sealed class OrderCancellationOrchestratorTests
             .Returns(order);
 
         var sut =
-            new OrderCancellationOrchestrator(
-                repository,
-                unitOfWork,
-                warehouseReservation);
+          
+    new OrderCancellationOrchestrator(
+        repository,
+        unitOfWork,
+        CreateInlineOrderConcurrency(),
+        warehouseReservation);
 
         var exception =
             await Should.ThrowAsync<
@@ -301,10 +334,12 @@ public sealed class OrderCancellationOrchestratorTests
             .Returns(order);
 
         var sut =
-            new OrderCancellationOrchestrator(
-                repository,
-                unitOfWork,
-                warehouseReservation);
+          
+    new OrderCancellationOrchestrator(
+        repository,
+        unitOfWork,
+        CreateInlineOrderConcurrency(),
+        warehouseReservation);
 
         var exception =
             await Should.ThrowAsync<
@@ -371,10 +406,12 @@ public sealed class OrderCancellationOrchestratorTests
                             "Warehouse stock was not found while releasing the reservation.")));
 
         var sut =
-            new OrderCancellationOrchestrator(
-                repository,
-                unitOfWork,
-                warehouseReservation);
+       
+    new OrderCancellationOrchestrator(
+        repository,
+        unitOfWork,
+        CreateInlineOrderConcurrency(),
+        warehouseReservation);
 
         var exception =
             await Should.ThrowAsync<
