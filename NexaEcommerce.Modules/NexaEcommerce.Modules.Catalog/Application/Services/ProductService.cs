@@ -113,7 +113,8 @@ public sealed class ProductService : IProductService
     }
     private static void ValidateRequestedAttributeValues(
         CatalogAttribute catalogAttribute,
-        IEnumerable<ProductAttributeValueInputDto> requestedValues)
+        IEnumerable<ProductAttributeValueInputDto> requestedValues,
+        AttributeRole role)
     {
         ArgumentNullException.ThrowIfNull(catalogAttribute);
         ArgumentNullException.ThrowIfNull(requestedValues);
@@ -121,28 +122,26 @@ public sealed class ProductService : IProductService
         var values = requestedValues
             .Where(value =>
                 (value.CatalogAttributeValueId.HasValue &&
-                 value.CatalogAttributeValueId.Value != Guid.Empty)
-                ||
+                 value.CatalogAttributeValueId.Value != Guid.Empty) ||
                 !string.IsNullOrWhiteSpace(value.Value))
             .ToList();
 
         if (catalogAttribute.DataType ==
-                CatalogAttributeDataType.SingleSelect
-            && values.Count > 1)
+                CatalogAttributeDataType.SingleSelect &&
+            values.Count > 1 &&
+            !role.HasFlag(AttributeRole.VariantDefining))
         {
             throw new ArgumentException(
                 $"Attribute '{catalogAttribute.Name}' accepts only one value.");
         }
 
         if (catalogAttribute.DataType is
-                CatalogAttributeDataType.SingleSelect
-                or CatalogAttributeDataType.MultiSelect)
+            CatalogAttributeDataType.SingleSelect or
+            CatalogAttributeDataType.MultiSelect)
         {
-            var invalidSelection = values.Any(value =>
+            if (values.Any(value =>
                 !value.CatalogAttributeValueId.HasValue ||
-                value.CatalogAttributeValueId.Value == Guid.Empty);
-
-            if (invalidSelection)
+                value.CatalogAttributeValueId.Value == Guid.Empty))
             {
                 throw new ArgumentException(
                     $"Attribute '{catalogAttribute.Name}' requires a valid catalog value selection.");
@@ -1161,54 +1160,34 @@ public sealed class ProductService : IProductService
     // Categories
     // ============================================================
 
-
-    private async Task<Product> SynchronizeProductAttributesAsync(
-      Product product,
-      IEnumerable<ProductAttributeInputDto>? requestedAttributes,
-      CancellationToken cancellationToken)
+private async Task<Product> SynchronizeProductAttributesAsync(
+    Product product,
+    IEnumerable<ProductAttributeInputDto>? requestedAttributes,
+    CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(product);
 
         requestedAttributes ??=
             Enumerable.Empty<ProductAttributeInputDto>();
 
-        var requests =
-            requestedAttributes
-                .ToList();
+        var requests = requestedAttributes.ToList();
 
         var catalogAttributes =
             await _catalogAttributeRepository.GetAllAsync(
                 cancellationToken);
 
-        // ============================================================
-        // Attributes currently referenced by existing variants.
-        //
-        // These attributes must survive the first synchronization pass.
-        // Variant synchronization runs immediately afterwards and may
-        // remove their mappings.
-        // ============================================================
-
+        // نگهداری مشخصه‌هایی که هنوز توسط تنوع‌های فعلی استفاده می‌شوند.
         var protectedVariantAttributeIds =
             product.Variants
-                .SelectMany(
-                    variant =>
-                        variant.AttributeValues)
-                .Where(
-                    mapping =>
-                        mapping.AttributeValue != null &&
-                        mapping.AttributeValue.ProductAttribute != null &&
-                        mapping.AttributeValue.ProductAttribute.Id != Guid.Empty)
-                .Select(
-                    mapping =>
-                        mapping.AttributeValue!
-                            .ProductAttribute
-                            .Id)
+                .SelectMany(variant => variant.AttributeValues)
+                .Where(mapping =>
+                    mapping.AttributeValue?.ProductAttribute != null &&
+                    mapping.AttributeValue.ProductAttribute.Id != Guid.Empty)
+                .Select(mapping =>
+                    mapping.AttributeValue!.ProductAttribute.Id)
                 .ToHashSet();
 
-        // ============================================================
-        // Resolve requested Catalog Attributes.
-        // ============================================================
-
+        // Resolve catalog attributes and reject duplicate requests.
         var resolvedRequests =
             new List<(
                 CatalogAttribute Attribute,
@@ -1216,8 +1195,7 @@ public sealed class ProductService : IProductService
                 List<ProductAttributeValueInputDto> Values)>();
 
         var requestedCodes =
-            new HashSet<string>(
-                StringComparer.OrdinalIgnoreCase);
+            new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var request in requests)
         {
@@ -1230,10 +1208,8 @@ public sealed class ProductService : IProductService
             }
 
             var catalogAttribute =
-                catalogAttributes.FirstOrDefault(
-                    attribute =>
-                        attribute.Id ==
-                        request.CatalogAttributeId);
+                catalogAttributes.FirstOrDefault(attribute =>
+                    attribute.Id == request.CatalogAttributeId);
 
             if (catalogAttribute is null)
             {
@@ -1247,8 +1223,7 @@ public sealed class ProductService : IProductService
                     $"Catalog attribute '{catalogAttribute.Name}' is inactive.");
             }
 
-            var attributeCode =
-                catalogAttribute.Code.Trim();
+            var attributeCode = catalogAttribute.Code?.Trim();
 
             if (string.IsNullOrWhiteSpace(attributeCode))
             {
@@ -1256,122 +1231,86 @@ public sealed class ProductService : IProductService
                     $"Catalog attribute '{catalogAttribute.Id}' has an empty code.");
             }
 
-            var normalizedCode =
-                attributeCode.ToLowerInvariant();
-
-            if (!requestedCodes.Add(
-                    normalizedCode))
+            if (!requestedCodes.Add(attributeCode))
             {
                 throw new ArgumentException(
                     $"Catalog attribute '{catalogAttribute.Name}' was supplied more than once.");
             }
 
-            resolvedRequests.Add(
-                (
-                    catalogAttribute,
-                    request,
-                    request.Values ??
-                        new List<ProductAttributeValueInputDto>()
-                ));
+            resolvedRequests.Add((
+                catalogAttribute,
+                request,
+                request.Values?.ToList()
+                    ?? new List<ProductAttributeValueInputDto>()));
         }
 
-        // ============================================================
-        // Existing ProductAttributes by code.
-        //
-        // ProductAttribute IDs are intentionally preserved.
-        // ============================================================
-
+        // Keep existing ProductAttribute IDs stable.
         var existingAttributesByCode =
             product.Attributes
-                .Where(
-                    attribute =>
-                        !string.IsNullOrWhiteSpace(
-                            attribute.Code))
+                .Where(attribute =>
+                    !string.IsNullOrWhiteSpace(attribute.Code))
+                .GroupBy(
+                    attribute => attribute.Code.Trim(),
+                    StringComparer.OrdinalIgnoreCase)
                 .ToDictionary(
-                    attribute =>
-                        attribute.Code.Trim(),
-                    attribute =>
-                        attribute,
+                    group => group.Key,
+                    group => group.First(),
                     StringComparer.OrdinalIgnoreCase);
-
-        // ============================================================
-        // Synchronize requested ProductAttributes.
-        // ============================================================
 
         foreach (var resolvedRequest in resolvedRequests)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var catalogAttribute =
-                resolvedRequest.Attribute;
+            var catalogAttribute = resolvedRequest.Attribute;
+            var inputRequest = resolvedRequest.Request;
+            var attributeName = catalogAttribute.Name.Trim();
+            var attributeCode = catalogAttribute.Code.Trim();
 
-            var inputRequest =
-                resolvedRequest.Request;
+            // Determine the role before validating the requested values.
+            var role = ResolveProductAttributeRole(
+                catalogAttribute,
+                inputRequest);
+
             ValidateRequestedAttributeValues(
-    catalogAttribute,
-    resolvedRequest.Values);
-            var attributeName =
-                catalogAttribute.Name.Trim();
-
-            var attributeCode =
-                catalogAttribute.Code.Trim();
-
-            var normalizedCode =
-                attributeCode.ToLowerInvariant();
-
-            var role =
-                ResolveProductAttributeRole(
-                    catalogAttribute,
-                    inputRequest);
+                catalogAttribute,
+                resolvedRequest.Values,
+                role);
 
             var isRequired =
                 inputRequest.IsRequired ??
-                (
-                    role.HasFlag(
-                        AttributeRole.VariantDefining)
-                        ? true
-                        : catalogAttribute.IsRequired
-                );
+                (role.HasFlag(AttributeRole.VariantDefining)
+                    ? true
+                    : catalogAttribute.IsRequired);
 
-            var displayOrder =
-                inputRequest.DisplayOrder;
+            var displayOrder = inputRequest.DisplayOrder;
 
             if (displayOrder < 0)
             {
                 throw new ArgumentOutOfRangeException(
                     nameof(inputRequest.DisplayOrder),
-                    $"Display order for attribute '{catalogAttribute.Name}' cannot be negative.");
+                    $"Display order for attribute '{attributeName}' cannot be negative.");
             }
 
             existingAttributesByCode.TryGetValue(
-                normalizedCode,
+                attributeCode,
                 out var productAttribute);
 
-            // --------------------------------------------------------
-            // Create ProductAttribute.
-            // --------------------------------------------------------
-
+            // Create or update the ProductAttribute.
             if (productAttribute is null)
             {
-                productAttribute =
-                    product.AddAttribute(
-                        attributeName,
-                        attributeCode,
-                        catalogAttribute.Id,
-                        role,
-                        isRequired,
-                        displayOrder);
+                productAttribute = product.AddAttribute(
+                    attributeName,
+                    attributeCode,
+                    catalogAttribute.Id,
+                    role,
+                    isRequired,
+                    displayOrder);
 
-                existingAttributesByCode[
-                    normalizedCode] =
+                existingAttributesByCode[attributeCode] =
                     productAttribute;
             }
             else
             {
-                // ----------------------------------------------------
-                // Preserve ProductAttribute.Id.
-                // ----------------------------------------------------
-
                 if (!string.Equals(
                         productAttribute.Name,
                         attributeName,
@@ -1386,31 +1325,13 @@ public sealed class ProductService : IProductService
                         attributeCode);
                 }
 
-                productAttribute.SetCatalogAttribute(
-                    catalogAttribute.Id);
-
-                productAttribute.SetRole(
-                    role);
-
-                productAttribute.SetRequired(
-                    isRequired);
-
-                productAttribute.SetDisplayOrder(
-                    displayOrder);
+                productAttribute.SetCatalogAttribute(catalogAttribute.Id);
+                productAttribute.SetRole(role);
+                productAttribute.SetRequired(isRequired);
+                productAttribute.SetDisplayOrder(displayOrder);
             }
 
-            // ========================================================
-            // IMPORTANT
-            //
-            // Do NOT skip VariantDefining attributes here.
-            //
-            // Variant synchronization only creates/removes
-            // VariantAttributeValue mappings.
-            //
-            // The ProductAttribute and its AttributeValue rows must
-            // already exist before variant mappings are resolved.
-            // ========================================================
-
+            // Normalize requested values by value text.
             var requestedValues =
                 new Dictionary<
                     string,
@@ -1422,47 +1343,33 @@ public sealed class ProductService : IProductService
                         int DisplayOrder)>(
                     StringComparer.OrdinalIgnoreCase);
 
-            foreach (var requestedValue in
-                     resolvedRequest.Values)
+            foreach (var requestedValue in resolvedRequest.Values)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                CatalogAttributeValue? catalogValue =
-                    null;
+                CatalogAttributeValue? catalogValue = null;
 
-                if (
-                    requestedValue.CatalogAttributeValueId.HasValue &&
+                if (requestedValue.CatalogAttributeValueId.HasValue &&
                     requestedValue.CatalogAttributeValueId.Value != Guid.Empty)
                 {
                     catalogValue =
-                        catalogAttribute.Values.FirstOrDefault(
-                            value =>
-                                value.Id ==
-                                requestedValue.CatalogAttributeValueId.Value);
+                        catalogAttribute.Values.FirstOrDefault(value =>
+                            value.Id ==
+                            requestedValue.CatalogAttributeValueId.Value);
 
                     if (catalogValue is null)
                     {
                         throw new ArgumentException(
-                            $"Catalog value '{requestedValue.CatalogAttributeValueId}' does not belong to '{catalogAttribute.Name}'.");
+                            $"Catalog value '{requestedValue.CatalogAttributeValueId}' does not belong to '{attributeName}'.");
                     }
 
                     if (!catalogValue.IsActive)
                     {
-                        /*
-                         * An inactive catalog value may still be present
-                         * in an existing product/variant during migration.
-                         *
-                         * It is accepted only when it is already used by
-                         * the product. New selections of inactive values
-                         * are rejected.
-                         */
-                        var existingCatalogValue =
-                            productAttribute.Values.Any(
-                                value =>
-                                    value.CatalogAttributeValueId ==
-                                    catalogValue.Id);
+                        var alreadyUsed =
+                            productAttribute.Values.Any(value =>
+                                value.CatalogAttributeValueId == catalogValue.Id);
 
-                        if (!existingCatalogValue)
+                        if (!alreadyUsed)
                         {
                             throw new ArgumentException(
                                 $"Catalog value '{catalogValue.Value}' is inactive.");
@@ -1470,11 +1377,9 @@ public sealed class ProductService : IProductService
                     }
                 }
 
-                var value =
-       (
-           catalogValue?.Value ??
-           requestedValue.Value
-       )?.Trim();
+                var value = (
+                    catalogValue?.Value ?? requestedValue.Value
+                )?.Trim();
 
                 if (string.IsNullOrWhiteSpace(value))
                 {
@@ -1482,20 +1387,15 @@ public sealed class ProductService : IProductService
                 }
 
                 if (catalogAttribute.DataType is
-                        CatalogAttributeDataType.SingleSelect
-                        or CatalogAttributeDataType.MultiSelect)
+                    CatalogAttributeDataType.SingleSelect or
+                    CatalogAttributeDataType.MultiSelect)
                 {
                     if (!requestedValue.CatalogAttributeValueId.HasValue ||
-                        requestedValue.CatalogAttributeValueId.Value == Guid.Empty)
+                        requestedValue.CatalogAttributeValueId.Value == Guid.Empty ||
+                        catalogValue is null)
                     {
                         throw new ArgumentException(
-                            $"Attribute '{catalogAttribute.Name}' requires a catalog value ID.");
-                    }
-
-                    if (catalogValue is null)
-                    {
-                        throw new ArgumentException(
-                            $"A valid catalog value is required for attribute '{catalogAttribute.Name}'.");
+                            $"Attribute '{attributeName}' requires a valid catalog value selection.");
                     }
                 }
                 else
@@ -1503,73 +1403,55 @@ public sealed class ProductService : IProductService
                     ValidateAttributeValue(
                         catalogAttribute.DataType,
                         value,
-                        catalogAttribute.Name);
+                        attributeName);
                 }
 
-                var displayValue =
-                    (
-                        catalogValue?.DisplayValue ??
-                        requestedValue.DisplayValue
-                    )?.Trim();
+                var displayValue = (
+                    catalogValue?.DisplayValue ?? requestedValue.DisplayValue
+                )?.Trim();
 
-                var colorHex =
-                    (
-                        catalogValue?.ColorHex ??
-                        requestedValue.ColorHex
-                    )?.Trim();
+                var colorHex = (
+                    catalogValue?.ColorHex ?? requestedValue.ColorHex
+                )?.Trim();
 
                 var catalogValueId =
                     catalogValue?.Id ??
                     requestedValue.CatalogAttributeValueId;
 
-                if (!requestedValues.ContainsKey(
-                        value))
+                if (!requestedValues.ContainsKey(value))
                 {
-                    requestedValues[value] =
-                        (
-                            value,
-                            string.IsNullOrWhiteSpace(
-                                displayValue)
-                                ? null
-                                : displayValue,
-                            string.IsNullOrWhiteSpace(
-                                colorHex)
-                                ? null
-                                : colorHex,
-                            catalogValueId,
-                            requestedValue.DisplayOrder
-                        );
+                    requestedValues[value] = (
+                        value,
+                        string.IsNullOrWhiteSpace(displayValue)
+                            ? null
+                            : displayValue,
+                        string.IsNullOrWhiteSpace(colorHex)
+                            ? null
+                            : colorHex,
+                        catalogValueId,
+                        requestedValue.DisplayOrder);
                 }
             }
 
-            // ========================================================
-            // Existing Product AttributeValues by value.
-            // ========================================================
-
+            // Existing ProductAttributeValues, indexed by their value.
             var existingValuesByValue =
                 productAttribute.Values
-                    .Where(
-                        value =>
-                            !string.IsNullOrWhiteSpace(
-                                value.Value))
+                    .Where(value =>
+                        !string.IsNullOrWhiteSpace(value.Value))
+                    .GroupBy(
+                        value => value.Value.Trim(),
+                        StringComparer.OrdinalIgnoreCase)
                     .ToDictionary(
-                        value =>
-                            value.Value.Trim(),
-                        value =>
-                            value,
+                        group => group.Key,
+                        group => group.First(),
                         StringComparer.OrdinalIgnoreCase);
 
-            // ========================================================
-            // Add / update requested values.
-            // ========================================================
-
-            foreach (var requestedValue in
-                     requestedValues.Values)
+            // Add or update requested values.
+            foreach (var requestedValue in requestedValues.Values)
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var normalizedValue =
-                    requestedValue.Value.Trim();
+                var normalizedValue = requestedValue.Value.Trim();
 
                 existingValuesByValue.TryGetValue(
                     normalizedValue,
@@ -1577,10 +1459,6 @@ public sealed class ProductService : IProductService
 
                 if (existingValue is not null)
                 {
-                    // ------------------------------------------------
-                    // Preserve AttributeValue.Id.
-                    // ------------------------------------------------
-
                     if (!string.Equals(
                             existingValue.DisplayValue,
                             requestedValue.DisplayValue,
@@ -1595,62 +1473,37 @@ public sealed class ProductService : IProductService
                             requestedValue.DisplayValue,
                             requestedValue.ColorHex);
                     }
-                    if (catalogAttribute.DataType ==
-        CatalogAttributeDataType.SingleSelect &&
-    requestedValues.Count > 1)
-                    {
-                        throw new ArgumentException(
-                            $"Attribute '{catalogAttribute.Name}' accepts only one value.");
-                    }
 
-                    if (
-                        catalogAttribute.DataType is
+                    if (catalogAttribute.DataType is
                             CatalogAttributeDataType.SingleSelect or
                             CatalogAttributeDataType.MultiSelect &&
-                        requestedValues.Values.Any(
-                            value => !value.CatalogAttributeValueId.HasValue))
+                        !requestedValue.CatalogAttributeValueId.HasValue)
                     {
                         throw new ArgumentException(
-                            $"Attribute '{catalogAttribute.Name}' only accepts predefined catalog values.");
+                            $"Attribute '{attributeName}' only accepts predefined catalog values.");
                     }
 
-                    foreach (var requestedValue1 in requestedValues.Values)
-                    {
-                        ValidateAttributeValue(
-                            catalogAttribute.DataType,
-                            requestedValue1.Value,
-                            catalogAttribute.Name);
-                    }
-                    // ------------------------------------------------
-                    // Synchronize CatalogAttributeValueId.
-                    // ------------------------------------------------
-
+                    // Keep the catalog value reference synchronized.
                     var requestedCatalogValueId =
                         requestedValue.CatalogAttributeValueId;
 
                     if (requestedCatalogValueId.HasValue &&
                         requestedCatalogValueId.Value != Guid.Empty)
                     {
-                        if (
-                            existingValue.CatalogAttributeValueId !=
+                        if (existingValue.CatalogAttributeValueId !=
                             requestedCatalogValueId.Value)
                         {
                             existingValue.SetCatalogValue(
                                 requestedCatalogValueId.Value);
                         }
                     }
-                    else if (
-                        existingValue.CatalogAttributeValueId.HasValue)
+                    else if (existingValue.CatalogAttributeValueId.HasValue)
                     {
                         existingValue.ClearCatalogValue();
                     }
 
                     continue;
                 }
-
-                // ----------------------------------------------------
-                // New Product AttributeValue.
-                // ----------------------------------------------------
 
                 productAttribute.AddValue(
                     requestedValue.Value,
@@ -1659,79 +1512,52 @@ public sealed class ProductService : IProductService
                     requestedValue.CatalogAttributeValueId);
             }
 
-            // ========================================================
-            // Remove values that are no longer requested.
-            //
-            // Never remove a value that is still referenced by a
-            // VariantAttributeValue mapping.
-            // ========================================================
-
-            foreach (var existingValue in
-                     productAttribute.Values.ToList())
+            // Remove values no longer requested, except values still used
+            // by any existing variant mapping.
+            foreach (var existingValue in productAttribute.Values.ToList())
             {
                 cancellationToken.ThrowIfCancellationRequested();
 
-                var normalizedExistingValue =
-                    existingValue.Value.Trim();
-
-                if (requestedValues.ContainsKey(
-                        normalizedExistingValue))
+                if (requestedValues.ContainsKey(existingValue.Value.Trim()))
                 {
                     continue;
                 }
 
                 var isUsedByVariant =
                     product.Variants
-                        .SelectMany(
-                            variant =>
-                                variant.AttributeValues)
-                        .Any(
-                            mapping =>
-                                mapping.AttributeValueId ==
-                                existingValue.Id);
+                        .SelectMany(variant => variant.AttributeValues)
+                        .Any(mapping =>
+                            mapping.AttributeValueId == existingValue.Id);
 
                 if (isUsedByVariant)
                 {
                     continue;
                 }
 
-                productAttribute.Values.Remove(
-                    existingValue);
+                productAttribute.Values.Remove(existingValue);
             }
         }
 
-        // ============================================================
-        // Remove ProductAttributes that are no longer requested.
-        //
-        // Existing variant references protect them during this first
-        // pass. UpdateAsync performs a second synchronization after
-        // variants have been reconciled.
-        // ============================================================
-
-        foreach (var existingAttribute in
-                 product.Attributes.ToList())
+        // Remove attributes omitted from the request, but preserve those
+        // still referenced by existing variants during this sync pass.
+        foreach (var existingAttribute in product.Attributes.ToList())
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (protectedVariantAttributeIds.Contains(
-                    existingAttribute.Id))
+            if (protectedVariantAttributeIds.Contains(existingAttribute.Id))
             {
                 continue;
             }
 
-            var existingCode =
-                existingAttribute.Code
-                    .Trim()
-                    .ToLowerInvariant();
+            var existingCode = existingAttribute.Code?.Trim();
 
-            if (requestedCodes.Contains(
-                    existingCode))
+            if (!string.IsNullOrWhiteSpace(existingCode) &&
+                requestedCodes.Contains(existingCode))
             {
                 continue;
             }
 
-            product.Attributes.Remove(
-                existingAttribute);
+            product.Attributes.Remove(existingAttribute);
         }
 
         return product;
