@@ -55,7 +55,13 @@ public static class CatalogModule
         services.AddScoped<IBrandService, BrandService>();
         services.AddScoped<ICatalogAttributeService, CatalogAttributeService>();
         services.AddScoped<IManufacturerService, ManufacturerService>();
+        services.AddScoped<
+    IProductAttributeDefinitionService,
+    ProductAttributeDefinitionService>();
 
+        services.AddScoped<
+            ICategoryAttributeManagementService,
+            CategoryAttributeManagementService>();
         services.AddScoped<IUnitOfWork, UnitOfWork<CatalogDbContext>>();
         services.AddScoped<
     ICatalogDataIntegrityService,

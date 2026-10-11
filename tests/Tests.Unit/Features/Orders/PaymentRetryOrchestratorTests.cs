@@ -216,12 +216,14 @@ public sealed class PaymentRetryOrchestratorTests
             50000,
             1);
 
+        var existingExpiresAt =
+      DateTimeOffset.UtcNow.AddHours(1);
+
         order.AddInventoryReservation(
             "existing-reservation",
             variantId,
             1,
-            DateTimeOffset.UtcNow.AddMinutes(10));
-
+            existingExpiresAt);
         var orderRepository =
             Substitute.For<IOrderRepository>();
 
@@ -268,6 +270,20 @@ public sealed class PaymentRetryOrchestratorTests
                         null,
                         DateTimeOffset.UtcNow,
                         null)));
+
+        inventory
+    .GetReservationAsync(
+        "tenant-1",
+        "existing-reservation",
+        Arg.Any<CancellationToken>())
+    .Returns(
+        new StockReservationDto(
+            "existing-reservation",
+            variantId,
+            1,
+            "Active",
+            existingExpiresAt));
+
         var paymentAttemptRepository =
             Substitute.For<IPaymentAttemptRepository>();
 

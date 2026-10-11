@@ -21,6 +21,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
+import {
+    CatalogAttributeDataType,
+} from '@/modules/catalog/api/catalogAttributes';
+
 import type {
     CatalogAttribute,
     CreateCatalogAttributeDto,
@@ -45,6 +49,7 @@ type AttributeFormState = {
     isVariantAttribute: boolean;
     isActive: boolean;
     displayOrder: number;
+    dataType: CatalogAttributeDataType;
 };
 
 type ValueFormState = {
@@ -65,6 +70,7 @@ const emptyAttributeForm: AttributeFormState = {
     isVariantAttribute: true,
     isActive: true,
     displayOrder: 0,
+    dataType: CatalogAttributeDataType.Text,
 };
 
 const emptyValueForm: ValueFormState = {
@@ -189,8 +195,10 @@ export default function CatalogAttributeManagementPage() {
                 attribute.isVariantAttribute,
             isActive:
                 attribute.isActive,
+           
             displayOrder:
                 attribute.displayOrder,
+            dataType: attribute.dataType,
         });
     };
 
@@ -204,12 +212,11 @@ export default function CatalogAttributeManagementPage() {
 
     const submitAttribute = async () => {
         const body: CreateCatalogAttributeDto = {
-            name:
-                attributeForm.name.trim(),
+            name: attributeForm.name.trim(),
 
             code: normalizeCode(
                 attributeForm.code ||
-                    attributeForm.name,
+                attributeForm.name,
             ),
 
             description:
@@ -219,6 +226,8 @@ export default function CatalogAttributeManagementPage() {
             displayType:
                 attributeForm.displayType.trim() ||
                 null,
+
+            dataType: attributeForm.dataType,
 
             isRequired:
                 attributeForm.isRequired,
@@ -594,6 +603,50 @@ export default function CatalogAttributeManagementPage() {
                                 ))}
                             </select>
 
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">
+                                    نوع داده
+                                </label>
+
+                                <select
+                                    value={attributeForm.dataType}
+                                    onChange={event =>
+                                        setAttributeForm(current => ({
+                                            ...current,
+                                            dataType: Number(
+                                                event.target.value,
+                                            ) as CatalogAttributeDataType,
+                                        }))
+                                    }
+                                    className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+                                >
+                                    <option value={CatalogAttributeDataType.Text}>
+                                        متن
+                                    </option>
+                                    <option value={CatalogAttributeDataType.Integer}>
+                                        عدد صحیح
+                                    </option>
+                                    <option value={CatalogAttributeDataType.Decimal}>
+                                        عدد اعشاری
+                                    </option>
+                                    <option value={CatalogAttributeDataType.Boolean}>
+                                        بله / خیر
+                                    </option>
+                                    <option value={CatalogAttributeDataType.Date}>
+                                        تاریخ
+                                    </option>
+                                    <option value={CatalogAttributeDataType.DateTime}>
+                                        تاریخ و ساعت
+                                    </option>
+                                    <option value={CatalogAttributeDataType.SingleSelect}>
+                                        انتخاب یک مقدار
+                                    </option>
+                                    <option value={CatalogAttributeDataType.MultiSelect}>
+                                        انتخاب چند مقدار
+                                    </option>
+                                </select>
+                            </div>
+
                                 <Input
                                     type="number"
                                     min={0}
@@ -880,6 +933,50 @@ export default function CatalogAttributeManagementPage() {
                                     </option>
                                 ))}
                             </select>
+
+                            <div className="space-y-2">
+                                <label className="text-sm font-medium">
+                                    نوع داده
+                                </label>
+
+                                <select
+                                    value={attributeForm.dataType}
+                                    onChange={event =>
+                                        setAttributeForm(current => ({
+                                            ...current,
+                                            dataType: Number(
+                                                event.target.value,
+                                            ) as CatalogAttributeDataType,
+                                        }))
+                                    }
+                                    className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+                                >
+                                    <option value={CatalogAttributeDataType.Text}>
+                                        متن
+                                    </option>
+                                    <option value={CatalogAttributeDataType.Integer}>
+                                        عدد صحیح
+                                    </option>
+                                    <option value={CatalogAttributeDataType.Decimal}>
+                                        عدد اعشاری
+                                    </option>
+                                    <option value={CatalogAttributeDataType.Boolean}>
+                                        بله / خیر
+                                    </option>
+                                    <option value={CatalogAttributeDataType.Date}>
+                                        تاریخ
+                                    </option>
+                                    <option value={CatalogAttributeDataType.DateTime}>
+                                        تاریخ و ساعت
+                                    </option>
+                                    <option value={CatalogAttributeDataType.SingleSelect}>
+                                        انتخاب یک مقدار
+                                    </option>
+                                    <option value={CatalogAttributeDataType.MultiSelect}>
+                                        انتخاب چند مقدار
+                                    </option>
+                                </select>
+                            </div>
 
                             <Input
                                 type="number"

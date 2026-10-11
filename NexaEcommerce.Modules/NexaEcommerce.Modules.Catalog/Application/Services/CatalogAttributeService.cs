@@ -77,16 +77,20 @@ public sealed class CatalogAttributeService : ICatalogAttributeService
                     nameof(dto.DisplayType));
             }
         }
+        var dataType = NormalizeDataType(
+    dto.DataType,
+    CatalogAttributeDataType.SingleSelect);
         var attribute = new CatalogAttribute(
-    name,
-    code,
-    NormalizeOptional(dto.Description),
-    displayType,
-    dto.IsRequired,
-    dto.IsFilterable,
-    dto.IsVariantAttribute,
-    dto.IsActive,
-    dto.DisplayOrder);
+     name,
+     code,
+     NormalizeOptional(dto.Description),
+     displayType,
+     dto.IsRequired,
+     dto.IsFilterable,
+     dto.IsVariantAttribute,
+     dto.IsActive,
+     dto.DisplayOrder,
+     dataType);
         await _repository.AddAsync(attribute, cancellationToken);
         await _repository.SaveChangesAsync(cancellationToken);
 
@@ -130,16 +134,20 @@ public sealed class CatalogAttributeService : ICatalogAttributeService
                     nameof(dto.DisplayType));
             }
         }
+        var dataType = NormalizeDataType(
+    dto.DataType,
+    attribute.DataType);
         attribute.Update(
-        name,
-        code,
-        NormalizeOptional(dto.Description),
-        displayType,
-        dto.IsRequired,
-        dto.IsFilterable,
-        dto.IsVariantAttribute,
-        dto.IsActive,
-        dto.DisplayOrder);
+       name,
+       code,
+       NormalizeOptional(dto.Description),
+       displayType,
+       dto.IsRequired,
+       dto.IsFilterable,
+       dto.IsVariantAttribute,
+       dto.IsActive,
+       dto.DisplayOrder,
+       dataType);
 
         _repository.Update(attribute);
         await _repository.SaveChangesAsync(cancellationToken);
@@ -283,8 +291,8 @@ public sealed class CatalogAttributeService : ICatalogAttributeService
 
         return true;
     }
-
-    private static CatalogAttributeDto Map(CatalogAttribute attribute)
+    private static CatalogAttributeDto Map(
+        CatalogAttribute attribute)
     {
         return new CatalogAttributeDto(
             attribute.Id,
@@ -292,6 +300,7 @@ public sealed class CatalogAttributeService : ICatalogAttributeService
             attribute.Code,
             attribute.Description,
             attribute.DisplayType,
+            attribute.DataType,
             attribute.IsRequired,
             attribute.IsFilterable,
             attribute.IsVariantAttribute,
@@ -303,7 +312,21 @@ public sealed class CatalogAttributeService : ICatalogAttributeService
                 .Select(Map)
                 .ToArray());
     }
+    private static CatalogAttributeDataType NormalizeDataType(
+    CatalogAttributeDataType? requested,
+    CatalogAttributeDataType fallback)
+    {
+        var dataType = requested ?? fallback;
 
+        if (!Enum.IsDefined(typeof(CatalogAttributeDataType), dataType))
+        {
+            throw new ArgumentException(
+                $"Unsupported catalog attribute data type: {(int)dataType}.",
+                nameof(requested));
+        }
+
+        return dataType;
+    }
     private static CatalogAttributeValueDto Map(
         CatalogAttributeValue value)
     {

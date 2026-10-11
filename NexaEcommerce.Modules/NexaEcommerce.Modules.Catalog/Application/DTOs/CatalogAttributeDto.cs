@@ -1,4 +1,7 @@
-﻿namespace NexaEcommerce.Modules.Catalog.Application.CatalogAttributes.DTOs;
+﻿
+using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
+
+namespace NexaEcommerce.Modules.Catalog.Application.CatalogAttributes.DTOs;
 
 public sealed record CatalogAttributeDto(
     Guid Id,
@@ -6,6 +9,7 @@ public sealed record CatalogAttributeDto(
     string Code,
     string? Description,
     string? DisplayType,
+    CatalogAttributeDataType DataType,
     bool IsRequired,
     bool IsFilterable,
     bool IsVariantAttribute,
@@ -33,7 +37,8 @@ public sealed record CreateCatalogAttributeDto(
     bool IsFilterable,
     bool IsVariantAttribute,
     bool IsActive,
-    int DisplayOrder
+    int DisplayOrder,
+    CatalogAttributeDataType? DataType = null
 );
 
 public sealed record UpdateCatalogAttributeDto(
@@ -45,7 +50,8 @@ public sealed record UpdateCatalogAttributeDto(
     bool IsFilterable,
     bool IsVariantAttribute,
     bool IsActive,
-    int DisplayOrder
+    int DisplayOrder,
+    CatalogAttributeDataType? DataType = null
 );
 
 public sealed record CreateCatalogAttributeValueDto(
@@ -63,6 +69,7 @@ public sealed record UpdateCatalogAttributeValueDto(
     int DisplayOrder,
     bool IsActive
 );
+
 public sealed record CatalogAttributeDisplayTypeDto(
     Guid Id,
     string Code,

@@ -12,7 +12,35 @@ import {
     catalogAttributesApi,
     type CatalogAttribute,
 } from '@/modules/catalog/api/catalogAttributes';
+export function useProductAttributeDefinitions(
+    categoryIds: string[],
+    productId?: string,
+) {
+    const normalizedIds = [
+        ...new Set(categoryIds.filter(Boolean)),
+    ].sort();
 
+    return useQuery({
+        queryKey: [
+            'product-attribute-definitions',
+            normalizedIds,
+            productId ?? '',
+        ],
+
+        queryFn: ({ signal }) =>
+            catalogAttributesApi.listProductDefinitions(
+                normalizedIds,
+                productId,
+                signal,
+            ),
+
+        enabled:
+            normalizedIds.length > 0 ||
+            Boolean(productId),
+
+        staleTime: 30_000,
+    });
+}
 export const catalogAttributeKeys = {
     all: ['catalog-attributes'] as const,
 

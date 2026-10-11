@@ -124,6 +124,13 @@ public sealed class InventoryOrderReconciliationServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(
                 new[] { order });
+        repository
+    .GetByIdAsync(
+        "tenant-1",
+        order.Id,
+        null,
+        Arg.Any<CancellationToken>())
+    .Returns(order);
 
         inventory
             .GetReservationAsync(
@@ -215,6 +222,13 @@ public sealed class InventoryOrderReconciliationServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(
                 new[] { order });
+        repository
+    .GetByIdAsync(
+        "tenant-1",
+        order.Id,
+        null,
+        Arg.Any<CancellationToken>())
+    .Returns(order);
 
         inventory
             .GetReservationAsync(
@@ -308,6 +322,13 @@ public sealed class InventoryOrderReconciliationServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(
                 new[] { order });
+        repository
+    .GetByIdAsync(
+        "tenant-1",
+        order.Id,
+        null,
+        Arg.Any<CancellationToken>())
+    .Returns(order);
 
         inventory
             .GetReservationAsync(
@@ -405,7 +426,13 @@ public sealed class InventoryOrderReconciliationServiceTests
                 Arg.Any<CancellationToken>())
             .Returns(
                 new[] { order });
-
+        repository
+    .GetByIdAsync(
+        "tenant-1",
+        order.Id,
+        null,
+        Arg.Any<CancellationToken>())
+    .Returns(order);
         inventory
             .GetReservationAsync(
                 "tenant-1",

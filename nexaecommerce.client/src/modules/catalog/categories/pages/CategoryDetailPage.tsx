@@ -7,6 +7,8 @@ import {
     Search,
     Star,
 } from 'lucide-react';
+import CategoryAttributesManager from
+    '../components/CategoryAttributesManager';
 import { useTranslation } from 'react-i18next';
 
 import {
@@ -139,7 +141,11 @@ export default function CategoryDetailPage() {
                 {/* =================================================
                     Basic Information
                 ================================================= */}
-
+                <div className="md:col-span-2">
+                    <CategoryAttributesManager
+                        categoryId={category.id}
+                    />
+                </div>
                 <Card>
                     <CardHeader>
                         <CardTitle>

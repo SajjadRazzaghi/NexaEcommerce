@@ -2,6 +2,36 @@
 
 import { api } from '@/lib/api/client';
 
+export type CategoryAttributeConfiguration = {
+    id: string;
+    categoryId: string;
+    catalogAttributeId: string;
+    name: string;
+    code: string;
+    dataType: number;
+    displayType?: string | null;
+    role: number;
+    isRequired: boolean;
+    displayOrder: number;
+    isActive: boolean;
+    values: {
+        id: string;
+        value: string;
+        displayValue?: string | null;
+        colorHex?: string | null;
+        displayOrder: number;
+        isActive: boolean;
+    }[];
+};
+
+export type CategoryAttributeAssignmentInput = {
+    catalogAttributeId: string;
+    role: number;
+    isRequired: boolean;
+    displayOrder: number;
+    isActive: boolean;
+};
+
 export type Category = {
     id: string;
 
@@ -151,6 +181,21 @@ export type UpdateCategoryDto = {
 // =========================================================
 
 export const categoriesApi = {
+
+    getAttributeAssignments: (categoryId: string) =>
+        api.get<CategoryAttributeConfiguration[]>(
+            `/categories/${categoryId}/attributes`,
+        ),
+
+    replaceAttributeAssignments: (
+        categoryId: string,
+        attributes: CategoryAttributeAssignmentInput[],
+    ) =>
+        api.put<CategoryAttributeConfiguration[]>(
+            `/categories/${categoryId}/attributes`,
+            { attributes },
+        ),
+
     // ---------------------------------------------------------
     // List
     // ---------------------------------------------------------

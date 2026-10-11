@@ -1,6 +1,7 @@
 import {
     useEffect,
     useMemo,
+    useRef,
 } from 'react';
 
 import {
@@ -89,13 +90,15 @@ import {
 } from '@/modules/catalog/categories/hooks';
 
 import {
-    useCatalogAttributes,
+    useProductAttributeDefinitions,
 } from '@/modules/catalog/catalogAttributes/hooks';
-
 import type {
     CatalogAttribute,
+    ProductAttributeDefinition
 } from '@/modules/catalog/api/catalogAttributes';
-
+import {
+    CatalogAttributeDataType,
+} from '@/modules/catalog/api/catalogAttributes';
 import type {
     Product,
     CreateProductDto,
@@ -347,6 +350,9 @@ const schema =
 
                         displayOrder:
                             z.number().int().min(0),
+                        catalogAttributeValueIds: z
+                            .array(z.string())
+                            .default([]),
                     }),
                 )
                 .default([]),
@@ -400,6 +406,7 @@ type FormValues = {
         displayValue: string;
         colorHex: string;
         displayOrder: number;
+        catalogAttributeValueIds: string[];
     }[];
 
     variants: {
@@ -719,117 +726,116 @@ function toValues(
      * Each specification is normalized against the current
      * CatalogAttribute / CatalogAttributeValue definitions.
      */
+
     const specifications =
-        productAttributes.flatMap(
-            attribute => {
-                const catalogAttribute =
-                    findCatalogAttributeById(
-                        attribute.catalogAttributeId,
-                    ) ??
-                    findCatalogAttributeByCode(
-                        attribute.code,
-                    );
+        productAttributes.flatMap(attribute => {
+            const catalogAttribute =
+                findCatalogAttributeById(
+                    attribute.catalogAttributeId,
+                ) ??
+                findCatalogAttributeByCode(
+                    attribute.code,
+                );
 
-                if (!catalogAttribute) {
-                    return [];
-                }
+            if (!catalogAttribute) {
+                return [];
+            }
 
-                /*
-                 * VariantDefining attributes belong exclusively
-                 * to the Variant section.
-                 */
-                if (
-                    variantAttributeCatalogIds.has(
-                        catalogAttribute.id,
-                    )
-                ) {
-                    return [];
-                }
-
-                return (
-                    attribute.values ?? []
+            if (
+                variantAttributeCatalogIds.has(
+                    catalogAttribute.id,
                 )
-                    .map(
-                        (
-                            productValue,
-                            valueIndex,
-                        ) => {
-                            const catalogValue =
-                                findCatalogValue(
-                                    catalogAttribute,
-                                    {
-                                        catalogAttributeValueId:
-                                            productValue.catalogAttributeValueId,
+            ) {
+                return [];
+            }
 
-                                        value:
-                                            productValue.value,
-
-                                        displayValue:
-                                            productValue.displayValue,
-                                    },
-                                );
-
-                            /*
-                             * Prefer catalog value, then
-                             * fall back to the persisted
-                             * Product AttributeValue.
-                             */
-                            const rawValue =
-                                (
-                                    catalogValue?.value ??
-                                    productValue.value ??
-                                    ''
-                                ).trim();
-
-                            if (!rawValue) {
-                                return null;
-                            }
-
-                            const displayValue =
-                                (
-                                    catalogValue?.displayValue ??
-                                    productValue.displayValue ??
-                                    rawValue
-                                ).trim();
-
-                            const colorHex =
-                                (
-                                    catalogValue?.colorHex ??
-                                    productValue.colorHex ??
-                                    ''
-                                ).trim();
-
-                            return {
-                                catalogAttributeId:
-                                    catalogAttribute.id,
-
-                                catalogAttributeValueId:
-                                    catalogValue?.id ??
-                                    productValue.catalogAttributeValueId ??
-                                    '',
-
-                                value:
-                                    rawValue,
-
-                                displayValue:
-                                    displayValue,
-
-                                colorHex:
-                                    colorHex,
-
-                                displayOrder:
-                                    valueIndex,
-                            };
+            const mappedValues = (
+                attribute.values ?? []
+            )
+                .map((productValue, valueIndex) => {
+                    const catalogValue = findCatalogValue(
+                        catalogAttribute,
+                        {
+                            catalogAttributeValueId:
+                                productValue.catalogAttributeValueId,
+                            value: productValue.value,
+                            displayValue: productValue.displayValue,
                         },
-                    )
-                    .filter(
-                        (
-                            item,
-                        ): item is FormValues['specifications'][number] =>
-                            item !== null,
                     );
-            },
-        );
+
+                    const value = (
+                        catalogValue?.value ??
+                        productValue.value ??
+                        ''
+                    ).trim();
+
+                    if (!value) {
+                        return null;
+                    }
+
+                    return {
+                        catalogAttributeValueId:
+                            catalogValue?.id ??
+                            productValue.catalogAttributeValueId ??
+                            '',
+
+                        value,
+
+                        displayValue: (
+                            catalogValue?.displayValue ??
+                            productValue.displayValue ??
+                            value
+                        ).trim(),
+
+                        colorHex: (
+                            catalogValue?.colorHex ??
+                            productValue.colorHex ??
+                            ''
+                        ).trim(),
+
+                        displayOrder: valueIndex,
+                    };
+                })
+                .filter(
+                    (
+                        item,
+                    ): item is NonNullable<typeof item> =>
+                        item !== null,
+                );
+
+            // The form does not create a fake value for an empty
+            // specification. It keeps all real persisted values.
+            if (mappedValues.length === 0) {
+                return [];
+            }
+
+            const firstValue = mappedValues[0];
+
+            return [{
+                catalogAttributeId: catalogAttribute.id,
+
+                catalogAttributeValueId:
+                    firstValue.catalogAttributeValueId,
+
+                catalogAttributeValueIds:
+                    mappedValues
+                        .map(x => x.catalogAttributeValueId)
+                        .filter(Boolean),
+
+                value: mappedValues
+                    .map(x => x.value)
+                    .join(', '),
+
+                displayValue: mappedValues
+                    .map(x => x.displayValue)
+                    .join(', '),
+
+                colorHex: firstValue.colorHex,
+
+                displayOrder:
+                    attribute.displayOrder ?? 0,
+            }];
+        });
 
     /* ---------------------------------------------------------------------- */
     /* Variants                                                               */
@@ -1428,7 +1434,7 @@ function buildProductAttributePayload(
                     'VariantDefining',
 
                 roleValue:
-                    4,
+                    (catalogAttribute.defaultRole ?? 0) | 4,
 
                 isRequired:
                     catalogAttribute.isRequired,
@@ -1476,77 +1482,76 @@ function buildProductAttributePayload(
             continue;
         }
 
-        const rawValue =
-            (
-                specification.value ??
-                ''
-            ).trim();
 
-        const selectedValue =
-            specification.catalogAttributeValueId
-                ? (
-                    catalogAttribute.values ??
-                    []
-                ).find(
-                    value =>
-                        value.id ===
-                        specification.catalogAttributeValueId,
-                )
-                : undefined;
+        const isChoiceType =
+            catalogAttribute.dataType ===
+            CatalogAttributeDataType.SingleSelect ||
+            catalogAttribute.dataType ===
+            CatalogAttributeDataType.MultiSelect;
 
-        const finalValue =
-            (
-                selectedValue?.value ??
-                rawValue
-            ).trim();
+        const selectedIds =
+            catalogAttribute.dataType ===
+                CatalogAttributeDataType.MultiSelect
+                ? specification.catalogAttributeValueIds ?? []
+                : specification.catalogAttributeValueId
+                    ? [specification.catalogAttributeValueId]
+                    : [];
 
-        if (!finalValue) {
+        const selectedValues = selectedIds
+            .map(valueId =>
+                catalogAttribute.values.find(
+                    value => value.id === valueId,
+                ),
+            )
+            .filter(
+                (
+                    value,
+                ): value is CatalogAttribute['values'][number] =>
+                    Boolean(value),
+            );
+
+        const valueItems: Array<{
+            id?: string;
+            value: string;
+            displayValue?: string | null;
+            colorHex?: string | null;
+        }> = isChoiceType
+                ? selectedValues.map(value => ({
+                    id: value.id,
+                    value: value.value,
+                    displayValue: value.displayValue ?? value.value,
+                    colorHex: value.colorHex,
+                }))
+                : [{
+                    value: (
+                        specification.value ?? ''
+                    ).trim(),
+
+                    displayValue: (
+                        specification.displayValue ||
+                        specification.value ||
+                        ''
+                    ).trim(),
+
+                    colorHex: specification.colorHex,
+                }];
+
+        if (valueItems.length === 0) {
             continue;
         }
 
-        const displayValue =
-            (
-                selectedValue?.displayValue ??
-                specification.displayValue ??
-                finalValue
-            ).trim();
+        const roleValue =
+            catalogAttribute.defaultRole ??
+            (catalogAttribute.isFilterable ? 3 : 2);
 
-        const colorHex =
-            (
-                selectedValue?.colorHex ??
-                specification.colorHex ??
-                ''
-            ).trim();
-
-        const catalogValueId =
-            selectedValue?.id ??
-            (
-                specification.catalogAttributeValueId ||
-                undefined
-            );
-
-        let existing =
-            result.get(
-                catalogAttribute.id,
-            );
+        let existing = result.get(catalogAttribute.id);
 
         if (!existing) {
             existing = {
-                catalogAttributeId:
-                    catalogAttribute.id,
-
-                role:
-                    'Descriptive',
-
-                roleValue:
-                    2,
-
-                isRequired:
-                    catalogAttribute.isRequired,
-
-                displayOrder:
-                    catalogAttribute.displayOrder,
-
+                catalogAttributeId: catalogAttribute.id,
+                roleValue,
+                isRequired: catalogAttribute.isRequired,
+                displayOrder: specification.displayOrder,
                 values: [],
             };
 
@@ -1556,39 +1561,36 @@ function buildProductAttributePayload(
             );
         }
 
-        const alreadyExists =
-            existing.values.some(
-                value =>
-                    normalize(
-                        value.value,
-                    ) ===
-                    normalize(
-                        finalValue,
-                    ),
-            );
+        for (const [valueIndex, item] of valueItems.entries()) {
+            const finalValue = item.value.trim();
 
-        if (
-            !alreadyExists
-        ) {
+            if (!finalValue) {
+                continue;
+            }
+
+            const alreadyExists =
+                existing.values.some(
+                    value =>
+                        normalize(value.value) ===
+                        normalize(finalValue),
+                );
+
+            if (alreadyExists) {
+                continue;
+            }
+
             existing.values.push({
-                catalogAttributeValueId:
-                    catalogValueId,
-
-                value:
-                    finalValue,
-
+                catalogAttributeValueId: item.id,
+                value: finalValue,
                 displayValue:
-                    displayValue ||
-                    undefined,
-
+                    item.displayValue?.trim() || finalValue,
                 colorHex:
-                    colorHex ||
-                    undefined,
-
+                    item.colorHex?.trim() || undefined,
                 displayOrder:
-                    specification.displayOrder,
+                    specification.displayOrder + valueIndex,
             });
         }
+
     }
 
     return Array.from(
@@ -1680,96 +1682,96 @@ export function ProductForm(
     });
 
 
-    const {
-        data: attributes,
-    } = useCatalogAttributes();
-
-
-    /* ---------------------------------------------------------------------- */
-    /*                         Variant Attributes                              */
-    /* ---------------------------------------------------------------------- */
-    const variantAttributes =
-        useMemo(
-            () =>
-                (
-                    attributes ??
-                    []
-                )
-                    .filter(
-                        attribute =>
-                            attribute.isActive,
-                    )
-                    .map(
-                        attribute => ({
-                            ...attribute,
-
-                            /*
-                             * Keep inactive values in the option list.
-                             *
-                             * This is important for existing products which
-                             * still reference a catalog value that was later
-                             * deactivated.
-                             *
-                             * The inactive option is disabled in the Select,
-                             * but remains visible when it is already selected.
-                             */
-                            values:
-                                [
-                                    ...(attribute.values ??
-                                        []),
-                                ]
-                                    .sort(
-                                        (
-                                            a,
-                                            b,
-                                        ) =>
-                                            a.displayOrder -
-                                            b.displayOrder,
-                                    ),
-                        }),
-                    )
-                    .filter(
-                        attribute =>
-                            attribute.values.length >
-                            0,
-                    )
-                    .sort(
-                        (
-                            a,
-                            b,
-                        ) =>
-                            a.displayOrder -
-                            b.displayOrder,
-                    ),
-            [attributes],
-        );
 
 
     /* ---------------------------------------------------------------------- */
     /*                                  Form                                  */
     /* ---------------------------------------------------------------------- */
 
-    const form =
-        useForm<FormValues>({
-            resolver:
-                zodResolver(
-                    schema,
-                ) as never,
 
-            defaultValues:
-                toValues(
-                    product, attributes,
+    const form = useForm<FormValues>({
+        resolver: zodResolver(schema) as never,
+
+        // Definitions are loaded after the form exists.
+        // Existing product values are reconstructed when they arrive.
+        defaultValues: toValues(
+            product,
+            undefined,
+        ),
+
+        mode: 'onBlur',
+    });
+
+    const selectedCategoryIds =
+        form.watch('categoryIds') ?? [];
+
+    const {
+        data: attributeDefinitions,
+        isError: isAttributeDefinitionsError,
+        isSuccess: attributeDefinitionsLoaded,
+    } = useProductAttributeDefinitions(
+        selectedCategoryIds,
+        product?.id,
+    );
+
+    const attributes = useMemo<CatalogAttribute[]>(
+        () =>
+            (attributeDefinitions ?? []).map(
+                (definition: ProductAttributeDefinition) => ({
+                    id: definition.catalogAttributeId,
+                    name: definition.name,
+                    code: definition.code,
+                    description: null,
+                    displayType: definition.displayType,
+                    dataType: definition.dataType,
+                    defaultRole: definition.defaultRole,
+
+                    isRequired: definition.isRequired,
+                    isFilterable: definition.isFilterable,
+                    isVariantAttribute:
+                        (definition.defaultRole & 4) === 4,
+
+                    isActive: true,
+                    displayOrder: definition.displayOrder,
+
+                    values: (definition.values ?? []).map(value => ({
+                        id: value.catalogAttributeValueId,
+                        catalogAttributeId:
+                            definition.catalogAttributeId,
+                        value: value.value,
+                        displayValue: value.displayValue,
+                        colorHex: value.colorHex,
+                        displayOrder: value.displayOrder,
+                        isActive: value.isActive,
+                    })),
+                }),
+            ),
+        [attributeDefinitions],
+    );
+
+    const variantAttributes = useMemo(
+        () =>
+            attributes
+                .filter(attribute => attribute.isActive)
+                .map(attribute => ({
+                    ...attribute,
+
+                    values: [...attribute.values].sort(
+                        (a, b) =>
+                            a.displayOrder - b.displayOrder,
+                    ),
+                }))
+                .filter(attribute => attribute.values.length > 0)
+                .sort(
+                    (a, b) =>
+                        a.displayOrder - b.displayOrder,
                 ),
-
-            mode:
-                'onBlur',
-        });
-
+        [attributes],
+    );
 
     const selectedVariantAttributeIds =
-        form.watch(
-            'variantAttributeIds',
-        ) ?? [];
+        form.watch('variantAttributeIds') ?? [];
+
 
 
     const specificationAttributes =
@@ -1794,10 +1796,7 @@ export function ProductForm(
                                     attribute.values ??
                                     []
                                 )
-                                    .filter(
-                                        value =>
-                                            value.isActive,
-                                    )
+                                   
                                     .sort(
                                         (
                                             a,
@@ -1953,48 +1952,141 @@ export function ProductForm(
     /*                                 Reset                                  */
     /* ---------------------------------------------------------------------- */
 
-    useEffect(() => {
-        /*
-         * Create mode can be initialized immediately.
-         */
-        if (mode === 'create') {
-            form.reset(
-                toValues(
-                    undefined,
-                    attributes,
-                ),
-            );
 
+    const initializedProductId = useRef<string | null>(null);
+
+    const categoryDefinitionKey = [
+        ...selectedCategoryIds,
+    ].sort().join('|');
+
+    const lastCategoryDefinitionKey = useRef<string | null>(null);
+
+    useEffect(() => {
+        // Create mode already has valid empty defaults.
+        if (mode === 'create') {
             return;
         }
 
-        /*
-         * Edit mode:
-         *
-         * Catalog Attributes must be loaded before the
-         * existing Variant CatalogAttributeValue IDs
-         * can be reconstructed.
-         */
         if (
-            mode === 'edit' &&
-            product &&
-            attributes &&
-            attributes.length > 0
+            mode !== 'edit' ||
+            !product ||
+            !attributeDefinitionsLoaded ||
+            initializedProductId.current === product.id
         ) {
-            form.reset(
-                toValues(
-                    product,
-                    attributes,
-                ),
-            );
+            return;
         }
+
+        form.reset(
+            toValues(product, attributes),
+        );
+
+        initializedProductId.current = product.id;
     }, [
         mode,
         product,
+        attributeDefinitionsLoaded,
         attributes,
         form,
     ]);
 
+    useEffect(() => {
+        if (!attributeDefinitionsLoaded) {
+            return;
+        }
+
+        const availableIds = new Set(
+            attributes.map(attribute => attribute.id),
+        );
+
+        // Remove only values whose attribute is no longer available
+        // after the selected category set has changed.
+        const currentSpecifications =
+            form.getValues('specifications');
+
+        const retainedSpecifications =
+            currentSpecifications.filter(
+                specification =>
+                    availableIds.has(
+                        specification.catalogAttributeId,
+                    ),
+            );
+
+        if (
+            retainedSpecifications.length !==
+            currentSpecifications.length
+        ) {
+            form.setValue(
+                'specifications',
+                retainedSpecifications,
+                {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                },
+            );
+        }
+
+        const currentVariantIds =
+            form.getValues('variantAttributeIds') ?? [];
+
+        const retainedVariantIds =
+            currentVariantIds.filter(
+                id => availableIds.has(id),
+            );
+
+        if (
+            retainedVariantIds.length !==
+            currentVariantIds.length
+        ) {
+            form.setValue(
+                'variantAttributeIds',
+                retainedVariantIds,
+                {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                },
+            );
+        }
+
+        // Apply category defaults only when creating a product.
+        // On edit, existing product-specific roles remain authoritative.
+        if (
+            mode === 'create' &&
+            lastCategoryDefinitionKey.current !==
+            categoryDefinitionKey
+        ) {
+            lastCategoryDefinitionKey.current =
+                categoryDefinitionKey;
+
+            const defaultVariantIds = attributes
+                .filter(
+                    attribute =>
+                        ((attribute.defaultRole ?? 0) & 4) === 4,
+                )
+                .map(attribute => attribute.id);
+
+            const nextVariantIds = [
+                ...new Set([
+                    ...retainedVariantIds,
+                    ...defaultVariantIds,
+                ]),
+            ];
+
+            form.setValue(
+                'variantAttributeIds',
+                nextVariantIds,
+                {
+                    shouldDirty: false,
+                    shouldValidate: true,
+                },
+            );
+        }
+    }, [
+        mode,
+        attributes,
+        attributeDefinitionsLoaded,
+        categoryDefinitionKey,
+        form,
+    ]);
 
     /* ---------------------------------------------------------------------- */
     /*                     Variant Dimension Selection                        */
@@ -2403,18 +2495,7 @@ const hasDuplicateVariantCombination =
                 },
             );
 
-            form.setValue(
-                `specifications.${index}.catalogAttributeValueId`,
-                '',
-                {
-                    shouldDirty:
-                        true,
-
-                    shouldValidate:
-                        true,
-                },
-            );
-
+           
             form.setValue(
                 `specifications.${index}.value`,
                 '',
@@ -2520,7 +2601,14 @@ const hasDuplicateVariantCombination =
                     attributeId,
                     valueId,
                 );
-
+            form.setValue(
+                `specifications.${index}.catalogAttributeValueIds`,
+                valueId ? [valueId] : [],
+                {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                },
+            );
             form.setValue(
                 `specifications.${index}.catalogAttributeValueId`,
                 valueId ||
@@ -2604,6 +2692,64 @@ const hasDuplicateVariantCombination =
             }
         };
 
+    const handleSpecificationMultiValueChange = (
+        index: number,
+        attributeId: string,
+        valueIds: string[],
+    ) => {
+        const attribute =
+            getSpecificationAttribute(attributeId);
+
+        const selectedValues = valueIds
+            .map(valueId =>
+                attribute?.values.find(
+                    value => value.id === valueId,
+                ),
+            )
+            .filter(
+                (value): value is CatalogAttribute['values'][number] =>
+                    Boolean(value),
+            );
+
+        form.setValue(
+            `specifications.${index}.catalogAttributeValueIds`,
+            valueIds,
+            {
+                shouldDirty: true,
+                shouldTouch: true,
+                shouldValidate: true,
+            },
+        );
+
+        form.setValue(
+            `specifications.${index}.catalogAttributeValueId`,
+            valueIds[0] ?? '',
+            {
+                shouldDirty: true,
+                shouldValidate: true,
+            },
+        );
+
+        form.setValue(
+            `specifications.${index}.value`,
+            selectedValues.map(x => x.value).join(', '),
+            {
+                shouldDirty: true,
+                shouldValidate: true,
+            },
+        );
+
+        form.setValue(
+            `specifications.${index}.displayValue`,
+            selectedValues
+                .map(x => x.displayValue || x.value)
+                .join(', '),
+            {
+                shouldDirty: true,
+            },
+        );
+    };
+
 
     const handleAddSpecification = () => {
         const availableAttribute =
@@ -2628,6 +2774,9 @@ const hasDuplicateVariantCombination =
 
             catalogAttributeValueId:
                 '',
+
+            catalogAttributeValueIds:
+                [],
 
             value:
                 '',
@@ -2709,38 +2858,103 @@ const hasDuplicateVariantCombination =
                  * Free-text Catalog Attributes:
                  * a text value is required.
                  */
-                if (
-                    attribute.values.length >
-                    0
-                ) {
-                    if (
-                        !specification.catalogAttributeValueId
-                    ) {
-                        throw new Error(
-                            t(
-                                'productEdit.specifications.errors.valueRequired',
-                                {
-                                    attribute:
-                                        attribute.name,
-                                },
-                            ),
-                        );
-                    }
-                } else {
-                    if (
-                        !specification.value?.trim()
-                    ) {
-                        throw new Error(
-                            t(
-                                'productEdit.specifications.errors.textRequired',
-                                {
-                                    attribute:
-                                        attribute.name,
-                                },
-                            ),
-                        );
-                    }
+
+                const selectedValueIds =
+                    specification.catalogAttributeValueIds ?? [];
+
+                switch (attribute.dataType) {
+                    case CatalogAttributeDataType.SingleSelect:
+                        if (!specification.catalogAttributeValueId) {
+                            throw new Error(
+                                `برای مشخصهٔ «${attribute.name}» یک مقدار انتخاب کن.`,
+                            );
+                        }
+
+                        break;
+
+                    case CatalogAttributeDataType.MultiSelect:
+                        if (selectedValueIds.length === 0) {
+                            throw new Error(
+                                `برای مشخصهٔ «${attribute.name}» دست‌کم یک مقدار انتخاب کن.`,
+                            );
+                        }
+
+                        break;
+
+                    case CatalogAttributeDataType.Integer:
+                        if (!/^-?\d+$/.test(specification.value.trim())) {
+                            throw new Error(
+                                `مقدار «${attribute.name}» باید عدد صحیح باشد.`,
+                            );
+                        }
+
+                        break;
+
+                    case CatalogAttributeDataType.Decimal:
+                        if (
+                            !specification.value.trim() ||
+                            !Number.isFinite(Number(specification.value))
+                        ) {
+                            throw new Error(
+                                `مقدار «${attribute.name}» باید عدد معتبر باشد.`,
+                            );
+                        }
+
+                        break;
+
+                    case CatalogAttributeDataType.Boolean:
+                        if (
+                            specification.value !== 'true' &&
+                            specification.value !== 'false'
+                        ) {
+                            throw new Error(
+                                `برای مشخصهٔ «${attribute.name}» بله یا خیر انتخاب کن.`,
+                            );
+                        }
+
+                        break;
+
+                    case CatalogAttributeDataType.Date:
+                        if (
+                            !/^\d{4}-\d{2}-\d{2}$/.test(
+                                specification.value.trim(),
+                            ) ||
+                            Number.isNaN(
+                                Date.parse(specification.value),
+                            )
+                        ) {
+                            throw new Error(
+                                `تاریخ «${attribute.name}» معتبر نیست.`,
+                            );
+                        }
+
+                        break;
+
+                    case CatalogAttributeDataType.DateTime:
+                        if (
+                            !specification.value.trim() ||
+                            Number.isNaN(
+                                Date.parse(specification.value),
+                            )
+                        ) {
+                            throw new Error(
+                                `تاریخ و زمان «${attribute.name}» معتبر نیست.`,
+                            );
+                        }
+
+                        break;
+
+                    case CatalogAttributeDataType.Text:
+                    default:
+                        if (!specification.value.trim()) {
+                            throw new Error(
+                                `مقدار «${attribute.name}» الزامی است.`,
+                            );
+                        }
+
+                        break;
                 }
+
             }
         };
 
@@ -3048,6 +3262,20 @@ const hasDuplicateVariantCombination =
                 (
                     values,
                 ) => {
+                    if (isAttributeDefinitionsError) {
+                        throw new Error(
+                            'دریافت مشخصه‌های محصول ناموفق بود. ابتدا دوباره تلاش کن.',
+                        );
+                    }
+
+                    if (
+                        !attributeDefinitionsLoaded &&
+                        (selectedCategoryIds.length > 0 || Boolean(product))
+                    ) {
+                        throw new Error(
+                            'تا زمان دریافت مشخصه‌های محصول، امکان ذخیره وجود ندارد.',
+                        );
+                    }
                     validateSpecifications(
                         values.specifications,
                     );
@@ -4019,49 +4247,128 @@ const hasDuplicateVariantCombination =
                                                                     )}
                                                                 </FormLabel>
 
-                                                                {attribute &&
-                                                                    attribute.values.length >
-                                                                    0 ? (
+                                                                {attribute 
+                                                                   ? (
                                                                     <FormControl>
-                                                                        <select
-                                                                            value={
-                                                                                valueId
-                                                                            }
-                                                                            onChange={(
-                                                                                event,
-                                                                            ) =>
-                                                                                handleSpecificationValueChange(
-                                                                                    index,
-                                                                                    attribute.id,
-                                                                                    event
-                                                                                        .target
-                                                                                        .value,
-                                                                                )
-                                                                            }
-                                                                            className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
-                                                                        >
-                                                                            <option value="">
-                                                                                {t(
-                                                                                    'productEdit.specifications.selectValue',
-                                                                                )}
-                                                                            </option>
 
-                                                                            {attribute.values.map(
-                                                                                value => (
-                                                                                    <option
-                                                                                        key={
-                                                                                            value.id
-                                                                                        }
-                                                                                        value={
-                                                                                            value.id
-                                                                                        }
-                                                                                    >
-                                                                                        {value.displayValue ||
-                                                                                            value.value}
+                                                                            {attribute?.dataType === CatalogAttributeDataType.SingleSelect ? (
+                                                                                <select
+                                                                                    value={valueId}
+                                                                                    onChange={event =>
+                                                                                        handleSpecificationValueChange(
+                                                                                            index,
+                                                                                            attribute.id,
+                                                                                            event.target.value,
+                                                                                        )
+                                                                                    }
+                                                                                    className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+                                                                                >
+                                                                                    <option value="">
+                                                                                        انتخاب مقدار
                                                                                     </option>
-                                                                                ),
+
+                                                                                    {attribute.values.map(value => (
+                                                                                        <option
+                                                                                            key={value.id}
+                                                                                            value={value.id}
+                                                                                            disabled={
+                                                                                                !value.isActive &&
+                                                                                                value.id !== valueId
+                                                                                            }
+                                                                                        >
+                                                                                            {value.displayValue || value.value}
+                                                                                        </option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            ) : attribute?.dataType === CatalogAttributeDataType.MultiSelect ? (
+                                                                                <select
+                                                                                    multiple
+                                                                                    value={
+                                                                                        form.watch(
+                                                                                            `specifications.${index}.catalogAttributeValueIds`,
+                                                                                        ) ?? []
+                                                                                    }
+                                                                                    onChange={event =>
+                                                                                        handleSpecificationMultiValueChange(
+                                                                                            index,
+                                                                                            attribute.id,
+                                                                                            Array.from(
+                                                                                                event.target.selectedOptions,
+                                                                                                option => option.value,
+                                                                                            ),
+                                                                                        )
+                                                                                    }
+                                                                                    className="border-input bg-background h-32 w-full rounded-md border px-3 py-2 text-sm"
+                                                                                >
+                                                                                    {attribute.values.map(value => (
+                                                                                        <option
+                                                                                            key={value.id}
+                                                                                            value={value.id}
+                                                                                            disabled={!value.isActive}
+                                                                                        >
+                                                                                            {value.displayValue || value.value}
+                                                                                        </option>
+                                                                                    ))}
+                                                                                </select>
+                                                                            ) : attribute?.dataType === CatalogAttributeDataType.Boolean ? (
+                                                                                <select
+                                                                                    value={
+                                                                                        form.watch(
+                                                                                            `specifications.${index}.value`,
+                                                                                        ) ?? ''
+                                                                                    }
+                                                                                    onChange={event =>
+                                                                                        form.setValue(
+                                                                                            `specifications.${index}.value`,
+                                                                                            event.target.value,
+                                                                                            {
+                                                                                                shouldDirty: true,
+                                                                                                shouldValidate: true,
+                                                                                            },
+                                                                                        )
+                                                                                    }
+                                                                                    className="border-input bg-background h-10 w-full rounded-md border px-3 text-sm"
+                                                                                >
+                                                                                    <option value="">انتخاب کنید</option>
+                                                                                    <option value="true">بله</option>
+                                                                                    <option value="false">خیر</option>
+                                                                                </select>
+                                                                            ) : (
+                                                                                <Input
+                                                                                    type={
+                                                                                        attribute?.dataType === CatalogAttributeDataType.Integer ||
+                                                                                            attribute?.dataType === CatalogAttributeDataType.Decimal
+                                                                                            ? 'number'
+                                                                                            : attribute?.dataType === CatalogAttributeDataType.Date
+                                                                                                ? 'date'
+                                                                                                : attribute?.dataType === CatalogAttributeDataType.DateTime
+                                                                                                    ? 'datetime-local'
+                                                                                                    : 'text'
+                                                                                    }
+                                                                                    step={
+                                                                                        attribute?.dataType === CatalogAttributeDataType.Decimal
+                                                                                            ? 'any'
+                                                                                            : 1
+                                                                                    }
+                                                                                    value={
+                                                                                        form.watch(
+                                                                                            `specifications.${index}.value`,
+                                                                                        ) ?? ''
+                                                                                    }
+                                                                                    onChange={event =>
+                                                                                        form.setValue(
+                                                                                            `specifications.${index}.value`,
+                                                                                            event.target.value,
+                                                                                            {
+                                                                                                shouldDirty: true,
+                                                                                                shouldValidate: true,
+                                                                                            },
+                                                                                        )
+                                                                                    }
+                                                                                    placeholder="مقدار مشخصه"
+                                                                                />
                                                                             )}
-                                                                        </select>
+
                                                                     </FormControl>
                                                                 ) : (
                                                                     <FormControl>

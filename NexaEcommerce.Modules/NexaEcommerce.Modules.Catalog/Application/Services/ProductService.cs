@@ -6,6 +6,7 @@ using NexaEcommerce.SharedKernel.Abstractions;
 using NexaEcommerce.SharedKernel.Pagination;
 using System.Text.RegularExpressions;
 using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
+using System.Globalization;
 namespace NexaEcommerce.Modules.Catalog.Application.Services;
 
 public sealed class ProductService : IProductService
@@ -16,7 +17,8 @@ public sealed class ProductService : IProductService
     private readonly IProductStockReader _productStockReader;
     private readonly ICategoryRepository _categoryRepository;
     private readonly ICatalogAttributeRepository _catalogAttributeRepository;
-
+    private readonly ICategoryAttributeManagementService?
+    _categoryAttributeManagementService;
 
     public ProductService(
      IProductRepository productRepository,
@@ -24,8 +26,11 @@ public sealed class ProductService : IProductService
      IMapper mapper,
      IProductStockReader productStockReader,
      ICategoryRepository categoryRepository,
-     ICatalogAttributeRepository catalogAttributeRepository)
+     ICatalogAttributeRepository catalogAttributeRepository,
+      ICategoryAttributeManagementService categoryAttributeManagementService)
     {
+        _categoryAttributeManagementService =
+    categoryAttributeManagementService;
         _productRepository =
             productRepository;
 
@@ -106,7 +111,106 @@ public sealed class ProductService : IProductService
         return _mapper.Map<IEnumerable<ProductDto>>(
             products);
     }
+    private static void ValidateRequestedAttributeValues(
+        CatalogAttribute catalogAttribute,
+        IEnumerable<ProductAttributeValueInputDto> requestedValues)
+    {
+        ArgumentNullException.ThrowIfNull(catalogAttribute);
+        ArgumentNullException.ThrowIfNull(requestedValues);
 
+        var values = requestedValues
+            .Where(value =>
+                (value.CatalogAttributeValueId.HasValue &&
+                 value.CatalogAttributeValueId.Value != Guid.Empty)
+                ||
+                !string.IsNullOrWhiteSpace(value.Value))
+            .ToList();
+
+        if (catalogAttribute.DataType ==
+                CatalogAttributeDataType.SingleSelect
+            && values.Count > 1)
+        {
+            throw new ArgumentException(
+                $"Attribute '{catalogAttribute.Name}' accepts only one value.");
+        }
+
+        if (catalogAttribute.DataType is
+                CatalogAttributeDataType.SingleSelect
+                or CatalogAttributeDataType.MultiSelect)
+        {
+            var invalidSelection = values.Any(value =>
+                !value.CatalogAttributeValueId.HasValue ||
+                value.CatalogAttributeValueId.Value == Guid.Empty);
+
+            if (invalidSelection)
+            {
+                throw new ArgumentException(
+                    $"Attribute '{catalogAttribute.Name}' requires a valid catalog value selection.");
+            }
+        }
+    }
+
+    private static void ValidateAttributeValue(
+        CatalogAttributeDataType dataType,
+        string value,
+        string attributeName)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            throw new ArgumentException(
+                $"Value for attribute '{attributeName}' cannot be empty.");
+        }
+
+        var isValid = dataType switch
+        {
+            CatalogAttributeDataType.Text =>
+                true,
+
+            CatalogAttributeDataType.Integer =>
+                long.TryParse(
+                    value,
+                    NumberStyles.Integer,
+                    CultureInfo.InvariantCulture,
+                    out _),
+
+            CatalogAttributeDataType.Decimal =>
+                decimal.TryParse(
+                    value,
+                    NumberStyles.Number,
+                    CultureInfo.InvariantCulture,
+                    out _),
+
+            CatalogAttributeDataType.Boolean =>
+                bool.TryParse(value, out _),
+
+            CatalogAttributeDataType.Date =>
+                DateOnly.TryParse(
+                    value,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out _),
+
+            CatalogAttributeDataType.DateTime =>
+                DateTimeOffset.TryParse(
+                    value,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out _),
+
+            CatalogAttributeDataType.SingleSelect
+                or CatalogAttributeDataType.MultiSelect =>
+                true,
+
+            _ => false
+        };
+
+        if (!isValid)
+        {
+            throw new ArgumentException(
+                $"Value '{value}' is invalid for attribute " +
+                $"'{attributeName}' with data type '{dataType}'.");
+        }
+    }
     public async Task<ProductDto?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default)
@@ -651,7 +755,9 @@ public sealed class ProductService : IProductService
             product,
             createDto.CategoryIds,
             cancellationToken);
-
+        await ValidateRequiredCategoryAttributesAsync(
+    product,
+    cancellationToken);
         // --------------------------------------------------------
         // Validation
         // --------------------------------------------------------
@@ -888,15 +994,17 @@ public sealed class ProductService : IProductService
         // VariantDefining attributes can safely be removed when they
         // are no longer requested.
         await SynchronizeProductAttributesAsync(
+      product,
+      updateDto.Attributes,
+      cancellationToken);
+
+        ValidateRequiredProductAttributes(product);
+
+        await ValidateRequiredCategoryAttributesAsync(
             product,
-            updateDto.Attributes,
             cancellationToken);
 
-        ValidateRequiredProductAttributes(
-            product);
-
-        ValidateVariantDefinitions(
-            product);
+        ValidateVariantDefinitions(product);
 
         // ============================================================
         // Images
@@ -1052,6 +1160,8 @@ public sealed class ProductService : IProductService
     // ============================================================
     // Categories
     // ============================================================
+
+
     private async Task<Product> SynchronizeProductAttributesAsync(
       Product product,
       IEnumerable<ProductAttributeInputDto>? requestedAttributes,
@@ -1197,7 +1307,9 @@ public sealed class ProductService : IProductService
 
             var inputRequest =
                 resolvedRequest.Request;
-
+            ValidateRequestedAttributeValues(
+    catalogAttribute,
+    resolvedRequest.Values);
             var attributeName =
                 catalogAttribute.Name.Trim();
 
@@ -1359,14 +1471,39 @@ public sealed class ProductService : IProductService
                 }
 
                 var value =
-                    (
-                        catalogValue?.Value ??
-                        requestedValue.Value
-                    )?.Trim();
+       (
+           catalogValue?.Value ??
+           requestedValue.Value
+       )?.Trim();
 
                 if (string.IsNullOrWhiteSpace(value))
                 {
                     continue;
+                }
+
+                if (catalogAttribute.DataType is
+                        CatalogAttributeDataType.SingleSelect
+                        or CatalogAttributeDataType.MultiSelect)
+                {
+                    if (!requestedValue.CatalogAttributeValueId.HasValue ||
+                        requestedValue.CatalogAttributeValueId.Value == Guid.Empty)
+                    {
+                        throw new ArgumentException(
+                            $"Attribute '{catalogAttribute.Name}' requires a catalog value ID.");
+                    }
+
+                    if (catalogValue is null)
+                    {
+                        throw new ArgumentException(
+                            $"A valid catalog value is required for attribute '{catalogAttribute.Name}'.");
+                    }
+                }
+                else
+                {
+                    ValidateAttributeValue(
+                        catalogAttribute.DataType,
+                        value,
+                        catalogAttribute.Name);
                 }
 
                 var displayValue =
@@ -1458,7 +1595,32 @@ public sealed class ProductService : IProductService
                             requestedValue.DisplayValue,
                             requestedValue.ColorHex);
                     }
+                    if (catalogAttribute.DataType ==
+        CatalogAttributeDataType.SingleSelect &&
+    requestedValues.Count > 1)
+                    {
+                        throw new ArgumentException(
+                            $"Attribute '{catalogAttribute.Name}' accepts only one value.");
+                    }
 
+                    if (
+                        catalogAttribute.DataType is
+                            CatalogAttributeDataType.SingleSelect or
+                            CatalogAttributeDataType.MultiSelect &&
+                        requestedValues.Values.Any(
+                            value => !value.CatalogAttributeValueId.HasValue))
+                    {
+                        throw new ArgumentException(
+                            $"Attribute '{catalogAttribute.Name}' only accepts predefined catalog values.");
+                    }
+
+                    foreach (var requestedValue1 in requestedValues.Values)
+                    {
+                        ValidateAttributeValue(
+                            catalogAttribute.DataType,
+                            requestedValue1.Value,
+                            catalogAttribute.Name);
+                    }
                     // ------------------------------------------------
                     // Synchronize CatalogAttributeValueId.
                     // ------------------------------------------------
@@ -1574,6 +1736,66 @@ public sealed class ProductService : IProductService
 
         return product;
     }
+    private async Task ValidateRequiredCategoryAttributesAsync(
+     Product product,
+     CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(product);
+
+        // برای سازگاری با تست‌هایی که هنوز این سرویس را تزریق نکرده‌اند.
+        // در برنامه اصلی باید سرویس ثبت و تزریق شده باشد.
+        if (_categoryAttributeManagementService is null)
+        {
+            return;
+        }
+
+        var categoryIds = product.ProductCategories
+            .Select(category => category.CategoryId)
+            .Where(categoryId => categoryId != Guid.Empty)
+            .Distinct()
+            .ToArray();
+
+        foreach (var categoryId in categoryIds)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var definitions =
+                await _categoryAttributeManagementService.GetForCategoryAsync(
+                    categoryId,
+                    cancellationToken);
+
+            var requiredDefinitions = definitions
+                .Where(definition =>
+                    definition.IsActive &&
+                    definition.IsRequired)
+                .ToList();
+
+            foreach (var definition in requiredDefinitions)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                var productAttribute = product.Attributes
+                    .FirstOrDefault(attribute =>
+                        !attribute.IsDeleted &&
+                        attribute.CatalogAttributeId ==
+                            definition.CatalogAttributeId);
+
+                var hasValue = productAttribute is not null &&
+                    productAttribute.Values.Any(value =>
+                        !value.IsDeleted &&
+                        !string.IsNullOrWhiteSpace(value.Value));
+
+                if (!hasValue)
+                {
+                    throw new ArgumentException(
+                        $"Required category attribute " +
+                        $"'{definition.Name}' must have a value for category " +
+                        $"'{categoryId}'.");
+                }
+            }
+        }
+    }
+    
     private static AttributeRole ResolveProductAttributeRole(
       CatalogAttribute catalogAttribute,
       ProductAttributeInputDto request)

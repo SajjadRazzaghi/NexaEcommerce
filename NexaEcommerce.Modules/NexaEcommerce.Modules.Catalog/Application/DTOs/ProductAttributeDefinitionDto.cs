@@ -1,5 +1,5 @@
-﻿using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
-
+﻿
+using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
 
 namespace NexaEcommerce.Modules.Catalog.Application.DTOs;
 
@@ -37,4 +37,6 @@ public sealed class ProductAttributeDefinitionValueDto
     public string? ColorHex { get; init; }
 
     public int DisplayOrder { get; init; }
+
+    public bool IsActive { get; init; }
 }
