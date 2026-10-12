@@ -1639,11 +1639,39 @@ if (attributeValueIds is null ||
                 $"Product variant '{variantId}' was not found.");
         }
 
+
         /*
          * ------------------------------------------------------------
          * Verify AttributeValue records
          * ------------------------------------------------------------
+         *
+         * During product update, SynchronizeProductAttributesAsync
+         * may have created new AttributeValue entities that have not
+         * been persisted yet.
+         *
+         * Those entities are valid as long as they are tracked as
+         * Added in this CatalogDbContext.
          */
+
+        // Discover new AttributeValue objects added through navigation
+        // collections before checking their EntityState.
+        _context.ChangeTracker.DetectChanges();
+
+        var trackedAddedAttributeValueIds =
+            _context.ChangeTracker
+                .Entries<AttributeValue>()
+                .Where(
+                    entry =>
+                        entry.State == EntityState.Added)
+                .Select(
+                    entry =>
+                        entry.Entity.Id)
+                .Where(
+                    id =>
+                        id != Guid.Empty)
+                .ToHashSet();
+
+        // AttributeValue records that already exist in SQL Server.
         var existingAttributeValueIds =
             await _context
                 .Set<AttributeValue>()
@@ -1651,25 +1679,33 @@ if (attributeValueIds is null ||
                 .AsNoTracking()
                 .Where(
                     x =>
-                        ids.Contains(
-                            x.Id))
+                        ids.Contains(x.Id))
                 .Select(
                     x =>
                         x.Id)
                 .ToListAsync(
                     cancellationToken);
 
+        /*
+         * A requested ID is missing only if it is:
+         * 1. Not present in the database, AND
+         * 2. Not a new AttributeValue tracked by EF Core.
+         */
         var missingIds =
             ids
-                .Except(
-                    existingAttributeValueIds)
+                .Except(existingAttributeValueIds)
+                .Where(
+                    id =>
+                        !trackedAddedAttributeValueIds.Contains(id))
                 .ToArray();
 
         if (missingIds.Length > 0)
         {
             throw new KeyNotFoundException(
-                $"The following attribute values were not found: {string.Join(", ", missingIds)}");
+                $"The following attribute values were not found: " +
+                $"{string.Join(", ", missingIds)}");
         }
+
 
         /*
          * ------------------------------------------------------------
