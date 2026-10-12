@@ -589,10 +589,14 @@ export default function ProductDetailPage() {
         activeVariant?.stockQuantity ??
         0;
 
+    const variantPrice =
+        activeVariant?.priceOverride;
+
     const baseVariantPrice =
-        activeVariant?.priceOverride ??
-        product?.price ??
-        0;
+        variantPrice != null &&
+            variantPrice > 0
+            ? variantPrice
+            : product?.price ?? 0;
 
     const discountPercentage =
         Math.min(
@@ -1959,9 +1963,14 @@ export default function ProductDetailPage() {
                         variant.id === selectedVariantId,
                 ) ?? availableVariants[0];
 
+            const selectedVariantPrice =
+                selectedVariant?.priceOverride;
+
             const basePrice =
-                selectedVariant?.priceOverride ??
-                recommendedProduct.price;
+                selectedVariantPrice != null &&
+                    selectedVariantPrice > 0
+                    ? selectedVariantPrice
+                    : recommendedProduct.price;
 
             const discountPercentage =
                 Math.min(

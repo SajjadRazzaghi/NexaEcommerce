@@ -234,7 +234,7 @@ const inventoryFa = {
 
         createLocation:
             'ایجاد موقعیت',
-
+        cancel:'انصراف',
         locationRequired:
             'کد و نام موقعیت الزامی است.',
 

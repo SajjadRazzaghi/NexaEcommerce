@@ -234,7 +234,7 @@ const inventoryEn = {
 
         createLocation:
             'Create location',
-
+cancel:'Cancel',
         locationRequired:
             'Location code and name are required.',
 

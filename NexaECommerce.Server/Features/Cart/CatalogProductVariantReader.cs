@@ -84,10 +84,15 @@ public sealed class CatalogProductVariantReader(
                 0m,
                 100m);
 
+        var basePrice =
+     variant.PriceOverride > 0m
+         ? variant.PriceOverride
+         : variant.Product.Price;
+
         var price =
-            variant.PriceOverride -
+            basePrice -
             (
-                variant.PriceOverride *
+                basePrice *
                 discountPercentage /
                 100m
             );

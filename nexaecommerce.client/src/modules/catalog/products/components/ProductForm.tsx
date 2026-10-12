@@ -856,7 +856,25 @@ function toValues(
                     new Map<
                         string,
                         string
-                    >();
+                        >();
+                const duplicateCatalogAttributeIds = new Set<string>();
+
+                const combinationValuesByCode = new Map<string, string>();
+
+                for (const part of (variant.combinationKey ?? '').split('|')) {
+                    const separatorIndex = part.indexOf(':');
+
+                    if (separatorIndex <= 0) {
+                        continue;
+                    }
+
+                    const code = normalize(part.slice(0, separatorIndex));
+                    const valueId = part.slice(separatorIndex + 1).trim();
+
+                    if (code && valueId) {
+                        combinationValuesByCode.set(code, valueId);
+                    }
+                }
 
                 /*
                  * ==========================================================
@@ -1104,18 +1122,219 @@ function toValues(
                     /* 5. Store CatalogAttributeValue ID                       */
                     /* ------------------------------------------------------ */
 
+                    if (catalogValue?.id) {
+                        const existingValueId =
+                            resolvedAttributeValueIdsByAttributeId.get(
+                                catalogAttribute.id,
+                            );
+
+                        if (
+                            existingValueId &&
+                            existingValueId !== catalogValue.id
+                        ) {
+                            // بیش از یک مقدار برای یک ویژگی از API دریافت شده است.
+                            // مقدار صحیح را در مرحله بعد از CombinationKey بازیابی می‌کنیم.
+                            duplicateCatalogAttributeIds.add(
+                                catalogAttribute.id,
+                            );
+                        }
+
+                        if (!existingValueId) {
+                            resolvedAttributeValueIdsByAttributeId.set(
+                                catalogAttribute.id,
+                                catalogValue.id,
+                            );
+                        }
+                    }
+                }
+                /*
+ * Recover values from CombinationKey when:
+ * 1. The API returned no value for a variant attribute, or
+ * 2. The API returned conflicting values for the same attribute.
+ *
+ * CombinationKey contains Product-side AttributeValue IDs.
+ * The form must store CatalogAttributeValue IDs.
+ */
+                for (const productAttribute of productAttributes) {
+                    const catalogAttribute =
+                        (
+                            productAttribute.catalogAttributeId
+                                ? availableCatalogAttributes.find(
+                                    catalog =>
+                                        catalog.id ===
+                                        productAttribute.catalogAttributeId,
+                                )
+                                : undefined
+                        ) ??
+                        findCatalogAttributeByCode(
+                            productAttribute.code,
+                        );
+
                     if (
-                        catalogValue?.id &&
-                        !resolvedAttributeValueIdsByAttributeId.has(
-                            catalogAttribute.id,
-                        )
+                        !catalogAttribute ||
+                        !variantAttributeCatalogIds.has(catalogAttribute.id)
                     ) {
+                        continue;
+                    }
+
+                    const keyValueId =
+                        combinationValuesByCode.get(
+                            normalize(productAttribute.code),
+                        );
+
+                    if (!keyValueId) {
+                        continue;
+                    }
+
+                    const existingValueId =
+                        resolvedAttributeValueIdsByAttributeId.get(
+                            catalogAttribute.id,
+                        );
+
+                    const shouldRecover =
+                        !existingValueId ||
+                        duplicateCatalogAttributeIds.has(
+                            catalogAttribute.id,
+                        );
+
+                    if (!shouldRecover) {
+                        continue;
+                    }
+
+                    const productAttributeValue =
+                        productAttribute.values?.find(
+                            value => value.id === keyValueId,
+                        );
+
+                    if (!productAttributeValue) {
+                        continue;
+                    }
+
+                    const catalogValue = findCatalogValue(
+                        catalogAttribute,
+                        {
+                            catalogAttributeValueId:
+                                productAttributeValue.catalogAttributeValueId,
+                            value: productAttributeValue.value,
+                            displayValue: productAttributeValue.displayValue,
+                        },
+                    );
+
+                    if (catalogValue?.id) {
                         resolvedAttributeValueIdsByAttributeId.set(
                             catalogAttribute.id,
                             catalogValue.id,
                         );
+
+                        duplicateCatalogAttributeIds.delete(
+                            catalogAttribute.id,
+                        );
                     }
                 }
+         
+                /*
+                 * Recover variant values from CombinationKey even when
+                 * the API returns variant.attributes as an empty array.
+                 *
+                 * Example:
+                 * color:ProductAttributeValueId|size:ProductAttributeValueId
+                 */
+                if (variant.combinationKey) {
+                    const combinationValueIdsByCode =
+                        new Map<string, string>();
+
+                    for (
+                        const part of variant.combinationKey
+                            .split('|')
+                            .map(item => item.trim())
+                            .filter(Boolean)
+                    ) {
+                        const separatorIndex = part.indexOf(':');
+
+                        if (separatorIndex <= 0) {
+                            continue;
+                        }
+
+                        const code = normalize(
+                            part.slice(0, separatorIndex),
+                        );
+
+                        const valueId = part
+                            .slice(separatorIndex + 1)
+                            .trim();
+
+                        if (code && valueId) {
+                            combinationValueIdsByCode.set(
+                                code,
+                                valueId,
+                            );
+                        }
+                    }
+
+                    for (const productAttribute of productAttributes) {
+                        const catalogAttribute =
+                            (
+                                productAttribute.catalogAttributeId
+                                    ? availableCatalogAttributes.find(
+                                        item =>
+                                            item.id ===
+                                            productAttribute.catalogAttributeId,
+                                    )
+                                    : undefined
+                            ) ??
+                            findCatalogAttributeByCode(
+                                productAttribute.code,
+                            );
+
+                        if (
+                            !catalogAttribute ||
+                            !variantAttributeCatalogIds.has(
+                                catalogAttribute.id,
+                            ) ||
+                            resolvedAttributeValueIdsByAttributeId.has(
+                                catalogAttribute.id,
+                            )
+                        ) {
+                            continue;
+                        }
+
+                        const productValueId =
+                            combinationValueIdsByCode.get(
+                                normalize(productAttribute.code),
+                            );
+
+                        if (!productValueId) {
+                            continue;
+                        }
+
+                        const productAttributeValue =
+                            (productAttribute.values ?? []).find(
+                                value => value.id === productValueId,
+                            );
+
+                        if (!productAttributeValue) {
+                            continue;
+                        }
+
+                        const catalogValue = findCatalogValue(
+                            catalogAttribute,
+                            {
+                                catalogAttributeValueId:
+                                    productAttributeValue.catalogAttributeValueId,
+                                value: productAttributeValue.value,
+                                displayValue:
+                                    productAttributeValue.displayValue,
+                            },
+                        );
+
+                        if (catalogValue?.id) {
+                            resolvedAttributeValueIdsByAttributeId.set(
+                                catalogAttribute.id,
+                                catalogValue.id,
+                            );
+                        }
+                    }
+}
 
                 /*
                  * Remove duplicate IDs while preserving order.
@@ -1547,8 +1766,17 @@ function buildProductAttributePayload(
             continue;
         }
 
-        const roleValue =
+        const defaultRoleValue =
             catalogAttribute.defaultRole ??
+            (catalogAttribute.isFilterable ? 3 : 2);
+
+        // مشخصهٔ محصول نباید نقش VariantDefining داشته باشد.
+        // VariantDefining برابر بیت 4 است.
+        const roleWithoutVariantDefining =
+            defaultRoleValue & ~4;
+
+        const roleValue =
+            roleWithoutVariantDefining ||
             (catalogAttribute.isFilterable ? 3 : 2);
 
         let existing = result.get(catalogAttribute.id);
@@ -1958,24 +2186,6 @@ export function ProductForm(
         );
 
 
-    const selectedVariantValueIds =
-        useMemo(
-            () =>
-                new Set(
-                    activeVariantAttributes.flatMap(
-                        attribute =>
-                            attribute.values.map(
-                                value =>
-                                    value.id,
-                            ),
-                    ),
-                ),
-            [
-                activeVariantAttributes,
-            ],
-        );
-
-
     /* ---------------------------------------------------------------------- */
     /*                                 Reset                                  */
     /* ---------------------------------------------------------------------- */
@@ -2378,81 +2588,51 @@ const hasDuplicateVariantCombination =
 
 
 
+    const sanitizeVariantAttributeValueIds = (
+        valueIds: string[],
+        selectedAttributeIds: string[],
+    ): string[] => {
+        const candidateIds = Array.from(
+            new Set(
+                (valueIds ?? []).filter(Boolean),
+            ),
+        );
 
-    const sanitizeVariantAttributeValueIds =
-        (
-            valueIds:
-                string[],
-        ): string[] => {
-            if (
-                selectedVariantValueIds.size ===
-                0
-            ) {
-                return [];
+        const selectedIds = Array.from(
+            new Set(
+                (selectedAttributeIds ?? []).filter(Boolean),
+            ),
+        );
+
+        const result: string[] = [];
+
+        for (const attributeId of selectedIds) {
+            const attribute = variantAttributes.find(
+                item => item.id === attributeId,
+            );
+
+            if (!attribute) {
+                continue;
             }
 
-            const allowedIds =
-                Array.from(
-                    new Set(
-                        valueIds.filter(
-                            valueId =>
-                                selectedVariantValueIds.has(
-                                    valueId,
-                                ),
-                        ),
-                    ),
-                );
+            const attributeValueIds = new Set(
+                (attribute.values ?? []).map(
+                    value => value.id,
+                ),
+            );
 
-            /*
-             * A Variant may contain exactly ONE value
-             * from each VariantDefining attribute.
-             *
-             * Example:
-             *
-             * Size   -> Medium
-             * Color  -> Black
-             *
-             * It must never contain:
-             *
-             * Size -> Medium
-             * Size -> Small
-             */
-            const normalizedIds: string[] = [];
+            // از هر ویژگی انتخاب‌شده فقط یک مقدار نگه می‌داریم.
+            const selectedValueId = candidateIds.find(
+                valueId => attributeValueIds.has(valueId),
+            );
 
-            for (
-                const attribute
-                of activeVariantAttributes
-            ) {
-                const attributeValueIds =
-                    new Set(
-                        (
-                            attribute.values ??
-                            []
-                        ).map(
-                            value =>
-                                value.id,
-                        ),
-                    );
-
-                const selectedValueId =
-                    allowedIds.find(
-                        valueId =>
-                            attributeValueIds.has(
-                                valueId,
-                            ),
-                    );
-
-                if (
-                    selectedValueId
-                ) {
-                    normalizedIds.push(
-                        selectedValueId,
-                    );
-                }
+            if (selectedValueId) {
+                result.push(selectedValueId);
             }
+        }
 
-            return normalizedIds;
-        };
+        return Array.from(new Set(result));
+    };
     /* ---------------------------------------------------------------------- */
     /*                         Specification Helpers                          */
     /* ---------------------------------------------------------------------- */
@@ -3347,8 +3527,8 @@ const hasDuplicateVariantCombination =
 
                                     attributeValueIds:
                                         sanitizeVariantAttributeValueIds(
-                                            variant.attributeValueIds ??
-                                            [],
+                                            variant.attributeValueIds ?? [],
+                                            values.variantAttributeIds ?? [],
                                         ),
                                 }),
                             );
@@ -3485,8 +3665,8 @@ const hasDuplicateVariantCombination =
 
                                     attributeValueIds:
                                         sanitizeVariantAttributeValueIds(
-                                            variant.attributeValueIds ??
-                                            [],
+                                            variant.attributeValueIds ?? [],
+                                            values.variantAttributeIds ?? [],
                                         ),
                                 };
                             },

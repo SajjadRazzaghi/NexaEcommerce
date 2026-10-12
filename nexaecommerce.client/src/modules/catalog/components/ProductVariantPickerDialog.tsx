@@ -643,14 +643,12 @@ export default function ProductVariantPickerDialog({
                                         'nowrap',
                                 }}
                             >
-                                {selectedVariant.priceOverride !=
-                                    null
-                                    ? formatPrice(
-                                        selectedVariant.priceOverride,
-                                    )
-                                    : formatPrice(
-                                        product.finalPrice,
-                                    )}{' '}
+                                {formatPrice(
+                                    selectedVariant.priceOverride != null &&
+                                        selectedVariant.priceOverride > 0
+                                        ? selectedVariant.priceOverride
+                                        : product.finalPrice,
+                                )}{' '}
                                 {
                                     product.currency
                                 }

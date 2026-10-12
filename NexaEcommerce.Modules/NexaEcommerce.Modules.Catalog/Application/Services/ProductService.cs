@@ -210,37 +210,190 @@ public sealed class ProductService : IProductService
                 $"'{attributeName}' with data type '{dataType}'.");
         }
     }
-    public async Task<ProductDto?> GetByIdAsync(
-        Guid id,
-        CancellationToken cancellationToken = default)
+    private static void PopulateVariantAttributesFromCombinationKey(
+    Product sourceProduct,
+    ProductDto targetProduct)
     {
-        var product =
-            await _productRepository.GetByIdAsync(
-                id,
-                cancellationToken);
+        var variantAttributes = sourceProduct.Attributes
+            .Where(attribute =>
+                !attribute.IsDeleted &&
+                attribute.Role.HasFlag(
+                    AttributeRole.VariantDefining))
+            .ToList();
 
-        return product is null
-            ? null
-            : _mapper.Map<ProductDto>(product);
+        var sourceVariants = sourceProduct.Variants
+            .ToDictionary(variant => variant.Id);
+
+        foreach (var targetVariant in targetProduct.Variants)
+        {
+            if (!sourceVariants.TryGetValue(
+                    targetVariant.Id,
+                    out var sourceVariant))
+            {
+                continue;
+            }
+
+            targetVariant.Attributes ??=
+                new List<ProductVariantAttributeDto>();
+
+            // نگاشت‌های موجود را فقط در صورتی نگه می‌داریم
+            // که هنوز به ویژگی و مقدار فعلی و معتبر محصول تعلق داشته باشند.
+            targetVariant.Attributes =
+                targetVariant.Attributes
+                    .Where(mapped =>
+                        variantAttributes.Any(attribute =>
+                            attribute.Id == mapped.ProductAttributeId &&
+                            attribute.Values.Any(value =>
+                                !value.IsDeleted &&
+                                value.Id == mapped.AttributeValueId)))
+                    .ToList();
+
+            var resolvedAttributeIds = targetVariant.Attributes
+                .Select(attribute => attribute.ProductAttributeId)
+                .ToHashSet();
+
+            if (string.IsNullOrWhiteSpace(
+                    sourceVariant.CombinationKey))
+            {
+                continue;
+            }
+
+            var parts = sourceVariant.CombinationKey.Split(
+                '|',
+                StringSplitOptions.RemoveEmptyEntries |
+                StringSplitOptions.TrimEntries);
+
+            foreach (var part in parts)
+            {
+                var separatorIndex = part.IndexOf(':');
+
+                if (separatorIndex <= 0 ||
+                    separatorIndex == part.Length - 1)
+                {
+                    continue;
+                }
+
+                var attributeCode = part[..separatorIndex].Trim();
+                var valueIdText = part[(separatorIndex + 1)..].Trim();
+
+                if (!Guid.TryParse(valueIdText, out var valueId))
+                {
+                    continue;
+                }
+
+                // فقط ویژگی‌هایی قابل استفاده‌اند که در حال حاضر
+                // VariantDefining باشند؛ مثل سایز.
+                // ویژگی رنگ که اکنون Descriptive است، نادیده گرفته می‌شود.
+                var productAttribute = variantAttributes
+                    .FirstOrDefault(attribute =>
+                        string.Equals(
+                            attribute.Code?.Trim(),
+                            attributeCode,
+                            StringComparison.OrdinalIgnoreCase));
+
+                if (productAttribute is null ||
+                    resolvedAttributeIds.Contains(productAttribute.Id))
+                {
+                    continue;
+                }
+
+                var attributeValue = productAttribute.Values
+                    .FirstOrDefault(value =>
+                        !value.IsDeleted &&
+                        value.Id == valueId);
+
+                if (attributeValue is null)
+                {
+                    continue;
+                }
+
+                targetVariant.Attributes.Add(
+                    new ProductVariantAttributeDto
+                    {
+                        AttributeValueId = attributeValue.Id,
+                        ProductAttributeId = productAttribute.Id,
+                        CatalogAttributeId =
+                            productAttribute.CatalogAttributeId,
+                        CatalogAttributeValueId =
+                            attributeValue.CatalogAttributeValueId,
+                        AttributeCode = productAttribute.Code,
+                        AttributeName = productAttribute.Name,
+                        Role = productAttribute.Role.ToString(),
+                        RoleValue = (int)productAttribute.Role,
+                        Value = attributeValue.Value,
+                        DisplayValue = attributeValue.DisplayValue,
+                        ColorHex = attributeValue.ColorHex
+                    });
+
+                resolvedAttributeIds.Add(productAttribute.Id);
+            }
+        }
     }
+    public async Task<ProductDto?> GetByIdAsync(
+     Guid id,
+     CancellationToken cancellationToken = default)
+    {
+        var product = await _productRepository.GetByIdAsync(
+            id,
+            cancellationToken);
 
+        if (product is null)
+        {
+            return null;
+        }
+
+        var dto = _mapper.Map<ProductDto>(product);
+
+        PopulateVariantAttributesFromCombinationKey(
+            product,
+            dto);
+
+        return dto;
+    }
     public async Task<ProductDto?> GetBySlugAsync(
-        string slug,
-        CancellationToken cancellationToken = default)
+     string slug,
+     CancellationToken cancellationToken = default)
     {
         if (string.IsNullOrWhiteSpace(slug))
+        {
             return null;
+        }
 
-        var product =
-            await _productRepository.GetBySlugAsync(
-                slug,
-                cancellationToken);
+        var product = await _productRepository.GetBySlugAsync(
+            slug,
+            cancellationToken);
 
-        return product is null
-            ? null
-            : _mapper.Map<ProductDto>(product);
+        if (product is null)
+        {
+            return null;
+        }
+
+        var dto = _mapper.Map<ProductDto>(product);
+
+        PopulateVariantAttributesFromCombinationKey(
+            product,
+            dto);
+
+        return dto;
     }
+    private static decimal ResolveVariantPrice(
+    decimal? requestedPrice,
+    decimal productPrice)
+    {
+        if (requestedPrice.HasValue &&
+            requestedPrice.Value < 0m)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(requestedPrice),
+                "Variant price cannot be negative.");
+        }
 
+        // صفر یا null یعنی استفاده از قیمت اصلی محصول.
+        return requestedPrice.HasValue &&
+               requestedPrice.Value > 0m
+            ? requestedPrice.Value
+            : productPrice;
+    }
     public async Task<IEnumerable<ProductDto>> GetByCategoryAsync(
         Guid categoryId,
         CancellationToken cancellationToken = default)
@@ -391,13 +544,13 @@ public sealed class ProductService : IProductService
                     $"Duplicate variant combination detected for SKU '{sku}'.");
             }
 
-            var variant =
-     product.AddVariant(
-         sku,
-         variantDto.PriceOverride ??
-         product.Price,
-         0,
-         variantDto.ComparePrice);
+            var variant = product.AddVariant(
+      sku,
+      ResolveVariantPrice(
+          variantDto.PriceOverride,
+          product.Price),
+      0,
+      variantDto.ComparePrice);
 
             variant.SetBarcode(
                 variantDto.Barcode);
@@ -2060,13 +2213,13 @@ private async Task<Product> SynchronizeProductAttributesAsync(
 
             if (variant is null)
             {
-                var newVariant =
-                    product.AddVariant(
-                        sku,
-                        variantDto.PriceOverride ??
-                        product.Price,
-                        0,
-                        variantDto.ComparePrice);
+                var newVariant = product.AddVariant(
+     sku,
+     ResolveVariantPrice(
+         variantDto.PriceOverride,
+         product.Price),
+     0,
+     variantDto.ComparePrice);
 
                 newVariant.SetBarcode(
                     variantDto.Barcode);
@@ -2108,8 +2261,9 @@ private async Task<Product> SynchronizeProductAttributesAsync(
       sku);
 
             variant.ChangePrice(
-                variantDto.PriceOverride ??
-                product.Price);
+     ResolveVariantPrice(
+         variantDto.PriceOverride,
+         product.Price));
 
             variant.SetComparePrice(
                 variantDto.ComparePrice);
@@ -2153,16 +2307,7 @@ private async Task<Product> SynchronizeProductAttributesAsync(
              * Already Added mappings are detected and are not duplicated.
              * ------------------------------------------------------------
              */
-            await _productRepository.AddVariantAttributeMappingsAsync(
-                variant.Id,
-
-                attributeValues
-                    .Select(
-                        attributeValue =>
-                            attributeValue.Id)
-                    .ToArray(),
-
-                cancellationToken);
+           
 
             await _productRepository.ReplaceVariantImagesAsync(
                 variant.Id,
@@ -2213,8 +2358,7 @@ private async Task<Product> SynchronizeProductAttributesAsync(
             }
         }
 
-        ValidateVariantDefinitions(
-            product);
+       
     }
     private async Task EnrichStockQuantitiesAsync(
       ProductDto productDto,
