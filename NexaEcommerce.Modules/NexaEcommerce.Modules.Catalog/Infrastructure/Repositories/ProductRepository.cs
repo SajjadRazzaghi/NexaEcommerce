@@ -1588,7 +1588,7 @@ if (attributeValueIds is null ||
       IReadOnlyCollection<Guid> attributeValueIds,
       CancellationToken cancellationToken = default)
     {
-        if (variantId == Guid.Empty)
+        if(variantId == Guid.Empty)
         {
             throw new ArgumentException(
                 "Variant id is required.",
