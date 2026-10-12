@@ -1500,7 +1500,28 @@ var normalizedUrls =
 
 
 }
+    public async Task<IReadOnlyCollection<Guid>> GetExistingIdsAsync(
+    IReadOnlyCollection<Guid> ids,
+    CancellationToken cancellationToken = default)
+    {
+        var requestedIds = ids
+            .Where(id => id != Guid.Empty)
+            .Distinct()
+            .ToArray();
 
+        if (requestedIds.Length == 0)
+        {
+            return Array.Empty<Guid>();
+        }
+
+        return await _context.Products
+            .AsNoTracking()
+            .Where(product =>
+                requestedIds.Contains(product.Id) &&
+                !product.IsDeleted)
+            .Select(product => product.Id)
+            .ToListAsync(cancellationToken);
+    }
     public async Task DeleteVariantAttributeMappingsAsync(
     Guid variantId,
     IReadOnlyCollection<Guid> attributeValueIds,

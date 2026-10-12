@@ -1,4 +1,29 @@
 {
+  "categoryAttributesPanel": {
+    "title": "Category attributes",
+    "description": "Configure which product attributes are available in this category and how each attribute is used.",
+    "refresh": "Refresh",
+    "loading": "Loading attributes...",
+    "loadError": "Could not load category or catalog attributes. Check the API connection and your permissions.",
+    "retry": "Try again",
+    "noAttributes": "No catalog attributes exist yet. Create an attribute before configuring this category.",
+    "availableInCategory": "Available in category",
+    "roles": "Attribute roles",
+    "descriptive": "Descriptive",
+    "filterable": "Filterable",
+    "variantDefining": "Variant defining",
+    "required": "Required",
+    "displayOrder": "Display order",
+    "selectedCount": "{{count}} attribute(s) selected",
+    "saving": "Saving...",
+    "save": "Save category attributes",
+    "saveSuccess": "Category attributes saved successfully.",
+    "saveFailed": "Could not save category attributes.",
+    "roleRequired": "Select at least one role for \"{{name}}\".",
+    "editPageTitle": "Edit category: {{name}}",
+    "editPageDescription": "Update category information, attributes, SEO and publishing state.",
+    "backToDetails": "Back to category details"
+  },
   "catalogAttributes": {
     "title": "Catalog Attributes",
     "description": "Manage reusable product attributes used by filters and product variants.",
@@ -207,7 +232,7 @@
       "description": "Product pricing and discount settings"
     },
 
-    
+
     "images": {
       "title": "Images",
       "description": "Product images",
@@ -1326,7 +1351,7 @@
       "description": "Description",
       "categories": "Categories",
       "manufacturer": "Manufacturer"
-     
+
     },
 
     "orders": {

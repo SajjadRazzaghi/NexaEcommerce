@@ -703,6 +703,11 @@ public sealed class ProductService : IProductService
 
         product.SetManufacturer(
             createDto.ManufacturerId);
+        product.SetRecommendedProductIds(
+    await ValidateRecommendedProductIdsAsync(
+        createDto.RecommendedProductIds,
+        product.Id,
+        cancellationToken));
 
         // --------------------------------------------------------
         // Images
@@ -960,7 +965,14 @@ public sealed class ProductService : IProductService
 
         product.SetManufacturer(
             updateDto.ManufacturerId);
-
+        if (updateDto.RecommendedProductIds is not null)
+        {
+            product.SetRecommendedProductIds(
+                await ValidateRecommendedProductIdsAsync(
+                    updateDto.RecommendedProductIds,
+                    product.Id,
+                    cancellationToken));
+        }
         // ============================================================
         // Categories
         //
@@ -1115,7 +1127,61 @@ public sealed class ProductService : IProductService
     // ============================================================
     // Featured
     // ============================================================
+    private async Task<List<Guid>> ValidateRecommendedProductIdsAsync(
+    IEnumerable<Guid>? requestedIds,
+    Guid currentProductId,
+    CancellationToken cancellationToken)
+    {
+        var requested = (
+            requestedIds ?? Enumerable.Empty<Guid>()
+        ).ToList();
 
+        if (requested.Any(id => id == Guid.Empty))
+        {
+            throw new ArgumentException(
+                "Recommended product IDs cannot contain an empty ID.");
+        }
+
+        var ids = requested
+            .Distinct()
+            .ToList();
+
+        if (ids.Count > 12)
+        {
+            throw new ArgumentException(
+                "A product can have up to 12 recommended products.");
+        }
+
+        if (ids.Contains(currentProductId))
+        {
+            throw new ArgumentException(
+                "A product cannot recommend itself.");
+        }
+
+        if (ids.Count == 0)
+        {
+            return ids;
+        }
+
+        var existingIds =
+            await _productRepository.GetExistingIdsAsync(
+                ids,
+                cancellationToken);
+
+        var existingSet = existingIds.ToHashSet();
+
+        var missingIds = ids
+            .Where(id => !existingSet.Contains(id))
+            .ToArray();
+
+        if (missingIds.Length > 0)
+        {
+            throw new ArgumentException(
+                "One or more recommended products were not found.");
+        }
+
+        return ids;
+    }
     public async Task SetFeaturedAsync(
         Guid id,
         bool isFeatured,

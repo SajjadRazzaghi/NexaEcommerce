@@ -3,7 +3,9 @@ import {
     useMemo,
     useRef,
 } from 'react';
-
+import {
+    useAdminProducts,
+} from '../hooks';
 import {
     resolveMediaUrl,
 } from '@/lib/media-url';
@@ -280,6 +282,10 @@ const schema =
                     z.string(),
                 )
                 .default([]),
+        recommendedProductIds:
+            z
+                .array(z.string())
+                .default([]),
 
         isActive:
             z
@@ -385,7 +391,7 @@ type FormValues = {
     price: number;
     currency: string;
     comparePrice: number | null;
-
+    recommendedProductIds: string[];
     sku: string;
 
     brandId: string | null;
@@ -430,7 +436,7 @@ const emptyValues: FormValues = {
     slug: '',
     description: '',
     shortDescription: '',
-
+    recommendedProductIds: [],
     price: 0,
     currency: 'IRR',
     comparePrice: null,
@@ -1218,7 +1224,8 @@ function toValues(
         categoryIds:
             product.categoryIds ??
             [],
-
+        recommendedProductIds:
+            product.recommendedProductIds ?? [],
         isActive:
             product.isActive,
 
@@ -1713,7 +1720,28 @@ export function ProductForm(
         selectedCategoryIds,
         product?.id,
     );
+    const {
+        data: adminProductsData,
+        isLoading: adminProductsLoading,
+        isError: adminProductsError,
+    } = useAdminProducts({
+        page: 1,
+        pageSize: 100,
+    });
 
+    const recommendedProductIds =
+        form.watch('recommendedProductIds') ?? [];
+
+    const recommendedProductOptions = useMemo(
+        () =>
+            (adminProductsData?.items ?? []).filter(
+                item => item.id !== product?.id,
+            ),
+        [
+            adminProductsData?.items,
+            product?.id,
+        ],
+    );
     const attributes = useMemo<CatalogAttribute[]>(
         () =>
             (attributeDefinitions ?? []).map(
@@ -3386,7 +3414,8 @@ const hasDuplicateVariantCombination =
                                 values.shortDescription
                                     ?.trim() ||
                                 undefined,
-
+                            recommendedProductIds:
+                                values.recommendedProductIds,
                             brandId:
                                 values.brandId ||
                                 undefined,
@@ -3500,7 +3529,8 @@ const hasDuplicateVariantCombination =
 
                         categoryIds:
                             values.categoryIds,
-
+                        recommendedProductIds:
+                            values.recommendedProductIds,
                         attributes:
                             productAttributes,
 
@@ -5021,7 +5051,143 @@ const hasDuplicateVariantCombination =
                     </CardContent>
                 </Card>
 
+                {/* ============================================================ */}
+                {/* Recommended Products                                         */}
+                {/* ============================================================ */}
 
+                <Card>
+                    <CardHeader>
+                        <CardTitle>
+                            {t(
+                                'productEdit.recommendations.title',
+                                {
+                                    defaultValue:
+                                        'محصولات مکمل پیشنهادی',
+                                },
+                            )}
+                        </CardTitle>
+
+                        <CardDescription>
+                            {t(
+                                'productEdit.recommendations.description',
+                                {
+                                    defaultValue:
+                                        'محصولاتی را انتخاب کن که بعد از افزودن این محصول به سبد خرید پیشنهاد شوند.',
+                                },
+                            )}
+                        </CardDescription>
+                    </CardHeader>
+
+                    <CardContent className="space-y-3">
+                        {adminProductsLoading && (
+                            <p className="text-sm text-muted-foreground">
+                                در حال دریافت محصولات...
+                            </p>
+                        )}
+
+                        {adminProductsError && (
+                            <p className="text-sm text-destructive">
+                                دریافت محصولات ناموفق بود. صفحه را دوباره بارگذاری کن.
+                            </p>
+                        )}
+
+                        {!adminProductsLoading &&
+                            !adminProductsError &&
+                            recommendedProductOptions.length === 0 && (
+                                <p className="text-sm text-muted-foreground">
+                                    محصول دیگری برای انتخاب وجود ندارد.
+                                </p>
+                            )}
+
+                        <div className="grid gap-3 md:grid-cols-2">
+                            {recommendedProductOptions.map(item => {
+                                const checked =
+                                    recommendedProductIds.includes(item.id);
+
+                                const limitReached =
+                                    recommendedProductIds.length >= 12;
+
+                                return (
+                                    <label
+                                        key={item.id}
+                                        className="flex cursor-pointer items-center gap-3 rounded-lg border p-3"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={checked}
+                                            disabled={
+                                                pending ||
+                                                submitFlow.isPending ||
+                                                (!checked && limitReached)
+                                            }
+                                            onChange={event => {
+                                                const isChecked =
+                                                    event.target.checked;
+
+                                                const current =
+                                                    form.getValues(
+                                                        'recommendedProductIds',
+                                                    ) ?? [];
+
+                                                const next = isChecked
+                                                    ? Array.from(
+                                                        new Set([
+                                                            ...current,
+                                                            item.id,
+                                                        ]),
+                                                    )
+                                                    : current.filter(
+                                                        id => id !== item.id,
+                                                    );
+
+                                                form.setValue(
+                                                    'recommendedProductIds',
+                                                    next,
+                                                    {
+                                                        shouldDirty: true,
+                                                        shouldValidate: true,
+                                                    },
+                                                );
+                                            }}
+                                            className="size-4 shrink-0"
+                                        />
+
+                                        {item.mainImage && (
+                                            <img
+                                                src={resolveMediaUrl(
+                                                    item.mainImage,
+                                                )}
+                                                alt={item.name}
+                                                className="size-16 rounded-md object-cover"
+                                            />
+                                        )}
+
+                                        <span className="min-w-0 flex-1">
+                                            <span className="block font-semibold">
+                                                {item.name}
+                                            </span>
+
+                                            <span className="block text-sm text-muted-foreground">
+                                                {item.sku}
+                                            </span>
+
+                                            <span className="block text-sm font-medium">
+                                                {item.finalPrice.toLocaleString(
+                                                    'fa-IR',
+                                                )}{' '}
+                                                {item.currency}
+                                            </span>
+                                        </span>
+                                    </label>
+                                );
+                            })}
+                        </div>
+
+                        <p className="text-sm text-muted-foreground">
+                            حداکثر ۱۲ محصول قابل انتخاب است. قیمت و موجودی هر محصول مستقل باقی می‌ماند.
+                        </p>
+                    </CardContent>
+                </Card>
                 {/* ============================================================ */}
                 {/* Publication                                                    */}
                 {/* ============================================================ */}

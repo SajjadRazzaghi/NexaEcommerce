@@ -1,7 +1,7 @@
 // src/modules/catalog/categories/pages/CategoryEditPage.tsx
 import { useNavigate, useParams } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
-
+import { useTranslation } from 'react-i18next';
 import { PageHeader, ErrorState, LoadingSkeleton } from '@/components/data-states';
 import { Button } from '@/components/ui/button';
 import { CategoryForm } from '../components/CategoryForm';
@@ -18,18 +18,32 @@ export default function CategoryEditPage() {
 
     if (query.isLoading) return <LoadingSkeleton variant="cards" rows={4} />;
     if (query.isError || !query.data) return <ErrorState error={query.error} onRetry={() => query.refetch()} message="بارگذاری دسته‌بندی با خطا مواجه شد." />;
+    const { t } = useTranslation();
 
+    useDocumentTitle(
+        query.data?.name
+            ? t('categoryAttributesPanel.editPageTitle', {
+                name: query.data.name,
+            })
+            : t('catalogCategories.detailsTitle'),
+    );
     // حذف خود دسته‌بندی از لیست والدها (برای جلوگیری از انتخاب خودش)
     const parentCategories = (categories || []).filter(c => c.id !== id);
 
     return (
         <div className="space-y-6">
             <PageHeader
-                title={`ویرایش ${query.data.name}`}
-                description="به‌روزرسانی اطلاعات دسته‌بندی."
+                title={t('categoryAttributesPanel.editPageTitle', {
+                    name: query.data.name,
+                })}
+                description={t('categoryAttributesPanel.editPageDescription')}
                 actions={
-                    <Button variant="outline" onClick={() => navigate(`/admin/categories/${id}`)}>
-                        <ArrowLeft /> بازگشت
+                    <Button
+                        variant="outline"
+                        onClick={() => navigate(`/admin/categories/${id}`)}
+                    >
+                        <ArrowLeft />
+                        {t('categoryAttributesPanel.backToDetails')}
                     </Button>
                 }
             />

@@ -10,6 +10,7 @@ public sealed class ProductAttributeDto
     public int RoleValue { get; set; }
     public bool IsRequired { get; set; }
     public int DisplayOrder { get; set; }
+    
     public List<ProductAttributeValueDto> Values { get; set; } = new();
 }
 
@@ -129,6 +130,7 @@ public sealed class ProductDto
     public List<ProductImageDto> Images { get; set; } = new();
     public List<string> Categories { get; set; } = new();
     public List<Guid> CategoryIds { get; set; } = new();
+    public List<Guid> RecommendedProductIds { get; set; } = new();
     public List<ProductVariantDto> Variants { get; set; } = new();
 
     public List<ProductAttributeDto> Attributes { get; set; } = new();

@@ -670,6 +670,10 @@ namespace NexaEcommerce.Modules.Catalog.Migrations.Catalog
                         .HasPrecision(18, 2)
                         .HasColumnType("decimal(18,2)");
 
+                    b.Property<string>("RecommendedProductIds")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
                     b.Property<string>("ShortDescription")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");

@@ -31,6 +31,6 @@ public sealed class UpdateProductDto
     public bool IsPublished { get; set; }
 
     public List<ProductAttributeInputDto> Attributes { get; set; } = new();
-
+    public List<Guid>? RecommendedProductIds { get; set; }
     public List<UpdateProductVariantDto> Variants { get; set; } = new();
 }

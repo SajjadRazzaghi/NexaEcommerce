@@ -20,7 +20,9 @@ public interface IProductRepository
     Task<Product?> GetBySlugAsync(
     string slug,
     CancellationToken cancellationToken = default);
-
+    Task<IReadOnlyCollection<Guid>> GetExistingIdsAsync(
+    IReadOnlyCollection<Guid> ids,
+    CancellationToken cancellationToken = default);
     Task<bool> ExistsBySkuAsync(
         string sku,
         Guid? excludeId = null,

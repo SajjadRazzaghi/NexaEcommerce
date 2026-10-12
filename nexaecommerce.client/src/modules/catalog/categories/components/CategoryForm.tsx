@@ -9,7 +9,8 @@ import {
     Loader2,
     Save,
 } from 'lucide-react';
-
+import CategoryAttributesManager from
+    './CategoryAttributesManager';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -947,7 +948,15 @@ export function CategoryForm({
                         )}
                     </CardContent>
                 </Card>
+                {/* =================================================
+    Category Attributes
+================================================= */}
 
+                {mode === 'edit' && category?.id && (
+                    <CategoryAttributesManager
+                        categoryId={category.id}
+                    />
+                )}
                 {/* =================================================
                     Actions
                 ================================================= */}

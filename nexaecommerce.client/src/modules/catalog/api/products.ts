@@ -133,7 +133,7 @@ export type Product = {
     name: string;
     sku: string;
     slug: string;
-
+    recommendedProductIds?: string[];
     description?: string | null;
     shortDescription?: string | null;
 
@@ -255,7 +255,7 @@ export type CreateProductDto = {
 
     currency?: string;
     sku?: string;
-
+    recommendedProductIds?: string[];
     description?: string;
     shortDescription?: string;
 
@@ -294,7 +294,7 @@ export type UpdateProductDto = {
 
     description?: string;
     shortDescription?: string;
-
+    recommendedProductIds?: string[];
     comparePrice?: number | null;
     discountPercentage?: number | null;
 
@@ -348,6 +348,12 @@ export const productsApi = {
     ) =>
         api.get<Product>(
             `/products/${id}`,
+        ),
+    getRecommendations: (
+        id: string,
+    ) =>
+        api.get<Product[]>(
+            `/products/${id}/recommendations`,
         ),
 
     getBySlug: (

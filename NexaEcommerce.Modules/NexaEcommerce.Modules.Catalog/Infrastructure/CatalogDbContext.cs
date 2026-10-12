@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
-
+using Microsoft.EntityFrameworkCore.ChangeTracking;
+using System.Text.Json;
 using NexaEcommerce.Modules.Catalog.Domain.Entities;
 using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
 
@@ -222,7 +223,26 @@ public sealed class CatalogDbContext : DbContext
             entity.Property(x => x.Currency)
                 .IsRequired()
                 .HasMaxLength(3);
+            var recommendedProductIds =
+    entity.Property(x => x.RecommendedProductIds)
+        .HasConversion(
+            ids => JsonSerializer.Serialize(ids),
+            json =>
+                JsonSerializer.Deserialize<List<Guid>>(json)
+                ?? new List<Guid>())
+        .IsRequired();
 
+            recommendedProductIds.Metadata.SetValueComparer(
+                new ValueComparer<List<Guid>>(
+                    (left, right) =>
+                        left.SequenceEqual(right),
+
+                    value =>
+                        value.Aggregate(
+                            0,
+                            (hash, id) => HashCode.Combine(hash, id)),
+
+                    value => value.ToList()));
             // -------------------------------------------------
             // Status
             // -------------------------------------------------

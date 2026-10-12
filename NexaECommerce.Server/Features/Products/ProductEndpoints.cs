@@ -42,8 +42,13 @@ public sealed class ProductEndpoints : IFeatureEndpoints
             .AllowAnonymous();
 
         group.MapGet(
-                "/slug/{slug}",
-                GetBySlug)
+           "/slug/{slug}",
+           GetBySlug)
+       .AllowAnonymous();
+
+        group.MapGet(
+                "/{id:guid}/recommendations",
+                GetRecommendations)
             .AllowAnonymous();
 
         group.MapGet(
@@ -126,7 +131,67 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         return Results.Ok(
             product);
     }
+    private static async Task<IResult> GetRecommendations(
+    Guid id,
+    [FromServices] IProductService productService,
+    [FromServices] IStockReader stockReader,
+    [FromServices] ICurrentTenant currentTenant,
+    CancellationToken ct)
+    {
+        var sourceProduct =
+            await productService.GetByIdAsync(id, ct);
 
+        if (sourceProduct is null ||
+            !sourceProduct.IsActive ||
+            !sourceProduct.IsPublished)
+        {
+            return Results.NotFound(
+                new
+                {
+                    error = "Product not found."
+                });
+        }
+
+        var recommendations = new List<ProductDto>();
+
+        foreach (var recommendedId in
+                 sourceProduct.RecommendedProductIds
+                     .Distinct()
+                     .Take(12))
+        {
+            if (recommendedId == id)
+            {
+                continue;
+            }
+
+            var recommendedProduct =
+                await productService.GetByIdAsync(
+                    recommendedId,
+                    ct);
+
+            if (recommendedProduct is null ||
+                !recommendedProduct.IsActive ||
+                !recommendedProduct.IsPublished)
+            {
+                continue;
+            }
+
+            await ApplyLiveStockAsync(
+                recommendedProduct,
+                stockReader,
+                currentTenant.Id,
+                ct);
+
+            if (!recommendedProduct.IsInStock)
+            {
+                continue;
+            }
+
+            recommendations.Add(recommendedProduct);
+        }
+
+        return Results.Ok(recommendations);
+    }
     private static async Task<IResult> List(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,

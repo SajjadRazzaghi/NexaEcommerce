@@ -62,11 +62,45 @@ public class Product : AggregateRoot
     {
         ManufacturerId = manufacturerId;
     }
+    public void SetRecommendedProductIds(
+    IEnumerable<Guid>? productIds)
+    {
+        var ids = (
+            productIds ?? Enumerable.Empty<Guid>()
+        ).ToList();
 
+        if (ids.Any(id => id == Guid.Empty))
+        {
+            throw new ArgumentException(
+                "Recommended product IDs cannot contain an empty ID.",
+                nameof(productIds));
+        }
+
+        ids = ids
+            .Distinct()
+            .ToList();
+
+        if (ids.Count > 12)
+        {
+            throw new ArgumentException(
+                "A product can have up to 12 recommended products.",
+                nameof(productIds));
+        }
+
+        if (ids.Contains(Id))
+        {
+            throw new ArgumentException(
+                "A product cannot recommend itself.",
+                nameof(productIds));
+        }
+
+        RecommendedProductIds = ids;
+        UpdatedAt = DateTime.UtcNow;
+    }
     // =========================================================
     // Relations
     // =========================================================
-
+    public List<Guid> RecommendedProductIds { get; private set; } = new();
     public ICollection<ProductCategory> ProductCategories
     {
         get;

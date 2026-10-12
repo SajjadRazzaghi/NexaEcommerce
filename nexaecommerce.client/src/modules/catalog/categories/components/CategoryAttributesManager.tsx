@@ -6,7 +6,7 @@ import {
     useQueryClient,
 } from '@tanstack/react-query';
 import { Save, RefreshCw } from 'lucide-react';
-
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -112,6 +112,8 @@ function getRoleFlags(role: number): AttributeRoleFlags {
 export default function CategoryAttributesManager({
     categoryId,
 }: CategoryAttributesManagerProps) {
+    const { t } = useTranslation();
+
     const queryClient = useQueryClient();
 
     const [rows, setRows] = useState<AttributeRow[]>([]);
@@ -238,7 +240,9 @@ export default function CategoryAttributesManager({
         },
 
         onSuccess: async () => {
-            setMessage('Category attributes saved successfully.');
+            setMessage(
+                t('categoryAttributesPanel.saveSuccess'),
+            );
 
             await queryClient.invalidateQueries({
                 queryKey: [
@@ -252,11 +256,9 @@ export default function CategoryAttributesManager({
             });
         },
 
-        onError: error => {
+        onError: () => {
             setMessage(
-                error instanceof Error
-                    ? error.message
-                    : 'Could not save category attributes.',
+                t('categoryAttributesPanel.saveFailed'),
             );
         },
     });
@@ -321,13 +323,11 @@ export default function CategoryAttributesManager({
                 <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                         <CardTitle>
-                            Category Attributes
+                            {t('categoryAttributesPanel.title')}
                         </CardTitle>
 
                         <CardDescription>
-                            Configure which product attributes are
-                            available in this category, and how
-                            each attribute is used.
+                            {t('categoryAttributesPanel.description')}
                         </CardDescription>
                     </div>
 
@@ -338,228 +338,264 @@ export default function CategoryAttributesManager({
                         onClick={handleRefresh}
                     >
                         <RefreshCw className="mr-2 size-4" />
-                        Refresh
+
+                        {t('categoryAttributesPanel.refresh')}
                     </Button>
                 </div>
             </CardHeader>
 
             <CardContent className="space-y-4">
+                {/* Loading */}
                 {loading && (
                     <p className="text-muted-foreground text-sm">
-                        Loading attributes...
+                        {t('categoryAttributesPanel.loading')}
                     </p>
                 )}
 
+                {/* Error */}
                 {failed && (
                     <div className="space-y-3 rounded-md border border-destructive/40 p-4">
                         <p className="text-sm text-destructive">
-                            Could not load category or catalog
-                            attributes. Check the API connection
-                            and your permissions.
+                            {t('categoryAttributesPanel.loadError')}
                         </p>
 
                         <Button
                             type="button"
                             variant="outline"
+                            disabled={loading}
                             onClick={handleRefresh}
                         >
-                            Try again
+                            <RefreshCw className="mr-2 size-4" />
+
+                            {t('categoryAttributesPanel.retry')}
                         </Button>
                     </div>
                 )}
 
-                {!loading &&
-                    !failed &&
-                    rows.length === 0 && (
-                        <p className="text-muted-foreground text-sm">
-                            No catalog attributes exist yet.
-                            Create attributes before configuring
-                            this category.
-                        </p>
-                    )}
+                {/* Empty state */}
+                {!loading && !failed && rows.length === 0 && (
+                    <p className="text-muted-foreground text-sm">
+                        {t('categoryAttributesPanel.noAttributes')}
+                    </p>
+                )}
 
-                {!loading &&
-                    !failed &&
-                    rows.length > 0 && (
-                        <div className="space-y-4">
-                            {rows.map(row => {
-                                const flags =
-                                    getRoleFlags(row.role);
+                {/* Attributes */}
+                {!loading && !failed && rows.length > 0 && (
+                    <div className="space-y-4">
+                        {rows.map(row => {
+                            const flags = getRoleFlags(row.role);
 
-                                return (
-                                    <div
-                                        key={row.catalogAttributeId}
-                                        className="space-y-4 rounded-lg border p-4"
+                            return (
+                                <div
+                                    key={row.catalogAttributeId}
+                                    className="space-y-4 rounded-lg border p-4"
+                                >
+                                    {/* Attribute information */}
+                                    <div className="flex flex-wrap items-start justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <p className="font-medium">
+                                                {row.name}
+                                            </p>
+
+                                            <p className="text-muted-foreground text-sm">
+                                                {row.code}
+                                            </p>
+                                        </div>
+
+                                        <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                            <input
+                                                type="checkbox"
+                                                checked={row.isSelected}
+                                                onChange={event =>
+                                                    updateRow(
+                                                        row.catalogAttributeId,
+                                                        {
+                                                            isSelected:
+                                                                event.target.checked,
+                                                        },
+                                                    )
+                                                }
+                                            />
+
+                                            {t(
+                                                'categoryAttributesPanel.availableInCategory',
+                                            )}
+                                        </label>
+                                    </div>
+
+                                    {/* Attribute roles */}
+                                    <fieldset
+                                        disabled={!row.isSelected}
+                                        className="space-y-3"
                                     >
-                                        <div className="flex flex-wrap items-start justify-between gap-4">
-                                            <div className="min-w-0">
-                                                <p className="font-medium">
-                                                    {row.name}
-                                                </p>
+                                        <legend className="mb-2 text-sm font-medium">
+                                            {t(
+                                                'categoryAttributesPanel.roles',
+                                            )}
+                                        </legend>
 
-                                                <p className="text-muted-foreground text-sm">
-                                                    {row.code}
-                                                </p>
-                                            </div>
-
+                                        <div className="flex flex-wrap gap-x-6 gap-y-3">
+                                            {/* Descriptive */}
                                             <label className="flex cursor-pointer items-center gap-2 text-sm">
                                                 <input
                                                     type="checkbox"
-                                                    checked={row.isSelected}
+                                                    checked={flags.descriptive}
+                                                    onChange={event =>
+                                                        toggleRole(
+                                                            row,
+                                                            ROLE_DESCRIPTIVE,
+                                                            event.target.checked,
+                                                        )
+                                                    }
+                                                />
+
+                                                {t(
+                                                    'categoryAttributesPanel.descriptive',
+                                                )}
+                                            </label>
+
+                                            {/* Filterable */}
+                                            <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={flags.filterable}
+                                                    onChange={event =>
+                                                        toggleRole(
+                                                            row,
+                                                            ROLE_FILTERABLE,
+                                                            event.target.checked,
+                                                        )
+                                                    }
+                                                />
+
+                                                {t(
+                                                    'categoryAttributesPanel.filterable',
+                                                )}
+                                            </label>
+
+                                            {/* Variant defining */}
+                                            <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={flags.variantDefining}
+                                                    onChange={event =>
+                                                        toggleRole(
+                                                            row,
+                                                            ROLE_VARIANT_DEFINING,
+                                                            event.target.checked,
+                                                        )
+                                                    }
+                                                />
+
+                                                {t(
+                                                    'categoryAttributesPanel.variantDefining',
+                                                )}
+                                            </label>
+                                        </div>
+
+                                        {/* Required and display order */}
+                                        <div className="flex flex-wrap items-center gap-5 border-t pt-3">
+                                            <label className="flex cursor-pointer items-center gap-2 text-sm">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={row.isRequired}
                                                     onChange={event =>
                                                         updateRow(
                                                             row.catalogAttributeId,
                                                             {
-                                                                isSelected:
+                                                                isRequired:
                                                                     event.target.checked,
                                                             },
                                                         )
                                                     }
                                                 />
 
-                                                Available in category
+                                                {t(
+                                                    'categoryAttributesPanel.required',
+                                                )}
+                                            </label>
+
+                                            <label className="flex items-center gap-2 text-sm">
+                                                {t(
+                                                    'categoryAttributesPanel.displayOrder',
+                                                )}
+
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    className="border-input bg-background h-9 w-24 rounded-md border px-2"
+                                                    value={row.displayOrder}
+                                                    onChange={event => {
+                                                        const parsed =
+                                                            Number(
+                                                                event.target.value,
+                                                            );
+
+                                                        updateRow(
+                                                            row.catalogAttributeId,
+                                                            {
+                                                                displayOrder:
+                                                                    Number.isFinite(
+                                                                        parsed,
+                                                                    )
+                                                                        ? Math.max(
+                                                                            0,
+                                                                            Math.trunc(
+                                                                                parsed,
+                                                                            ),
+                                                                        )
+                                                                        : 0,
+                                                            },
+                                                        );
+                                                    }}
+                                                />
                                             </label>
                                         </div>
+                                    </fieldset>
+                                </div>
+                            );
+                        })}
 
-                                        <fieldset
-                                            disabled={!row.isSelected}
-                                            className="space-y-3"
-                                        >
-                                            <legend className="mb-2 text-sm font-medium">
-                                                Attribute roles
-                                            </legend>
+                        {/* Footer and save */}
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
+                            <p className="text-muted-foreground text-sm">
+                                {t(
+                                    'categoryAttributesPanel.selectedCount',
+                                    {
+                                        count: rows.filter(
+                                            row => row.isSelected,
+                                        ).length,
+                                    },
+                                )}
+                            </p>
 
-                                            <div className="flex flex-wrap gap-x-6 gap-y-3">
-                                                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={flags.descriptive}
-                                                        onChange={event =>
-                                                            toggleRole(
-                                                                row,
-                                                                ROLE_DESCRIPTIVE,
-                                                                event.target.checked,
-                                                            )
-                                                        }
-                                                    />
+                            <Button
+                                type="button"
+                                disabled={
+                                    loading ||
+                                    saveMutation.isPending
+                                }
+                                onClick={() => saveMutation.mutate()}
+                            >
+                                <Save className="mr-2 size-4" />
 
-                                                    Descriptive
-                                                </label>
-
-                                                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={flags.filterable}
-                                                        onChange={event =>
-                                                            toggleRole(
-                                                                row,
-                                                                ROLE_FILTERABLE,
-                                                                event.target.checked,
-                                                            )
-                                                        }
-                                                    />
-
-                                                    Filterable
-                                                </label>
-
-                                                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={flags.variantDefining}
-                                                        onChange={event =>
-                                                            toggleRole(
-                                                                row,
-                                                                ROLE_VARIANT_DEFINING,
-                                                                event.target.checked,
-                                                            )
-                                                        }
-                                                    />
-
-                                                    Variant defining
-                                                </label>
-                                            </div>
-
-                                            <div className="flex flex-wrap items-center gap-5 border-t pt-3">
-                                                <label className="flex cursor-pointer items-center gap-2 text-sm">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={row.isRequired}
-                                                        onChange={event =>
-                                                            updateRow(
-                                                                row.catalogAttributeId,
-                                                                {
-                                                                    isRequired:
-                                                                        event.target.checked,
-                                                                },
-                                                            )
-                                                        }
-                                                    />
-
-                                                    Required
-                                                </label>
-
-                                                <label className="flex items-center gap-2 text-sm">
-                                                    Display order
-
-                                                    <input
-                                                        type="number"
-                                                        min={0}
-                                                        className="border-input bg-background h-9 w-24 rounded-md border px-2"
-                                                        value={row.displayOrder}
-                                                        onChange={event => {
-                                                            const parsed =
-                                                                Number(event.target.value);
-
-                                                            updateRow(
-                                                                row.catalogAttributeId,
-                                                                {
-                                                                    displayOrder:
-                                                                        Number.isFinite(parsed)
-                                                                            ? Math.max(
-                                                                                0,
-                                                                                Math.trunc(parsed),
-                                                                            )
-                                                                            : 0,
-                                                                },
-                                                            );
-                                                        }}
-                                                    />
-                                                </label>
-                                            </div>
-                                        </fieldset>
-                                    </div>
-                                );
-                            })}
-
-                            <div className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-                                <p className="text-muted-foreground text-sm">
-                                    {rows.filter(row => row.isSelected).length}
-                                    {' '}attribute(s) selected
-                                </p>
-
-                                <Button
-                                    type="button"
-                                    disabled={
-                                        loading ||
-                                        saveMutation.isPending
-                                    }
-                                    onClick={() =>
-                                        saveMutation.mutate()
-                                    }
-                                >
-                                    <Save className="mr-2 size-4" />
-
-                                    {saveMutation.isPending
-                                        ? 'Saving...'
-                                        : 'Save category attributes'}
-                                </Button>
-                            </div>
+                                {saveMutation.isPending
+                                    ? t(
+                                        'categoryAttributesPanel.saving',
+                                    )
+                                    : t(
+                                        'categoryAttributesPanel.save',
+                                    )}
+                            </Button>
                         </div>
-                    )}
+                    </div>
+                )}
 
+                {/* Success and error messages */}
                 {message && (
                     <p
                         role="status"
+                        aria-live="polite"
                         className="text-sm"
                     >
                         {message}

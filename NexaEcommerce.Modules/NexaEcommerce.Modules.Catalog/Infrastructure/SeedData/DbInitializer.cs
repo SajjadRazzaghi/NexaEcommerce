@@ -5,18 +5,52 @@ namespace NexaEcommerce.Modules.Catalog.Infrastructure.SeedData;
 
 public static class DbInitializer
 {
-    public static async Task InitializeAsync(
-        CatalogDbContext context)
+    public static async Task InitializeDisplayTypesAsync(
+    CatalogDbContext context)
     {
-        // =====================================================
-        // Apply migrations
-        // =====================================================
+        var existingCodes = await context.CatalogAttributeDisplayTypes
+            .Select(x => x.Code)
+            .ToListAsync();
 
-        await context.Database.MigrateAsync();
-        // =====================================================
-        // CATALOG ATTRIBUTE DISPLAY TYPES
-        // =====================================================
+        var changed = false;
 
+        if (!existingCodes.Contains("select"))
+        {
+            await context.CatalogAttributeDisplayTypes.AddAsync(
+                new CatalogAttributeDisplayType(
+                    "select",
+                    "Standard Select",
+                    "انتخاب معمولی",
+                    0));
+
+            changed = true;
+        }
+
+        if (!existingCodes.Contains("color"))
+        {
+            await context.CatalogAttributeDisplayTypes.AddAsync(
+                new CatalogAttributeDisplayType(
+                    "color",
+                    "Color Swatch",
+                    "نمایش رنگی",
+                    1));
+
+            changed = true;
+        }
+
+        if (changed)
+        {
+            await context.SaveChangesAsync();
+        }
+    }
+    public static async Task InitializeAsync(
+    CatalogDbContext context)
+    {
+        // فقط وقتی دیتابیس محصولی ندارد، اطلاعات اولیه را درج کن.
+        if (await context.Products.AnyAsync())
+            return;
+
+        // انواع نمایش ویژگی‌ها
         if (!await context.CatalogAttributeDisplayTypes.AnyAsync())
         {
             await context.CatalogAttributeDisplayTypes.AddRangeAsync(
@@ -34,6 +68,8 @@ public static class DbInitializer
 
             await context.SaveChangesAsync();
         }
+
+       
 
         // =====================================================
         // Prevent duplicate seed
