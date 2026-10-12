@@ -1,4 +1,10 @@
 {
+  "orderDetails": {
+    "items": "Order items",
+    "itemsDescription": "Review the products and selected options for this order.",
+    "sku": "SKU",
+    "quantity": "Quantity"
+  },
   "categoryAttributesPanel": {
     "title": "Category attributes",
     "description": "Configure which product attributes are available in this category and how each attribute is used.",
@@ -386,7 +392,8 @@
     "cancel": "Cancel",
     "confirm": "Confirm",
     "search": "Search",
-    "sections": "Sections"
+    "sections": "Sections",
+    "save": "Save"
   },
 
   "roles": {
@@ -683,6 +690,15 @@
       "unauthorized": "External sign-in was not authorized."
     },
 
+    "brand": {
+      "storeName": "Patlet Clothing Gallery",
+      "tagline": "Comfort and style, from pregnancy to motherhood",
+      "subtitle": "Discover maternity wear, hospital delivery sets, and comfortable clothing at Patlet Gallery.",
+      "feature1": "Comfortable styles for pregnancy and postpartum",
+      "feature2": "Choose the right style, color, and size",
+      "feature3": "A simple and reassuring online shopping experience",
+      "copyright": "© {{year}} {{storeName}}"
+    },
     "login": {
       "title": "Sign in",
       "subtitle": "Sign in to continue to your account.",
@@ -1397,6 +1413,7 @@
     "checkout": {
       "default": "Default",
       "cartError": "Your shopping cart could not be loaded.",
+      "cartErrorDescription": "Please try again before continuing to checkout.",
       "emptyCart": "Your shopping cart is empty.",
       "backToCart": "Back to cart",
       "shippingError": "Shipping methods could not be loaded.",
@@ -1473,7 +1490,25 @@
       "missingReference": "The payment gateway did not return a payment reference.",
       "startError": "Unable to start the payment. Please try again.",
       "verifyError": "Payment verification failed.",
-      "completeError": "Payment verification succeeded, but the order could not be completed."
+      "completeError": "Payment verification succeeded, but the order could not be completed.",
+      "inventoryUnavailable": "The payment could not be completed because the inventory reservation was unavailable. Please check the order before trying to pay again.",
+      "orderExpired": "This order has expired because it no longer has an active inventory reservation.",
+      "completionFailed": "The payment callback was received, but the order could not be completed safely. Please check the order status before trying again.",
+      "items": "Order items",
+      "itemsHint": "Review the products and selected options for this order.",
+      "quantity": "Quantity"
     }
+  },
+  "cartUpsell": {
+    "title": "Added to your cart",
+    "subtitle": "You may also like these complementary products.",
+    "recommendations": "Recommended add-ons",
+    "selectVariant": "Choose an option",
+    "addToCart": "Add to cart",
+    "adding": "Adding…",
+    "continueShopping": "Continue shopping",
+    "viewCart": "View cart",
+    "addFailed": "Could not add this recommendation to your cart.",
+    "loading": "Loading recommendations…"
   }
 }

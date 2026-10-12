@@ -227,13 +227,11 @@ export default function PaymentPage() {
                         result.status,
                 });
             }
-            catch (err: any) {
+            catch {
                 setError(
-                    err?.response?.data?.error ??
-                    err?.message ??
                     getText(
-                        'storefront.payment.failedDescription',
-                        'We could not start the payment.',
+                        'storefront.payment.startError',
+                        'Unable to start the payment. Please try again.',
                     ),
                 );
             }
@@ -282,14 +280,12 @@ export default function PaymentPage() {
                                     },
 
                                 onError:
-                                    mutationError => {
+                                    () => {
                                         setError(
-                                            mutationError instanceof Error
-                                                ? mutationError.message
-                                                : getText(
-                                                    'storefront.payment.completeError',
-                                                    'Payment verification succeeded, but the order could not be completed.',
-                                                ),
+                                            getText(
+                                                'storefront.payment.completeError',
+                                                'Payment verification succeeded, but the order could not be completed.',
+                                            ),
                                         );
                                     },
                             },
@@ -297,14 +293,12 @@ export default function PaymentPage() {
                     },
 
                 onError:
-                    mutationError => {
+                    () => {
                         setError(
-                            mutationError instanceof Error
-                                ? mutationError.message
-                                : getText(
-                                    'storefront.payment.verifyError',
-                                    'Payment verification failed.',
-                                ),
+                            getText(
+                                'storefront.payment.completeError',
+                                'Payment verification succeeded, but the order could not be completed.',
+                            ),
                         );
                     },
             },

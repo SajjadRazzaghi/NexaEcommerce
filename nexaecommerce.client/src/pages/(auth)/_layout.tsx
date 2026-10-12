@@ -50,10 +50,8 @@ import {
     appearanceApi,
 } from '@/lib/api/appearance';
 
-const DEFAULT_STORE_NAME =
-    'NexaECommerce';
-
 export default function AuthLayout() {
+    const { t } = useTranslation();
     const {
         isAuthenticated,
         isLoading,
@@ -105,10 +103,10 @@ export default function AuthLayout() {
             />
         );
     }
-
+    
     const storeName =
         appearance?.storeName?.trim() ||
-        DEFAULT_STORE_NAME;
+        t('auth.brand.storeName');
 
     const logoUrl =
         appearance?.logoUrl?.trim() ||
@@ -232,9 +230,13 @@ function BrandPanel({
             </div>
 
             <p className="relative text-xs text-slate-500">
-                ©{' '}
-                {new Date().getFullYear()}{' '}
-                {storeName}
+                {t(
+                    'auth.brand.copyright',
+                    {
+                        year: new Date().getFullYear(),
+                        storeName,
+                    },
+                )}
             </p>
         </div>
     );

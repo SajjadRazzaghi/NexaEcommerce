@@ -1,4 +1,10 @@
 {
+  "orderDetails": {
+    "items": "Bestellpositionen",
+    "itemsDescription": "Prüfen Sie die Produkte und die ausgewählten Optionen für diese Bestellung.",
+    "sku": "SKU",
+    "quantity": "Menge"
+  },
   "common": {
     "search": "Suchen",
     "retry": "Erneut versuchen",
@@ -1107,11 +1113,13 @@
       "accept": "Einladung annehmen"
     },
     "brand": {
-      "tagline": "Erstelle Business-Apps in KI-Geschwindigkeit.",
-      "subtitle": "Ein moderner ASP.NET-Core-+-React-Starter, der schon beim ersten Start wie ein Produkt von 2026 aussieht — Auth, Rollen, Audit und eine schöne UI, sofort einsatzbereit.",
-      "feature1": "Sicher von Haus aus — 2FA, Sitzungen, vollständig auditiert",
-      "feature2": "Erweitere eine ganze Funktion mit einem einzigen Prompt",
-      "feature3": "Dark Mode, i18n und RTL ab dem ersten Commit"
+      "storeName": "Patlet Bekleidungsgalerie",
+      "tagline": "Komfort und Stil – von der Schwangerschaft bis zur Mutterschaft",
+      "subtitle": "Entdecke bei Patlet Umstandsmode, Geburtssets und bequeme Kleidung für den Alltag.",
+      "feature1": "Bequeme Modelle während und nach der Schwangerschaft",
+      "feature2": "Modell, Farbe und Größe einfach auswählen",
+      "feature3": "Ein einfacher und vertrauenswürdiger Online-Einkauf",
+      "copyright": "© {{year}} {{storeName}}"
     }
   },
   "notFound": {
@@ -1119,5 +1127,73 @@
     "description": "Die gesuchte Seite existiert nicht, wurde verschoben oder die Adresse wurde falsch eingegeben.",
     "goHome": "Zur Startseite",
     "goBack": "Zurück"
+  },
+  "cartUpsell": {
+    "title": "Produkt wurde zum Warenkorb hinzugefügt",
+    "subtitle": "Ergänzen Sie Ihren Einkauf mit diesen Produkten.",
+    "recommendations": "Passende Ergänzungen",
+    "selectVariant": "Variante auswählen",
+    "addToCart": "In den Warenkorb",
+    "adding": "Wird hinzugefügt…",
+    "continueShopping": "Weiter einkaufen",
+    "viewCart": "Warenkorb ansehen",
+    "addFailed": "Das empfohlene Produkt konnte nicht hinzugefügt werden.",
+    "loading": "Empfehlungen werden geladen…"
+  },
+  "storefront": {
+    "orders": {
+      "statuses": {
+        "PendingPayment": "Zahlung ausstehend",
+        "Paid": "Bezahlt",
+        "Processing": "In Bearbeitung",
+        "Shipped": "Versandt",
+        "Delivered": "Zugestellt",
+        "Cancelled": "Storniert",
+        "Failed": "Zahlung fehlgeschlagen",
+        "Refunded": "Erstattet",
+        "Completed": "Abgeschlossen"
+      }
+    },
+    "payment": {
+      "orderNotFound": "Bestellung nicht gefunden",
+      "orderNotFoundDescription": "Diese Bestellung konnte nicht zur Zahlung geladen werden.",
+      "backToOrders": "Zurück zu den Bestellungen",
+      "notAvailable": "Zahlung nicht verfügbar",
+      "notAvailableDescription": "Diese Bestellung wartet nicht mehr auf Zahlung.",
+      "backToOrder": "Zurück zur Bestellung",
+      "success": "Die Zahlung wurde erfolgreich abgeschlossen.",
+      "successDescription": "Ihre Zahlung wurde bestätigt und die Bestellung erfolgreich abgeschlossen.",
+      "alreadyPaid": "Bestellung bereits bezahlt",
+      "alreadyPaidDescription": "Diese Bestellung wurde bereits erfolgreich bezahlt.",
+      "viewOrder": "Bestellung ansehen",
+      "title": "Sichere Zahlung",
+      "subtitle": "Schließen Sie die Zahlung für Ihre Bestellung ab.",
+      "failed": "Die Zahlung wurde nicht abgeschlossen.",
+      "cancelled": "Die Zahlung wurde abgebrochen oder abgelehnt.",
+      "failedDescription": "Die Zahlung konnte nicht abgeschlossen werden. Sie können es erneut versuchen.",
+      "inventoryUnavailable": "Die Zahlung konnte nicht abgeschlossen werden, da keine Bestandsreservierung verfügbar war. Prüfen Sie die Bestellung, bevor Sie erneut zahlen.",
+      "orderExpired": "Diese Bestellung ist abgelaufen, da keine aktive Bestandsreservierung mehr besteht.",
+      "completionFailed": "Die Zahlungsrückmeldung ist eingegangen, aber die Bestellung konnte nicht sicher abgeschlossen werden. Prüfen Sie den Bestellstatus, bevor Sie es erneut versuchen.",
+      "secureTitle": "Sicherer Bezahlvorgang",
+      "secureDescription": "Ihre Zahlung wird über das konfigurierte Zahlungs-Gateway abgewickelt.",
+      "gateway": "Zahlungs-Gateway",
+      "starting": "Zahlung wird gestartet...",
+      "start": "Zahlung starten",
+      "reference": "Zahlungsreferenz",
+      "gatewayHint": "Beim Bestätigen wird die Transaktion geprüft und die Bestellung als bezahlt markiert.",
+      "processing": "Zahlung wird verarbeitet...",
+      "confirm": "Zahlung bestätigen",
+      "items": "Bestellpositionen",
+      "itemsHint": "Prüfen Sie die Produkte und ausgewählten Optionen dieser Bestellung.",
+      "quantity": "Menge",
+      "summary": "Bestellübersicht",
+      "orderNumber": "Bestellung",
+      "status": "Status",
+      "amount": "Betrag",
+      "missingReference": "Das Zahlungs-Gateway hat keine Zahlungsreferenz zurückgegeben.",
+      "startError": "Die Zahlung konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+      "verifyError": "Die Zahlungsprüfung ist fehlgeschlagen.",
+      "completeError": "Die Zahlung wurde bestätigt, aber die Bestellung konnte nicht abgeschlossen werden."
+    }
   }
 }

@@ -6,14 +6,6 @@ import {
     resolveMediaUrl,
 } from '@/lib/media-url';
 import {
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    FormControl,
-    InputLabel,
-    MenuItem,
-    Select,
     Alert,
     Box,
     Button,
@@ -64,12 +56,9 @@ import {
 import {
     useCartMutations,
 } from '@/modules/cart/hooks/useCartMutations';
-import {
-    productsApi,
-} from '../api/products';
+import CartUpsellDialog from '../components/CartUpsellDialog';
 
 import type {
-    Product,
     ProductVariant,
     ProductVariantAttribute,
 } from '../api/products';
@@ -174,6 +163,7 @@ function getVariantLabel(
         ? values.join(' / ')
         : variant.sku;
 }
+
 export default function ProductDetailPage() {
     const {
         slug,
@@ -265,19 +255,9 @@ export default function ProductDetailPage() {
             null,
         );
     const [
-        recommendations,
-        setRecommendations,
-    ] = useState<Product[]>([]);
-
-    const [
         recommendationsOpen,
         setRecommendationsOpen,
     ] = useState(false);
-
-    const [
-        selectedRecommendedVariants,
-        setSelectedRecommendedVariants,
-    ] = useState<Record<string, string>>({});
     const [
         quantity,
         setQuantity,
@@ -783,63 +763,10 @@ export default function ProductDetailPage() {
                 quantity,
             },
             {
-                onSuccess: async () => {
+                onSuccess: () => {
                     setAdded(true);
-
-                    if (!product?.id) {
-                        return;
-                    }
-
-                    try {
-                        const result =
-                            await productsApi.getRecommendations(
-                                product.id,
-                            );
-
-                        const availableRecommendations =
-                            result.filter(
-                                recommendedProduct =>
-                                    (
-                                        recommendedProduct.variants ??
-                                        []
-                                    ).some(
-                                        variant =>
-                                            variant.isActive &&
-                                            variant.stockQuantity > 0,
-                                    ),
-                            );
-
-                        setRecommendations(
-                            availableRecommendations,
-                        );
-
-                        setSelectedRecommendedVariants(
-                            Object.fromEntries(
-                                availableRecommendations.map(
-                                    recommendedProduct => {
-                                        const firstAvailableVariant =
-                                            recommendedProduct.variants.find(
-                                                variant =>
-                                                    variant.isActive &&
-                                                    variant.stockQuantity > 0,
-                                            );
-
-                                        return [
-                                            recommendedProduct.id,
-                                            firstAvailableVariant?.id ?? '',
-                                        ];
-                                    },
-                                ),
-                            ),
-                        );
-
-                        setRecommendationsOpen(
-                            availableRecommendations.length > 0,
-                        );
-                    } catch {
-                        // خطای دریافت پیشنهاد نباید خرید محصول اصلی را مختل کند.
-                        setRecommendations([]);
-                        setRecommendationsOpen(false);
+                    if (product?.id) {
+                        setRecommendationsOpen(true);
                     }
                 },
             },
@@ -1929,264 +1856,11 @@ export default function ProductDetailPage() {
                     </Card>
                 </Stack>
             </Container>
-            <Dialog
-    open={recommendationsOpen}
-    onClose={() => setRecommendationsOpen(false)}
-    fullWidth
-    maxWidth="md"
->
-    <DialogTitle>
-        {isFa
-            ? 'محصولات مکمل پیشنهادی'
-            : 'Recommended products'}
-    </DialogTitle>
-
-    <DialogContent dividers>
-        {recommendations.map(recommendedProduct => {
-            const availableVariants =
-                (recommendedProduct.variants ?? []).filter(
-                    variant =>
-                        variant.isActive &&
-                        variant.stockQuantity > 0,
-                );
-
-            const selectedVariantId =
-                selectedRecommendedVariants[
-                    recommendedProduct.id
-                ] ??
-                availableVariants[0]?.id ??
-                '';
-
-            const selectedVariant =
-                availableVariants.find(
-                    variant =>
-                        variant.id === selectedVariantId,
-                ) ?? availableVariants[0];
-
-            const selectedVariantPrice =
-                selectedVariant?.priceOverride;
-
-            const basePrice =
-                selectedVariantPrice != null &&
-                    selectedVariantPrice > 0
-                    ? selectedVariantPrice
-                    : recommendedProduct.price;
-
-            const discountPercentage =
-                Math.min(
-                    Math.max(
-                        recommendedProduct.discountPercentage ?? 0,
-                        0,
-                    ),
-                    100,
-                );
-
-            const displayedPrice =
-                basePrice -
-                (
-                    basePrice *
-                    discountPercentage /
-                    100
-                );
-
-            const imageUrl =
-                recommendedProduct.images?.find(
-                    image => image.isMain,
-                )?.imageUrl ??
-                recommendedProduct.images?.[0]?.imageUrl ??
-                '/placeholder.jpg';
-
-            return (
-                <Card
-                    key={recommendedProduct.id}
-                    variant="outlined"
-                    sx={{
-                        p: 2,
-                        mb: 2,
-                        '&:last-child': {
-                            mb: 0,
-                        },
-                    }}
-                >
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            flexDirection: {
-                                xs: 'column',
-                                sm: 'row',
-                            },
-                            gap: 2,
-                            alignItems: {
-                                xs: 'stretch',
-                                sm: 'center',
-                            },
-                        }}
-                    >
-                        <Box
-                            component="img"
-                            src={resolveMediaUrl(imageUrl)}
-                            alt={recommendedProduct.name}
-                            sx={{
-                                width: {
-                                    xs: '100%',
-                                    sm: 100,
-                                },
-                                height: 100,
-                                objectFit: 'contain',
-                                borderRadius: 2,
-                                bgcolor: 'background.default',
-                            }}
-                        />
-
-                        <Box
-                            sx={{
-                                flex: 1,
-                                minWidth: 0,
-                            }}
-                        >
-                            <Typography
-                                variant="subtitle1"
-                                sx={{
-                                    fontWeight: 800,
-                                    mb: 0.5,
-                                }}
-                            >
-                                {recommendedProduct.name}
-                            </Typography>
-
-                            <Typography
-                                color="primary"
-                                sx={{
-                                    fontWeight: 800,
-                                    mb: 1.5,
-                                }}
-                            >
-                                {formatPrice(displayedPrice)}{' '}
-                                {recommendedProduct.currency}
-                            </Typography>
-
-                            {availableVariants.length > 1 && (
-                                <FormControl
-                                    fullWidth
-                                    size="small"
-                                >
-                                    <InputLabel
-                                        id={`recommended-variant-label-${recommendedProduct.id}`}
-                                    >
-                                        {isFa
-                                            ? 'انتخاب تنوع'
-                                            : 'Select variant'}
-                                    </InputLabel>
-
-                                    <Select
-                                        labelId={`recommended-variant-label-${recommendedProduct.id}`}
-                                        label={
-                                            isFa
-                                                ? 'انتخاب تنوع'
-                                                : 'Select variant'
-                                        }
-                                        value={selectedVariantId}
-                                        onChange={event => {
-                                            setSelectedRecommendedVariants(
-                                                current => ({
-                                                    ...current,
-                                                    [recommendedProduct.id]:
-                                                        String(
-                                                            event.target.value,
-                                                        ),
-                                                }),
-                                            );
-                                        }}
-                                    >
-                                        {availableVariants.map(variant => (
-                                            <MenuItem
-                                                key={variant.id}
-                                                value={variant.id}
-                                            >
-                                                {getVariantLabel(variant)}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                            )}
-
-                            {availableVariants.length === 1 && (
-                                <Typography
-                                    variant="body2"
-                                    color="text.secondary"
-                                >
-                                    {getVariantLabel(
-                                        availableVariants[0],
-                                    )}
-                                </Typography>
-                            )}
-                        </Box>
-
-                        <Button
-                            variant="contained"
-                            disabled={
-                                !selectedVariant?.id ||
-                                add.isPending
-                            }
-                            onClick={() => {
-                                if (!selectedVariant?.id) {
-                                    return;
-                                }
-
-                                add.mutate(
-                                    {
-                                        productVariantId:
-                                            selectedVariant.id,
-                                        quantity: 1,
-                                    },
-                                    {
-                                        onSuccess: () => {
-                                            const remaining =
-                                                recommendations.filter(
-                                                    item =>
-                                                        item.id !==
-                                                        recommendedProduct.id,
-                                                );
-
-                                            setRecommendations(
-                                                remaining,
-                                            );
-
-                                            if (
-                                                remaining.length === 0
-                                            ) {
-                                                setRecommendationsOpen(
-                                                    false,
-                                                );
-                                            }
-                                        },
-                                    },
-                                );
-                            }}
-                            sx={{
-                                flexShrink: 0,
-                            }}
-                        >
-                            {isFa
-                                ? 'افزودن به سبد'
-                                : 'Add to cart'}
-                        </Button>
-                    </Box>
-                </Card>
-            );
-        })}
-    </DialogContent>
-
-    <DialogActions>
-        <Button
-            onClick={() => setRecommendationsOpen(false)}
-        >
-            {isFa
-                ? 'خیر، ادامه خرید'
-                : 'No thanks'}
-        </Button>
-    </DialogActions>
-</Dialog>
+            <CartUpsellDialog
+                open={recommendationsOpen}
+                sourceProductId={product?.id ?? null}
+                onClose={() => setRecommendationsOpen(false)}
+            />
         </Box>
     );
 }

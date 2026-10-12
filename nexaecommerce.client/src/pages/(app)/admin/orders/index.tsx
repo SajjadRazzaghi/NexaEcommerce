@@ -20,7 +20,6 @@ import {
     Filter,
     LoaderCircle,
     Package,
-        Printer,
 Search,
     Truck,
     XCircle,
@@ -163,13 +162,6 @@ export default function AdminOrdersPage() {
     const [search, setSearch] =
         useState('');
 
-        const [
-        selectedOrderIds,
-        setSelectedOrderIds,
-    ] =
-        useState<Set<string>>(
-            () => new Set(),
-        );
 const query =
         useMemo(
             () => ({
@@ -197,91 +189,6 @@ const query =
         useAdminOrders(
             query,
         );
-    const visibleOrderIds =
-        data?.items.map(
-            order => order.id,
-        ) ??
-        [];
-
-    const allVisibleOrdersSelected =
-        visibleOrderIds.length > 0 &&
-        visibleOrderIds.every(
-            orderId =>
-                selectedOrderIds.has(
-                    orderId,
-                ),
-        );
-
-    const toggleOrderSelection =
-        (orderId: string) => {
-            setSelectedOrderIds(
-                current => {
-                    const next =
-                        new Set(current);
-
-                    if (
-                        next.has(orderId)
-                    ) {
-                        next.delete(orderId);
-                    } else {
-                        next.add(orderId);
-                    }
-
-                    return next;
-                },
-            );
-        };
-
-    const toggleVisibleOrderSelection =
-        () => {
-            setSelectedOrderIds(
-                current => {
-                    const next =
-                        new Set(current);
-
-                    if (
-                        allVisibleOrdersSelected
-                    ) {
-                        visibleOrderIds.forEach(
-                            orderId =>
-                                next.delete(
-                                    orderId,
-                                ),
-                        );
-                    } else {
-                        visibleOrderIds.forEach(
-                            orderId =>
-                                next.add(
-                                    orderId,
-                                ),
-                        );
-                    }
-
-                    return next;
-                },
-            );
-        };
-
-    const printSelectedOrders =
-        () => {
-            if (
-                selectedOrderIds.size === 0
-            ) {
-                return;
-            }
-
-            const ids =
-                Array.from(
-                    selectedOrderIds,
-                ).join(',');
-
-            window.open(
-                `/admin/orders/shipping-labels?ids=${encodeURIComponent(ids)}`,
-                '_blank',
-                'noopener,noreferrer',
-            );
-        };
-
     const text = {
         title: t(
             'storefront.orders.title',
@@ -349,18 +256,6 @@ const query =
 
         page: t(
             'storefront.orders.page',
-        ),
-
-        selected: t(
-            'storefront.orders.selected',
-        ),
-
-        printLabels: t(
-            'storefront.orders.printLabels',
-        ),
-
-        selectAll: t(
-            'storefront.orders.selectAll',
         ),
 
         order: t(
@@ -484,27 +379,7 @@ const query =
                         </div>
                     )}
             </section>
-            <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
-                <div className="text-sm text-muted-foreground">
-                    {selectedOrderIds.size} {text.selected}
-                </div>
-
-                <button
-                    type="button"
-                    disabled={
-                        selectedOrderIds.size === 0
-                    }
-                    onClick={
-                        printSelectedOrders
-                    }
-                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    <Printer className="size-4" />
-                    {text.printLabels}
-                </button>
-            </section>
-
-            {isLoading && (
+{isLoading && (
                 <div className="space-y-3">
                     {[1, 2, 3, 4].map(
                         item => (
@@ -572,23 +447,6 @@ const query =
                             <table className="w-full min-w-[900px] text-sm">
                                 <thead>
                                     <tr className="border-b bg-muted/30">
-                                        <th className="w-12 px-4 py-3 text-center">
-    <input
-        type="checkbox"
-        checked={
-            allVisibleOrdersSelected
-        }
-        onChange={
-            toggleVisibleOrderSelection
-        }
-        disabled={
-            visibleOrderIds.length === 0
-        }
-        aria-label={text.selectAll}
-        title={text.selectAll}
-        className="size-4 rounded border"
-    />
-</th>
 <th className="px-4 py-3 text-start font-medium">
                                             {
                                                 text.order
@@ -634,23 +492,6 @@ const query =
                                                 }
                                                 className="border-b last:border-b-0"
                                             >
-                                                <td className="w-12 px-4 py-4 text-center align-top">
-    <input
-        type="checkbox"
-        checked={
-            selectedOrderIds.has(
-                order.id,
-            )
-        }
-        onChange={() =>
-            toggleOrderSelection(
-                order.id,
-            )
-        }
-        aria-label={`${text.selectAll}: ${order.orderNumber}`}
-        className="mt-1 size-4 rounded border"
-    />
-</td>
 <td className="px-4 py-4">
                                                     <div className="grid gap-2">
                                                         <Link
@@ -679,10 +520,8 @@ const query =
                                                 </td>
 
                                                 <td className="px-4 py-4">
-                                                    <div className="max-w-[220px] truncate">
-                                                        {
-                                                            order.userId
-                                                        }
+                                                    <div className="max-w-[240px] truncate font-medium" title={order.shippingFullName}>
+                                                        {order.shippingFullName?.trim() || '—'}
                                                     </div>
                                                 </td>
 

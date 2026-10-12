@@ -1,4 +1,10 @@
 {
+  "orderDetails": {
+    "items": "订单商品",
+    "itemsDescription": "查看此订单中的商品及所选选项。",
+    "sku": "商品编码",
+    "quantity": "数量"
+  },
   "common": {
     "search": "搜索",
     "retry": "重试",
@@ -1107,11 +1113,13 @@
       "accept": "接受邀请"
     },
     "brand": {
-      "tagline": "以 AI 的速度构建业务应用。",
-      "subtitle": "一个现代的 ASP.NET Core + React 起始模板，首次运行即如同 2026 年的产品——认证、角色、审计和精美界面，开箱即用。",
-      "feature1": "默认安全——双重验证、会话、全面审计",
-      "feature2": "用一个提示即可扩展整个功能",
-      "feature3": "从第一次提交起即支持深色模式、i18n 和 RTL"
+      "storeName": "Patlet 服装馆",
+      "tagline": "从孕期到成为母亲，舒适与风格相伴",
+      "subtitle": "在 Patlet 选购孕妇装、待产套装和舒适日常服饰。",
+      "feature1": "适合孕期及产后穿着的舒适款式",
+      "feature2": "轻松选择款式、颜色和尺码",
+      "feature3": "简单安心的线上购物体验",
+      "copyright": "© {{year}} {{storeName}}"
     }
   },
   "notFound": {
@@ -1119,5 +1127,73 @@
     "description": "您访问的页面不存在、已被移动，或地址输入有误。",
     "goHome": "返回首页",
     "goBack": "返回"
+  },
+  "cartUpsell": {
+    "title": "商品已加入购物车",
+    "subtitle": "还可以看看这些搭配商品。",
+    "recommendations": "搭配推荐",
+    "selectVariant": "选择规格",
+    "addToCart": "加入购物车",
+    "adding": "正在添加…",
+    "continueShopping": "继续购物",
+    "viewCart": "查看购物车",
+    "addFailed": "无法将推荐商品加入购物车。",
+    "loading": "正在加载推荐商品…"
+  },
+  "storefront": {
+    "orders": {
+      "statuses": {
+        "PendingPayment": "待付款",
+        "Paid": "已付款",
+        "Processing": "处理中",
+        "Shipped": "已发货",
+        "Delivered": "已送达",
+        "Cancelled": "已取消",
+        "Failed": "付款失败",
+        "Refunded": "已退款",
+        "Completed": "已完成"
+      }
+    },
+    "payment": {
+      "orderNotFound": "未找到订单",
+      "orderNotFoundDescription": "无法加载此订单以进行付款。",
+      "backToOrders": "返回订单列表",
+      "notAvailable": "当前无法付款",
+      "notAvailableDescription": "此订单已不再处于待付款状态。",
+      "backToOrder": "返回订单",
+      "success": "付款成功。",
+      "successDescription": "付款已验证，订单已成功完成。",
+      "alreadyPaid": "订单已付款",
+      "alreadyPaidDescription": "此订单此前已成功付款。",
+      "viewOrder": "查看订单",
+      "title": "安全付款",
+      "subtitle": "完成此订单的付款。",
+      "failed": "付款未完成。",
+      "cancelled": "付款已取消或被拒绝。",
+      "failedDescription": "无法完成付款，您可以重试。",
+      "inventoryUnavailable": "由于库存预留不可用，付款无法完成。再次付款前请先检查订单状态。",
+      "orderExpired": "此订单已过期，因为没有可用的有效库存预留。",
+      "completionFailed": "已收到付款结果，但无法安全完成订单。重试前请先检查订单状态。",
+      "secureTitle": "安全结账",
+      "secureDescription": "付款将通过已配置的支付网关处理。",
+      "gateway": "支付网关",
+      "starting": "正在发起付款...",
+      "start": "开始付款",
+      "reference": "付款参考号",
+      "gatewayHint": "确认后将验证交易，并把订单标记为已付款。",
+      "processing": "正在处理付款...",
+      "confirm": "确认付款",
+      "items": "订单商品",
+      "itemsHint": "请检查此订单中的商品及所选选项。",
+      "quantity": "数量",
+      "summary": "订单摘要",
+      "orderNumber": "订单",
+      "status": "状态",
+      "amount": "金额",
+      "missingReference": "支付网关未返回付款参考号。",
+      "startError": "无法发起付款，请重试。",
+      "verifyError": "付款验证失败。",
+      "completeError": "付款已验证成功，但无法完成订单。"
+    }
   }
 }

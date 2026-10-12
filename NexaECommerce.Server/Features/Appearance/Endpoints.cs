@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using System.Net.Mail;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -178,316 +178,209 @@ public sealed class AppearanceEndpoints : IFeatureEndpoints
         [FromServices] AppDbContext db,
         CancellationToken ct)
     {
-        var storeName =
-            NormalizeInput(req.StoreName);
-
-        var logoUrl =
-            NormalizeInput(req.LogoUrl);
-
-        var faviconUrl =
-            NormalizeInput(req.FaviconUrl);
-
-        var theme =
-            NormalizeInput(req.Theme);
-
-        var color =
-            NormalizeInput(req.BrandColor);
-
-        var contactPhone =
-            NormalizeInput(req.ContactPhone);
-
-        var contactEmail =
-            NormalizeInput(req.ContactEmail);
-
-        var contactAddress =
-            NormalizeInput(req.ContactAddress);
-
-        var websiteUrl =
-            NormalizeInput(req.WebsiteUrl);
-
-        var seoTitle =
-            NormalizeInput(req.SeoTitle);
-
-        var seoDescription =
-            NormalizeInput(req.SeoDescription);
-
-        var custom =
-            ValidateCustomTheme(
-                req.CustomTheme);
+        // Null/omitted fields mean "leave unchanged". An empty string explicitly clears
+        // optional values such as logo, favicon, color, or SEO fields.
+        var storeName = req.StoreName is null ? null : NormalizeInput(req.StoreName);
+        var logoUrl = req.LogoUrl is null ? null : NormalizeInput(req.LogoUrl);
+        var faviconUrl = req.FaviconUrl is null ? null : NormalizeInput(req.FaviconUrl);
+        var theme = req.Theme is null ? null : NormalizeInput(req.Theme);
+        var color = req.BrandColor is null ? null : NormalizeInput(req.BrandColor);
+        var contactPhone = req.ContactPhone is null ? null : NormalizeInput(req.ContactPhone);
+        var contactEmail = req.ContactEmail is null ? null : NormalizeInput(req.ContactEmail);
+        var contactAddress = req.ContactAddress is null ? null : NormalizeInput(req.ContactAddress);
+        var websiteUrl = req.WebsiteUrl is null ? null : NormalizeInput(req.WebsiteUrl);
+        var seoTitle = req.SeoTitle is null ? null : NormalizeInput(req.SeoTitle);
+        var seoDescription = req.SeoDescription is null ? null : NormalizeInput(req.SeoDescription);
+        var custom = req.CustomTheme is null ? null : ValidateCustomTheme(req.CustomTheme);
 
         // --------------------------------------------------------
-        // Store name
+        // Validate only fields sent by the client.
         // --------------------------------------------------------
 
-        if (storeName.Length > 128)
+        if (storeName is not null && storeName.Length > 128)
+            throw new BadRequestException("Store name cannot exceed 128 characters.");
+
+        if (storeName is { Length: > 0 } && !IsSafeText(storeName))
+            throw new BadRequestException("Store name contains invalid characters.");
+
+        if (logoUrl is not null)
+            ValidateImageUrl(logoUrl, "Logo URL");
+
+        if (faviconUrl is not null)
+            ValidateImageUrl(faviconUrl, "Favicon URL");
+
+        if (theme is not null && (theme.Length > 32 || !IsSafeValue(theme)))
+            throw new BadRequestException("Invalid appearance theme.");
+
+        if (color is not null && (color.Length > 64 || !IsSafeValue(color)))
+            throw new BadRequestException("Invalid appearance brand color.");
+
+        if (contactPhone is not null &&
+            (contactPhone.Length > 64 || !IsSafeText(contactPhone)))
+            throw new BadRequestException("Invalid contact phone.");
+
+        if (contactEmail is not null)
         {
-            throw new BadRequestException(
-                "Store name cannot exceed 128 characters.");
-        }
+            if (contactEmail.Length > 256)
+                throw new BadRequestException("Contact email cannot exceed 256 characters.");
 
-        if (storeName.Length > 0 &&
-            !IsSafeText(storeName))
-        {
-            throw new BadRequestException(
-                "Store name contains invalid characters.");
-        }
-
-        // --------------------------------------------------------
-        // Logo
-        // --------------------------------------------------------
-
-        ValidateImageUrl(
-            logoUrl,
-            "Logo URL");
-
-        // --------------------------------------------------------
-        // Favicon
-        // --------------------------------------------------------
-
-        ValidateImageUrl(
-            faviconUrl,
-            "Favicon URL");
-
-        // --------------------------------------------------------
-        // Theme
-        // --------------------------------------------------------
-
-        if (theme.Length > 32 ||
-            !IsSafeValue(theme))
-        {
-            throw new BadRequestException(
-                "Invalid appearance theme.");
-        }
-
-        // --------------------------------------------------------
-        // Brand color
-        // --------------------------------------------------------
-
-        if (color.Length > 64 ||
-            !IsSafeValue(color))
-        {
-            throw new BadRequestException(
-                "Invalid appearance brand color.");
-        }
-
-        // --------------------------------------------------------
-        // Contact phone
-        // --------------------------------------------------------
-
-        if (contactPhone.Length > 64 ||
-            !IsSafeText(contactPhone))
-        {
-            throw new BadRequestException(
-                "Invalid contact phone.");
-        }
-
-        // --------------------------------------------------------
-        // Contact email
-        // --------------------------------------------------------
-
-        if (contactEmail.Length > 256)
-        {
-            throw new BadRequestException(
-                "Contact email cannot exceed 256 characters.");
-        }
-
-        if (contactEmail.Length > 0)
-        {
-            try
+            if (contactEmail.Length > 0)
             {
-                var mail =
-                    new MailAddress(contactEmail);
-
-                if (!string.Equals(
-                        mail.Address,
-                        contactEmail,
-                        StringComparison.OrdinalIgnoreCase))
+                try
                 {
-                    throw new FormatException();
+                    var mail = new MailAddress(contactEmail);
+                    if (!string.Equals(mail.Address, contactEmail, StringComparison.OrdinalIgnoreCase))
+                        throw new FormatException();
+                }
+                catch
+                {
+                    throw new BadRequestException("Invalid contact email.");
                 }
             }
-            catch
+        }
+
+        if (contactAddress is not null &&
+            (contactAddress.Length > 1000 || !IsSafeText(contactAddress)))
+            throw new BadRequestException("Invalid contact address.");
+
+        if (websiteUrl is not null)
+        {
+            if (websiteUrl.Length > 2048)
+                throw new BadRequestException("Website URL cannot exceed 2048 characters.");
+
+            if (websiteUrl.Length > 0 && !IsHttpUrl(websiteUrl))
+                throw new BadRequestException("Website URL must use HTTP or HTTPS.");
+        }
+
+        if (seoTitle is not null &&
+            (seoTitle.Length > 160 || !IsSafeText(seoTitle)))
+            throw new BadRequestException("SEO title cannot exceed 160 characters.");
+
+        if (seoDescription is not null &&
+            (seoDescription.Length > 320 || !IsSafeText(seoDescription)))
+            throw new BadRequestException("SEO description cannot exceed 320 characters.");
+
+        // --------------------------------------------------------
+        // Tenant. The default tenant is part of the platform contract;
+        // older databases may be missing its seeded row, so repair that
+        // one known tenant instead of failing with KeyNotFoundException.
+        // Never silently create arbitrary tenant IDs.
+        // --------------------------------------------------------
+
+        var tenantId = string.IsNullOrWhiteSpace(tenant.TenantId)
+            ? TenancyOptions.DefaultTenant
+            : tenant.TenantId.Trim().ToLowerInvariant();
+
+        var tenantEntity = await db.Set<Tenant>()
+            .FirstOrDefaultAsync(t => t.Id == tenantId, ct);
+
+        if (tenantEntity is null &&
+            string.Equals(tenantId, TenancyOptions.DefaultTenant, StringComparison.OrdinalIgnoreCase))
+        {
+            var defaultTenant = new Tenant
             {
-                throw new BadRequestException(
-                    "Invalid contact email.");
+                Id = TenancyOptions.DefaultTenant,
+                Name = storeName is { Length: > 0 } ? storeName : "Default",
+                Status = TenantStatus.Active,
+                CreatedAt = DateTimeOffset.UtcNow,
+            };
+
+            db.Set<Tenant>().Add(defaultTenant);
+            try
+            {
+                await db.SaveChangesAsync(ct);
+                tenantEntity = defaultTenant;
+            }
+            catch (DbUpdateException)
+            {
+                // A concurrent request may have inserted the seed row first.
+                db.Entry(defaultTenant).State = EntityState.Detached;
+                tenantEntity = await db.Set<Tenant>()
+                    .FirstOrDefaultAsync(t => t.Id == tenantId, ct);
+                if (tenantEntity is null)
+                    throw;
             }
         }
 
-        // --------------------------------------------------------
-        // Contact address
-        // --------------------------------------------------------
-
-        if (contactAddress.Length > 1000 ||
-            !IsSafeText(contactAddress))
-        {
-            throw new BadRequestException(
-                "Invalid contact address.");
-        }
-
-        // --------------------------------------------------------
-        // Website
-        // --------------------------------------------------------
-
-        if (websiteUrl.Length > 2048)
-        {
-            throw new BadRequestException(
-                "Website URL cannot exceed 2048 characters.");
-        }
-
-        if (websiteUrl.Length > 0 &&
-            !IsHttpUrl(websiteUrl))
-        {
-            throw new BadRequestException(
-                "Website URL must use HTTP or HTTPS.");
-        }
-
-        // --------------------------------------------------------
-        // SEO
-        // --------------------------------------------------------
-
-        if (seoTitle.Length > 160 ||
-            !IsSafeText(seoTitle))
-        {
-            throw new BadRequestException(
-                "SEO title cannot exceed 160 characters.");
-        }
-
-        if (seoDescription.Length > 320 ||
-            !IsSafeText(seoDescription))
-        {
-            throw new BadRequestException(
-                "SEO description cannot exceed 320 characters.");
-        }
-
-        // --------------------------------------------------------
-        // Tenant
-        // --------------------------------------------------------
-
-        var tenantEntity =
-            await db.Set<Tenant>()
-                .Where(t =>
-                    t.Id == tenant.TenantId)
-                .FirstOrDefaultAsync(ct);
-
         if (tenantEntity is null)
-        {
-            throw new KeyNotFoundException(
-                "Active tenant was not found.");
-        }
+            throw new NotFoundException("Tenant", tenantId);
 
-        if (tenantEntity.Status !=
-            TenantStatus.Active)
-        {
-            throw new InvalidOperationException(
-                "The active tenant is not available.");
-        }
+        if (tenantEntity.Status != TenantStatus.Active)
+            throw new ForbiddenException("The selected tenant is suspended.");
 
-        if (storeName.Length > 0)
-        {
-            tenantEntity.Name =
-                storeName;
-        }
+        if (storeName is { Length: > 0 })
+            tenantEntity.Name = storeName;
 
-        tenantEntity.LogoUrl =
-            logoUrl.Length == 0
-                ? null
-                : logoUrl;
+        if (logoUrl is not null)
+            tenantEntity.LogoUrl = logoUrl.Length == 0 ? null : logoUrl;
 
-        tenantEntity.PrimaryColor =
-            color.Length == 0
-                ? null
-                : color;
-
-        // --------------------------------------------------------
-        // Settings
-        // --------------------------------------------------------
-
-        await settings.SetAsync(
-            AppearanceSettings.Theme,
-            theme,
-            SettingScope.Tenant,
-            tenant.TenantId,
-            ct);
-
-        await settings.SetAsync(
-            AppearanceSettings.BrandColor,
-            color,
-            SettingScope.Tenant,
-            tenant.TenantId,
-            ct);
-
-        await settings.SetAsync(
-            AppearanceSettings.CustomTheme,
-            custom,
-            SettingScope.Tenant,
-            tenant.TenantId,
-            ct);
-
-        await settings.SetAsync(
-            AppearanceSettings.ContactPhone,
-            contactPhone,
-            SettingScope.Tenant,
-            tenant.TenantId,
-            ct);
-
-        await settings.SetAsync(
-            AppearanceSettings.ContactEmail,
-            contactEmail,
-            SettingScope.Tenant,
-            tenant.TenantId,
-            ct);
-
-        await settings.SetAsync(
-            AppearanceSettings.ContactAddress,
-            contactAddress,
-            SettingScope.Tenant,
-            tenant.TenantId,
-            ct);
-
-        await settings.SetAsync(
-            AppearanceSettings.WebsiteUrl,
-            websiteUrl,
-            SettingScope.Tenant,
-            tenant.TenantId,
-            ct);
-
-        await settings.SetAsync(
-            AppearanceSettings.SeoTitle,
-            seoTitle,
-            SettingScope.Tenant,
-            tenant.TenantId,
-            ct);
-
-        await settings.SetAsync(
-            AppearanceSettings.SeoDescription,
-            seoDescription,
-            SettingScope.Tenant,
-            tenant.TenantId,
-            ct);
-
-        await settings.SetAsync(
-            AppearanceSettings.FaviconUrl,
-            faviconUrl,
-            SettingScope.Tenant,
-            tenant.TenantId,
-            ct);
+        if (color is not null)
+            tenantEntity.PrimaryColor = color.Length == 0 ? null : color;
 
         await db.SaveChangesAsync(ct);
 
-        return Results.Ok(
-            new AppearanceDto(
-                Normalize(tenantEntity.Name),
-                Normalize(tenantEntity.LogoUrl),
-                Normalize(faviconUrl),
-                Normalize(theme),
-                Normalize(color),
-                Normalize(custom),
-                Normalize(contactPhone),
-                Normalize(contactEmail),
-                Normalize(contactAddress),
-                Normalize(websiteUrl),
-                Normalize(seoTitle),
-                Normalize(seoDescription)));
+        // --------------------------------------------------------
+        // Persist only the settings explicitly provided by the caller.
+        // --------------------------------------------------------
+
+        if (theme is not null)
+            await settings.SetAsync(AppearanceSettings.Theme, theme, SettingScope.Tenant, tenantId, ct);
+
+        if (color is not null)
+            await settings.SetAsync(AppearanceSettings.BrandColor, color, SettingScope.Tenant, tenantId, ct);
+
+        if (custom is not null)
+            await settings.SetAsync(AppearanceSettings.CustomTheme, custom, SettingScope.Tenant, tenantId, ct);
+
+        if (contactPhone is not null)
+            await settings.SetAsync(AppearanceSettings.ContactPhone, contactPhone, SettingScope.Tenant, tenantId, ct);
+
+        if (contactEmail is not null)
+            await settings.SetAsync(AppearanceSettings.ContactEmail, contactEmail, SettingScope.Tenant, tenantId, ct);
+
+        if (contactAddress is not null)
+            await settings.SetAsync(AppearanceSettings.ContactAddress, contactAddress, SettingScope.Tenant, tenantId, ct);
+
+        if (websiteUrl is not null)
+            await settings.SetAsync(AppearanceSettings.WebsiteUrl, websiteUrl, SettingScope.Tenant, tenantId, ct);
+
+        if (seoTitle is not null)
+            await settings.SetAsync(AppearanceSettings.SeoTitle, seoTitle, SettingScope.Tenant, tenantId, ct);
+
+        if (seoDescription is not null)
+            await settings.SetAsync(AppearanceSettings.SeoDescription, seoDescription, SettingScope.Tenant, tenantId, ct);
+
+        if (faviconUrl is not null)
+            await settings.SetAsync(AppearanceSettings.FaviconUrl, faviconUrl, SettingScope.Tenant, tenantId, ct);
+
+        // Return the persisted, canonical appearance (including untouched fields).
+        var responseTheme = await settings.GetAsync<string>(AppearanceSettings.Theme, ct);
+        var responseColor = await settings.GetAsync<string>(AppearanceSettings.BrandColor, ct);
+        if (string.IsNullOrWhiteSpace(responseColor))
+            responseColor = tenantEntity.PrimaryColor;
+
+        var responseCustom = await settings.GetAsync<string>(AppearanceSettings.CustomTheme, ct);
+        var responseContactPhone = await settings.GetAsync<string>(AppearanceSettings.ContactPhone, ct);
+        var responseContactEmail = await settings.GetAsync<string>(AppearanceSettings.ContactEmail, ct);
+        var responseContactAddress = await settings.GetAsync<string>(AppearanceSettings.ContactAddress, ct);
+        var responseWebsiteUrl = await settings.GetAsync<string>(AppearanceSettings.WebsiteUrl, ct);
+        var responseSeoTitle = await settings.GetAsync<string>(AppearanceSettings.SeoTitle, ct);
+        var responseSeoDescription = await settings.GetAsync<string>(AppearanceSettings.SeoDescription, ct);
+        var responseFaviconUrl = await settings.GetAsync<string>(AppearanceSettings.FaviconUrl, ct);
+
+        return Results.Ok(new AppearanceDto(
+            Normalize(tenantEntity.Name),
+            Normalize(tenantEntity.LogoUrl),
+            Normalize(responseFaviconUrl),
+            Normalize(responseTheme),
+            Normalize(responseColor),
+            Normalize(responseCustom),
+            Normalize(responseContactPhone),
+            Normalize(responseContactEmail),
+            Normalize(responseContactAddress),
+            Normalize(responseWebsiteUrl),
+            Normalize(responseSeoTitle),
+            Normalize(responseSeoDescription)));
     }
 
     private static string NormalizeInput(

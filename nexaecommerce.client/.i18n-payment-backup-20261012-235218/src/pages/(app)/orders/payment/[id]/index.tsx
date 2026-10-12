@@ -1,0 +1,918 @@
+import {
+    ArrowLeft,
+    CheckCircle2,
+    CreditCard,
+    Loader2,
+    LockKeyhole,
+    ShieldCheck,
+} from 'lucide-react';
+import {
+    ShoppingBag,
+} from 'lucide-react';
+import {
+    Link,
+    useNavigate,
+    useParams,
+    useSearchParams,
+} from 'react-router-dom';
+
+import {
+    useState,
+} from 'react';
+
+import {
+    useTranslation,
+} from 'react-i18next';
+
+import {
+    useQuery,
+} from '@tanstack/react-query';
+
+import { formatMoney } from '@/lib/formatMoney';
+
+import {
+    getOrder,
+} from '@/modules/orders/api/ordersApi';
+
+import {
+    useCompletePayment,
+    useRetryPayment,
+    useStartPayment,
+    useVerifyPayment,
+} from '@/modules/orders/hooks/usePayment';
+
+function getPaymentGateway(): string {
+    return 'ZarinPal';
+}
+
+export default function PaymentPage() {
+    const { id } = useParams();
+
+    const navigate = useNavigate();
+
+    const [searchParams] = useSearchParams();
+
+    const {
+        t,
+        i18n,
+    } = useTranslation();
+
+    const isFa =
+        i18n.language
+            ?.toLowerCase()
+            .startsWith('fa');
+    const getOrderStatusText = (
+        status: string,
+    ) =>
+        t(
+            `storefront.orders.statuses.${status}`,
+            {
+                defaultValue: status,
+            },
+        );
+    const getText = (
+        key: string,
+        fallback: string,
+    ) =>
+        t(
+            key,
+            {
+                defaultValue: fallback,
+            },
+        );
+
+    const paymentResult =
+        searchParams.get('payment');
+
+    const paymentReason =
+        searchParams.get('reason');
+
+    const [payment, setPayment] =
+        useState<{
+            paymentAttemptId: string;
+            gatewayName: string;
+            gatewayReference: string;
+            amount: number;
+            currency: string;
+            status: string;
+        } | null>(null);
+
+    const [error, setError] =
+        useState<string | null>(null);
+
+    const orderQuery =
+        useQuery({
+            queryKey: [
+                'order',
+                id,
+            ],
+            queryFn: () =>
+                getOrder(id!),
+            enabled:
+                Boolean(id),
+        });
+
+    const startPayment =
+        useStartPayment();
+
+    const verifyPayment =
+        useVerifyPayment();
+
+    const retryPaymentMutation =
+        useRetryPayment();
+
+    const completePayment =
+        useCompletePayment();
+
+    const order =
+        orderQuery.data;
+
+    const canStartPayment =
+        order?.status ===
+        'PendingPayment';
+
+    const total =
+        order?.totalAmount ??
+        0;
+
+    const busy =
+        startPayment.isPending ||
+        retryPaymentMutation.isPending ||
+        verifyPayment.isPending ||
+        completePayment.isPending;
+
+    const paymentGateway =
+        getPaymentGateway();
+
+    const handleStartPayment =
+        async () => {
+            if (!order) {
+                return;
+            }
+
+            setError(null);
+
+            const paymentKey =
+                crypto.randomUUID();
+
+            try {
+                const shouldAutoRetry =
+                    paymentResult ===
+                    'failed' &&
+                    paymentReason ===
+                    'cancelled';
+
+                if (shouldAutoRetry) {
+                    await retryPaymentMutation.mutateAsync({
+                        orderId:
+                            order.id,
+
+                        idempotencyKey:
+                            paymentKey,
+                    });
+                }
+
+                const result =
+                    await startPayment.mutateAsync({
+                        orderId:
+                            order.id,
+
+                        gatewayName:
+                            paymentGateway,
+
+                        idempotencyKey:
+                            paymentKey,
+                    });
+
+                if (
+                    result.paymentUrl
+                ) {
+                    window.location.assign(
+                        result.paymentUrl,
+                    );
+
+                    return;
+                }
+
+                if (
+                    !result.gatewayReference
+                ) {
+                    setError(
+                        getText(
+                            'storefront.payment.missingReference',
+                            'The payment gateway did not return a payment reference.',
+                        ),
+                    );
+
+                    return;
+                }
+
+                setPayment({
+                    paymentAttemptId:
+                        result.paymentAttemptId,
+
+                    gatewayName:
+                        result.gatewayName,
+
+                    gatewayReference:
+                        result.gatewayReference,
+
+                    amount:
+                        result.amount,
+
+                    currency:
+                        result.currency,
+
+                    status:
+                        result.status,
+                });
+            }
+            catch (err: any) {
+                setError(
+                    err?.response?.data?.error ??
+                    err?.message ??
+                    getText(
+                        'storefront.payment.failedDescription',
+                        'We could not start the payment.',
+                    ),
+                );
+            }
+        };
+
+    const handleConfirmPayment = () => {
+        if (!payment) {
+            return;
+        }
+
+        setError(null);
+
+        verifyPayment.mutate(
+            {
+                paymentAttemptId:
+                    payment.paymentAttemptId,
+
+                gatewayReference:
+                    payment.gatewayReference,
+            },
+            {
+                onSuccess:
+                    verified => {
+                        completePayment.mutate(
+                            {
+                                paymentAttemptId:
+                                    verified.id,
+
+                                gatewayName:
+                                    verified.gatewayName ??
+                                    payment.gatewayName,
+
+                                gatewayReference:
+                                    verified.gatewayReference ??
+                                    payment.gatewayReference,
+                            },
+                            {
+                                onSuccess:
+                                    () => {
+                                        navigate(
+                                            `/orders/${order!.id}`,
+                                            {
+                                                replace: true,
+                                            },
+                                        );
+                                    },
+
+                                onError:
+                                    mutationError => {
+                                        setError(
+                                            mutationError instanceof Error
+                                                ? mutationError.message
+                                                : getText(
+                                                    'storefront.payment.completeError',
+                                                    'Payment verification succeeded, but the order could not be completed.',
+                                                ),
+                                        );
+                                    },
+                            },
+                        );
+                    },
+
+                onError:
+                    mutationError => {
+                        setError(
+                            mutationError instanceof Error
+                                ? mutationError.message
+                                : getText(
+                                    'storefront.payment.verifyError',
+                                    'Payment verification failed.',
+                                ),
+                        );
+                    },
+            },
+        );
+    };
+
+    const callbackSuccess =
+        paymentResult === 'success';
+
+    const callbackFailed =
+        paymentResult === 'failed';
+
+    if (
+        orderQuery.isLoading
+    ) {
+        return (
+            <div
+                dir={
+                    isFa
+                        ? 'rtl'
+                        : 'ltr'
+                }
+                className="mx-auto max-w-4xl space-y-6 p-4 md:p-6"
+            >
+                <div className="animate-pulse space-y-4">
+                    <div className="h-8 w-52 rounded-lg bg-muted" />
+                    <div className="h-5 w-80 rounded-lg bg-muted" />
+
+                    <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+                        <div className="h-80 rounded-2xl bg-muted" />
+                        <div className="h-64 rounded-2xl bg-muted" />
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (
+        orderQuery.isError ||
+        !order
+    ) {
+        return (
+            <div
+                dir={
+                    isFa
+                        ? 'rtl'
+                        : 'ltr'
+                }
+                className="mx-auto max-w-3xl p-6"
+            >
+                <div className="rounded-2xl border p-10 text-center">
+                    <CreditCard className="mx-auto size-12 text-muted-foreground" />
+
+                    <h1 className="mt-4 text-2xl font-semibold">
+                        {getText(
+                            'storefront.payment.orderNotFound',
+                            'Order not found',
+                        )}
+                    </h1>
+
+                    <p className="mt-2 text-muted-foreground">
+                        {getText(
+                            'storefront.payment.orderNotFoundDescription',
+                            'We could not load this order for payment.',
+                        )}
+                    </p>
+
+                    <Link
+                        to="/orders"
+                        className="mt-6 inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium"
+                    >
+                        <ArrowLeft className="size-4" />
+
+                        {getText(
+                            'storefront.payment.backToOrders',
+                            'Back to orders',
+                        )}
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    if (
+        order.status !==
+        'PendingPayment' &&
+        order.status !==
+        'Paid'
+    ) {
+        return (
+            <div
+                dir={
+                    isFa
+                        ? 'rtl'
+                        : 'ltr'
+                }
+                className="mx-auto max-w-3xl p-6"
+            >
+                <div className="rounded-2xl border p-10 text-center">
+                    <CheckCircle2 className="mx-auto size-12 text-muted-foreground" />
+
+                    <h1 className="mt-4 text-2xl font-semibold">
+                        {getText(
+                            'storefront.payment.notAvailable',
+                            'Payment is not available',
+                        )}
+                    </h1>
+
+                    <p className="mt-2 text-muted-foreground">
+                        {getText(
+                            'storefront.payment.notAvailableDescription',
+                            'This order is no longer waiting for payment.',
+                        )}
+                    </p>
+
+                    <Link
+                        to={`/orders/${order.id}`}
+                        className="mt-6 inline-flex items-center gap-2 rounded-xl border px-5 py-3 font-medium"
+                    >
+                        <ArrowLeft className="size-4" />
+
+                        {getText(
+                            'storefront.payment.backToOrder',
+                            'Back to order',
+                        )}
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    if (
+        order.status ===
+        'Paid'
+    ) {
+        return (
+            <div
+                dir={
+                    isFa
+                        ? 'rtl'
+                        : 'ltr'
+                }
+                className="mx-auto max-w-3xl p-6"
+            >
+                <div className="rounded-2xl border p-10 text-center">
+                    <CheckCircle2 className="mx-auto size-14 text-green-600" />
+
+                    <h1 className="mt-4 text-2xl font-semibold">
+                        {callbackSuccess
+                            ? getText(
+                                'storefront.payment.success',
+                                'Payment completed successfully.',
+                            )
+                            : getText(
+                                'storefront.payment.alreadyPaid',
+                                'Order already paid',
+                            )}
+                    </h1>
+
+                    <p className="mt-2 text-muted-foreground">
+                        {callbackSuccess
+                            ? getText(
+                                'storefront.payment.successDescription',
+                                'Your payment was verified and your order has been completed.',
+                            )
+                            : getText(
+                                'storefront.payment.alreadyPaidDescription',
+                                'This order has already been paid successfully.',
+                            )}
+                    </p>
+
+                    <Link
+                        to={`/orders/${order.id}`}
+                        className="mt-6 inline-flex items-center justify-center rounded-xl bg-primary px-5 py-3 font-semibold text-primary-foreground"
+                    >
+                        {getText(
+                            'storefront.payment.viewOrder',
+                            'View order',
+                        )}
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+
+    return (
+        <div
+            dir={
+                isFa
+                    ? 'rtl'
+                    : 'ltr'
+            }
+            className="mx-auto max-w-4xl space-y-6 p-4 md:p-6"
+        >
+            <header>
+                <div className="flex items-center gap-3">
+                    <div className="rounded-xl border p-2">
+                        <CreditCard className="size-5" />
+                    </div>
+
+                    <div>
+                        <h1 className="text-3xl font-bold tracking-tight">
+                            {getText(
+                                'storefront.payment.title',
+                                'Secure payment',
+                            )}
+                        </h1>
+
+                        <p className="mt-1 text-muted-foreground">
+                            {getText(
+                                'storefront.payment.subtitle',
+                                'Complete payment for your order.',
+                            )}
+                        </p>
+                    </div>
+                </div>
+            </header>
+
+            {callbackSuccess && (
+                <div
+                    role="status"
+                    className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-4 text-sm"
+                >
+                    <div className="flex items-start gap-3">
+                        <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-green-600" />
+
+                        <div>
+                            <div className="font-semibold">
+                                {getText(
+                                    'storefront.payment.success',
+                                    'Payment completed successfully.',
+                                )}
+                            </div>
+
+                            <div className="mt-1 text-muted-foreground">
+                                {getText(
+                                    'storefront.payment.successDescription',
+                                    'Your payment was verified and your order has been completed.',
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {callbackFailed && (
+                <div
+                    role="alert"
+                    className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-4 text-sm"
+                >
+                    <div className="flex items-start gap-3">
+                        <CreditCard className="mt-0.5 size-5 shrink-0" />
+
+                        <div>
+                            <div className="font-semibold">
+                                {getText(
+                                    'storefront.payment.failed',
+                                    'Payment was not completed.',
+                                )}
+                            </div>
+
+                            <div className="mt-1 text-muted-foreground">
+                                {paymentReason === 'cancelled'
+                                    ? getText(
+                                        'storefront.payment.cancelled',
+                                        'The payment was cancelled or rejected.',
+                                    )
+                                    : paymentReason === 'inventory_unavailable'
+                                        ? getText(
+                                            'storefront.payment.inventoryUnavailable',
+                                            'The payment could not be completed because the inventory reservation was unavailable. Please do not create another payment until the order is checked.',
+                                        )
+                                        : paymentReason === 'order_expired'
+                                            ? getText(
+                                                'storefront.payment.orderExpired',
+                                                'This order has expired because it is too old and no active inventory reservation remains.',
+                                            )
+                                            : paymentReason === 'payment_completion_failed'
+                                                ? getText(
+                                                    'storefront.payment.completionFailed',
+                                                    'The payment callback was received, but the order could not be completed safely. Please check the order status before trying another payment.',
+                                                )
+                                                : getText(
+                                                    'storefront.payment.failedDescription',
+                                                    'We could not complete the payment.',
+                                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {error && (
+                <div
+                    role="alert"
+                    className="rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm"
+                >
+                    {error}
+                </div>
+            )}
+
+            <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+                <section className="rounded-2xl border p-6">
+                    <div className="flex items-center gap-3">
+                        <ShieldCheck className="size-6" />
+
+                        <div>
+                            <h2 className="font-semibold">
+                                {getText(
+                                    'storefront.payment.secureTitle',
+                                    'Secure checkout',
+                                )}
+                            </h2>
+
+                            <p className="text-sm text-muted-foreground">
+                                {getText(
+                                    'storefront.payment.secureDescription',
+                                    'Your payment is processed through the configured payment gateway.',
+                                )}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mt-8 space-y-4">
+                        <div className="rounded-xl border p-4">
+                            <div className="flex items-center gap-3">
+                                <LockKeyhole className="size-5 shrink-0" />
+
+                                <div>
+                                    <div className="font-medium">
+                                        {getText(
+                                            'storefront.payment.gateway',
+                                            'Payment gateway',
+                                        )}
+                                    </div>
+
+                                    <div className="mt-1 text-sm text-muted-foreground">
+                                        {payment?.gatewayName ??
+                                            paymentGateway}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {!payment ? (
+                            <button
+                                type="button"
+                                disabled={
+                                    !canStartPayment ||
+                                    busy
+                                }
+                                onClick={
+                                    handleStartPayment
+                                }
+                                className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                {startPayment.isPending ? (
+                                    <>
+                                        <Loader2 className="size-4 animate-spin" />
+
+                                        {getText(
+                                            'storefront.payment.starting',
+                                            'Starting payment...',
+                                        )}
+                                    </>
+                                ) : (
+                                    <>
+                                        <CreditCard className="size-4" />
+
+                                        {getText(
+                                            'storefront.payment.start',
+                                            'Start payment',
+                                        )}
+                                    </>
+                                )}
+                            </button>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="rounded-xl border p-5">
+                                    <div className="text-sm text-muted-foreground">
+                                        {getText(
+                                            'storefront.payment.reference',
+                                            'Payment reference',
+                                        )}
+                                    </div>
+
+                                    <div className="mt-2 break-all font-mono text-sm">
+                                        {
+                                            payment.gatewayReference
+                                        }
+                                    </div>
+
+                                    <div className="mt-4 text-sm text-muted-foreground">
+                                        {getText(
+                                            'storefront.payment.gatewayHint',
+                                            'Confirming will verify the transaction and mark the order as paid.',
+                                        )}
+                                    </div>
+                                </div>
+
+                                <button
+                                    type="button"
+                                    disabled={
+                                        busy
+                                    }
+                                    onClick={
+                                        handleConfirmPayment
+                                    }
+                                    className="flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 font-semibold text-primary-foreground transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {busy ? (
+                                        <>
+                                            <Loader2 className="size-4 animate-spin" />
+
+                                            {getText(
+                                                'storefront.payment.processing',
+                                                'Processing payment...',
+                                            )}
+                                        </>
+                                    ) : (
+                                        <>
+                                            <CheckCircle2 className="size-4" />
+
+                                            {getText(
+                                                'storefront.payment.confirm',
+                                                'Confirm payment',
+                                            )}
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </section>
+                <section className="rounded-2xl border bg-card p-5 md:p-6">
+                    <div className="flex items-center gap-3">
+                        <ShoppingBag className="size-5" />
+
+                        <div>
+                            <h2 className="font-semibold">
+                                {getText(
+                                    'storefront.payment.items',
+                                    'Order items',
+                                )}
+                            </h2>
+
+                            <p className="text-sm text-muted-foreground">
+                                {getText(
+                                    'storefront.payment.itemsHint',
+                                    'Review the products and selected options for this order.',
+                                )}
+                            </p>
+                        </div>
+                    </div>
+
+                    <div className="mt-5 space-y-3">
+                        {order.items.map(
+                            item => (
+                                <div
+                                    key={
+                                        item.productVariantId
+                                    }
+                                    className="rounded-xl border p-4"
+                                >
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="min-w-0">
+                                            <div className="font-semibold">
+                                                {
+                                                    item.productName
+                                                }
+                                            </div>
+
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                SKU:{' '}
+                                                {
+                                                    item.sku
+                                                }
+                                            </div>
+
+                                            {item.attributes?.length >
+                                                0 && (
+                                                    <div className="mt-3 flex flex-wrap gap-2">
+                                                        {item.attributes.map(
+                                                            attribute => (
+                                                                <span
+                                                                    key={`${item.productVariantId}-${attribute.attributeValueId}`}
+                                                                    className="inline-flex items-center gap-1 rounded-lg border bg-muted/40 px-2 py-1 text-xs"
+                                                                >
+                                                                    <span className="font-semibold">
+                                                                        {
+                                                                            attribute.attributeName
+                                                                        }
+                                                                        :
+                                                                    </span>
+
+                                                                    <span>
+                                                                        {
+                                                                            attribute.displayValue ??
+                                                                            attribute.value
+                                                                        }
+                                                                    </span>
+                                                                </span>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                )}
+
+                                            <div className="mt-2 text-sm text-muted-foreground">
+                                                {getText(
+                                                    'storefront.payment.quantity',
+                                                    'Quantity',
+                                                )}
+                                                :{' '}
+                                                {
+                                                    item.quantity
+                                                }
+                                            </div>
+                                        </div>
+
+                                        <div className="shrink-0 text-end font-semibold">
+                                            {formatMoney(
+                                                item.lineTotal,
+                                                order.currency,
+                                                i18n.language,
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ),
+                        )}
+                    </div>
+                </section>
+                <aside className="h-fit rounded-2xl border p-6 lg:sticky lg:top-6">
+                    <div className="flex items-center gap-3">
+                        <CheckCircle2 className="size-5" />
+
+                        <h2 className="font-semibold">
+                            {getText(
+                                'storefront.payment.summary',
+                                'Order summary',
+                            )}
+                        </h2>
+                    </div>
+
+                    <div className="mt-6 space-y-4">
+                        <div className="flex justify-between gap-4 text-sm">
+                            <span className="text-muted-foreground">
+                                {getText(
+                                    'storefront.payment.orderNumber',
+                                    'Order',
+                                )}
+                            </span>
+
+                            <span className="font-medium">
+                                {
+                                    order.orderNumber
+                                }
+                            </span>
+                        </div>
+
+                        <div className="flex justify-between gap-4 text-sm">
+                            <span className="text-muted-foreground">
+                                {getText(
+                                    'storefront.payment.status',
+                                    'Status',
+                                )}
+                            </span>
+
+                            <span className="font-medium">
+                                {getOrderStatusText(order.status)}
+                            </span>
+                        </div>
+
+                        <div className="border-t pt-4">
+                            <div className="flex items-center justify-between gap-4">
+                                <span className="font-semibold">
+                                    {getText(
+                                        'storefront.payment.amount',
+                                        'Amount',
+                                    )}
+                                </span>
+
+                                <span className="text-xl font-bold">
+                                    {formatMoney(
+                                        payment?.amount ??
+                                        total,
+
+                                        payment?.currency ??
+                                        order.currency,
+
+                                        i18n.language,
+                                    )}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <Link
+                        to={`/orders/${order.id}`}
+                        className="mt-6 block text-center text-sm font-medium underline-offset-4 hover:underline"
+                    >
+                        {getText(
+                            'storefront.payment.backToOrder',
+                            'Return to order',
+                        )}
+                    </Link>
+                </aside>
+            </div>
+        </div>
+    );
+}

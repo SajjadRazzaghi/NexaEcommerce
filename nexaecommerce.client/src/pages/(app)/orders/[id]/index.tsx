@@ -106,8 +106,7 @@ export default function OrderDetailsPage() {
     const { id} =
         useParams();
 
-    const { i18n} =
-        useTranslation();
+    const { i18n, t } = useTranslation();
 
     const isFa =
         i18n.language
@@ -410,12 +409,25 @@ export default function OrderDetailsPage() {
                        ================================================== */}
 
                     <section className="rounded-2xl border bg-card p-6">
-                        <div className="flex items-center gap-2">
-                            <Package className="size-5"/>
+                        <div className="flex items-start gap-3">
+                            <Package className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
 
-                            <h2 className="text-xl font-semibold">
-                                {text.items}
-                            </h2>
+                            <div className="min-w-0">
+                                <h2 className="text-xl font-semibold">
+                                    {t('orderDetails.items', { defaultValue: text.items })}
+                                </h2>
+
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    {t(
+                                        'orderDetails.itemsDescription',
+                                        {
+                                            defaultValue: isFa
+                                                ? 'محصولات و گزینه‌های انتخاب‌شده برای این سفارش را بررسی کنید.'
+                                                : 'Review the products and selected options for this order.',
+                                        },
+                                    )}
+                                </p>
+                            </div>
                         </div>
 
                         <div className="mt-5 space-y-4">
@@ -436,9 +448,8 @@ export default function OrderDetailsPage() {
                                                 </div>
 
                                                 <div className="mt-1 text-sm text-muted-foreground">
-                                                    {
-                                                        item.sku
-                                                   }
+                                                    <span>{t('orderDetails.sku', { defaultValue: 'SKU' })}:</span>{' '}
+                                                    {item.sku}
                                                 </div>
                                                 {item.attributes?.length > 0 && (
                                                     <div className="mt-3 flex flex-wrap gap-2">
@@ -467,9 +478,7 @@ export default function OrderDetailsPage() {
                                                     </div>
                                                 )}
                                                 <div className="mt-3 text-sm">
-                                                    {
-                                                        text.quantity
-                                                   }
+                                                    {t('orderDetails.quantity', { defaultValue: text.quantity })}
                                                     :{' '}
                                                     {
                                                         item.quantity

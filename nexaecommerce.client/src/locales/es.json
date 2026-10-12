@@ -1,4 +1,10 @@
 {
+  "orderDetails": {
+    "items": "Artículos del pedido",
+    "itemsDescription": "Revisa los productos y las opciones seleccionadas para este pedido.",
+    "sku": "SKU",
+    "quantity": "Cantidad"
+  },
   "common": {
     "search": "Buscar",
     "retry": "Reintentar",
@@ -1107,11 +1113,13 @@
       "accept": "Aceptar invitación"
     },
     "brand": {
-      "tagline": "Crea apps de negocio a velocidad de IA.",
-      "subtitle": "Un starter moderno de ASP.NET Core + React que parece un producto de 2026 desde el primer arranque: auth, roles, auditoría y una interfaz preciosa, listo para usar.",
-      "feature1": "Seguro por defecto: 2FA, sesiones, totalmente auditado",
-      "feature2": "Amplía toda una función con un solo prompt",
-      "feature3": "Modo oscuro, i18n y RTL desde el primer commit"
+      "storeName": "Galería de ropa Patlet",
+      "tagline": "Comodidad y estilo, del embarazo a la maternidad",
+      "subtitle": "Descubre ropa premamá, conjuntos para el hospital y prendas cómodas en la Galería Patlet.",
+      "feature1": "Prendas cómodas para el embarazo y el posparto",
+      "feature2": "Elige fácilmente estilo, color y talla",
+      "feature3": "Una experiencia de compra en línea sencilla y segura",
+      "copyright": "© {{year}} {{storeName}}"
     }
   },
   "notFound": {
@@ -1119,5 +1127,73 @@
     "description": "La página que buscas no existe, se ha movido o la dirección es incorrecta.",
     "goHome": "Ir al inicio",
     "goBack": "Volver"
+  },
+  "cartUpsell": {
+    "title": "Producto añadido al carrito",
+    "subtitle": "Completa tu compra con estos productos.",
+    "recommendations": "Productos complementarios",
+    "selectVariant": "Seleccionar variante",
+    "addToCart": "Añadir al carrito",
+    "adding": "Añadiendo…",
+    "continueShopping": "Seguir comprando",
+    "viewCart": "Ver carrito",
+    "addFailed": "No se pudo añadir el producto recomendado al carrito.",
+    "loading": "Cargando recomendaciones…"
+  },
+  "storefront": {
+    "orders": {
+      "statuses": {
+        "PendingPayment": "Pendiente de pago",
+        "Paid": "Pagado",
+        "Processing": "En preparación",
+        "Shipped": "Enviado",
+        "Delivered": "Entregado",
+        "Cancelled": "Cancelado",
+        "Failed": "Pago fallido",
+        "Refunded": "Reembolsado",
+        "Completed": "Completado"
+      }
+    },
+    "payment": {
+      "orderNotFound": "Pedido no encontrado",
+      "orderNotFoundDescription": "No pudimos cargar este pedido para el pago.",
+      "backToOrders": "Volver a los pedidos",
+      "notAvailable": "El pago no está disponible",
+      "notAvailableDescription": "Este pedido ya no está pendiente de pago.",
+      "backToOrder": "Volver al pedido",
+      "success": "El pago se completó correctamente.",
+      "successDescription": "El pago se ha verificado y el pedido se ha completado correctamente.",
+      "alreadyPaid": "El pedido ya está pagado",
+      "alreadyPaidDescription": "Este pedido ya se ha pagado correctamente.",
+      "viewOrder": "Ver pedido",
+      "title": "Pago seguro",
+      "subtitle": "Completa el pago de tu pedido.",
+      "failed": "No se completó el pago.",
+      "cancelled": "El pago se canceló o fue rechazado.",
+      "failedDescription": "No pudimos completar el pago. Puedes intentarlo de nuevo.",
+      "inventoryUnavailable": "No se pudo completar el pago porque la reserva de inventario no estaba disponible. Comprueba el pedido antes de volver a pagar.",
+      "orderExpired": "Este pedido ha caducado porque ya no tiene una reserva de inventario activa.",
+      "completionFailed": "Se recibió la respuesta de pago, pero no se pudo completar el pedido de forma segura. Comprueba el estado del pedido antes de volver a intentarlo.",
+      "secureTitle": "Pago seguro",
+      "secureDescription": "El pago se procesa a través de la pasarela de pago configurada.",
+      "gateway": "Pasarela de pago",
+      "starting": "Iniciando el pago...",
+      "start": "Iniciar pago",
+      "reference": "Referencia de pago",
+      "gatewayHint": "Al confirmar, se verificará la transacción y el pedido se marcará como pagado.",
+      "processing": "Procesando el pago...",
+      "confirm": "Confirmar pago",
+      "items": "Artículos del pedido",
+      "itemsHint": "Revisa los productos y las opciones seleccionadas para este pedido.",
+      "quantity": "Cantidad",
+      "summary": "Resumen del pedido",
+      "orderNumber": "Pedido",
+      "status": "Estado",
+      "amount": "Importe",
+      "missingReference": "La pasarela de pago no devolvió una referencia de pago.",
+      "startError": "No se pudo iniciar el pago. Inténtalo de nuevo.",
+      "verifyError": "No se pudo verificar el pago.",
+      "completeError": "El pago se verificó correctamente, pero no se pudo completar el pedido."
+    }
   }
 }

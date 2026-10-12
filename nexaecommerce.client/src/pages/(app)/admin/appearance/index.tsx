@@ -1,4 +1,4 @@
-import {
+﻿import {
     useMemo,
     useState,
     type FormEvent,
@@ -36,6 +36,7 @@ import {
 import {
     appearanceApi,
     APPEARANCE_PERM,
+    type AppearanceUpdate,
 } from '@/lib/api/appearance';
 
 import {
@@ -317,225 +318,102 @@ export default function AppearancePage() {
     ) => {
         event.preventDefault();
 
-        const normalizedStoreName =
-            form.storeName.trim();
+        const normalizedStoreName = form.storeName.trim();
+        const normalizedLogoUrl = form.logoUrl.trim();
+        const normalizedFaviconUrl = form.faviconUrl.trim();
+        const normalizedTheme = form.theme.trim() || defaultTheme;
+        const normalizedBrandColor = form.brandColor.trim();
+        const normalizedCustomTheme = form.customTheme.trim();
+        const normalizedContactPhone = form.contactPhone.trim();
+        const normalizedContactEmail = form.contactEmail.trim();
+        const normalizedContactAddress = form.contactAddress.trim();
+        const normalizedWebsiteUrl = form.websiteUrl.trim();
+        const normalizedSeoTitle = form.seoTitle.trim();
+        const normalizedSeoDescription = form.seoDescription.trim();
 
-        const normalizedLogoUrl =
-            form.logoUrl.trim();
+        const baseline = createAppearanceFormState(appearance);
+        const changed = {
+            storeName: normalizedStoreName !== baseline.storeName.trim(),
+            logoUrl: normalizedLogoUrl !== baseline.logoUrl.trim(),
+            faviconUrl: normalizedFaviconUrl !== baseline.faviconUrl.trim(),
+            theme: normalizedTheme !== (baseline.theme.trim() || defaultTheme),
+            brandColor: normalizedBrandColor !== baseline.brandColor.trim(),
+            customTheme: normalizedCustomTheme !== baseline.customTheme.trim(),
+            contactPhone: normalizedContactPhone !== baseline.contactPhone.trim(),
+            contactEmail: normalizedContactEmail !== baseline.contactEmail.trim(),
+            contactAddress: normalizedContactAddress !== baseline.contactAddress.trim(),
+            websiteUrl: normalizedWebsiteUrl !== baseline.websiteUrl.trim(),
+            seoTitle: normalizedSeoTitle !== baseline.seoTitle.trim(),
+            seoDescription: normalizedSeoDescription !== baseline.seoDescription.trim(),
+        };
 
-        const normalizedFaviconUrl =
-            form.faviconUrl.trim();
-
-        const normalizedTheme =
-            form.theme.trim() ||
-            defaultTheme;
-
-        const normalizedBrandColor =
-            form.brandColor.trim();
-
-        const normalizedCustomTheme =
-            form.customTheme.trim();
-
-        const normalizedContactPhone =
-            form.contactPhone.trim();
-
-        const normalizedContactEmail =
-            form.contactEmail.trim();
-
-        const normalizedContactAddress =
-            form.contactAddress.trim();
-
-        const normalizedWebsiteUrl =
-            form.websiteUrl.trim();
-
-        const normalizedSeoTitle =
-            form.seoTitle.trim();
-
-        const normalizedSeoDescription =
-            form.seoDescription.trim();
-
-        if (
-            normalizedStoreName.length >
-            128
-        ) {
-            toast.error(
-                t(
-                    'appearance.validation.storeNameMax',
-                ),
-            );
-
+        // Validate only fields the user changed. An unrelated legacy value must not
+        // prevent saving a simple change such as the store name.
+        if (changed.storeName && normalizedStoreName.length > 128) {
+            toast.error(t('appearance.validation.storeNameMax'));
+            return;
+        }
+        if (changed.logoUrl && normalizedLogoUrl.length > 2048) {
+            toast.error(t('appearance.validation.logoUrlMax'));
+            return;
+        }
+        if (changed.faviconUrl && normalizedFaviconUrl.length > 2048) {
+            toast.error(t('appearance.validation.faviconUrlMax'));
+            return;
+        }
+        if (changed.brandColor && normalizedBrandColor.length > 64) {
+            toast.error(t('appearance.validation.brandColorMax'));
+            return;
+        }
+        if (changed.customTheme && normalizedCustomTheme.length > 4000) {
+            toast.error(t('appearance.validation.customThemeMax'));
+            return;
+        }
+        if (changed.contactPhone && normalizedContactPhone.length > 64) {
+            toast.error(t('appearance.validation.contactPhoneMax'));
+            return;
+        }
+        if (changed.contactEmail && normalizedContactEmail.length > 256) {
+            toast.error(t('appearance.validation.contactEmailMax'));
+            return;
+        }
+        if (changed.contactAddress && normalizedContactAddress.length > 1000) {
+            toast.error(t('appearance.validation.contactAddressMax'));
+            return;
+        }
+        if (changed.websiteUrl && normalizedWebsiteUrl.length > 2048) {
+            toast.error(t('appearance.validation.websiteUrlMax'));
+            return;
+        }
+        if (changed.seoTitle && normalizedSeoTitle.length > 160) {
+            toast.error(t('appearance.validation.seoTitleMax'));
+            return;
+        }
+        if (changed.seoDescription && normalizedSeoDescription.length > 320) {
+            toast.error(t('appearance.validation.seoDescriptionMax'));
             return;
         }
 
-        if (
-            normalizedLogoUrl.length >
-            2048
-        ) {
-            toast.error(
-                t(
-                    'appearance.validation.logoUrlMax',
-                ),
-            );
+        const payload: AppearanceUpdate = {};
+        if (changed.storeName) payload.storeName = normalizedStoreName;
+        if (changed.logoUrl) payload.logoUrl = normalizedLogoUrl;
+        if (changed.faviconUrl) payload.faviconUrl = normalizedFaviconUrl;
+        if (changed.theme) payload.theme = normalizedTheme;
+        if (changed.brandColor) payload.brandColor = normalizedBrandColor;
+        if (changed.customTheme) payload.customTheme = normalizedCustomTheme;
+        if (changed.contactPhone) payload.contactPhone = normalizedContactPhone;
+        if (changed.contactEmail) payload.contactEmail = normalizedContactEmail;
+        if (changed.contactAddress) payload.contactAddress = normalizedContactAddress;
+        if (changed.websiteUrl) payload.websiteUrl = normalizedWebsiteUrl;
+        if (changed.seoTitle) payload.seoTitle = normalizedSeoTitle;
+        if (changed.seoDescription) payload.seoDescription = normalizedSeoDescription;
 
+        if (Object.keys(payload).length === 0) {
+            toast.info(t('appearance.toast.noChanges', { defaultValue: 'No changes to save.' }));
             return;
         }
 
-        if (
-            normalizedFaviconUrl.length >
-            2048
-        ) {
-            toast.error(
-                t(
-                    'appearance.validation.faviconUrlMax',
-                ),
-            );
-
-            return;
-        }
-
-        if (
-            normalizedBrandColor.length >
-            64
-        ) {
-            toast.error(
-                t(
-                    'appearance.validation.brandColorMax',
-                ),
-            );
-
-            return;
-        }
-
-        if (
-            normalizedCustomTheme.length >
-            4000
-        ) {
-            toast.error(
-                t(
-                    'appearance.validation.customThemeMax',
-                ),
-            );
-
-            return;
-        }
-
-        if (
-            normalizedContactPhone.length >
-            64
-        ) {
-            toast.error(
-                t(
-                    'appearance.validation.contactPhoneMax',
-                ),
-            );
-
-            return;
-        }
-
-        if (
-            normalizedContactEmail.length >
-            256
-        ) {
-            toast.error(
-                t(
-                    'appearance.validation.contactEmailMax',
-                ),
-            );
-
-            return;
-        }
-
-        if (
-            normalizedContactAddress.length >
-            1000
-        ) {
-            toast.error(
-                t(
-                    'appearance.validation.contactAddressMax',
-                ),
-            );
-
-            return;
-        }
-
-        if (
-            normalizedWebsiteUrl.length >
-            2048
-        ) {
-            toast.error(
-                t(
-                    'appearance.validation.websiteUrlMax',
-                ),
-            );
-
-            return;
-        }
-
-        if (
-            normalizedSeoTitle.length >
-            160
-        ) {
-            toast.error(
-                t(
-                    'appearance.validation.seoTitleMax',
-                ),
-            );
-
-            return;
-        }
-
-        if (
-            normalizedSeoDescription.length >
-            320
-        ) {
-            toast.error(
-                t(
-                    'appearance.validation.seoDescriptionMax',
-                ),
-            );
-
-            return;
-        }
-
-        save.mutate(
-            {
-                storeName:
-                    normalizedStoreName,
-
-                logoUrl:
-                    normalizedLogoUrl,
-
-                faviconUrl:
-                    normalizedFaviconUrl,
-
-                theme:
-                    normalizedTheme,
-
-                brandColor:
-                    normalizedBrandColor,
-
-                customTheme:
-                    normalizedCustomTheme,
-
-                contactPhone:
-                    normalizedContactPhone,
-
-                contactEmail:
-                    normalizedContactEmail,
-
-                contactAddress:
-                    normalizedContactAddress,
-
-                websiteUrl:
-                    normalizedWebsiteUrl,
-
-                seoTitle:
-                    normalizedSeoTitle,
-
-                seoDescription:
-                    normalizedSeoDescription,
-            },
-        );
+        save.mutate(payload);
     };
 
     if (

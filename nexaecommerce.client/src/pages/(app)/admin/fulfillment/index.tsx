@@ -17,6 +17,7 @@ import {
     ChevronRight,
     ExternalLink,
     Package,
+    Printer,
     RefreshCw,
 } from 'lucide-react';
 
@@ -165,6 +166,58 @@ export default function AdminFulfillmentPage() {
     const fulfillmentItems =
         data?.items ?? [];
 
+    const [
+        selectedOrderIds,
+        setSelectedOrderIds,
+    ] = useState<Set<string>>(
+        () => new Set(),
+    );
+
+    const readyToShipItems =
+        fulfillmentItems.filter(
+            item => item.fulfillment.status === 'ReadyToShip',
+        );
+
+    const allReadyToShipSelected =
+        readyToShipItems.length > 0 &&
+        readyToShipItems.every(
+            item => selectedOrderIds.has(item.orderId),
+        );
+
+    const toggleOrderSelection = (orderId: string) => {
+        setSelectedOrderIds(current => {
+            const next = new Set(current);
+            if (next.has(orderId)) {
+                next.delete(orderId);
+            } else {
+                next.add(orderId);
+            }
+            return next;
+        });
+    };
+
+    const toggleVisibleReadyToShipSelection = () => {
+        setSelectedOrderIds(current => {
+            const next = new Set(current);
+            if (allReadyToShipSelected) {
+                readyToShipItems.forEach(item => next.delete(item.orderId));
+            } else {
+                readyToShipItems.forEach(item => next.add(item.orderId));
+            }
+            return next;
+        });
+    };
+
+    const printSelectedLabels = () => {
+        if (selectedOrderIds.size === 0) return;
+        const ids = Array.from(selectedOrderIds).join(',');
+        window.open(
+            `/admin/orders/shipping-labels?ids=${encodeURIComponent(ids)}`,
+            '_blank',
+            'noopener,noreferrer',
+        );
+    };
+
     const text = isFa
         ? {
             title:
@@ -211,6 +264,12 @@ export default function AdminFulfillmentPage() {
                 'در حال دریافت...',
             warehouseNotFound:
                 'انبار یافت نشد',
+            selected:
+                'سفارش انتخاب‌شده',
+            printLabels:
+                'چاپ برچسب‌های ارسال',
+            selectReadyToShip:
+                'انتخاب سفارش آماده ارسال',
         }
         : {
             title:
@@ -257,6 +316,12 @@ export default function AdminFulfillmentPage() {
                 'Loading...',
             warehouseNotFound:
                 'Warehouse not found',
+            selected:
+                'selected',
+            printLabels:
+                'Print shipping labels',
+            selectReadyToShip:
+                'Select a ready-to-ship order',
         };
 
     return (
@@ -305,6 +370,21 @@ export default function AdminFulfillmentPage() {
                     </button>
                 </div>
             </header>
+
+            <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4">
+                <div className="text-sm text-muted-foreground">
+                    {selectedOrderIds.size} {text.selected}
+                </div>
+                <button
+                    type="button"
+                    disabled={selectedOrderIds.size === 0}
+                    onClick={printSelectedLabels}
+                    className="inline-flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                    <Printer className="size-4" />
+                    {text.printLabels}
+                </button>
+            </section>
 
             {isLoading && (
                 <div className="space-y-3">
@@ -366,6 +446,17 @@ export default function AdminFulfillmentPage() {
                             <table className="w-full min-w-[1100px] text-sm">
                                 <thead>
                                     <tr className="border-b bg-muted/30">
+                                        <th className="w-12 px-4 py-3 text-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={allReadyToShipSelected}
+                                                onChange={toggleVisibleReadyToShipSelection}
+                                                disabled={readyToShipItems.length === 0}
+                                                aria-label={text.selectReadyToShip}
+                                                title={text.selectReadyToShip}
+                                                className="size-4 rounded border"
+                                            />
+                                        </th>
                                         <th className="px-4 py-3 text-start font-medium">
                                             {text.order}
                                         </th>
@@ -423,6 +514,16 @@ export default function AdminFulfillmentPage() {
                                                     }
                                                     className="border-b last:border-b-0"
                                                 >
+                                                    <td className="w-12 px-4 py-4 text-center">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={selectedOrderIds.has(item.orderId)}
+                                                            disabled={item.fulfillment.status !== 'ReadyToShip'}
+                                                            onChange={() => toggleOrderSelection(item.orderId)}
+                                                            aria-label={`${text.selectReadyToShip}: ${item.orderNumber}`}
+                                                            className="size-4 rounded border disabled:opacity-30"
+                                                        />
+                                                    </td>
                                                     <td className="px-4 py-4">
                                                         <Link
                                                             to={`/admin/orders/${item.orderId}`}

@@ -60,6 +60,7 @@ public sealed record OrderListItemDto(
     Guid Id,
     string OrderNumber,
     string UserId,
+    string ShippingFullName,
     string Status,
     string Currency,
     decimal TotalAmount,

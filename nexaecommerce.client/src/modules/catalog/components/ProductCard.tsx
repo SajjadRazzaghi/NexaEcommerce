@@ -32,6 +32,7 @@ import {
 } from '../api/products';
 
 import ProductVariantPickerDialog from './ProductVariantPickerDialog';
+import CartUpsellDialog from './CartUpsellDialog';
 
 import {useCartMutations} from '@/modules/cart/hooks/useCartMutations';
 
@@ -84,6 +85,12 @@ export default function ProductCard({
 
     const [variantLoading, setVariantLoading] =
         useState(false);
+
+    const [upsellOpen, setUpsellOpen] =
+        useState(false);
+
+    const [upsellProductId, setUpsellProductId] =
+        useState<string | null>(null);
 
     const {add} = useCartMutations();
 
@@ -180,6 +187,8 @@ export default function ProductCard({
                });
 
                 setAdded(true);
+                setUpsellProductId(fullProduct.id);
+                setUpsellOpen(true);
 
                 return;
            }
@@ -220,8 +229,14 @@ export default function ProductCard({
                 quantity: 1,
            });
 
+            const sourceProductId = variantProduct?.id;
             setAdded(true);
             closeVariantDialog();
+
+            if (sourceProductId) {
+                setUpsellProductId(sourceProductId);
+                setUpsellOpen(true);
+            }
        } catch {
             setErrorMessage(
                 isFa
@@ -638,6 +653,15 @@ export default function ProductCard({
                     handleVariantConfirm
                }
            />
+
+            <CartUpsellDialog
+                open={upsellOpen}
+                sourceProductId={upsellProductId}
+                onClose={() => {
+                    setUpsellOpen(false);
+                    setUpsellProductId(null);
+                }}
+            />
         </>
     );
 }

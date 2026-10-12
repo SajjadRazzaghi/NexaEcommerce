@@ -109,6 +109,7 @@ export interface OrderListItemDto {
     id: string;
     orderNumber: string;
     userId: string;
+    shippingFullName: string;
     status: OrderStatus;
     currency: string;
     totalAmount: number;

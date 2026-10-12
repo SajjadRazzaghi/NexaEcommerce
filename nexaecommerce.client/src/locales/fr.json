@@ -1,4 +1,10 @@
 {
+  "orderDetails": {
+    "items": "Articles de la commande",
+    "itemsDescription": "Vérifiez les produits et les options sélectionnées pour cette commande.",
+    "sku": "SKU",
+    "quantity": "Quantité"
+  },
   "common": {
     "search": "Rechercher",
     "retry": "Réessayer",
@@ -1107,11 +1113,13 @@
       "accept": "Accepter l'invitation"
     },
     "brand": {
-      "tagline": "Créez des applications métier à la vitesse de l'IA.",
-      "subtitle": "Un starter moderne ASP.NET Core + React qui ressemble à un produit de 2026 dès le premier lancement — auth, rôles, audit et une belle interface, clés en main.",
-      "feature1": "Sécurisé par défaut — 2FA, sessions, entièrement audité",
-      "feature2": "Étendez toute une fonctionnalité avec un seul prompt",
-      "feature3": "Mode sombre, i18n et RTL dès le premier commit"
+      "storeName": "Galerie de vêtements Patlet",
+      "tagline": "Confort et style, de la grossesse à la maternité",
+      "subtitle": "Découvrez chez Patlet des vêtements de grossesse, des ensembles pour la maternité et des tenues confortables.",
+      "feature1": "Des modèles confortables pendant et après la grossesse",
+      "feature2": "Choisissez facilement le modèle, la couleur et la taille",
+      "feature3": "Une expérience d’achat en ligne simple et rassurante",
+      "copyright": "© {{year}} {{storeName}}"
     }
   },
   "notFound": {
@@ -1119,5 +1127,73 @@
     "description": "La page que vous recherchez n’existe pas, a été déplacée ou l’adresse est incorrecte.",
     "goHome": "Accueil",
     "goBack": "Retour"
+  },
+  "cartUpsell": {
+    "title": "Produit ajouté au panier",
+    "subtitle": "Complétez votre achat avec ces produits.",
+    "recommendations": "Produits complémentaires",
+    "selectVariant": "Choisir une variante",
+    "addToCart": "Ajouter au panier",
+    "adding": "Ajout en cours…",
+    "continueShopping": "Continuer les achats",
+    "viewCart": "Voir le panier",
+    "addFailed": "Impossible d’ajouter ce produit recommandé au panier.",
+    "loading": "Chargement des recommandations…"
+  },
+  "storefront": {
+    "orders": {
+      "statuses": {
+        "PendingPayment": "En attente de paiement",
+        "Paid": "Payée",
+        "Processing": "En cours de traitement",
+        "Shipped": "Expédiée",
+        "Delivered": "Livrée",
+        "Cancelled": "Annulée",
+        "Failed": "Échec du paiement",
+        "Refunded": "Remboursée",
+        "Completed": "Terminée"
+      }
+    },
+    "payment": {
+      "orderNotFound": "Commande introuvable",
+      "orderNotFoundDescription": "Impossible de charger cette commande pour le paiement.",
+      "backToOrders": "Retour aux commandes",
+      "notAvailable": "Paiement indisponible",
+      "notAvailableDescription": "Cette commande n’est plus en attente de paiement.",
+      "backToOrder": "Retour à la commande",
+      "success": "Le paiement a été effectué avec succès.",
+      "successDescription": "Votre paiement a été vérifié et la commande a été finalisée.",
+      "alreadyPaid": "Commande déjà payée",
+      "alreadyPaidDescription": "Cette commande a déjà été payée avec succès.",
+      "viewOrder": "Voir la commande",
+      "title": "Paiement sécurisé",
+      "subtitle": "Finalisez le paiement de votre commande.",
+      "failed": "Le paiement n’a pas abouti.",
+      "cancelled": "Le paiement a été annulé ou refusé.",
+      "failedDescription": "Impossible de finaliser le paiement. Vous pouvez réessayer.",
+      "inventoryUnavailable": "Le paiement n’a pas pu aboutir, car la réservation du stock est indisponible. Vérifiez la commande avant de réessayer.",
+      "orderExpired": "Cette commande a expiré, car aucune réservation de stock active n’est disponible.",
+      "completionFailed": "La réponse du paiement a été reçue, mais la commande n’a pas pu être finalisée en toute sécurité. Vérifiez son état avant de réessayer.",
+      "secureTitle": "Paiement sécurisé",
+      "secureDescription": "Votre paiement est traité par la passerelle configurée.",
+      "gateway": "Passerelle de paiement",
+      "starting": "Démarrage du paiement...",
+      "start": "Démarrer le paiement",
+      "reference": "Référence de paiement",
+      "gatewayHint": "La confirmation vérifiera la transaction et marquera la commande comme payée.",
+      "processing": "Traitement du paiement...",
+      "confirm": "Confirmer le paiement",
+      "items": "Articles de la commande",
+      "itemsHint": "Vérifiez les produits et les options sélectionnées pour cette commande.",
+      "quantity": "Quantité",
+      "summary": "Récapitulatif de la commande",
+      "orderNumber": "Commande",
+      "status": "Statut",
+      "amount": "Montant",
+      "missingReference": "La passerelle de paiement n’a renvoyé aucune référence de paiement.",
+      "startError": "Impossible de démarrer le paiement. Veuillez réessayer.",
+      "verifyError": "La vérification du paiement a échoué.",
+      "completeError": "Le paiement a été vérifié, mais la commande n’a pas pu être finalisée."
+    }
   }
 }

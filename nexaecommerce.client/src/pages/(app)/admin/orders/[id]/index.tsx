@@ -2,6 +2,7 @@ import {
     Check,
     ExternalLink,
     Package,
+    Printer,
     Truck,
     Undo2,
 } from 'lucide-react';
@@ -252,6 +253,9 @@ export default function AdminOrderDetailsPage() {
             shipmentConfig:
                 'مدیریت روش‌های ارسال',
 
+            printLabel:
+                'چاپ لیبل ارسال',
+
             total:
                 'مبلغ کل',
 
@@ -396,6 +400,9 @@ export default function AdminOrderDetailsPage() {
 
             shipmentConfig:
                 'Manage shipping methods',
+
+            printLabel:
+                'Print shipping label',
 
             total:
                 'Total',
@@ -1562,6 +1569,22 @@ export default function AdminOrderDetailsPage() {
 
                                 </div>
 
+                                <div className="flex justify-end">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            window.open(
+                                                `/admin/orders/shipping-labels?ids=${encodeURIComponent(order.id)}`,
+                                                '_blank',
+                                                'noopener,noreferrer',
+                                            )
+                                        }
+                                        className="inline-flex items-center gap-2 rounded-lg border px-4 py-2.5 text-sm font-medium"
+                                    >
+                                        <Printer className="size-4" />
+                                        {text.printLabel}
+                                    </button>
+                                </div>
 
                                 {/* ================================================= */}
                                 {/* Tracking */}

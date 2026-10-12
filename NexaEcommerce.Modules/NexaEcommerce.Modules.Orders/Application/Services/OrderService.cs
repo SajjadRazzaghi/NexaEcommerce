@@ -588,6 +588,7 @@ request.ShippingMethodId);
                             x.Id,
                             x.OrderNumber,
                             x.UserId,
+                            x.ShippingFullName,
                             x.Status.ToString(),
                             x.Currency,
                             x.TotalAmount,
