@@ -10,6 +10,7 @@ using NexaEcommerce.Modules.ShoppingCart.Infrastructure.Persistence;
 namespace NexaECommerce.Server.Data;
 
 public sealed class EcommerceDatabaseInitializer(
+    AppDbContext appDb,
     CatalogDbContext catalogDb,
     CustomerDbContext customerDb,
     InventoryDbContext inventoryDb,
@@ -20,8 +21,10 @@ public sealed class EcommerceDatabaseInitializer(
     public async Task InitializeAsync(
         CancellationToken cancellationToken = default)
     {
-        // فقط ساختار دیتابیس را با Migrationها به‌روز می‌کنیم.
-        // هیچ اطلاعات نمونه‌ای به صورت خودکار درج نمی‌شود.
+        await MigrateAsync(
+            "App/Identity",
+            appDb,
+            cancellationToken);
 
         await MigrateAsync(
             "Catalog",
@@ -47,14 +50,12 @@ public sealed class EcommerceDatabaseInitializer(
             "Orders",
             ordersDb,
             cancellationToken);
-    
 
-        // فقط اطلاعات پایهٔ نوع نمایش ویژگی‌ها
         await DbInitializer.InitializeDisplayTypesAsync(
             catalogDb);
 
         logger.LogInformation(
-            "Database migrations completed successfully. Automatic seeding is disabled.");
+            "Database migrations completed successfully.");
     }
 
     private async Task MigrateAsync(
@@ -68,8 +69,8 @@ public sealed class EcommerceDatabaseInitializer(
                 "Applying {DatabaseName} database migrations...",
                 databaseName);
 
-            //await context.Database.MigrateAsync(
-            //    cancellationToken);
+            await context.Database.MigrateAsync(
+                cancellationToken);
 
             logger.LogInformation(
                 "{DatabaseName} database migrations completed.",

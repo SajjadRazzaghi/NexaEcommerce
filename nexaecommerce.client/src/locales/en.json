@@ -523,12 +523,99 @@
   },
 
   "permissions": {
+
+    "descriptions": {
+      "appearance": {
+        "manage": "تغییر رنگ برند برنامه"
+      },
+      "brands": {
+        "create": "ایجاد برند",
+        "delete": "حذف برند",
+        "feature": "ویژه‌کردن یا لغو ویژه‌بودن برند",
+        "publish": "انتشار یا لغو انتشار برند",
+        "read": "مشاهده برندها",
+        "restore": "بازیابی برند حذف‌شده",
+        "status": "فعال یا غیرفعال‌کردن برند",
+        "update": "ویرایش برند"
+      },
+      "catalog": {
+        "products": {
+          "read": "مشاهده محصولات",
+          "create": "ایجاد محصول",
+          "update": "ویرایش محصول",
+          "delete": "حذف محصول",
+          "manage-status": "فعال یا غیرفعال‌کردن محصول",
+          "publish": "انتشار یا لغو انتشار محصول",
+          "feature": "ویژه‌کردن یا لغو ویژه‌بودن محصول"
+        },
+        "manufacturers": {
+          "create": "ایجاد تولیدکننده",
+          "update": "ویرایش تولیدکننده",
+          "delete": "حذف تولیدکننده",
+          "restore": "بازیابی تولیدکننده حذف‌شده",
+          "manage-status": "فعال یا غیرفعال‌کردن تولیدکننده",
+          "publish": "انتشار یا لغو انتشار تولیدکننده",
+          "feature": "ویژه‌کردن یا لغو ویژه‌بودن تولیدکننده"
+        }
+      },
+      "comments": {
+        "moderate": "حذف دیدگاه سایر کاربران"
+      },
+      "health": {
+        "read": "مشاهده وضعیت سلامت سیستم"
+      },
+      "inventory": {
+        "read": "مشاهده موجودی انبار",
+        "manage": "مدیریت موجودی انبار"
+      },
+      "orders": {
+        "read": "مشاهده سفارش‌های خود",
+        "manage": "مشاهده همه سفارش‌های فروشگاه",
+        "update-status": "تغییر وضعیت سفارش"
+      },
+      "roles": {
+        "read": "مشاهده نقش‌ها و فهرست مجوزها",
+        "create": "ایجاد نقش",
+        "update": "ویرایش نقش‌ها و تخصیص مجوزها",
+        "delete": "حذف نقش"
+      },
+      "settings": {
+        "read": "مشاهده تنظیمات برنامه",
+        "update": "تغییر تنظیمات برنامه"
+      },
+      "shipping": {
+        "read": "مشاهده روش‌های ارسال",
+        "create": "ایجاد روش ارسال",
+        "update": "ویرایش روش ارسال",
+        "delete": "حذف روش ارسال"
+      },
+      "users": {
+        "read": "مشاهده کاربران",
+        "create": "ایجاد کاربر و ارسال دعوت‌نامه",
+        "update": "ویرایش کاربران، نقش‌ها، وضعیت قفل حساب، تأیید ایمیل و بازنشانی گذرواژه",
+        "delete": "حذف کاربر"
+      }
+    },
+
     "title": "Permissions",
     "subtitle": "Review the permissions available to the application.",
     "loadError": "We couldn't load the permission catalog.",
     "emptyTitle": "No permissions found",
     "emptyDesc": "No permissions have been registered.",
     "groups": {
+      "descriptions": {
+        "brands": {
+          "create": "Create brands",
+          "delete": "Delete brands",
+          "feature": "Feature or unfeature brands",
+          "publish": "Publish or unpublish brands",
+          "read": "View brands",
+          "restore": "Restore deleted brands",
+          "status": "Activate or deactivate brands",
+          "update": "Edit brands"
+        }
+      },
+
       "appearance": "Appearance",
       "catalog": "Catalog",
       "brands": "Brands",
@@ -540,6 +627,12 @@
       "roles": "Roles",
       "settings": "Settings",
       "users": "Users"
+    },
+    "descriptions": {
+      "inventory": {
+        "read": "View inventory",
+        "manage": "Manage inventory"
+      }
     }
   },
 

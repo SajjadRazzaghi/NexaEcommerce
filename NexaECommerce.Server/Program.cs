@@ -260,6 +260,7 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.MapAllFeatures();
+app.MapFallbackToFile("index.html");
 
 // ============================================================
 // 20. Database + Ecommerce Bootstrap
@@ -294,6 +295,8 @@ await using (
                     EcommerceDatabaseInitializer>();
 
         await initializer.InitializeAsync();
+        await NexaECommerce.Server.Data.Seed.IdentitySeeder
+    .SeedAsync(scope.ServiceProvider);
     }
     catch (Exception ex)
     {

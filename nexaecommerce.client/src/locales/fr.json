@@ -836,7 +836,14 @@
       "settings": "Paramètres",
       "tenants": "Locataires",
       "users": "Utilisateurs",
-      "webhooks": "Webhooks"
+      "webhooks": "Webhooks",
+      "inventory": "Stock"
+    },
+    "descriptions": {
+      "inventory": {
+        "read": "Consulter le stock",
+        "manage": "Gérer le stock"
+      }
     }
   },
   "admin": {

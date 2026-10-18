@@ -6,10 +6,13 @@
 
 /* Step 1 — design tokens at root level (hsl() wrapped). shadcn/ui consumes these. */
 :root {
-   
     --radius: 0.625rem;
     /* Tells the browser to theme native UI (form controls, scrollbars, spinners) to match. */
     color-scheme: light;
+    /* Make the font available to ordinary CSS var() references */
+    --font-sans: 'IRANSans', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --radius: 0.625rem;
+    /* بقیه متغیرهای فعلی را نگه دار */
     --background: hsl(0 0% 100%);
     --foreground: hsl(222.2 84% 4.9%);
     --card: hsl(0 0% 100%);
@@ -143,14 +146,14 @@
         outline-color: var(--ring);
     }
 
-    html {
-        font-family: var(--font-sans);
+    html,
+    body {
+        font-family: 'IRANSans', system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
     }
 
     body {
         background-color: var(--background);
         color: var(--foreground);
-        font-family: var(--font-sans);
         -webkit-font-smoothing: antialiased;
     }
 

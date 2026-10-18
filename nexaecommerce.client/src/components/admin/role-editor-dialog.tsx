@@ -157,7 +157,11 @@ function RoleEditorForm({ role, catalog, onClose }: { role: Role | null; catalog
                         onCheckedChange={(v) => toggle(permission.name, v === true)}
                       />
                       <span className="grid gap-0.5">
-                        <span className="text-sm leading-none">{permission.description}</span>
+                              <span className="text-sm leading-none">
+                                  {t(`permissions.descriptions.${permission.name}`, {
+                                      defaultValue: permission.description,
+                                  })}
+                              </span>
                         <code className="text-muted-foreground text-xs">{permission.name}</code>
                       </span>
                     </label>

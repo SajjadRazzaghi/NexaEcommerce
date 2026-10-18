@@ -23,9 +23,12 @@ public static class CustomersModule
         }
 
         services.AddDbContext<CustomerDbContext>(
-            options =>
-                options.UseSqlServer(
-                    connectionString));
+      options =>
+          options.UseSqlServer(
+              connectionString,
+              sql => sql.MigrationsHistoryTable(
+                  "__EFMigrationsHistory_Customers",
+                  "dbo")));
 
         services.AddScoped<
             ICustomerAddressRepository,

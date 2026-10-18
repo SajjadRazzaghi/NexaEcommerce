@@ -836,7 +836,14 @@
       "settings": "Einstellungen",
       "tenants": "Mandanten",
       "users": "Benutzer",
-      "webhooks": "Webhooks"
+      "webhooks": "Webhooks",
+      "inventory": "Lagerbestand"
+    },
+    "descriptions": {
+      "inventory": {
+        "read": "Lagerbestand anzeigen",
+        "manage": "Lagerbestand verwalten"
+      }
     }
   },
   "admin": {

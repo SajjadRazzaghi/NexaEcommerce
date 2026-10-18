@@ -836,7 +836,14 @@
       "settings": "الإعدادات",
       "tenants": "المستأجرون",
       "users": "المستخدمون",
-      "webhooks": "خطافات الويب"
+      "webhooks": "خطافات الويب",
+      "inventory": "المخزون"
+    },
+    "descriptions": {
+      "inventory": {
+        "read": "عرض المخزون",
+        "manage": "إدارة المخزون"
+      }
     }
   },
   "admin": {

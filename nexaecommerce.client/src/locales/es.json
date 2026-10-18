@@ -836,7 +836,14 @@
       "settings": "Configuración",
       "tenants": "Inquilinos",
       "users": "Usuarios",
-      "webhooks": "Webhooks"
+      "webhooks": "Webhooks",
+      "inventory": "Inventario"
+    },
+    "descriptions": {
+      "inventory": {
+        "read": "Consultar el inventario",
+        "manage": "Gestionar el inventario"
+      }
     }
   },
   "admin": {

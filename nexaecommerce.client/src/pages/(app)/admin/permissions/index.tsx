@@ -8,11 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState, ErrorState } from '@/components/data-states';
 import { SectionLayout } from '@/components/section-layout';
-import { meta } from './meta';
 
 export default function PermissionsPage() {
   const { t } = useTranslation();
-  useDocumentTitle(meta.title);
+  useDocumentTitle(t('permissions.title'));
 
   const { data, isLoading, isError, error, refetch, isFetching } = useQuery({
     queryKey: ['admin', 'permissions'],
@@ -52,7 +51,11 @@ export default function PermissionsPage() {
                   <ul className="divide-border divide-y">
                     {group.permissions.map((permission) => (
                       <li key={permission.name} className="flex flex-col gap-1 py-3 first:pt-0 last:pb-0 sm:flex-row sm:items-center sm:justify-between">
-                        <span className="text-foreground">{permission.description}</span>
+                            <span className="text-foreground">
+                                {t(`permissions.descriptions.${permission.name}`, {
+                                    defaultValue: permission.description,
+                                })}
+                            </span>
                         <code className="bg-muted text-muted-foreground w-fit rounded px-1.5 py-0.5 text-xs">{permission.name}</code>
                       </li>
                     ))}

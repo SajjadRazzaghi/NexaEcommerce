@@ -836,7 +836,14 @@
       "settings": "设置",
       "tenants": "租户",
       "users": "用户",
-      "webhooks": "网络钩子"
+      "webhooks": "网络钩子",
+      "inventory": "库存"
+    },
+    "descriptions": {
+      "inventory": {
+        "read": "查看库存",
+        "manage": "管理库存"
+      }
     }
   },
   "admin": {
