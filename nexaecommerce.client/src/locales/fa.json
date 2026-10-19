@@ -1010,7 +1010,7 @@
     "featuredHintCategory": "دسته‌بندی‌های ویژه می‌توانند در بخش‌های تجاری و ویترین فروشگاه برجسته شوند.",
     "categoryCreated": "دسته‌بندی با موفقیت ایجاد شد.",
     "categoryUpdated": "دسته‌بندی با موفقیت به‌روزرسانی شد.",
-
+    "catalogForms.createCategory": "ایجاد دسته",
     "basicInfoManufacturer": "هویت تولیدکننده و اطلاعات اصلی کاتالوگ را تعریف کنید.",
     "manufacturerImages": "تصاویر تولیدکننده",
     "uploadCover": "تصویر کاور",

@@ -68,9 +68,10 @@ public sealed class EcommerceDatabaseInitializer(
             logger.LogInformation(
                 "Applying {DatabaseName} database migrations...",
                 databaseName);
-
-            await context.Database.MigrateAsync(
-                cancellationToken);
+            ////------serverbased changes
+            ///
+            //await context.Database.MigrateAsync(
+            //    cancellationToken);
 
             logger.LogInformation(
                 "{DatabaseName} database migrations completed.",

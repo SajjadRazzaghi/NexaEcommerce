@@ -35,3 +35,47 @@ npm run dev
 
 رمز عبور: Admin123! (یا رمزی که در مستندات پروژه ذکر شده)
 
+
+
+
+پابلیش:
+۱. روی کامپیوتر: ساخت خروجی فرانت‌اند
+CMD را باز کن و اجرا کن:
+cd /d G:\NexaECommerce\nexaecommerce.client
+npm run build
+
+
+اگر Build موفق بود، خروجی اینجاست:
+G:\NexaECommerce\nexaecommerce.client\dist
+
+
+۲. روی کامپیوتر: انتشار بک‌اند
+cd /d G:\NexaECommerce
+dotnet publish NexaECommerce.Server\NexaECommerce.Server.csproj -c Release -o G:\NexaECommerce\publish\backend
+
+
+خروجی در این پوشه است:
+G:\NexaECommerce\publish\backend
+
+
+۳. انتقال فایل‌ها به سرور
+با Remote Desktop وارد VPS شو. ابتدا از فایل‌های فعلی سایت و تنظیمات سرور نسخه پشتیبان بگیر.
+در IIS، مسیر واقعی سایت را از Sites → سایت Nexa → Basic Settings → Physical path ببین.
+فرانت‌اند
+محتویات dist را در پوشه wwwroot سایت کپی و فایل‌های قبلی را جایگزین کن.
+مثلاً:
+dist\index.html       → wwwroot\index.html
+dist\assets\*         → wwwroot\assets\
+
+
+بک‌اند
+Application Pool سایت را متوقف کن. محتویات پوشه زیر را:
+G:\NexaECommerce\publish\backend
+
+
+به پوشه اصلی برنامه منتشرشده روی VPS کپی کن.
+مهم: فایل appsettings.json سرور را با نسخه لوکال جایگزین نکن؛ پوشه wwwroot\uploads و دیتابیس را هم حفظ کن.
+سپس Application Pool را دوباره Start کن.
+۴. تست نهایی
+سایت را باز کن و Ctrl + F5 بزن. ورود مدیر، ویرایش برند و ذخیره تغییرات را بررسی کن.
+نکته: برای اصلاح فعلی صفحه ویرایش برند، فقط مراحل ۱ و ۳ بخش فرانت‌اند کافی است؛ بک‌اند را فقط وقتی منتشر کن که در کد بک‌اند هم تغییر داده‌ای.

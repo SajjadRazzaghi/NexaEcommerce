@@ -15,7 +15,7 @@ export function cn(...inputs: ClassValue[]) {
  */
 export function formatPrice(
     price: number | null | undefined,
-    currency: string = 'تومان'
+    currency: string = 'ریال'
 ): string {
     if (price === null || price === undefined) {
         return '-';

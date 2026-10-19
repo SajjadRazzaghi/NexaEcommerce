@@ -108,6 +108,7 @@ import type {
 } from '../../api/products';
 
 
+
 /* -------------------------------------------------------------------------- */
 /*                                   Schemas                                  */
 /* -------------------------------------------------------------------------- */
@@ -459,6 +460,36 @@ const emptyValues: FormValues = {
     variants: [],
 
     images: [],
+};
+const formatThousands = (
+    value: number | null | undefined,
+): string => {
+    if (value == null || !Number.isFinite(value)) {
+        return '';
+    }
+
+    return value.toLocaleString('en-US');
+};
+
+const parseGroupedNumber = (
+    value: string,
+): number | undefined => {
+    const normalized = value
+        .replace(/[۰-۹]/g, digit =>
+            String('۰۱۲۳۴۵۶۷۸۹'.indexOf(digit)),
+        )
+        .replace(/[٠-٩]/g, digit =>
+            String('٠١٢٣٤٥٦٧٨٩'.indexOf(digit)),
+        )
+        .replace(/[,\u066C\s]/g, '');
+
+    if (!normalized) {
+        return undefined;
+    }
+
+    const number = Number(normalized);
+
+    return Number.isFinite(number) ? number : undefined;
 };
 function toValues(
     product: Product | undefined,
@@ -3982,19 +4013,12 @@ const hasDuplicateVariantCombination =
 
                                         <FormControl>
                                             <Input
-                                                type="number"
-                                                min={0}
-                                                step={1000}
-                                                value={
-                                                    field.value
-                                                }
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={formatThousands(field.value)}
                                                 onChange={event =>
                                                     field.onChange(
-                                                        Number(
-                                                            event
-                                                                .target
-                                                                .value,
-                                                        ),
+                                                        parseGroupedNumber(event.target.value),
                                                     )
                                                 }
                                             />
@@ -4022,24 +4046,12 @@ const hasDuplicateVariantCombination =
 
                                         <FormControl>
                                             <Input
-                                                type="number"
-                                                min={0}
-                                                step={1000}
-                                                value={
-                                                    field.value ??
-                                                    ''
-                                                }
+                                                type="text"
+                                                inputMode="numeric"
+                                                value={formatThousands(field.value)}
                                                 onChange={event =>
                                                     field.onChange(
-                                                        event
-                                                            .target
-                                                            .value
-                                                            ? Number(
-                                                                event
-                                                                    .target
-                                                                    .value,
-                                                            )
-                                                            : null,
+                                                        parseGroupedNumber(event.target.value) ?? null,
                                                     )
                                                 }
                                             />
@@ -4857,29 +4869,15 @@ const hasDuplicateVariantCombination =
 
                                                             <FormControl>
                                                                 <Input
-                                                                    type="number"
-                                                                    min={0}
-                                                                    step={1000}
-                                                                    value={
-                                                                        field.value ??
-                                                                        ''
-                                                                    }
+                                                                    type="text"
+                                                                    inputMode="numeric"
+                                                                    value={formatThousands(field.value)}
                                                                     onChange={event =>
                                                                         field.onChange(
-                                                                            event
-                                                                                .target
-                                                                                .value
-                                                                                ? Number(
-                                                                                    event
-                                                                                        .target
-                                                                                        .value,
-                                                                                )
-                                                                                : undefined,
+                                                                            parseGroupedNumber(event.target.value),
                                                                         )
                                                                     }
-                                                                    placeholder={t(
-                                                                        'productEdit.optional',
-                                                                    )}
+                                                                    placeholder={t('productEdit.optional')}
                                                                 />
                                                             </FormControl>
 
