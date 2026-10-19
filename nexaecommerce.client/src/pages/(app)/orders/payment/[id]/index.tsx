@@ -227,12 +227,16 @@ export default function PaymentPage() {
                         result.status,
                 });
             }
-            catch {
+            catch (error) {
+                console.error('Payment start failed:', error);
+
                 setError(
-                    getText(
-                        'storefront.payment.startError',
-                        'Unable to start the payment. Please try again.',
-                    ),
+                    error instanceof Error
+                        ? error.message
+                        : getText(
+                            'storefront.payment.startError',
+                            'Unable to start the payment. Please try again.',
+                        ),
                 );
             }
         };

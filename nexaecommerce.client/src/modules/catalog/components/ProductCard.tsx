@@ -158,12 +158,9 @@ export default function ProductCard({
                     product.slug,
                 );
 
-            const sellableVariants =
-                fullProduct.variants.filter(
-                    (variant) =>
-                        variant.isActive &&
-                        variant.stockQuantity > 0,
-                );
+            const sellableVariants = fullProduct.variants.filter(
+                variant => variant.isActive && variant.stockQuantity > 0,
+            );
 
             if (sellableVariants.length === 0) {
                 setErrorMessage(
@@ -173,30 +170,8 @@ export default function ProductCard({
                 );
 
                 return;
-           }
+            }
 
-           /*
-             * If there is exactly one sellable variant,
-             * add it directly without showing the picker.
-             */
-            if (sellableVariants.length === 1) {
-                await add.mutateAsync({
-                    productVariantId:
-                        sellableVariants[0].id,
-                    quantity: 1,
-               });
-
-                setAdded(true);
-                setUpsellProductId(fullProduct.id);
-                setUpsellOpen(true);
-
-                return;
-           }
-
-           /*
-             * Multiple sellable variants:
-             * customer must select the exact variant.
-             */
             setVariantProduct(fullProduct);
             setVariantDialogOpen(true);
        } catch {
