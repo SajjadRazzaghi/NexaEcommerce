@@ -385,21 +385,46 @@ export default function ProductVariantPickerDialog({
             }
             fullWidth
             maxWidth="sm"
+            scroll="paper"
             dir={
                 isFa
                     ? 'rtl'
                     : 'ltr'
             }
+            slotProps={{
+                paper: {
+                    sx: {
+                        display: 'flex',
+                        flexDirection: 'column',
+                        overflow: 'hidden',
+
+                        maxHeight: {
+                            xs: 'calc(100dvh - 16px)',
+                            sm: 'calc(100dvh - 64px)',
+                        },
+
+                        mx: {
+                            xs: 1,
+                            sm: 2,
+                        },
+                    },
+                },
+            }}
         >
             <DialogTitle
                 sx={{
-                    fontWeight:
-                        800,
+                    fontWeight: 800,
 
-                    textAlign:
-                        isFa
-                            ? 'right'
-                            : 'left',
+                    textAlign: isFa
+                        ? 'right'
+                        : 'left',
+
+                    flexShrink: 0,
+
+                    py: {
+                        xs: 1.5,
+                        sm: 2,
+                    },
                 }}
             >
                 {getText(
@@ -410,31 +435,41 @@ export default function ProductVariantPickerDialog({
 
             <DialogContent
                 dividers
+                sx={{
+                    flex: '1 1 auto',
+                    minHeight: 0,
+
+                    overflowY: 'auto',
+                    overscrollBehavior: 'contain',
+                    WebkitOverflowScrolling: 'touch',
+
+                    py: {
+                        xs: 1.5,
+                        sm: 2,
+                    },
+                }}
             >
                 <Stack
                     spacing={2.5}
                     sx={{
-                        direction:
-                            isFa
-                                ? 'rtl'
-                                : 'ltr',
+                        direction: isFa
+                            ? 'rtl'
+                            : 'ltr',
                     }}
                 >
                     <Typography
                         variant="h6"
                         sx={{
-                            fontWeight:
-                                800,
+                            fontWeight: 800,
 
-                            textAlign:
-                                isFa
-                                    ? 'right'
-                                    : 'left',
+                            textAlign: isFa
+                                ? 'right'
+                                : 'left',
+
+                            overflowWrap: 'anywhere',
                         }}
                     >
-                        {
-                            product.name
-                        }
+                        {product.name}
                     </Typography>
 
                     {Array.from(
@@ -445,21 +480,17 @@ export default function ProductVariantPickerDialog({
                             options,
                         ]) => (
                             <Stack
-                                key={
-                                    attributeKey
-                                }
+                                key={attributeKey}
                                 spacing={1}
                             >
                                 <Typography
                                     variant="subtitle2"
                                     sx={{
-                                        fontWeight:
-                                            800,
+                                        fontWeight: 800,
 
-                                        textAlign:
-                                            isFa
-                                                ? 'right'
-                                                : 'left',
+                                        textAlign: isFa
+                                            ? 'right'
+                                            : 'left',
                                     }}
                                 >
                                     {getAttributeName(
@@ -471,15 +502,12 @@ export default function ProductVariantPickerDialog({
                                 <Stack
                                     direction="row"
                                     sx={{
-                                        flexWrap:
-                                            'wrap',
-
+                                        flexWrap: 'wrap',
                                         gap: 1,
 
-                                        direction:
-                                            isFa
-                                                ? 'rtl'
-                                                : 'ltr',
+                                        direction: isFa
+                                            ? 'rtl'
+                                            : 'ltr',
                                     }}
                                 >
                                     {options.map(
@@ -493,8 +521,7 @@ export default function ProductVariantPickerDialog({
                                             const selected =
                                                 selection[
                                                 attributeKey
-                                                ] ===
-                                                option.value;
+                                                ] === option.value;
 
                                             return (
                                                 <Button
@@ -514,28 +541,17 @@ export default function ProductVariantPickerDialog({
                                                             current => ({
                                                                 ...current,
 
-                                                                [
-                                                                    attributeKey
-                                                                ]:
+                                                                [attributeKey]:
                                                                     option.value,
                                                             }),
                                                         )
                                                     }
                                                     sx={{
-                                                        minWidth:
-                                                            72,
-
-                                                        minHeight:
-                                                            42,
-
-                                                        borderRadius:
-                                                            2,
-
-                                                        fontWeight:
-                                                            700,
-
-                                                        textTransform:
-                                                            'none',
+                                                        minWidth: 72,
+                                                        minHeight: 42,
+                                                        borderRadius: 2,
+                                                        fontWeight: 700,
+                                                        textTransform: 'none',
                                                     }}
                                                 >
                                                     {option.colorHex && (
@@ -543,23 +559,20 @@ export default function ProductVariantPickerDialog({
                                                             style={{
                                                                 width: 16,
                                                                 height: 16,
-                                                                borderRadius:
-                                                                    '50%',
+                                                                borderRadius: '50%',
                                                                 background:
                                                                     option.colorHex,
                                                                 border:
                                                                     '1px solid rgba(0,0,0,.2)',
                                                                 display:
                                                                     'inline-block',
-                                                                marginInlineEnd:
-                                                                    8,
+                                                                marginInlineEnd: 8,
+                                                                flexShrink: 0,
                                                             }}
                                                         />
                                                     )}
 
-                                                    {
-                                                        option.displayValue
-                                                    }
+                                                    {option.displayValue}
                                                 </Button>
                                             );
                                         },
@@ -575,38 +588,26 @@ export default function ProductVariantPickerDialog({
                         <Stack
                             direction="row"
                             sx={{
-                                direction:
-                                    isFa
-                                        ? 'rtl'
-                                        : 'ltr',
+                                direction: isFa
+                                    ? 'rtl'
+                                    : 'ltr',
 
-                                alignItems:
-                                    'center',
-
-                                justifyContent:
-                                    'space-between',
-
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
                                 gap: 1,
-
-                                flexWrap:
-                                    'wrap',
+                                flexWrap: 'wrap',
                             }}
                         >
                             <Stack
                                 direction="row"
                                 sx={{
-                                    direction:
-                                        isFa
-                                            ? 'rtl'
-                                            : 'ltr',
+                                    direction: isFa
+                                        ? 'rtl'
+                                        : 'ltr',
 
-                                    alignItems:
-                                        'center',
-
+                                    alignItems: 'center',
                                     gap: 1,
-
-                                    flexWrap:
-                                        'wrap',
+                                    flexWrap: 'wrap',
                                 }}
                             >
                                 <Chip
@@ -616,8 +617,7 @@ export default function ProductVariantPickerDialog({
                                     label={`${getText(
                                         'storefront.productDetail.sku',
                                         'SKU',
-                                    )}: ${selectedVariant.sku
-                                        }`}
+                                    )}: ${selectedVariant.sku}`}
                                     color="success"
                                     variant="outlined"
                                 />
@@ -636,11 +636,8 @@ export default function ProductVariantPickerDialog({
                             <Typography
                                 variant="body2"
                                 sx={{
-                                    fontWeight:
-                                        700,
-
-                                    whiteSpace:
-                                        'nowrap',
+                                    fontWeight: 700,
+                                    whiteSpace: 'nowrap',
                                 }}
                             >
                                 {formatPrice(
@@ -649,9 +646,7 @@ export default function ProductVariantPickerDialog({
                                         ? selectedVariant.priceOverride
                                         : product.finalPrice,
                                 )}{' '}
-                                {
-                                    product.currency
-                                }
+                                {product.currency}
                             </Typography>
                         </Stack>
                     ) : (
@@ -659,13 +654,11 @@ export default function ProductVariantPickerDialog({
                             variant="body2"
                             color="text.secondary"
                             sx={{
-                                textAlign:
-                                    isFa
-                                        ? 'right'
-                                        : 'left',
+                                textAlign: isFa
+                                    ? 'right'
+                                    : 'left',
 
-                                lineHeight:
-                                    1.8,
+                                lineHeight: 1.8,
                             }}
                         >
                             {getText(
@@ -679,25 +672,35 @@ export default function ProductVariantPickerDialog({
 
             <DialogActions
                 sx={{
-                    p: 2,
+                    p: {
+                        xs: 1.5,
+                        sm: 2,
+                    },
 
-                    direction:
-                        isFa
-                            ? 'rtl'
-                            : 'ltr',
+                    pb: {
+                        xs: 'calc(12px + env(safe-area-inset-bottom))',
+                        sm: 2,
+                    },
+
+                    direction: isFa
+                        ? 'rtl'
+                        : 'ltr',
 
                     gap: 1,
+
+                    flexShrink: 0,
+                    bgcolor: 'background.paper',
                 }}
             >
                 <Button
                     type="button"
                     variant="outlined"
-                    onClick={
-                        handleClose
-                    }
-                    disabled={
-                        loading
-                    }
+                    onClick={handleClose}
+                    disabled={loading}
+                    sx={{
+                        minHeight: 42,
+                        flexShrink: 0,
+                    }}
                 >
                     {getText(
                         'common.cancel',
@@ -711,19 +714,25 @@ export default function ProductVariantPickerDialog({
                     startIcon={
                         <ShoppingCartOutlined />
                     }
-                    onClick={
-                        handleConfirm
-                    }
+                    onClick={handleConfirm}
                     disabled={
                         !canConfirm ||
                         loading
                     }
                     sx={{
-                        minWidth:
-                            170,
+                        minWidth: {
+                            xs: 0,
+                            sm: 170,
+                        },
 
-                        fontWeight:
-                            800,
+                        minHeight: 42,
+                        px: {
+                            xs: 1.5,
+                            sm: 2,
+                        },
+
+                        fontWeight: 800,
+                        flexShrink: 0,
                     }}
                 >
                     {loading
