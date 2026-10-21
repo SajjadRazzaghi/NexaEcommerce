@@ -2169,10 +2169,19 @@ private async Task<Product> SynchronizeProductAttributesAsync(
             combinationKey);
     }
     private async Task SynchronizeVariantsAsync(
-        Product product,
-        IEnumerable<UpdateProductVariantDto>? variantDtos,
-        CancellationToken cancellationToken)
+       Product product,
+       IEnumerable<UpdateProductVariantDto>? variantDtos,
+       CancellationToken cancellationToken)
     {
+        static string? NormalizeBarcode(string? barcode)
+        {
+            return string.IsNullOrWhiteSpace(barcode)
+                ? null
+                : barcode.Trim();
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+
         var requestedVariants =
             (variantDtos ??
              Enumerable.Empty<UpdateProductVariantDto>())
@@ -2188,41 +2197,53 @@ private async Task<Product> SynchronizeProductAttributesAsync(
         var requestedCombinationKeys =
             new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);
-        var updateBarcodes = variantDtos
-    .Where(v => !string.IsNullOrWhiteSpace(v.Barcode))
-    .Select(v => v.Barcode!.Trim())
-    .ToList();
 
-        if (updateBarcodes
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Count() != updateBarcodes.Count)
+        /*
+         * Validate requested variant IDs.
+         *
+         * A non-empty ID must belong to this product.
+         * A new variant must use Guid.Empty.
+         */
+        var duplicateVariantId =
+            requestedVariants
+                .Where(x => x.Id != Guid.Empty)
+                .GroupBy(x => x.Id)
+                .FirstOrDefault(x => x.Count() > 1);
+
+        if (duplicateVariantId is not null)
         {
             throw new ArgumentException(
-                "Each product variant must have a unique barcode.");
+                $"Duplicate variant ID '{duplicateVariantId.Key}' detected.");
         }
 
-        foreach (var dto in variantDtos)
-        {
-            if (string.IsNullOrWhiteSpace(dto.Barcode))
-                continue;
-
-            var barcode = dto.Barcode.Trim();
-
-            if (await _productRepository.ExistsByVariantBarcodeAsync(
-                    barcode,
-                    dto.Id,
-                    cancellationToken))
-            {
-                throw new ArgumentException(
-                    $"Barcode '{barcode}' is already assigned to another product variant.");
-            }
-        }
         foreach (var variantDto in requestedVariants)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var sku =
-                variantDto.Sku?.Trim();
+            if (variantDto.Id == Guid.Empty)
+            {
+                continue;
+            }
+
+            var existingVariant =
+                product.Variants.FirstOrDefault(
+                    x => x.Id == variantDto.Id);
+
+            if (existingVariant is null)
+            {
+                throw new ArgumentException(
+                    $"Variant '{variantDto.Id}' does not belong to product '{product.Id}'.");
+            }
+        }
+
+        /*
+         * Validate SKU uniqueness within the request.
+         */
+        foreach (var variantDto in requestedVariants)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var sku = variantDto.Sku?.Trim();
 
             if (string.IsNullOrWhiteSpace(sku))
             {
@@ -2244,6 +2265,96 @@ private async Task<Product> SynchronizeProductAttributesAsync(
                 throw new ArgumentException(
                     $"Variant SKU '{sku}' already exists.");
             }
+        }
+
+        /*
+         * Determine the effective barcode for each requested variant.
+         *
+         * null:
+         *     Preserve the existing barcode of an existing variant.
+         *
+         * Empty or whitespace:
+         *     Clear the barcode.
+         *
+         * Non-empty:
+         *     Trim and validate the new barcode.
+         */
+        var requestedBarcodes =
+            requestedVariants
+                .Select(variantDto =>
+                {
+                    var existingVariant =
+                        variantDto.Id == Guid.Empty
+                            ? null
+                            : product.Variants.First(
+                                x => x.Id == variantDto.Id);
+
+                    var effectiveBarcode =
+                        variantDto.Barcode ??
+                        existingVariant?.Barcode;
+
+                    return NormalizeBarcode(
+                        effectiveBarcode);
+                })
+                .Where(barcode => barcode is not null)
+                .Select(barcode => barcode!)
+                .ToList();
+
+        /*
+         * Validate barcode uniqueness within the request.
+         */
+        if (requestedBarcodes
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count() != requestedBarcodes.Count)
+        {
+            throw new ArgumentException(
+                "Each product variant must have a unique barcode.");
+        }
+
+        /*
+         * Validate barcode uniqueness across persisted variants.
+         *
+         * Existing variants exclude their own ID.
+         * New variants use Guid.Empty.
+         */
+        foreach (var variantDto in requestedVariants)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var existingVariant =
+                variantDto.Id == Guid.Empty
+                    ? null
+                    : product.Variants.First(
+                        x => x.Id == variantDto.Id);
+
+            var effectiveBarcode =
+                NormalizeBarcode(
+                    variantDto.Barcode ??
+                    existingVariant?.Barcode);
+
+            if (effectiveBarcode is null)
+            {
+                continue;
+            }
+
+            if (await _productRepository.ExistsByVariantBarcodeAsync(
+                    effectiveBarcode,
+                    variantDto.Id,
+                    cancellationToken))
+            {
+                throw new ArgumentException(
+                    $"Barcode '{effectiveBarcode}' is already assigned to another product variant.");
+            }
+        }
+
+        /*
+         * Create and update variants.
+         */
+        foreach (var variantDto in requestedVariants)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var sku = variantDto.Sku!.Trim();
 
             var attributeValues =
                 await ResolveVariantAttributeValuesAsync(
@@ -2263,22 +2374,35 @@ private async Task<Product> SynchronizeProductAttributesAsync(
             }
 
             var variant =
-      product.Variants
-          .FirstOrDefault(
-              x => x.Id == variantDto.Id);
+                variantDto.Id == Guid.Empty
+                    ? null
+                    : product.Variants.First(
+                        x => x.Id == variantDto.Id);
 
+            var effectivePrice =
+                ResolveVariantPrice(
+                    variantDto.PriceOverride,
+                    product.Price);
+
+            var effectiveBarcode =
+                NormalizeBarcode(
+                    variantDto.Barcode ??
+                    variant?.Barcode);
+
+            /*
+             * Create a new variant.
+             */
             if (variant is null)
             {
-                var newVariant = product.AddVariant(
-     sku,
-     ResolveVariantPrice(
-         variantDto.PriceOverride,
-         product.Price),
-     0,
-     variantDto.ComparePrice);
+                var newVariant =
+                    product.AddVariant(
+                        sku,
+                        effectivePrice,
+                        0,
+                        variantDto.ComparePrice);
 
                 newVariant.SetBarcode(
-                    variantDto.Barcode);
+                    effectiveBarcode);
 
                 newVariant.SetCombinationKey(
                     combinationKey);
@@ -2293,19 +2417,18 @@ private async Task<Product> SynchronizeProductAttributesAsync(
                 }
 
                 /*
-                 * IMPORTANT:
-                 *
-                 * This is a newly-created ProductVariant.
-                 *
-                 * Do not rely on EF Core relationship discovery here.
-                 * Explicitly mark the new Variant as Added so the final
-                 * SaveChanges() always inserts it into Catalog.ProductVariants.
-                 *
-                 * The AttributeValue mappings are already attached to the
-                 * new Variant above and will be persisted with it.
+                 * Explicitly add the new variant to the repository.
                  */
                 await _productRepository.AddVariantAsync(
                     newVariant,
+                    cancellationToken);
+
+                /*
+                 * Ensure that images are synchronized for new variants too.
+                 */
+                await _productRepository.ReplaceVariantImagesAsync(
+                    newVariant.Id,
+                    variantDto.Images,
                     cancellationToken);
 
                 requestedVariantIds.Add(
@@ -2314,23 +2437,30 @@ private async Task<Product> SynchronizeProductAttributesAsync(
                 continue;
             }
 
+            /*
+             * Update an existing variant.
+             */
             variant.ChangeSku(
-      sku);
-            // اگر درخواست قدیمی فیلد Barcode را ارسال نکرده، بارکد قبلی حفظ شود.
-            if (variant.Barcode is not null)
-            {
-                variant.ChangeBarcode(variant.Barcode);
-            }
+                sku);
+
             variant.ChangePrice(
-     ResolveVariantPrice(
-         variantDto.PriceOverride,
-         product.Price));
+                effectivePrice);
 
             variant.SetComparePrice(
                 variantDto.ComparePrice);
 
-            variant.SetBarcode(
-                variantDto.Barcode);
+            /*
+             * Do not clear an existing barcode just because an older
+             * client omitted the Barcode property.
+             *
+             * An explicitly supplied empty value clears the barcode.
+             */
+            if (variantDto.Barcode is not null)
+            {
+                variant.SetBarcode(
+                    NormalizeBarcode(
+                        variantDto.Barcode));
+            }
 
             variant.SetCombinationKey(
                 combinationKey);
@@ -2339,13 +2469,16 @@ private async Task<Product> SynchronizeProductAttributesAsync(
                 variantDto.IsActive);
 
             await _productRepository.UpdateVariantAsync(
-        variant.Id,
-        variant.Sku,
-        variant.PriceOverride,
-        variant.ComparePrice,
-        variant.IsActive,
-        cancellationToken);
+                variant.Id,
+                variant.Sku,
+                variant.PriceOverride,
+                variant.ComparePrice,
+                variant.IsActive,
+                cancellationToken);
 
+            /*
+             * Synchronize attribute mappings for the existing variant.
+             */
             await ReplaceVariantAttributeMappingsAsync(
                 product,
                 variant,
@@ -2354,22 +2487,8 @@ private async Task<Product> SynchronizeProductAttributesAsync(
                 cancellationToken);
 
             /*
-             * ------------------------------------------------------------
-             * Explicitly persist missing VariantAttributeValue mappings
-             * for existing variants.
-             *
-             * ReplaceVariantAttributeMappingsAsync keeps the aggregate
-             * synchronized for validation/read purposes.
-             *
-             * The repository call below guarantees that every desired
-             * Product AttributeValue that is not already persisted gets
-             * inserted into VariantAttributeValues.
-             *
-             * Already Added mappings are detected and are not duplicated.
-             * ------------------------------------------------------------
+             * Replace images for the existing variant.
              */
-           
-
             await _productRepository.ReplaceVariantImagesAsync(
                 variant.Id,
                 variantDto.Images,
@@ -2379,47 +2498,46 @@ private async Task<Product> SynchronizeProductAttributesAsync(
                 variant.Id);
         }
 
-        // Deactivate variants omitted from the request.
+        /*
+         * Deactivate variants omitted from the request.
+         *
+         * Explicitly passing an empty collection therefore deactivates
+         * all existing variants.
+         */
         foreach (var existingVariant in product.Variants)
         {
-            if (!requestedVariantIds.Contains(
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (requestedVariantIds.Contains(
                     existingVariant.Id))
             {
-                if (!requestedVariantIds.Contains(
-        existingVariant.Id))
-                {
-                    var existingAttributeValueIds =
-                        existingVariant.AttributeValues
-                            .Select(
-                                mapping =>
-                                    mapping.AttributeValueId)
-                            .Distinct()
-                            .ToArray();
-
-                    if (existingAttributeValueIds.Length > 0)
-                    {
-                        await _productRepository
-                            .DeleteVariantAttributeMappingsAsync(
-                                existingVariant.Id,
-                                existingAttributeValueIds,
-                                cancellationToken);
-
-                        foreach (
-                            var attributeValueId
-                            in existingAttributeValueIds)
-                        {
-                            existingVariant.RemoveAttributeValue(
-                                attributeValueId);
-                        }
-                    }
-
-                    existingVariant.Deactivate();
-                }
-               
+                continue;
             }
-        }
 
-       
+            var existingAttributeValueIds =
+                existingVariant.AttributeValues
+                    .Select(mapping => mapping.AttributeValueId)
+                    .Distinct()
+                    .ToArray();
+
+            if (existingAttributeValueIds.Length > 0)
+            {
+                await _productRepository
+                    .DeleteVariantAttributeMappingsAsync(
+                        existingVariant.Id,
+                        existingAttributeValueIds,
+                        cancellationToken);
+
+                foreach (var attributeValueId
+                         in existingAttributeValueIds)
+                {
+                    existingVariant.RemoveAttributeValue(
+                        attributeValueId);
+                }
+            }
+
+            existingVariant.Deactivate();
+        }
     }
     private async Task EnrichStockQuantitiesAsync(
       ProductDto productDto,
