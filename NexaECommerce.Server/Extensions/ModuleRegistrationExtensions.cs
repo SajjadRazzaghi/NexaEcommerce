@@ -18,6 +18,7 @@ using NexaEcommerce.SharedKernel.Abstractions;
 using NexaECommerce.Server.Features.Cart;
 using NexaECommerce.Server.Features.Inventory;
 using NexaECommerce.Server.Features.Orders;
+using NexaECommerce.Server.Features.PointOfSale;
 using NexaECommerce.Server.Features.Products;
 using NexaECommerce.Server.Platform.MultiTenancy;
 
@@ -141,7 +142,7 @@ public static class ModuleRegistrationExtensions
         // ========================================================
         // Checkout / Payment / Fulfillment orchestration
         // ========================================================
-
+        services.AddScoped<PosOrchestrator>();
         services.AddScoped<
             CheckoutOrchestrator>();
 

@@ -14,6 +14,43 @@ public sealed class ProductRepository : IProductRepository
     {
         _context = context;
     }
+    public async Task<bool> ExistsByVariantBarcodeAsync(
+    string barcode,
+    Guid? excludeId = null,
+    CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(barcode))
+            return false;
+
+        var normalizedBarcode = barcode.Trim();
+
+        return await _context.Set<ProductVariant>()
+            .IgnoreQueryFilters()
+            .AsNoTracking()
+            .AnyAsync(
+                v => v.Barcode == normalizedBarcode &&
+                     (!excludeId.HasValue || v.Id != excludeId.Value),
+                cancellationToken);
+    }
+
+    public async Task<ProductVariant?> GetActiveVariantByBarcodeAsync(
+        string barcode,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(barcode))
+            return null;
+
+        var normalizedBarcode = barcode.Trim();
+
+        return await _context.Set<ProductVariant>()
+            .AsNoTracking()
+            .Include(v => v.Product)
+            .FirstOrDefaultAsync(
+                v => v.Barcode == normalizedBarcode &&
+                     v.IsActive &&
+                     v.Product.IsActive,
+                cancellationToken);
+    }
 
     // ============================================================
     // Get By Id

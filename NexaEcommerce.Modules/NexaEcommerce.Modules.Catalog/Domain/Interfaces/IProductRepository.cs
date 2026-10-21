@@ -32,7 +32,14 @@ public interface IProductRepository
         string sku,
         Guid? excludeId = null,
         CancellationToken cancellationToken = default);
+    Task<bool> ExistsByVariantBarcodeAsync(
+    string barcode,
+    Guid? excludeId = null,
+    CancellationToken cancellationToken = default);
 
+    Task<ProductVariant?> GetActiveVariantByBarcodeAsync(
+        string barcode,
+        CancellationToken cancellationToken = default);
     Task<bool> ExistsBySlugAsync(
         string slug,
         Guid? excludeId = null,

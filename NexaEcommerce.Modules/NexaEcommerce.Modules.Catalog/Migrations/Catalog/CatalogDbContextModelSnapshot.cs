@@ -805,8 +805,8 @@ namespace NexaEcommerce.Modules.Catalog.Migrations.Catalog
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("Barcode")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
 
                     b.Property<string>("CombinationKey")
                         .HasMaxLength(1000)
@@ -847,6 +847,10 @@ namespace NexaEcommerce.Modules.Catalog.Migrations.Catalog
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Barcode")
+                        .IsUnique()
+                        .HasFilter("[Barcode] IS NOT NULL");
 
                     b.HasIndex("Sku")
                         .IsUnique();

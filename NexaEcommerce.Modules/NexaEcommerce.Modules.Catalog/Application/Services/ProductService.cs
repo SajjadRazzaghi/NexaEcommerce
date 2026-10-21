@@ -807,6 +807,32 @@ public sealed class ProductService : IProductService
     {
         ArgumentNullException.ThrowIfNull(createDto);
 
+        var createVariants = createDto.Variants ?? new List<CreateProductVariantDto>();
+
+        var createBarcodes = createVariants
+            .Where(v => !string.IsNullOrWhiteSpace(v.Barcode))
+            .Select(v => v.Barcode!.Trim())
+            .ToList();
+
+        if (createBarcodes
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count() != createBarcodes.Count)
+        {
+            throw new ArgumentException(
+                "Each product variant must have a unique barcode.");
+        }
+
+        foreach (var barcode in createBarcodes)
+        {
+            if (await _productRepository.ExistsByVariantBarcodeAsync(
+                    barcode,
+                    cancellationToken: cancellationToken))
+            {
+                throw new ArgumentException(
+                    $"Barcode '{barcode}' is already assigned to another product variant.");
+            }
+        }
+
         if (string.IsNullOrWhiteSpace(createDto.Name))
         {
             throw new ArgumentException(
@@ -1237,6 +1263,8 @@ public sealed class ProductService : IProductService
                 product.AddVariant(
                     $"{product.Sku}-DEFAULT",
                     product.Price);
+          
+
 
             variant.ChangeStock(quantity);
         }
@@ -1246,7 +1274,7 @@ public sealed class ProductService : IProductService
                 .First()
                 .ChangeStock(quantity);
         }
-
+      
         _productRepository.Update(
             product);
 
@@ -2160,7 +2188,35 @@ private async Task<Product> SynchronizeProductAttributesAsync(
         var requestedCombinationKeys =
             new HashSet<string>(
                 StringComparer.OrdinalIgnoreCase);
+        var updateBarcodes = variantDtos
+    .Where(v => !string.IsNullOrWhiteSpace(v.Barcode))
+    .Select(v => v.Barcode!.Trim())
+    .ToList();
 
+        if (updateBarcodes
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .Count() != updateBarcodes.Count)
+        {
+            throw new ArgumentException(
+                "Each product variant must have a unique barcode.");
+        }
+
+        foreach (var dto in variantDtos)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Barcode))
+                continue;
+
+            var barcode = dto.Barcode.Trim();
+
+            if (await _productRepository.ExistsByVariantBarcodeAsync(
+                    barcode,
+                    dto.Id,
+                    cancellationToken))
+            {
+                throw new ArgumentException(
+                    $"Barcode '{barcode}' is already assigned to another product variant.");
+            }
+        }
         foreach (var variantDto in requestedVariants)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -2257,9 +2313,14 @@ private async Task<Product> SynchronizeProductAttributesAsync(
 
                 continue;
             }
+
             variant.ChangeSku(
       sku);
-
+            // اگر درخواست قدیمی فیلد Barcode را ارسال نکرده، بارکد قبلی حفظ شود.
+            if (variant.Barcode is not null)
+            {
+                variant.ChangeBarcode(variant.Barcode);
+            }
             variant.ChangePrice(
      ResolveVariantPrice(
          variantDto.PriceOverride,

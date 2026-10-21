@@ -15,7 +15,9 @@ public sealed class OrdersDbContext(
         Set<Order>();
  public DbSet<Package> Packages =>
     Set<Package>();
+    public DbSet<PosSale> PosSales => Set<PosSale>();
 
+    public DbSet<PosSaleItem> PosSaleItems => Set<PosSaleItem>();
     public DbSet<Fulfillment>
     Fulfillments =>
     Set<Fulfillment>();
@@ -59,7 +61,90 @@ modelBuilder.Entity<Package>(
     {
         entity.ToTable(
             "Packages");
+        modelBuilder.Entity<PosSale>(entity =>
+        {
+            entity.ToTable("PosSales");
 
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.TenantId)
+                .IsRequired()
+                .HasMaxLength(64);
+
+            entity.Property(x => x.SellerUserId)
+                .IsRequired()
+                .HasMaxLength(450);
+
+            entity.Property(x => x.SaleNumber)
+                .IsRequired()
+                .HasMaxLength(64);
+
+            entity.Property(x => x.IdempotencyKey)
+                .IsRequired()
+                .HasMaxLength(128);
+
+            entity.Property(x => x.Currency)
+                .IsRequired()
+                .HasMaxLength(10);
+
+            entity.Property(x => x.Subtotal)
+                .HasPrecision(18, 2);
+
+            entity.Property(x => x.TotalAmount)
+                .HasPrecision(18, 2);
+
+            entity.Property(x => x.PaymentReference)
+                .HasMaxLength(256);
+
+            entity.HasIndex(x => new
+            {
+                x.TenantId,
+                x.SaleNumber
+            }).IsUnique();
+
+            entity.HasIndex(x => new
+            {
+                x.TenantId,
+                x.SellerUserId,
+                x.IdempotencyKey
+            }).IsUnique();
+
+            entity.HasMany(x => x.Items)
+                .WithOne(x => x.Sale)
+                .HasForeignKey(x => x.PosSaleId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<PosSaleItem>(entity =>
+        {
+            entity.ToTable("PosSaleItems");
+
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.Barcode)
+                .IsRequired()
+                .HasMaxLength(128);
+
+            entity.Property(x => x.Sku)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(x => x.ProductName)
+                .IsRequired()
+                .HasMaxLength(250);
+
+            entity.Property(x => x.ReservationKey)
+                .IsRequired()
+                .HasMaxLength(128);
+
+            entity.Property(x => x.UnitPrice)
+                .HasPrecision(18, 2);
+
+            entity.Property(x => x.LineTotal)
+                .HasPrecision(18, 2);
+
+            entity.HasIndex(x => x.ProductVariantId);
+        });
         entity.HasKey(
             x => x.Id);
 

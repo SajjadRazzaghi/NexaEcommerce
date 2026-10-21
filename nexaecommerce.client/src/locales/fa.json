@@ -1300,7 +1300,14 @@
       "shopProducts": "مشاهده محصولات",
       "newArrivals": "جدیدترین مدل‌ها",
       "instagram": "patlet.dress در اینستاگرام",
-
+      "Certifications": {
+        "title": "نمادها و مجوزها",
+        "subtitle": "در این بخش کلیه نمادها و مجوزهای فروشگاه جهت اطلاع مشتریان عزیز نمایش داده خواهد شد",
+        "enamad": {
+          "title": "اینماد",
+          "secureDescription": "enamad"
+        }
+      },
       "benefits": {
         "comfort": "راحتی واقعی",
         "curated": "انتخاب دقیق",

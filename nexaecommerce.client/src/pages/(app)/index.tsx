@@ -747,7 +747,48 @@ export default function StorefrontHomePage() {
                     </div>
                 </section>
                 
+                <section className="rounded-[2rem] border bg-muted/30 p-6 sm:p-8">
+                    <SectionHeading
+                        title={t('storefront.home.Certifications.title')}
+                        subtitle={t('storefront.home.Certifications.subtitle')}
+                      
+                    />
 
+                    <div className="mt-6 rounded-2xl border bg-background p-5 sm:p-6">
+                        <div className="flex flex-col items-center gap-5 sm:flex-row">
+                            {/* نماد اعتماد الکترونیکی */}
+                            <a
+                                href="https://trustseal.enamad.ir/?id=8289147&Code=IuK3A3oxIYEJkIKJyykHH9t2zgyR3Q32"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                referrerPolicy="origin"
+                                aria-label="استعلام نماد اعتماد الکترونیکی"
+                                className="shrink-0"
+                            >
+                                <img
+                                    src="https://trustseal.enamad.ir/logo.aspx?id=8289147&Code=IuK3A3oxIYEJkIKJyykHH9t2zgyR3Q32"
+                                    alt="نماد اعتماد الکترونیکی"
+                                    referrerPolicy="origin"
+                                    loading="lazy"
+                                    className="h-auto w-[120px] max-w-full cursor-pointer"
+                                />
+                            </a>
+
+                            {/* توضیحات نماد */}
+                            <div className="text-center sm:text-right">
+                                <div className="font-black">
+                                    {t('storefront.home.Certifications.enamad.title')}
+                                </div>
+
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    {t(
+                                        'storefront.home.Certifications.enamad.secureDescription',
+                                    )}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </section>
             </main>
 
             {/* -----------------------------------------------------

@@ -35,7 +35,22 @@ public class ProductVariant : BaseEntity
     public bool IsActive { get; private set; }
 
     public Product Product { get; private set; } = null!;
+    public void ChangeBarcode(string? barcode)
+    {
+        var normalizedBarcode = string.IsNullOrWhiteSpace(barcode)
+            ? null
+            : barcode.Trim();
 
+        if (normalizedBarcode is { Length: > 128 })
+        {
+            throw new ArgumentException(
+                "Barcode cannot exceed 128 characters.",
+                nameof(barcode));
+        }
+
+        Barcode = normalizedBarcode;
+        UpdatedAt = DateTime.UtcNow;
+    }
     public ICollection<VariantAttributeValue> AttributeValues
     {
         get;

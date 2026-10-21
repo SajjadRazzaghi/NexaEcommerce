@@ -700,6 +700,12 @@ public sealed class CatalogDbContext : DbContext
 
             entity.HasIndex(x => x.Sku)
                 .IsUnique();
+            entity.Property(x => x.Barcode)
+      .HasMaxLength(128);
+
+            entity.HasIndex(x => x.Barcode)
+                .IsUnique()
+                .HasFilter("[Barcode] IS NOT NULL");
             /*
  * CombinationKey is nullable during the migration phase.
  * It will become required after all legacy variants have been
