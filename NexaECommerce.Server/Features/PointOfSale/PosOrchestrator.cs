@@ -150,7 +150,7 @@ public sealed class PosOrchestrator : IPosOrchestrator
                 variant.Id,
                 variant.ProductName,
                 variant.Sku,
-                variant.Barcode?.Trim() ?? string.Empty,
+               variant.Barcode?.Trim(),
                 quantity,
                 variant.UnitPrice,
                 lineTotal,

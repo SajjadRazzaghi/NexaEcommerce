@@ -1,102 +1,95 @@
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
+using NexaEcommerce.Modules.Orders.Application.Pos;
+using NexaEcommerce.SharedKernel.Abstractions;
+using NexaECommerce.Server.Platform.Authorization;
+using NexaECommerce.Server.Platform.Features;
+using NexaECommerce.Server.Platform.Filters;
+using NexaECommerce.Server.Platform.MultiTenancy;
 
-namespace NexaEcommerce.Modules.Orders.Application.Pos;
+namespace NexaECommerce.Server.Features.PointOfSale;
 
-/// <summary>
-/// Minimal API endpoints for the in-store POS.
-/// Call app.MapPosEndpoints() after authentication/authorization is configured.
-/// </summary>
-public static class PosEndpoints
+public sealed class PosEndpoints : IFeatureEndpoints
 {
-    public static IEndpointRouteBuilder MapPosEndpoints(this IEndpointRouteBuilder endpoints)
+    public void Map(IEndpointRouteBuilder app)
     {
-        var group = endpoints.MapGroup("/api/pos")
+        var group = app.MapGroup("/api/pos")
             .WithTags("Point of Sale")
-            .RequireAuthorization();
+            .AddEndpointFilter<PerformanceFilter>();
 
         group.MapGet("/products", SearchProductsAsync)
-            .WithName("PosSearchProducts")
-            .Produces<IReadOnlyList<PosProductDto>>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest);
+            .RequirePermission(PosPermissions.Sell);
 
         group.MapGet("/barcodes/{barcode}", FindByBarcodeAsync)
-            .WithName("PosFindByBarcode")
-            .Produces<PosVariantDto>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status404NotFound)
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .RequirePermission(PosPermissions.Sell);
 
         group.MapPost("/sales", CreateSaleAsync)
-            .WithName("PosCreateSale")
-            .Produces<PosSaleResultDto>(StatusCodes.Status200OK)
-            .ProducesProblem(StatusCodes.Status400BadRequest)
-            .ProducesProblem(StatusCodes.Status409Conflict);
+            .RequirePermission(PosPermissions.Sell);
 
-        return endpoints;
+        group.MapGet("/sales", ListSalesAsync)
+            .RequirePermission(PosPermissions.Read);
+
+        group.MapGet("/sales/{saleId:guid}", GetSaleAsync)
+            .RequirePermission(PosPermissions.Read);
     }
 
     private static async Task<IResult> SearchProductsAsync(
         [FromQuery] string? search,
         IPosOrchestrator orchestrator,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
-        try
-        {
-            return Results.Ok(await orchestrator.SearchProductsAsync(search, cancellationToken));
-        }
-        catch (PosValidationException ex)
-        {
-            return Problem(StatusCodes.Status400BadRequest, "Invalid search", ex.Message);
-        }
+        try { return Results.Ok(await orchestrator.SearchProductsAsync(search, ct)); }
+        catch (PosValidationException ex) { return Problem(400, "جست‌وجوی نامعتبر", ex.Message); }
     }
 
     private static async Task<IResult> FindByBarcodeAsync(
         string barcode,
         IPosOrchestrator orchestrator,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
-        try
-        {
-            return Results.Ok(await orchestrator.FindByBarcodeAsync(barcode, cancellationToken));
-        }
-        catch (PosValidationException ex)
-        {
-            return Problem(StatusCodes.Status400BadRequest, "Invalid barcode", ex.Message);
-        }
-        catch (PosNotFoundException ex)
-        {
-            return Problem(StatusCodes.Status404NotFound, "Barcode not found", ex.Message);
-        }
-        catch (PosInsufficientStockException ex)
-        {
-            return Problem(StatusCodes.Status409Conflict, "Insufficient stock", ex.Message);
-        }
+        try { return Results.Ok(await orchestrator.FindByBarcodeAsync(barcode, ct)); }
+        catch (PosValidationException ex) { return Problem(400, "بارکد نامعتبر", ex.Message); }
+        catch (PosNotFoundException ex) { return Problem(404, "بارکد پیدا نشد", ex.Message); }
+        catch (PosInsufficientStockException ex) { return Problem(409, "موجودی کافی نیست", ex.Message); }
     }
 
     private static async Task<IResult> CreateSaleAsync(
         [FromBody] PosCreateSaleRequestDto request,
         IPosOrchestrator orchestrator,
-        CancellationToken cancellationToken)
+        CancellationToken ct)
     {
         try
         {
-            var result = await orchestrator.CreateSaleAsync(request, cancellationToken);
-            // Idempotent replay returns the same sale; a new commit also returns the stored sale.
-            // Frontend treats either 200 or 201 as success.
-            return Results.Ok(result);
+            var sale = await orchestrator.CreateSaleAsync(request, ct);
+            return Results.Created($"/api/pos/sales/{sale.Id:D}", sale);
         }
-        catch (PosValidationException ex)
-        {
-            return Problem(StatusCodes.Status400BadRequest, "Invalid POS sale", ex.Message);
-        }
-        catch (PosInsufficientStockException ex)
-        {
-            return Problem(StatusCodes.Status409Conflict, "Insufficient stock", ex.Message);
-        }
-        catch (PosConflictException ex)
-        {
-            return Problem(StatusCodes.Status409Conflict, "POS conflict", ex.Message);
-        }
+        catch (PosValidationException ex) { return Problem(400, "فاکتور نامعتبر", ex.Message); }
+        catch (PosInsufficientStockException ex) { return Problem(409, "موجودی کافی نیست", ex.Message); }
+        catch (PosConflictException ex) { return Problem(409, "تعارض فروش", ex.Message); }
+    }
+
+    private static async Task<IResult> ListSalesAsync(
+        [FromQuery] int skip,
+        [FromQuery] int take,
+        IPosSaleCommitter committer,
+        ICurrentTenant tenant,
+        CancellationToken ct)
+    {
+        if (skip < 0 || take is < 1 or > 100)
+            return Problem(400, "صفحه‌بندی نامعتبر", "skip باید صفر یا بیشتر و take بین ۱ تا ۱۰۰ باشد.");
+
+        return Results.Ok(await committer.ListSalesAsync(tenant.Id, skip, take, ct));
+    }
+
+    private static async Task<IResult> GetSaleAsync(
+        Guid saleId,
+        IPosSaleCommitter committer,
+        ICurrentTenant tenant,
+        CancellationToken ct)
+    {
+        var sale = await committer.FindSaleByIdAsync(tenant.Id, saleId, ct);
+        return sale is null
+            ? Results.NotFound(new { title = "فاکتور پیدا نشد." })
+            : Results.Ok(sale);
     }
 
     private static IResult Problem(int status, string title, string detail) =>

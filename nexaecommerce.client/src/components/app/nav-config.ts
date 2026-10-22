@@ -18,7 +18,7 @@ import {
     Users,
     Warehouse,
     type LucideIcon,
-    SlidersHorizontal,
+    SlidersHorizontal, ScanLine,
 } from 'lucide-react';
 
 import { PERM } from '@/lib/api/admin';
@@ -83,6 +83,11 @@ export const NAV: NavSection[] = [
                 to: '/admin',
                 icon: LayoutDashboard,
                 end: true,
+            }, {
+                titleKey: 'nav.pos',
+                to: '/admin/pos',
+                icon: ScanLine,
+                permission: 'pos.sell',
             },
             {
                 titleKey: 'nav.catalogAttributes',

@@ -1202,6 +1202,7 @@
   },
 
   "nav": {
+    "pos": "Point of Sale",
     "catalogAttributes": "Product Attributes",
     "home": "Home",
     "products": "Products",

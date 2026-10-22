@@ -2,7 +2,7 @@
 // FILE:
 // NexaECommerce.Server/Extensions/ModuleRegistrationExtensions.cs
 // ================================================================
-
+using NexaEcommerce.Modules.Orders.Application.Pos;
 using Microsoft.EntityFrameworkCore;
 using NexaEcommerce.Modules.Catalog;
 using NexaEcommerce.Modules.Catalog.Domain.Interfaces;
@@ -142,7 +142,12 @@ public static class ModuleRegistrationExtensions
         // ========================================================
         // Checkout / Payment / Fulfillment orchestration
         // ========================================================
+        services.AddHttpContextAccessor();
         services.AddScoped<PosOrchestrator>();
+        services.AddScoped<IPosOrchestrator>(sp => sp.GetRequiredService<PosOrchestrator>());
+        services.AddScoped<IPosCatalogReader, PosCatalogReader>();
+        services.AddScoped<IPosExecutionContext, PosExecutionContext>();
+        services.AddScoped<IPosSaleCommitter, PosSaleCommitter>();
         services.AddScoped<
             CheckoutOrchestrator>();
 

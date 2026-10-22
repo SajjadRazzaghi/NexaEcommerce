@@ -587,6 +587,127 @@ namespace NexaEcommerce.Modules.Orders.Infrastructure.Migrations
                     b.ToTable("PaymentAttempts", "Orders");
                 });
 
+            modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.PosSale", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<DateTime?>("PaidAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PaymentMethod")
+                        .HasColumnType("int");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("SaleNumber")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("SellerUserId")
+                        .IsRequired()
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("Subtotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "SaleNumber")
+                        .IsUnique();
+
+                    b.HasIndex("TenantId", "SellerUserId", "IdempotencyKey")
+                        .IsUnique();
+
+                    b.ToTable("PosSales", "Orders");
+                });
+
+            modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.PosSaleItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AttributesJson")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Barcode")
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<decimal>("LineTotal")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("PosSaleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ProductName")
+                        .IsRequired()
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<Guid>("ProductVariantId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReservationKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("nvarchar(128)");
+
+                    b.Property<string>("Sku")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<decimal>("UnitPrice")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("decimal(18,2)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PosSaleId");
+
+                    b.HasIndex("ProductVariantId");
+
+                    b.ToTable("PosSaleItems", "Orders");
+                });
+
             modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.Shipment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -804,10 +925,26 @@ namespace NexaEcommerce.Modules.Orders.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.PosSaleItem", b =>
+                {
+                    b.HasOne("NexaEcommerce.Modules.Orders.Domain.Entities.PosSale", "Sale")
+                        .WithMany("Items")
+                        .HasForeignKey("PosSaleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Sale");
+                });
+
             modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.Order", b =>
                 {
                     b.Navigation("InventoryReservations");
 
+                    b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.PosSale", b =>
+                {
                     b.Navigation("Items");
                 });
 #pragma warning restore 612, 618
