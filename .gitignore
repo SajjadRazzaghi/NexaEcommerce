@@ -366,3 +366,12 @@ App_Data/
 *.db
 *.db-shm
 *.db-wal
+
+
+
+# Local ASP.NET Core configuration files
+NexaECommerce.Server/appsettings*.json
+
+# Keep sanitized configuration templates in Git
+!NexaECommerce.Server/appsettings.example.json
+!NexaECommerce.Server/appsettings.Development.example.json
