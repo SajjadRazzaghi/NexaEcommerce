@@ -1,10 +1,15 @@
 namespace NexaECommerce.Server.Features.Auth;
 
 // Requests
-public record RegisterRequest(string Email, string Password, string? DisplayName);
+public record RegisterRequest(
+    string Identifier,
+    string Password,
+    string? DisplayName);
 
-public record LoginRequest(string Email, string Password, bool RememberMe = false);
-
+public record LoginRequest(
+    string Identifier,
+    string Password,
+    bool RememberMe = false);
 public record ConfirmEmailRequest(string UserId, string Token);
 
 public record ResendConfirmationRequest(string Email);

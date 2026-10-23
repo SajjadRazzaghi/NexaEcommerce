@@ -30,7 +30,7 @@ export default function ResetPasswordPage() {
     () =>
       z
         .object({
-          newPassword: z.string().min(8, t('auth.valid.passwordMin')).max(128),
+            newPassword: z.string().min(6, t('auth.valid.passwordMin')).max(128),
           confirmPassword: z.string().min(1, t('auth.valid.confirmRequired')),
         })
         .refine((v) => v.newPassword === v.confirmPassword, {

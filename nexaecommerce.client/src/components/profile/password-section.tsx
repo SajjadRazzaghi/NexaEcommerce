@@ -33,7 +33,7 @@ export function PasswordSection() {
       z
         .object({
           currentPassword: z.string(),
-          newPassword: z.string().min(8, t('profile.password.min')).max(128),
+            newPassword: z.string().min(6, t('profile.password.min')).max(128),
           confirmPassword: z.string().min(1, t('profile.password.confirmRequired')),
         })
         .refine((v) => v.newPassword === v.confirmPassword, {

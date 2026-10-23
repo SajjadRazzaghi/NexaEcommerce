@@ -68,7 +68,26 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
       else next.delete(name);
       return next;
     });
+    const localizedRoleName = (name: string): string => {
+        const normalized = name.trim().toLowerCase();
 
+        switch (normalized) {
+            case 'admin':
+                return t('users.roleAdmin');
+
+            case 'member':
+                return t('users.roleMember');
+
+            case 'pos':
+            case 'pos(صندوقدار)':
+            case 'pos (صندوقدار)':
+            case 'cashier':
+                return t('users.rolePos');
+
+            default:
+                return name;
+        }
+    };
   const submit = (e: FormEvent) => {
     e.preventDefault();
     create.mutate({
@@ -102,7 +121,7 @@ function CreateUserForm({ onClose }: { onClose: () => void }) {
               <li key={role.id}>
                 <label className="hover:bg-muted/40 flex cursor-pointer items-center gap-2 rounded-md p-2 text-sm">
                   <Checkbox checked={selectedRoles.has(role.name)} onCheckedChange={(v) => toggleRole(role.name, v === true)} />
-                  {role.name}
+                        {localizedRoleName(role.name)}
                 </label>
               </li>
             ))}

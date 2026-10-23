@@ -366,33 +366,47 @@ public sealed class AuthEndpoints : IFeatureEndpoints
                 "Registration is currently disabled. Contact an administrator for an invitation.");
         }
 
+        if (!AuthIdentifier.TryParse(req.Identifier, out var identifier))
+        {
+            throw new BadRequestException(
+                "Enter a valid email address or mobile number.");
+        }
+
+        if (identifier.Email is not null &&
+            await users.FindByEmailAsync(identifier.Email) is not null)
+        {
+            throw new BadRequestException(
+                "An account with this email already exists.");
+        }
+
         var requireEmailConfirmation =
             await settings.GetAsync<bool>(
                 AccountSettings.RequireEmailConfirmation,
                 ct);
 
+        // Email confirmation applies only to email registrations.
+        var requiresEmailConfirmation =
+            identifier.Email is not null &&
+            requireEmailConfirmation;
+
         var user = new AppUser
         {
-            UserName = req.Email,
-            Email = req.Email,
+            UserName = identifier.UserName,
+            Email = identifier.Email,
+            PhoneNumber = identifier.PhoneNumber,
             DisplayName = req.DisplayName,
 
-            // -----------------------------------------------------
-            // When email confirmation is disabled, the account is
-            // immediately ready for login.
-            // -----------------------------------------------------
-            EmailConfirmed =
-                !requireEmailConfirmation
+            // An account without an email has no email to confirm.
+            // This does not mean that its mobile number is verified.
+            EmailConfirmed = !requiresEmailConfirmation
         };
 
-        var result =
-            await users.CreateAsync(
-                user,
-                req.Password);
+        var result = await users.CreateAsync(
+            user,
+            req.Password);
 
         if (!result.Succeeded)
             throw IdentityErrors(result);
-
         await AssignDefaultRoleAsync(
             user,
             settings,
@@ -405,33 +419,27 @@ public sealed class AuthEndpoints : IFeatureEndpoints
         // Send confirmation only when the feature is enabled.
         // ---------------------------------------------------------
 
-        if (requireEmailConfirmation)
+        if (requiresEmailConfirmation)
         {
             var token =
-                await users.GenerateEmailConfirmationTokenAsync(
-                    user);
+                await users.GenerateEmailConfirmationTokenAsync(user);
 
             await AuthEmails.SendEmailConfirmationAsync(
                 email,
                 user,
                 token,
-                AuthUrls.ClientBaseUrl(
-                    http,
-                    appOptions.Value),
+                AuthUrls.ClientBaseUrl(http, appOptions.Value),
                 appOptions.Value.ProductName,
                 appOptions.Value.BrandColor,
                 ct);
         }
-
         return Results.Ok(new
         {
-            message =
-                requireEmailConfirmation
-                    ? "Account created. Check your email to confirm your address."
-                    : "Account created successfully.",
+            message = requiresEmailConfirmation
+        ? "Account created. Check your email to confirm your address."
+        : "Account created successfully.",
 
-            requiresEmailConfirmation =
-                requireEmailConfirmation
+            requiresEmailConfirmation
         });
     }
 
@@ -562,9 +570,23 @@ public sealed class AuthEndpoints : IFeatureEndpoints
        HttpContext http,
        CancellationToken ct)
     {
-        var user =
-            await users.FindByEmailAsync(
-                req.Email);
+        if (!AuthIdentifier.TryParse(req.Identifier, out var identifier))
+        {
+            throw new UnauthorizedException(
+                "Invalid email or mobile number, or password.",
+                "INVALID_CREDENTIALS");
+        }
+
+        var user = identifier.Email is not null
+            ? await users.FindByEmailAsync(identifier.Email)
+            : await users.FindByNameAsync(identifier.UserName);
+
+        if (user is null)
+        {
+            throw new UnauthorizedException(
+                "Invalid email or mobile number, or password.",
+                "INVALID_CREDENTIALS");
+        }
 
         if (user is null)
         {
@@ -578,6 +600,7 @@ public sealed class AuthEndpoints : IFeatureEndpoints
         ct);
 
         if (requireEmailConfirmation &&
+            !string.IsNullOrWhiteSpace(user.Email) &&
             !user.EmailConfirmed)
         {
             throw new UnauthorizedException(

@@ -74,7 +74,7 @@ import {
 } from '@/components/auth/form-banner';
 
 type Values = {
-    email: string;
+    identifier: string;
     password: string;
     rememberMe: boolean;
 };
@@ -118,18 +118,12 @@ export default function LoginPage() {
         useMemo(
             () =>
                 z.object({
-                    email: z
+                    identifier: z
                         .string()
+                        .trim()
                         .min(
                             1,
-                            t(
-                                'auth.valid.emailRequired',
-                            ),
-                        )
-                        .email(
-                            t(
-                                'auth.valid.emailInvalid',
-                            ),
+                            t('auth.valid.identifierRequired'),
                         ),
 
                     password: z
@@ -159,12 +153,16 @@ export default function LoginPage() {
                 ),
 
             defaultValues: {
-                email: '',
+                identifier: '',
                 password: '',
                 rememberMe: true,
             },
         });
+    const identifierValue =
+        (form.watch('identifier') ?? '').trim();
 
+    const isEmailIdentifier =
+        /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(identifierValue);
     // =========================================================
     // Public Configuration
     // =========================================================
@@ -244,7 +242,7 @@ export default function LoginPage() {
                             error,
                             form.setError,
                             [
-                                'email',
+                                'identifier',
                                 'password',
                             ],
                         ),
@@ -339,7 +337,7 @@ export default function LoginPage() {
                         type="button"
                         onClick={() => {
                             form.setValue(
-                                'email',
+                                'identifier',
                                 publicConfig
                                     ?.demoLogin
                                     ?.email ??
@@ -409,7 +407,7 @@ export default function LoginPage() {
                 Email Confirmation
             ================================================= */}
 
-            {needsConfirmation && (
+            { needsConfirmation && isEmailIdentifier && (
                 <Button
                     type="button"
                     variant="outline"
@@ -419,14 +417,9 @@ export default function LoginPage() {
                         resend.isSuccess
                     }
                     onClick={() =>
-                        resend.mutate(
-                            {
-                                email:
-                                    form.getValues(
-                                        'email',
-                                    ),
-                            },
-                        )
+                        resend.mutate({
+                            email: form.getValues('identifier').trim(),
+                        })
                     }
                 >
                     {
@@ -460,30 +453,20 @@ export default function LoginPage() {
                     ------------------------------------------------- */}
 
                     <FormField
-                        control={
-                            form.control
-                        }
-                        name="email"
-                        render={({
-                            field,
-                        }) => (
+                        control={form.control}
+                        name="identifier"
+                        render={({ field }) => (
                             <FormItem>
                                 <FormLabel>
-                                    {
-                                        t(
-                                            'auth.email',
-                                        )
-                                    }
+                                    {t('auth.identifier')}
                                 </FormLabel>
 
                                 <FormControl>
                                     <Input
-                                        type="email"
-                                        autoComplete="email"
+                                        type="text"
+                                        autoComplete="username"
                                         autoFocus
-                                        placeholder={t(
-                                            'auth.emailPlaceholder',
-                                        )}
+                                        placeholder={t('auth.identifierPlaceholder')}
                                         {...field}
                                     />
                                 </FormControl>
@@ -514,17 +497,15 @@ export default function LoginPage() {
                                             )
                                         }
                                     </FormLabel>
-
-                                    <Link
-                                        to="/forgot-password"
-                                        className="text-muted-foreground hover:text-foreground text-sm"
-                                    >
-                                        {
-                                            t(
-                                                'auth.login.forgot',
-                                            )
-                                        }
-                                    </Link>
+                                    {isEmailIdentifier && (
+                                        <Link
+                                            to="/forgot-password"
+                                            className="text-muted-foreground hover:text-foreground text-sm"
+                                        >
+                                            {t('auth.login.forgot')}
+                                        </Link>
+                                    )}
+                                  
                                 </div>
 
                                 <FormControl>

@@ -52,9 +52,9 @@ export const NAV: NavSection[] = [
             },
             {
                 titleKey: 'nav.products',
-                to: '/products',
+                to: '/admin/products',
                 icon: ShoppingBag,
-                end: true,
+                permission: PERM.productsRead,
             },
         ],
     },
@@ -82,8 +82,9 @@ export const NAV: NavSection[] = [
                 titleKey: 'nav.dashboard',
                 to: '/admin',
                 icon: LayoutDashboard,
+                permission: PERM.dashboardRead,
                 end: true,
-            }, {
+            },  {
                 titleKey: 'nav.pos',
                 to: '/admin/pos',
                 icon: ScanLine,
@@ -99,6 +100,7 @@ export const NAV: NavSection[] = [
                 titleKey: 'nav.products',
                 to: '/admin/products',
                 icon: ShoppingBag,
+                permission: PERM.productsRead,
             },
             {
                 titleKey: 'nav.orders',

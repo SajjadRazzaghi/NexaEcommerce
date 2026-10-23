@@ -20,18 +20,30 @@ public static class IdentitySetup
     {
         var authOptions = configuration.GetSection(AuthOptions.SectionName).Get<AuthOptions>() ?? new AuthOptions();
         services.Configure<AuthOptions>(configuration.GetSection(AuthOptions.SectionName));
-
         services.AddIdentity<AppUser, IdentityRole>(options =>
-            {
-                options.SignIn.RequireConfirmedEmail = authOptions.RequireConfirmedEmail;
-                options.User.RequireUniqueEmail = true;
-                options.Password.RequiredLength = 8;
-                options.Password.RequireNonAlphanumeric = false;
-                options.Lockout.MaxFailedAccessAttempts = 5;
-                options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
-            })
-            .AddEntityFrameworkStores<AppDbContext>()
-            .AddDefaultTokenProviders();
+        {
+            options.SignIn.RequireConfirmedEmail =
+                authOptions.RequireConfirmedEmail;
+
+            // Email can be empty for phone-only accounts.
+            // Email uniqueness is checked during registration.
+            options.User.RequireUniqueEmail = false;
+
+            // Minimum password policy
+            options.Password.RequiredLength = 6;
+            options.Password.RequiredUniqueChars = 1;
+            options.Password.RequireDigit = false;
+            options.Password.RequireLowercase = false;
+            options.Password.RequireUppercase = false;
+            options.Password.RequireNonAlphanumeric = false;
+
+            options.Lockout.MaxFailedAccessAttempts = 5;
+            options.Lockout.DefaultLockoutTimeSpan =
+                TimeSpan.FromMinutes(15);
+        })
+        .AddEntityFrameworkStores<AppDbContext>()
+        .AddDefaultTokenProviders();
+                    
 
         // Per-tenant RBAC: replace Identity's global-role projection with one that grants the permission
         // claims of the roles the user holds in their active tenant (see AppUserClaimsPrincipalFactory).

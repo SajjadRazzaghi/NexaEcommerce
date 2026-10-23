@@ -59,15 +59,18 @@ export interface LinkedLogin {
 /** Typed wrappers over the Features/Auth endpoints. Replaced by a generated client later. */
 export const authApi = {
   me: () => api.get<AuthUser>('/auth/me'),
-  login: (body: { email: string; password: string; rememberMe?: boolean }) =>
-    api.post<LoginResult>('/auth/login', body),
+    login: (body: {
+        identifier: string;
+        password: string;
+        rememberMe?: boolean;
+    }) => api.post<LoginResult>('/auth/login', body),
   loginTwoFactor: (body: { code: string; rememberMachine?: boolean; rememberMe?: boolean }) =>
     api.post<LoginResult>('/auth/login/2fa', body),
   loginRecoveryCode: (body: { recoveryCode: string; rememberMe?: boolean }) =>
     api.post<LoginResult>('/auth/login/recovery-code', body),
     register: (
         body: {
-            email: string;
+            identifier: string;
             password: string;
             displayName?: string;
         },

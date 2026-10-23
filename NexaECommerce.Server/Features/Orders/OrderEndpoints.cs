@@ -30,9 +30,8 @@ public sealed class OrderEndpoints
             Checkout);
 
         group.MapGet(
-            "/",
-            ListMine)
-            .RequirePermission(OrderPermissions.Read);
+      "/",
+      ListMine);
 
         group.MapGet(
             "/admin",
@@ -43,9 +42,8 @@ public sealed class OrderEndpoints
     GetAdmin)
     .RequirePermission(OrderPermissions.Manage);
         group.MapGet(
-            "/{id:guid}",
-            Get)
-            .RequirePermission(OrderPermissions.Read);
+      "/{id:guid}",
+      Get);
 
         group.MapPut(
             "/{id:guid}/status",

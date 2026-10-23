@@ -25,7 +25,12 @@ import { PasswordInput } from '@/components/auth/password-input';
 import { FormBanner } from '@/components/auth/form-banner';
 import { meta } from './meta';
 
-type Values = { displayName?: string; email: string; password: string; confirmPassword: string };
+type Values = {
+    displayName?: string;
+    identifier: string;
+    password: string;
+    confirmPassword: string;
+};
 
 export default function RegisterPage() {
   const { t } = useTranslation();
@@ -36,35 +41,57 @@ export default function RegisterPage() {
     const [params] = useSearchParams();
     const returnUrl = safeReturn(params.get('returnUrl'));
     const setCurrentUser = useSetCurrentUser();
-  const schema = useMemo(
-    () =>
-      z
-        .object({
-          displayName: z.string().max(100).optional(),
-          email: z.string().min(1, t('auth.valid.emailRequired')).email(t('auth.valid.emailInvalid')),
-          password: z.string().min(8, t('auth.valid.passwordMin')).max(128),
-          confirmPassword: z.string().min(1, t('auth.valid.confirmRequired')),
-        })
-        .refine((v) => v.password === v.confirmPassword, {
-          message: t('auth.valid.mismatch'),
-          path: ['confirmPassword'],
-        }),
-    [t],
-  );
+    const schema = useMemo(
+        () =>
+            z
+                .object({
+                    displayName: z.string().max(100).optional(),
+
+                    identifier: z
+                        .string()
+                        .trim()
+                        .min(
+                            1,
+                            t('auth.valid.identifierRequired'),
+                        ),
+
+                    password: z
+                        .string()
+                        .min(6, t('auth.valid.passwordMin'))
+                        .max(128),
+
+                    confirmPassword: z
+                        .string()
+                        .min(1, t('auth.valid.confirmRequired')),
+                })
+                .refine(
+                    (v) => v.password === v.confirmPassword,
+                    {
+                        message: t('auth.valid.mismatch'),
+                        path: ['confirmPassword'],
+                    },
+                ),
+        [t],
+    );
 
   const form = useForm<Values>({
     resolver: zodResolver(schema),
-    defaultValues: { displayName: '', email: '', password: '', confirmPassword: '' },
+      defaultValues: {
+          displayName: '',
+          identifier: '',
+          password: '',
+          confirmPassword: '',
+      },
   });
     const register = useMutation({
         mutationFn: async (values: {
-            email: string;
+            identifier: string;
             password: string;
             displayName?: string;
         }) => {
             const registration = await authApi.register(values);
 
-            // Future email-confirmation mode remains intact.
+            // اگر تأیید ایمیل لازم است، ابتدا همان روند قبلی اجرا شود.
             if (registration.requiresEmailConfirmation) {
                 return {
                     registration,
@@ -72,9 +99,9 @@ export default function RegisterPage() {
                 };
             }
 
-            // Current mode: automatically sign in after registration.
+            // ورود خودکار پس از ثبت‌نام با ایمیل یا شماره موبایل
             const loginResult = await authApi.login({
-                email: values.email,
+                identifier: values.identifier,
                 password: values.password,
                 rememberMe: true,
             });
@@ -86,26 +113,23 @@ export default function RegisterPage() {
         },
 
         onSuccess: async ({ registration, loginResult }) => {
-            // When email confirmation is enabled, keep the old flow.
-            if (registration.requiresEmailConfirmation || !loginResult?.user) {
+            // در حالت نیاز به تأیید ایمیل، کاربر فعلاً وارد نمی‌شود.
+            if (
+                registration.requiresEmailConfirmation ||
+                !loginResult?.user
+            ) {
                 return;
             }
 
-            // Seed authenticated user immediately.
             setCurrentUser(loginResult.user);
 
-            // Merge guest cart after automatic login.
+            // ادغام سبد خرید مهمان؛ خطای آن نباید ورود موفق را لغو کند.
             try {
                 await mergeGuestCart();
             } catch {
-                /*
-                 * Login succeeded.
-                 * Guest-cart merge is best-effort and must not prevent
-                 * redirecting the customer to the requested page.
-                 */
+                // Guest-cart merge is best-effort.
             }
 
-            // Return to the page that originally required authentication.
             navigate(returnUrl, {
                 replace: true,
             });
@@ -116,7 +140,7 @@ export default function RegisterPage() {
                 applyApiErrorToForm(
                     error,
                     form.setError,
-                    ['email', 'password'],
+                    ['identifier', 'password'],
                 ),
             ),
     });
@@ -127,10 +151,15 @@ export default function RegisterPage() {
             ? value
             : '/';
     }
-  const onSubmit = form.handleSubmit((values) => {
-    setBanner(null);
-    register.mutate({ email: values.email, password: values.password, displayName: values.displayName || undefined });
-  });
+    const onSubmit = form.handleSubmit((values) => {
+        setBanner(null);
+
+        register.mutate({
+            identifier: values.identifier,
+            password: values.password,
+            displayName: values.displayName || undefined,
+        });
+    });
 
   if (publicConfig && !publicConfig.allowRegistration) {
     return (
@@ -178,8 +207,7 @@ export default function RegisterPage() {
                         ? t(
                             'auth.register.checkEmailDesc',
                             {
-                                email:
-                                    form.getValues('email'),
+                                email: form.getValues('identifier'),
                             },
                         )
                         : t(
@@ -225,20 +253,28 @@ export default function RegisterPage() {
             )}
           />
 
-          <FormField
-            control={form.control}
-            name="email"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>{t('auth.email')}</FormLabel>
-                <FormControl>
-                  <Input type="email" autoComplete="email" placeholder={t('auth.emailPlaceholder')} {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  <FormField
+                      control={form.control}
+                      name="identifier"
+                      render={({ field }) => (
+                          <FormItem>
+                              <FormLabel>
+                                  {t('auth.identifier')}
+                              </FormLabel>
 
+                              <FormControl>
+                                  <Input
+                                      type="text"
+                                      autoComplete="username"
+                                      placeholder={t('auth.identifierPlaceholder')}
+                                      {...field}
+                                  />
+                              </FormControl>
+
+                              <FormMessage />
+                          </FormItem>
+                      )}
+                  />
           <FormField
             control={form.control}
             name="password"
