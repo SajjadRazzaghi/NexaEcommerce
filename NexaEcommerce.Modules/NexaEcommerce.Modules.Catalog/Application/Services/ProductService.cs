@@ -7,6 +7,7 @@ using NexaEcommerce.SharedKernel.Pagination;
 using System.Text.RegularExpressions;
 using NexaEcommerce.Modules.Catalog.Domain.Entities.Attributes;
 using System.Globalization;
+using System.Security.Cryptography;
 namespace NexaEcommerce.Modules.Catalog.Application.Services;
 
 public sealed class ProductService : IProductService
@@ -47,6 +48,64 @@ public sealed class ProductService : IProductService
 
         _catalogAttributeRepository =
             catalogAttributeRepository;
+    }
+
+    public async Task<string> EnsureVariantBarcodeAsync(
+    Guid productId,
+    Guid variantId,
+    CancellationToken cancellationToken = default)
+    {
+        var product = await GetExistingProductAsync(
+            productId,
+            cancellationToken);
+
+        var variant = product.Variants.FirstOrDefault(
+            x => x.Id == variantId);
+
+        if (variant is null)
+        {
+            throw new KeyNotFoundException(
+                $"Variant '{variantId}' was not found in product '{productId}'.");
+        }
+
+        // اگر قبلاً بارکد ذخیره شده، همان را برگردان؛ دوباره تولید نکن.
+        if (!string.IsNullOrWhiteSpace(variant.Barcode))
+        {
+            return variant.Barcode;
+        }
+
+        // Code 128 از حروف و اعداد پشتیبانی می‌کند؛ پیشوند NX برای بارکد داخلی Nexa است.
+        for (var attempt = 0; attempt < 30; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var digits = new char[12];
+            for (var i = 0; i < digits.Length; i++)
+            {
+                digits[i] = (char)('0' + RandomNumberGenerator.GetInt32(0, 10));
+            }
+
+            var barcode = $"NX{new string(digits)}";
+
+            var exists = await _productRepository.ExistsByVariantBarcodeAsync(
+                barcode,
+                variantId,
+                cancellationToken);
+
+            if (exists)
+            {
+                continue;
+            }
+
+            variant.SetBarcode(barcode);
+            _productRepository.Update(product);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return barcode;
+        }
+
+        throw new InvalidOperationException(
+            "Could not generate a unique barcode. Please try again.");
     }
 
     // ============================================================
@@ -2469,12 +2528,13 @@ private async Task<Product> SynchronizeProductAttributesAsync(
                 variantDto.IsActive);
 
             await _productRepository.UpdateVariantAsync(
-                variant.Id,
-                variant.Sku,
-                variant.PriceOverride,
-                variant.ComparePrice,
-                variant.IsActive,
-                cancellationToken);
+    variant.Id,
+    variant.Sku,
+    variant.PriceOverride,
+    variant.ComparePrice,
+    variant.IsActive,
+    combinationKey,
+    cancellationToken);
 
             /*
              * Synchronize attribute mappings for the existing variant.

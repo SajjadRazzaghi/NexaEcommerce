@@ -12,6 +12,15 @@ public interface IOrderRepository
         Guid id,
         string? userId = null,
         CancellationToken cancellationToken = default);
+    Task<IReadOnlyDictionary<string, (
+    int TotalOrders,
+    int PaidOrders,
+    decimal TotalSpent,
+    DateTime? LastOrderAt)>>
+    GetCustomerOrderSummariesAsync(
+        string tenantId,
+        IReadOnlyCollection<string> userIds,
+        CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Order>>
     GetPendingPaymentOrdersOlderThanAsync(
         string tenantId,

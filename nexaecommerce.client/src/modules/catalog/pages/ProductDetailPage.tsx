@@ -548,7 +548,47 @@ export default function ProductDetailPage() {
 
     const images =
         product?.images ?? [];
+    const productSpecifications = useMemo(
+        () =>
+            (product?.attributes ?? [])
+                .filter((attribute) => {
+                    const roleValue = Number(
+                        attribute.roleValue ?? 0,
+                    );
 
+                    const role = (attribute.role ?? '')
+                        .trim()
+                        .toLowerCase()
+                        .replace(/[\s_-]/g, '');
+
+                    const isVariantDefining =
+                        (
+                            Number.isInteger(roleValue) &&
+                            (roleValue & 4) === 4
+                        ) ||
+                        role === 'variantdefining' ||
+                        role.includes('variantdefining');
+
+                    const hasValue = (
+                        attribute.values ?? []
+                    ).some((value) =>
+                        Boolean(
+                            (
+                                value.displayValue ||
+                                value.value ||
+                                ''
+                            ).trim(),
+                        ),
+                    );
+
+                    return !isVariantDefining && hasValue;
+                })
+                .sort(
+                    (a, b) =>
+                        a.displayOrder - b.displayOrder,
+                ),
+        [product?.attributes],
+    );
     const safeImageIndex =
         Math.min(
             imageIndex,
@@ -1733,7 +1773,83 @@ export default function ProductDetailPage() {
                                             </Typography>
                                         </>
                                     )}
+                                    {productSpecifications.length > 0 && (
+                                        <>
+                                            <Divider />
 
+                                            <Box>
+                                                <Typography
+                                                    variant="h6"
+                                                    sx={{
+                                                        fontWeight: 800,
+                                                        mb: 1.5,
+                                                    }}
+                                                >
+                                                    {getText(
+                                                        'storefront.productDetail.specifications',
+                                                        'مشخصات محصول',
+                                                    )}
+                                                </Typography>
+
+                                                <Stack spacing={0}>
+                                                    {productSpecifications.map((attribute) => {
+                                                        const values = (
+                                                            attribute.values ?? []
+                                                        )
+                                                            .map((value) =>
+                                                                (
+                                                                    value.displayValue ||
+                                                                    value.value ||
+                                                                    ''
+                                                                ).trim(),
+                                                            )
+                                                            .filter(Boolean);
+
+                                                        if (values.length === 0) {
+                                                            return null;
+                                                        }
+
+                                                        return (
+                                                            <Box
+                                                                key={attribute.id}
+                                                                sx={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'flex-start',
+                                                                    justifyContent: 'space-between',
+                                                                    gap: 2,
+                                                                    py: 1.25,
+                                                                    borderBottom: '1px solid',
+                                                                    borderColor: 'divider',
+                                                                }}
+                                                            >
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    color="text.secondary"
+                                                                    sx={{
+                                                                        fontWeight: 600,
+                                                                        flex: '0 0 40%',
+                                                                    }}
+                                                                >
+                                                                    {attribute.name}
+                                                                </Typography>
+
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    sx={{
+                                                                        flex: 1,
+                                                                        textAlign: 'end',
+                                                                        whiteSpace: 'pre-line',
+                                                                    }}
+                                                                >
+                                                                    {values.join('، ')}
+                                                                </Typography>
+                                                            </Box>
+                                                        );
+                                                    })}
+                                                </Stack>
+                                            </Box>
+                                        </>
+                                    )}
                                     {(
                                         product.description ||
                                         product.categories.length >
@@ -1741,7 +1857,7 @@ export default function ProductDetailPage() {
                                         product.manufacturerName
                                     ) && (
                                             <>
-                                                <Divider />
+                                            {productSpecifications.length <=0 && (<Divider />)}
 
                                                 <Stack
                                                     spacing={2}

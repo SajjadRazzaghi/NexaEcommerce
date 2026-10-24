@@ -33,3 +33,16 @@ export interface UpdateAddressRequest {
     addressLine: string;
     postalCode?: string | null;
 }
+export interface AdminCustomer {
+    id: string;
+    displayName: string | null;
+    email: string | null;
+    phoneNumber: string | null;
+    emailConfirmed: boolean;
+    phoneNumberConfirmed: boolean;
+    createdAt: string;
+    totalOrders: number;
+    paidOrders: number;
+    totalSpent: number;
+    lastOrderAt: string | null;
+}

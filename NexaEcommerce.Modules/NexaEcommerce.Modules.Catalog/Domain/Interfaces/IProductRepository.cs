@@ -11,12 +11,13 @@ public interface IProductRepository
       ProductVariant variant,
       CancellationToken cancellationToken = default);
     Task<bool> UpdateVariantAsync(
-        Guid variantId,
-        string sku,
-        decimal priceOverride,
-        decimal? comparePrice,
-        bool isActive,
-        CancellationToken cancellationToken = default);
+      Guid variantId,
+      string sku,
+      decimal priceOverride,
+      decimal? comparePrice,
+      bool isActive,
+      string? combinationKey,
+      CancellationToken cancellationToken = default);
     Task<Product?> GetBySlugAsync(
     string slug,
     CancellationToken cancellationToken = default);

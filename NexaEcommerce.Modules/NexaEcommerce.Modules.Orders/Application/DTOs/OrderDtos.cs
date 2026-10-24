@@ -35,7 +35,12 @@ public sealed record OrderItemDto(
     int Quantity,
     decimal LineTotal,
     IReadOnlyList<OrderItemAttributeDto> Attributes);
-
+public sealed record CustomerOrderSummaryDto(
+    string UserId,
+    int TotalOrders,
+    int PaidOrders,
+    decimal TotalSpent,
+    DateTime? LastOrderAt);
 public sealed record OrderDto(
     Guid Id,
     string OrderNumber,

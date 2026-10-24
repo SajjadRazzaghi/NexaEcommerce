@@ -19,6 +19,7 @@ import {
     Warehouse,
     type LucideIcon,
     SlidersHorizontal, ScanLine,
+    Barcode
 } from 'lucide-react';
 
 import { PERM } from '@/lib/api/admin';
@@ -103,6 +104,12 @@ export const NAV: NavSection[] = [
                 permission: PERM.productsRead,
             },
             {
+                titleKey: 'nav.barcodeLabels',
+                to: '/admin/barcode-labels',
+                icon: Barcode,
+                permission: PERM.productsUpdate,
+            },
+            {
                 titleKey: 'nav.orders',
                 to: '/admin/orders',
                 icon: ShoppingBag,
@@ -173,6 +180,12 @@ export const NAV: NavSection[] = [
                 to: '/admin/users',
                 icon: Users,
                 permission: PERM.usersRead,
+            },
+            {
+                titleKey: 'nav.customers',
+                to: '/admin/customers',
+                icon: Users,
+                permission: PERM.customersRead,
             },
             {
                 titleKey: 'nav.roles',

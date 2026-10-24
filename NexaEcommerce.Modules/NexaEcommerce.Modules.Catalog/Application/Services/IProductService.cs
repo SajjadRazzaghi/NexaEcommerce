@@ -25,7 +25,10 @@ public interface IProductService
 
     Task<IEnumerable<ProductDto>> GetAllAsync(
         CancellationToken cancellationToken = default);
-
+    Task<string> EnsureVariantBarcodeAsync(
+    Guid productId,
+    Guid variantId,
+    CancellationToken cancellationToken = default);
     Task<ProductDto?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default);

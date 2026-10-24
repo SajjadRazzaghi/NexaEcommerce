@@ -9,6 +9,70 @@ public sealed class OrderRepository(
     OrdersDbContext context)
     : IOrderRepository
 {
+    public async Task<IReadOnlyDictionary<string, (
+    int TotalOrders,
+    int PaidOrders,
+    decimal TotalSpent,
+    DateTime? LastOrderAt)>>
+    GetCustomerOrderSummariesAsync(
+        string tenantId,
+        IReadOnlyCollection<string> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        var ids = userIds
+            .Where(id => !string.IsNullOrWhiteSpace(id))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+
+        if (ids.Length == 0)
+        {
+            return new Dictionary<string, (
+                int TotalOrders,
+                int PaidOrders,
+                decimal TotalSpent,
+                DateTime? LastOrderAt)>();
+        }
+
+        var summaries = await context.Orders
+            .AsNoTracking()
+            .Where(order =>
+                order.TenantId == tenantId &&
+                ids.Contains(order.UserId))
+            .GroupBy(order => order.UserId)
+            .Select(group => new
+            {
+                UserId = group.Key,
+
+                TotalOrders = group.Count(),
+
+                PaidOrders = group.Count(order =>
+                    order.Status == OrderStatus.Paid ||
+                    order.Status == OrderStatus.Processing ||
+                    order.Status == OrderStatus.Shipped ||
+                    order.Status == OrderStatus.Delivered),
+
+                TotalSpent = group
+                    .Where(order =>
+                        order.Status == OrderStatus.Paid ||
+                        order.Status == OrderStatus.Processing ||
+                        order.Status == OrderStatus.Shipped ||
+                        order.Status == OrderStatus.Delivered)
+                    .Sum(order => (decimal?)order.TotalAmount) ?? 0m,
+
+                LastOrderAt = (DateTime?)group.Max(
+                    order => order.CreatedAt)
+            })
+            .ToListAsync(cancellationToken);
+
+        return summaries.ToDictionary(
+            item => item.UserId,
+            item => (
+                TotalOrders: item.TotalOrders,
+                PaidOrders: item.PaidOrders,
+                TotalSpent: item.TotalSpent,
+                LastOrderAt: item.LastOrderAt),
+            StringComparer.Ordinal);
+    }
     public async Task AddInventoryReservationAsync(
     OrderInventoryReservation reservation,
     CancellationToken cancellationToken = default)

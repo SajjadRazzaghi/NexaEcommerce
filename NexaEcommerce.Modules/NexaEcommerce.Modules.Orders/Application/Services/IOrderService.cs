@@ -10,7 +10,11 @@ public interface IOrderService
         string idempotencyKey,
         CheckoutRequest request,
         CancellationToken cancellationToken = default);
-
+    Task<IReadOnlyDictionary<string, CustomerOrderSummaryDto>>
+    GetCustomerOrderSummariesAsync(
+        string tenantId,
+        IReadOnlyCollection<string> userIds,
+        CancellationToken cancellationToken = default);
     Task<OrderDto?> GetAsync(
      string tenantId,
      Guid id,

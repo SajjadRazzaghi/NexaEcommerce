@@ -68,6 +68,12 @@ public sealed class ProductEndpoints : IFeatureEndpoints
             .RequirePermission(ProductPermissions.Update)
             .AddEndpointFilter<TransactionFilter>();
 
+        group.MapPost(
+        "/{id:guid}/variants/{variantId:guid}/barcode",
+        EnsureVariantBarcode)
+    .RequirePermission(ProductPermissions.Update)
+    .AddEndpointFilter<TransactionFilter>();
+
         group.MapPatch(
                 "/{id:guid}/stock",
                 UpdateStock)
@@ -91,7 +97,30 @@ public sealed class ProductEndpoints : IFeatureEndpoints
             .RequirePermission(ProductPermissions.Delete)
             .AddEndpointFilter<TransactionFilter>();
     }
+    private static async Task<IResult> EnsureVariantBarcode(
+    Guid id,
+    Guid variantId,
+    [FromServices] IProductService productService,
+    CancellationToken ct)
+    {
+        try
+        {
+            var barcode = await productService.EnsureVariantBarcodeAsync(
+                id,
+                variantId,
+                ct);
 
+            return Results.Ok(new { barcode });
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return Results.NotFound(new { error = ex.Message });
+        }
+        catch (ArgumentException ex)
+        {
+            return Results.BadRequest(new { error = ex.Message });
+        }
+    }
     private static async Task<IResult> GetBySlug(
         string slug,
         [FromServices] IProductService productService,

@@ -361,7 +361,34 @@ request.ShippingMethodId);
             pageSize,
             total);
     }
+    public async Task<IReadOnlyDictionary<string, CustomerOrderSummaryDto>>
+    GetCustomerOrderSummariesAsync(
+        string tenantId,
+        IReadOnlyCollection<string> userIds,
+        CancellationToken cancellationToken = default)
+    {
+        if (userIds.Count == 0)
+        {
+            return new Dictionary<string, CustomerOrderSummaryDto>(
+                StringComparer.Ordinal);
+        }
 
+        var summaries =
+            await repository.GetCustomerOrderSummariesAsync(
+                tenantId,
+                userIds,
+                cancellationToken);
+
+        return summaries.ToDictionary(
+            item => item.Key,
+            item => new CustomerOrderSummaryDto(
+                item.Key,
+                item.Value.TotalOrders,
+                item.Value.PaidOrders,
+                item.Value.TotalSpent,
+                item.Value.LastOrderAt),
+            StringComparer.Ordinal);
+    }
     public async Task<OrderStatusResultDto> UpdateStatusAsync(
       string tenantId,
       Guid orderId,

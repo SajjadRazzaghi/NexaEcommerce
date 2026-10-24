@@ -402,7 +402,11 @@ export const productsApi = {
             `/products/${id}`,
             data,
         ),
-
+    ensureVariantBarcode: (productId: string, variantId: string) =>
+        api.post<{ barcode: string }>(
+            `/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}/barcode`,
+            {},
+        ),
     updateStock: (
         id: string,
         quantity: number,

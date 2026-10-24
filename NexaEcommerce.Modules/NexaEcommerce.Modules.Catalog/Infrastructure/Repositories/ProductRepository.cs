@@ -396,7 +396,7 @@ public sealed class ProductRepository : IProductRepository
     string sku,
     decimal priceOverride,
     decimal? comparePrice,
-    bool isActive,
+    bool isActive, string? combinationKey,
     CancellationToken cancellationToken = default)
     {
         if (variantId == Guid.Empty)
@@ -422,7 +422,10 @@ public sealed class ProductRepository : IProductRepository
 
         var now =
             DateTime.UtcNow;
-
+        var normalizedCombinationKey =
+    string.IsNullOrWhiteSpace(combinationKey)
+        ? null
+        : combinationKey.Trim();
         var affectedRows =
             await _context.ProductVariants
                 .IgnoreQueryFilters()
@@ -433,21 +436,24 @@ public sealed class ProductRepository : IProductRepository
                 .ExecuteUpdateAsync(
                     setters =>
                         setters
-                            .SetProperty(
-                                variant => variant.Sku,
-                                normalizedSku)
-                            .SetProperty(
-                                variant => variant.PriceOverride,
-                                priceOverride)
-                            .SetProperty(
-                                variant => variant.ComparePrice,
-                                comparePrice)
-                            .SetProperty(
-                                variant => variant.IsActive,
-                                isActive)
-                            .SetProperty(
-                                variant => variant.UpdatedAt,
-                                now),
+                         .SetProperty(
+    variant => variant.Sku,
+    normalizedSku)
+.SetProperty(
+    variant => variant.PriceOverride,
+    priceOverride)
+.SetProperty(
+    variant => variant.ComparePrice,
+    comparePrice)
+.SetProperty(
+    variant => variant.CombinationKey,
+    normalizedCombinationKey)
+.SetProperty(
+    variant => variant.IsActive,
+    isActive)
+.SetProperty(
+    variant => variant.UpdatedAt,
+    now),
                     cancellationToken);
 
         var trackedEntry =
