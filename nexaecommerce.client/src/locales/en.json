@@ -1,4 +1,51 @@
 {
+  "assistant": {
+      "dataCategories":  "Question text and only data permitted for the active company",
+      "exampleLowStock":  "Low-stock products",
+      "yes":  "Yes",
+      "actionDisabled":  "Actions are disabled",
+      "no":  "No",
+      "infoLoadError":  "Could not retrieve service details. The browser does not make external AI calls.",
+      "providerLabel":  "Processing service",
+      "localProvider":  "Nexa internal query router",
+      "externalDataSent":  "Sent to an external service",
+      "title":  "Nexa AI assistant",
+      "noLiveDataUsed":  "This response came from the static system guide.",
+      "dataAsOf":  "Data retrieved at",
+      "noChangeMade":  "No change was made in the system.",
+      "localOnlyDescription":  "No external AI model is connected in this release. Neither your question nor Nexa records are sent to an external provider.",
+      "costLabel":  "AI API cost",
+      "exampleSales":  "Sales summary today",
+      "questionPlaceholder":  "For example: unpaid orders today or low-stock products",
+      "answerTitle":  "Assistant response",
+      "questionLabel":  "Your question",
+      "noPermission":  "An administrator must grant the assistant.use permission to your role.",
+      "questionLimit":  "{{count}} of 1000 characters",
+      "timezoneLabel":  "Business timezone for daily reports",
+      "insufficientData":  "Insufficient data",
+      "localOnlyTitle":  "Local, read-only processing",
+      "description":  "Ask natural-language questions about orders, products, and reports you are permitted to view for the active company.",
+      "nav":  "AI assistant",
+      "dataLabel":  "Data processed",
+      "developmentCostLabel":  "Development cost",
+      "approvalNotice":  "Any external service may be enabled only after disclosing the provider, data categories, processing location, and cost and receiving the employerʼs written approval.",
+      "examplesTitle":  "Example questions",
+      "systemGuide":  "System guide",
+      "developmentCostSeparate":  "Development cost is separate from API consumption and must be quoted independently.",
+      "detailsTitle":  "Data details",
+      "noExternalCost":  "0 — no external API is called",
+      "permissionDenied":  "Insufficient permission",
+      "locationLabel":  "Processing location",
+      "liveData":  "Live system data",
+      "readOnlyNotice":  "The assistant cannot change orders, products, or inventory.",
+      "locationUnknown":  "Nexa server environment; geographic region is not configured",
+      "exampleUnpaidOrders":  "Unpaid orders today",
+      "infoLoading":  "Loading service details from Nexa…",
+      "ask":  "Ask",
+      "dataDisclosureTitle":  "Service and data disclosure",
+      "queryError":  "The query failed. Check the server connection and your permissions.",
+      "sending":  "Checking…"
+  },
   "customers": {
     "customer": "Customer",
     "description": "Customer contact details, orders and purchase history",
@@ -419,6 +466,7 @@
   },
 
   "common": {
+    "viewAll": "View all",
     "technicalDetails": "Technical details",
     "saveChanges": "Save changes",
     "loading": "Loading...",
@@ -560,6 +608,9 @@
   "permissions": {
 
     "descriptions": {
+      "assistant": {
+        "use": "Use the Nexa assistant for permission-checked, read-only queries"
+      },
       "appearance": {
         "manage": "تغییر رنگ برند برنامه"
       },
@@ -638,6 +689,7 @@
     "emptyTitle": "No permissions found",
     "emptyDesc": "No permissions have been registered.",
     "groups": {
+      "assistant": "Assistant",
       "descriptions": {
         "brands": {
           "create": "Create brands",
@@ -664,6 +716,9 @@
       "users": "Users"
     },
     "descriptions": {
+      "assistant": {
+        "use": "Use the Nexa assistant for permission-checked, read-only queries"
+      },
       "inventory": {
         "read": "View inventory",
         "manage": "Manage inventory"

@@ -1,4 +1,51 @@
 {
+  "assistant": {
+      "dataCategories":  "Texte de la question et uniquement les données autorisées de lʼentreprise active",
+      "exampleLowStock":  "Produits à faible stock",
+      "yes":  "Oui",
+      "actionDisabled":  "Les actions sont désactivées",
+      "no":  "Non",
+      "infoLoadError":  "Impossible de récupérer les informations. Le navigateur nʼappelle aucun service IA externe.",
+      "providerLabel":  "Service de traitement",
+      "localProvider":  "Moteur de requête interne Nexa",
+      "externalDataSent":  "Envoyé à un service externe",
+      "title":  "Assistant IA Nexa",
+      "noLiveDataUsed":  "Cette réponse provient du guide statique.",
+      "dataAsOf":  "Données récupérées à",
+      "noChangeMade":  "Aucune modification nʼa été effectuée dans le système.",
+      "localOnlyDescription":  "Aucun modèle dʼIA externe nʼest connecté dans cette version. La question et les données Nexa ne sont pas envoyées à un fournisseur externe.",
+      "costLabel":  "Coût API IA",
+      "exampleSales":  "Résumé des ventes du jour",
+      "questionPlaceholder":  "Ex. : commandes impayées aujourdʼhui ou produits à faible stock",
+      "answerTitle":  "Réponse de lʼassistant",
+      "questionLabel":  "Votre question",
+      "noPermission":  "Un administrateur doit accorder la permission assistant.use à votre rôle.",
+      "questionLimit":  "{{count}} sur 1000 caractères",
+      "timezoneLabel":  "Fuseau horaire des rapports quotidiens",
+      "insufficientData":  "Données insuffisantes",
+      "localOnlyTitle":  "Traitement local, en lecture seule",
+      "description":  "Posez des questions en langage naturel sur les commandes, les produits et les rapports autorisés de lʼentreprise active.",
+      "nav":  "Assistant IA",
+      "dataLabel":  "Données traitées",
+      "developmentCostLabel":  "Coût de développement",
+      "approvalNotice":  "Un service externe ne pourra être activé quʼaprès divulgation du fournisseur, des données, du lieu de traitement et du coût, et réception dʼune approbation écrite.",
+      "examplesTitle":  "Exemples de questions",
+      "systemGuide":  "Guide du système",
+      "developmentCostSeparate":  "Le coût de développement est chiffré séparément de la consommation API.",
+      "detailsTitle":  "Détails des données",
+      "noExternalCost":  "0 — aucune API externe nʼest appelée",
+      "permissionDenied":  "Permission insuffisante",
+      "locationLabel":  "Lieu de traitement",
+      "liveData":  "Données en direct",
+      "readOnlyNotice":  "Lʼassistant ne modifie ni les commandes, ni les produits, ni le stock.",
+      "locationUnknown":  "Environnement du serveur Nexa ; région géographique non configurée",
+      "exampleUnpaidOrders":  "Commandes impayées aujourdʼhui",
+      "infoLoading":  "Chargement des informations du service…",
+      "ask":  "Demander",
+      "dataDisclosureTitle":  "Informations sur le service et les données",
+      "queryError":  "La requête a échoué. Vérifiez le serveur et vos permissions.",
+      "sending":  "Vérification…"
+  },
   "orderDetails": {
     "items": "Articles de la commande",
     "itemsDescription": "Vérifiez les produits et les options sélectionnées pour cette commande.",
@@ -822,6 +869,7 @@
     "emptyTitle": "Aucune autorisation déclarée",
     "emptyDesc": "Les fonctionnalités ajoutent des autorisations à mesure de leur développement. Aucune n'est encore déclarée.",
     "groups": {
+      "assistant": "Assistant",
       "appearance": "Apparence",
       "audit": "Audit",
       "categories": "Catégories",
@@ -840,6 +888,9 @@
       "inventory": "Stock"
     },
     "descriptions": {
+      "assistant": {
+        "use": "Utiliser lʼassistant Nexa pour des requêtes autorisées en lecture seule"
+      },
       "inventory": {
         "read": "Consulter le stock",
         "manage": "Gérer le stock"

@@ -1,6 +1,4 @@
-import {
-    useTranslation,
-} from 'react-i18next';
+import { useTranslation } from 'react-i18next';
 import {
     useQuery,
 } from '@tanstack/react-query';
@@ -49,7 +47,8 @@ function SectionHeading({
     title: string;
     subtitle?: string;
     href?: string;
-    }) {
+}) {
+    const { t } = useTranslation();
 
     return (
         <div className="mb-5 flex items-end justify-between gap-4">
@@ -70,7 +69,7 @@ function SectionHeading({
                     to={href}
                     className="hidden items-center gap-1 text-sm font-bold text-primary sm:flex"
                 >
-                    View all
+                    {t('common.viewAll')}
 
                     <ArrowLeft className="size-4 rtl:hidden" />
 

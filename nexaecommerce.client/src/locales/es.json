@@ -1,4 +1,51 @@
 {
+  "assistant": {
+      "dataCategories":  "Texto de la pregunta y solo datos permitidos de la empresa activa",
+      "exampleLowStock":  "Productos con poco stock",
+      "yes":  "Sí",
+      "actionDisabled":  "Las acciones están deshabilitadas",
+      "no":  "No",
+      "infoLoadError":  "No se pudieron obtener los detalles. El navegador no llama a servicios externos de IA.",
+      "providerLabel":  "Servicio de procesamiento",
+      "localProvider":  "Motor interno de consultas de Nexa",
+      "externalDataSent":  "Enviado a un servicio externo",
+      "title":  "Asistente de IA de Nexa",
+      "noLiveDataUsed":  "Esta respuesta procede de la guía estática.",
+      "dataAsOf":  "Datos consultados",
+      "noChangeMade":  "No se ha realizado ningún cambio en el sistema.",
+      "localOnlyDescription":  "Esta versión no tiene conectado ningún modelo de IA externo. Ni la pregunta ni los datos de Nexa se envían a un proveedor externo.",
+      "costLabel":  "Coste de API de IA",
+      "exampleSales":  "Resumen de ventas de hoy",
+      "questionPlaceholder":  "Por ejemplo: pedidos impagados de hoy o productos con poco stock",
+      "answerTitle":  "Respuesta del asistente",
+      "questionLabel":  "Su pregunta",
+      "noPermission":  "Un administrador debe conceder a su rol el permiso assistant.use.",
+      "questionLimit":  "{{count}} de 1000 caracteres",
+      "timezoneLabel":  "Zona horaria de los informes diarios",
+      "insufficientData":  "Datos insuficientes",
+      "localOnlyTitle":  "Procesamiento local y de solo lectura",
+      "description":  "Pregunte en lenguaje natural sobre pedidos, productos e informes permitidos de la empresa activa.",
+      "nav":  "Asistente de IA",
+      "dataLabel":  "Datos procesados",
+      "developmentCostLabel":  "Coste de desarrollo",
+      "approvalNotice":  "Solo se podrá habilitar un servicio externo tras informar proveedor, tipos de datos, ubicación y coste y obtener la aprobación escrita del responsable.",
+      "examplesTitle":  "Preguntas de ejemplo",
+      "systemGuide":  "Guía del sistema",
+      "developmentCostSeparate":  "El coste de desarrollo se presupuesta por separado del consumo de la API.",
+      "detailsTitle":  "Detalles de los datos",
+      "noExternalCost":  "0: no se llama a ninguna API externa",
+      "permissionDenied":  "Permiso insuficiente",
+      "locationLabel":  "Ubicación del procesamiento",
+      "liveData":  "Datos en vivo",
+      "readOnlyNotice":  "El asistente no modifica pedidos, productos ni inventario.",
+      "locationUnknown":  "Entorno del servidor Nexa; región geográfica no configurada",
+      "exampleUnpaidOrders":  "Pedidos impagados de hoy",
+      "infoLoading":  "Cargando detalles del servicio…",
+      "ask":  "Preguntar",
+      "dataDisclosureTitle":  "Información del servicio y los datos",
+      "queryError":  "La consulta falló. Compruebe el servidor y sus permisos.",
+      "sending":  "Consultando…"
+  },
   "orderDetails": {
     "items": "Artículos del pedido",
     "itemsDescription": "Revisa los productos y las opciones seleccionadas para este pedido.",
@@ -822,6 +869,7 @@
     "emptyTitle": "No hay permisos declarados",
     "emptyDesc": "Las funciones agregan permisos a medida que se desarrollan. Aún no hay ninguno declarado.",
     "groups": {
+      "assistant": "Asistente",
       "appearance": "Apariencia",
       "audit": "Auditoría",
       "categories": "Categorías",
@@ -840,6 +888,9 @@
       "inventory": "Inventario"
     },
     "descriptions": {
+      "assistant": {
+        "use": "Usar el asistente de Nexa para consultas autorizadas de solo lectura"
+      },
       "inventory": {
         "read": "Consultar el inventario",
         "manage": "Gestionar el inventario"

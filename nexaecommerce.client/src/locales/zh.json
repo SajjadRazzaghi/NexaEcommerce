@@ -1,4 +1,51 @@
 {
+  "assistant": {
+      "dataCategories":  "问题文本，以及当前公司范围内且获授权的数据",
+      "exampleLowStock":  "库存不足的商品",
+      "yes":  "是",
+      "actionDisabled":  "操作已禁用",
+      "no":  "否",
+      "infoLoadError":  "无法获取服务详情。浏览器不会调用外部 AI 服务。",
+      "providerLabel":  "处理服务",
+      "localProvider":  "Nexa 内部查询引擎",
+      "externalDataSent":  "已发送到外部服务",
+      "title":  "Nexa AI 助手",
+      "noLiveDataUsed":  "此回答来自静态系统指南。",
+      "dataAsOf":  "数据获取时间",
+      "noChangeMade":  "系统未进行任何更改。",
+      "localOnlyDescription":  "此版本未连接外部 AI 模型。问题文本和 Nexa 数据不会发送给外部服务商。",
+      "costLabel":  "AI API 费用",
+      "exampleSales":  "今日销售汇总",
+      "questionPlaceholder":  "例如：今天未付款订单或库存不足的商品",
+      "answerTitle":  "助手回答",
+      "questionLabel":  "您的问题",
+      "noPermission":  "请管理员为您的角色授予 assistant.use 权限。",
+      "questionLimit":  "已输入 {{count}} / 1000 个字符",
+      "timezoneLabel":  "每日报表时区",
+      "insufficientData":  "数据不足",
+      "localOnlyTitle":  "本地只读处理",
+      "description":  "用自然语言查询当前公司的订单、商品和您有权限查看的报表。",
+      "nav":  "AI 助手",
+      "dataLabel":  "处理的数据",
+      "developmentCostLabel":  "开发费用",
+      "approvalNotice":  "只有在披露服务商、数据类型、处理位置和费用并取得雇主书面批准后，才允许启用外部服务。",
+      "examplesTitle":  "示例问题",
+      "systemGuide":  "系统指南",
+      "developmentCostSeparate":  "开发费用与 API 使用费用分开报价。",
+      "detailsTitle":  "数据详情",
+      "noExternalCost":  "0 — 不调用外部 API",
+      "permissionDenied":  "权限不足",
+      "locationLabel":  "处理位置",
+      "liveData":  "系统实时数据",
+      "readOnlyNotice":  "助手不会修改订单、商品或库存。",
+      "locationUnknown":  "Nexa 服务器环境；未配置具体地理区域",
+      "exampleUnpaidOrders":  "今天未付款的订单",
+      "infoLoading":  "正在加载服务详情…",
+      "ask":  "提问",
+      "dataDisclosureTitle":  "服务与数据说明",
+      "queryError":  "查询失败。请检查服务器连接和权限。",
+      "sending":  "正在查询…"
+  },
   "orderDetails": {
     "items": "订单商品",
     "itemsDescription": "查看此订单中的商品及所选选项。",
@@ -822,6 +869,7 @@
     "emptyTitle": "未声明任何权限",
     "emptyDesc": "功能会在构建时添加权限。目前尚未声明任何权限。",
     "groups": {
+      "assistant": "助手",
       "appearance": "外观",
       "audit": "审计",
       "categories": "类别",
@@ -840,6 +888,9 @@
       "inventory": "库存"
     },
     "descriptions": {
+      "assistant": {
+        "use": "使用 Nexa 助手执行经过权限检查的只读查询"
+      },
       "inventory": {
         "read": "查看库存",
         "manage": "管理库存"

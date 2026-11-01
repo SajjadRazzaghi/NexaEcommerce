@@ -65,7 +65,16 @@ public sealed class InventoryAwareProductService(
         await ApplyInventoryStockAsync(products, cancellationToken);
         return products;
     }
-
+    public Task<string> EnsureVariantBarcodeAsync(
+    Guid productId,
+    Guid variantId,
+    CancellationToken cancellationToken = default)
+    {
+        return inner.EnsureVariantBarcodeAsync(
+            productId,
+            variantId,
+            cancellationToken);
+    }
     public async Task<ProductDto?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default)

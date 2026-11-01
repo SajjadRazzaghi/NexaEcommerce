@@ -1,4 +1,51 @@
 {
+  "assistant": {
+      "dataCategories":  "Fragetext und nur für das aktive Unternehmen freigegebene Daten",
+      "exampleLowStock":  "Produkte mit niedrigem Bestand",
+      "yes":  "Ja",
+      "actionDisabled":  "Aktionen sind deaktiviert",
+      "no":  "Nein",
+      "infoLoadError":  "Dienstinformationen konnten nicht geladen werden. Der Browser ruft keine externe KI auf.",
+      "providerLabel":  "Verarbeitungsdienst",
+      "localProvider":  "Interne Nexa-Abfrage",
+      "externalDataSent":  "An externen Dienst gesendet",
+      "title":  "Nexa KI-Assistent",
+      "noLiveDataUsed":  "Diese Antwort stammt aus der statischen Systemhilfe.",
+      "dataAsOf":  "Daten abgerufen am",
+      "noChangeMade":  "Es wurde keine Änderung am System vorgenommen.",
+      "localOnlyDescription":  "In dieser Version ist kein externes KI-Modell verbunden. Fragen oder Nexa-Daten werden nicht an externe Anbieter gesendet.",
+      "costLabel":  "KI-API-Kosten",
+      "exampleSales":  "Tagesumsatz",
+      "questionPlaceholder":  "Zum Beispiel: unbezahlte Bestellungen heute oder niedriger Bestand",
+      "answerTitle":  "Antwort des Assistenten",
+      "questionLabel":  "Ihre Frage",
+      "noPermission":  "Ein Administrator muss Ihrer Rolle die Berechtigung assistant.use geben.",
+      "questionLimit":  "{{count}} von 1000 Zeichen",
+      "timezoneLabel":  "Zeitzone für Tagesberichte",
+      "insufficientData":  "Nicht genügend Daten",
+      "localOnlyTitle":  "Lokal und schreibgeschützt",
+      "description":  "Fragen Sie in natürlicher Sprache zu Bestellungen, Produkten und freigegebenen Berichten des aktiven Unternehmens.",
+      "nav":  "KI-Assistent",
+      "dataLabel":  "Verarbeitete Daten",
+      "developmentCostLabel":  "Entwicklungskosten",
+      "approvalNotice":  "Ein externer Dienst darf erst nach Offenlegung von Anbieter, Datenarten, Verarbeitungsort und Kosten sowie schriftlicher Zustimmung des Auftraggebers aktiviert werden.",
+      "examplesTitle":  "Beispielfragen",
+      "systemGuide":  "Systemhilfe",
+      "developmentCostSeparate":  "Entwicklungskosten werden getrennt von API-Verbrauchskosten kalkuliert.",
+      "detailsTitle":  "Datendetails",
+      "noExternalCost":  "0 – keine externe API wird aufgerufen",
+      "permissionDenied":  "Keine ausreichende Berechtigung",
+      "locationLabel":  "Verarbeitungsort",
+      "liveData":  "Live-Systemdaten",
+      "readOnlyNotice":  "Der Assistent ändert keine Bestellungen, Produkte oder Bestände.",
+      "locationUnknown":  "Nexa-Serverumgebung; geografische Region nicht konfiguriert",
+      "exampleUnpaidOrders":  "Heute unbezahlte Bestellungen",
+      "infoLoading":  "Dienstinformationen werden geladen…",
+      "ask":  "Fragen",
+      "dataDisclosureTitle":  "Informationen zu Dienst und Daten",
+      "queryError":  "Die Abfrage ist fehlgeschlagen. Prüfen Sie Serververbindung und Berechtigungen.",
+      "sending":  "Wird geprüft…"
+  },
   "orderDetails": {
     "items": "Bestellpositionen",
     "itemsDescription": "Prüfen Sie die Produkte und die ausgewählten Optionen für diese Bestellung.",
@@ -822,6 +869,7 @@
     "emptyTitle": "Keine Berechtigungen deklariert",
     "emptyDesc": "Funktionen fügen Berechtigungen hinzu, während sie entwickelt werden. Noch sind keine deklariert.",
     "groups": {
+      "assistant": "Assistent",
       "appearance": "Darstellung",
       "audit": "Audit",
       "categories": "Kategorien",
@@ -840,6 +888,9 @@
       "inventory": "Lagerbestand"
     },
     "descriptions": {
+      "assistant": {
+        "use": "Den Nexa-Assistenten für berechtigungsgeprüfte, schreibgeschützte Abfragen verwenden"
+      },
       "inventory": {
         "read": "Lagerbestand anzeigen",
         "manage": "Lagerbestand verwalten"

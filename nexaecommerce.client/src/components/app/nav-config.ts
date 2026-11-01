@@ -1,5 +1,6 @@
 import {
     Activity,
+    Bot,
     ArrowLeftRight,
     Boxes,
     Factory,
@@ -51,6 +52,13 @@ export const NAV: NavSection[] = [
                 icon: Home,
                 end: true,
             },
+            {
+                titleKey: 'assistant.nav',
+                to: '/assistant',
+                icon: Bot,
+                permission: 'assistant.use',
+            },
+
             {
                 titleKey: 'nav.products',
                 to: '/admin/products',
