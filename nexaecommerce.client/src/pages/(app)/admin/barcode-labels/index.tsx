@@ -285,17 +285,16 @@ function BarcodeSvg({ value }: { value: string }) {
             JsBarcode(svgRef.current, value, {
                 format: 'CODE128',
                 displayValue: false,
-
                 lineColor: '#000000',
                 background: '#ffffff',
 
-                // ضخامت هر ماژول بارکد
-                width: 1,
+                // ضخامت خطوط بارکد
+                width: 1.25,
 
-                // ارتفاع خطوط
-                height: 40,
+                // ارتفاع مبنای بارکد
+                height: 38,
 
-                // فضای سفید اطراف بارکد
+                // حاشیه سفید دو طرف بارکد
                 margin: 0,
                 marginLeft: 10,
                 marginRight: 10,
@@ -303,7 +302,7 @@ function BarcodeSvg({ value }: { value: string }) {
                 marginBottom: 0,
             });
         } catch (error) {
-            console.error('Barcode generation failed:', value, error);
+            console.error('Barcode generation failed:', error);
 
             if (svgRef.current) {
                 svgRef.current.innerHTML = '';
@@ -315,11 +314,11 @@ function BarcodeSvg({ value }: { value: string }) {
         <svg
             ref={svgRef}
             aria-label={`بارکد ${value}`}
-            className="barcode-svg block h-9 w-auto max-w-full shrink-0"
+            preserveAspectRatio="xMidYMid meet"
+            className="barcode-svg mx-auto block h-auto w-[90%] max-w-[90%] shrink-0"
         />
     );
 }
-
 // ---------------------------------------------------------
 // Label content
 // ---------------------------------------------------------
@@ -939,194 +938,251 @@ export default function BarcodeLabelsPage() {
         margin: ${format === 'thermal' ? '0' : '6mm'};
     }
 
-    @media print {
-        html,
-body,
-#root {
-    width: auto !important;
-    height: auto !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
+  @media print {
 
- 
+    /* --------------------------------
+       تنظیمات عمومی چاپ
+    -------------------------------- */
 
-        body * {
-            visibility: hidden !important;
-        }
-
-        .barcode-screen-only {
-            display: none !important;
-        }
-
-        .barcode-print-surface,
-        .barcode-print-surface * {
-            visibility: visible !important;
-        }
-
-        .barcode-print-surface {
-            display: block !important;
-            background: #fff !important;
-            color: #000 !important;
-        }
-
-        /* --------------------------------
-           A4
-        -------------------------------- */
-
-        .barcode-print-surface.mode-a4 {
-            position: absolute;
-            inset: 0;
-            width: 100%;
-        }
-
-        .barcode-print-surface.mode-a4 .barcode-print-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 2mm;
-        }
-
-        .barcode-print-surface.mode-a4 .barcode-label {
-            box-sizing: border-box;
-            min-width: 0;
-            height: 30mm;
-            padding: 1.5mm;
-            overflow: hidden;
-            border: 0.2mm solid #bbb;
-            break-inside: avoid;
-            background: #fff !important;
-            color: #000 !important;
-        }
-
-        /* --------------------------------
-           Thermal printer
-        -------------------------------- */
-
-      .barcode-print-surface.mode-thermal {
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: auto !important;
-    bottom: auto !important;
-
-    width: ${thermalEffectiveRollWidthMm}mm !important;
-
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-        /*
-           رفع فاصله‌ای که کلاس space-y-6
-           به سطح چاپ اضافه می‌کند.
-        */
-        body .space-y-6 > .barcode-print-surface.mode-thermal {
-            margin-top: 0 !important;
-            margin-bottom: 0 !important;
-        }
-
-        .barcode-print-surface.mode-thermal .barcode-print-grid {
-            display: flex;
-            flex-direction: column;
-            width: ${thermalEffectiveRollWidthMm}mm;
-            gap: 0;
-        }
-
-        /* هر ردیف چاپ */
-        .barcode-print-surface.mode-thermal .barcode-print-row {
-            display: grid;
-
-            grid-template-columns: repeat(
-                ${thermalSettings.columns},
-                ${thermalLabelWidthMm}mm
-            );
-
-            column-gap: ${horizontalGap}mm;
-
-            align-items: start;
-            justify-content: center;
-
-            box-sizing: border-box;
-
-            width: ${thermalEffectiveRollWidthMm}mm;
-            height: ${thermalPageHeightMm}mm;
-
-            margin: 0;
-
-            padding:
-                ${marginTop}mm
-                ${marginRight}mm
-                ${marginBottom}mm
-                ${marginLeft}mm;
-
-            break-after: page;
-            page-break-after: always;
-        }
-
-        .barcode-print-surface.mode-thermal
-        .barcode-print-row:last-child {
-            break-after: auto;
-            page-break-after: auto;
-        }
-
-        /* اندازه فیزیکی هر لیبل */
-        .barcode-print-surface.mode-thermal .barcode-label {
-            position: relative;
-
-            box-sizing: border-box;
-
-            width: ${thermalLabelWidthMm}mm;
-            height: ${thermalLabelHeightMm}mm;
-
-            min-width: 0;
-
-            margin: 0;
-            padding: 0;
-
-            overflow: hidden;
-
-            border: none;
-
-            break-inside: avoid;
-
-            background: #fff !important;
-            color: #000 !important;
-        }
-
-        .barcode-print-surface.mode-thermal .barcode-label-content {
-            width: 100%;
-            height: 100%;
-        }
-
-        /* چرخش محتوای لیبل */
-        .barcode-print-surface.mode-thermal
-        .barcode-label.is-rotated
-        .barcode-label-content {
-
-            position: absolute;
-
-            top: 50%;
-            left: 50%;
-
-            width: ${safeNumber(thermalSettings.labelWidthMm)}mm;
-            height: ${safeNumber(thermalSettings.labelHeightMm)}mm;
-
-            transform: translate(-50%, -50%) rotate(90deg);
-
-            transform-origin: center;
-        }
-
-        /* اندازه بارکد */
-      .barcode-print-surface.mode-thermal .barcode-svg {
-    display: block !important;
-    width: auto !important;
-    max-width: 100% !important;
-    height: 9mm !important;
-    margin: 0 auto !important;
-    flex: 0 0 auto !important;
-}
-
+    html,
+    body,
+    #root {
+        width: auto !important;
+        height: auto !important;
+        min-height: 0 !important;
+        margin: 0 !important;
+        padding: 0 !important;
     }
+
+    body * {
+        visibility: hidden !important;
+    }
+
+    .barcode-screen-only {
+        display: none !important;
+    }
+
+    .barcode-print-surface,
+    .barcode-print-surface * {
+        visibility: visible !important;
+    }
+
+    .barcode-print-surface {
+        display: block !important;
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+
+    /* --------------------------------
+       چاپ A4
+    -------------------------------- */
+
+    .barcode-print-surface.mode-a4 {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+    }
+
+    .barcode-print-surface.mode-a4 .barcode-print-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 2mm;
+    }
+
+    .barcode-print-surface.mode-a4 .barcode-label {
+        box-sizing: border-box;
+        min-width: 0;
+        height: 30mm;
+        padding: 1.5mm;
+        overflow: hidden;
+        border: 0.2mm solid #bbb;
+        break-inside: avoid;
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+
+    /* --------------------------------
+       چاپگر حرارتی
+    -------------------------------- */
+
+    .barcode-print-surface.mode-thermal {
+        position: absolute !important;
+
+        top: 0 !important;
+        left: 0 !important;
+        right: auto !important;
+        bottom: auto !important;
+
+        width: ${thermalEffectiveRollWidthMm}mm !important;
+
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* حذف فاصله‌های اضافی والد */
+
+    body .space-y-6 > .barcode-print-surface.mode-thermal {
+        margin-top: 0 !important;
+        margin-bottom: 0 !important;
+    }
+
+
+    /* --------------------------------
+       محدوده کلی ردیف‌های چاپ
+    -------------------------------- */
+
+    .barcode-print-surface.mode-thermal .barcode-print-grid {
+        display: flex;
+        flex-direction: column;
+
+        width: ${thermalEffectiveRollWidthMm}mm;
+
+        gap: 0;
+        margin: 0;
+        padding: 0;
+    }
+
+
+    /* --------------------------------
+       هر ردیف چاپ
+    -------------------------------- */
+
+    .barcode-print-surface.mode-thermal .barcode-print-row {
+        display: grid;
+
+        grid-template-columns: repeat(
+            ${thermalSettings.columns},
+            ${thermalLabelWidthMm}mm
+        );
+
+        column-gap: ${horizontalGap}mm;
+
+        align-items: start;
+        justify-content: center;
+
+        box-sizing: border-box;
+
+        width: ${thermalEffectiveRollWidthMm}mm;
+        height: ${thermalPageHeightMm}mm;
+
+        margin: 0;
+
+        padding:
+            ${marginTop}mm
+            ${marginRight}mm
+            ${marginBottom}mm
+            ${marginLeft}mm;
+
+        break-after: page;
+        page-break-after: always;
+    }
+
+    .barcode-print-surface.mode-thermal
+    .barcode-print-row:last-child {
+        break-after: auto;
+        page-break-after: auto;
+    }
+
+
+    /* --------------------------------
+       اندازه فیزیکی هر لیبل
+    -------------------------------- */
+
+    .barcode-print-surface.mode-thermal .barcode-label {
+        position: relative;
+
+        box-sizing: border-box;
+
+        width: ${thermalLabelWidthMm}mm;
+        height: ${thermalLabelHeightMm}mm;
+
+        min-width: 0;
+
+        margin: 0;
+        padding: 0;
+
+        overflow: hidden;
+
+        border: none;
+
+        break-inside: avoid;
+
+        background: #fff !important;
+        color: #000 !important;
+    }
+
+
+    /* --------------------------------
+       محتوای داخل لیبل
+    -------------------------------- */
+
+    .barcode-print-surface.mode-thermal .barcode-label-content {
+        width: 100%;
+        height: 100%;
+    }
+
+
+    /* --------------------------------
+       چرخش محتوای لیبل
+    -------------------------------- */
+
+    .barcode-print-surface.mode-thermal
+    .barcode-label.is-rotated
+    .barcode-label-content {
+
+        position: absolute;
+
+        top: 50%;
+        left: 50%;
+
+        width: ${safeNumber(thermalSettings.labelWidthMm)}mm;
+        height: ${safeNumber(thermalSettings.labelHeightMm)}mm;
+
+        transform: translate(-50%, -50%) rotate(90deg);
+
+        transform-origin: center;
+    }
+
+
+    /* --------------------------------
+       اندازه بارکد در چاپ A4
+    -------------------------------- */
+
+    .barcode-print-surface.mode-a4 .barcode-svg {
+        display: block !important;
+
+        width: 90% !important;
+        max-width: 90% !important;
+
+        height: auto !important;
+
+        margin-left: auto !important;
+        margin-right: auto !important;
+    }
+
+
+    /* --------------------------------
+       اندازه بارکد در چاپ حرارتی
+       90 درصد عرض فضای داخلی لیبل
+    -------------------------------- */
+
+    .barcode-print-surface.mode-thermal .barcode-svg {
+        display: block !important;
+
+        width: 90% !important;
+        max-width: 90% !important;
+
+        height: auto !important;
+
+        margin-left: auto !important;
+        margin-right: auto !important;
+
+        flex: 0 0 auto !important;
+    }
+
+}
 `}</style>
 
             {/* Header */}
