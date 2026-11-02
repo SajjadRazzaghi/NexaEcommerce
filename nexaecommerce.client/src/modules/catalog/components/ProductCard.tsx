@@ -1,28 +1,18 @@
-import {useState} from 'react';
-
-import {Link} from 'react-router-dom';
-
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import {
-    resolveMediaUrl,
-} from '@/lib/media-url';
-import {
-    Box,
-    Button,
-    Card,
-    CardContent,
-    Chip,
-    IconButton,
-    Stack,
-    Typography,
-} from '@mui/material';
 
 import {
-    Favorite,
-    FavoriteBorder,
-    ShoppingCartOutlined,
-    CheckCircleOutlined,
-} from '@mui/icons-material';
+    Heart,
+    ShoppingCart,
+    Eye,
+    Check,
+    Tag,
+    PackageCheck,
+} from 'lucide-react';
+
+import { resolveMediaUrl } from '@/lib/media-url';
+import { formatMoney } from '@/lib/formatMoney';
 
 import {
     productsApi,
@@ -34,65 +24,41 @@ import {
 import ProductVariantPickerDialog from './ProductVariantPickerDialog';
 import CartUpsellDialog from './CartUpsellDialog';
 
-import {useCartMutations} from '@/modules/cart/hooks/useCartMutations';
+import { useCartMutations } from '@/modules/cart/hooks/useCartMutations';
 
 interface ProductCardProps {
     product: ProductListItem;
 }
 
 function getProductUrl(slug: string): string {
-    return`/products/${encodeURIComponent(slug.trim())}`;
+    return `/products/${encodeURIComponent(slug.trim())}`;
 }
 
 export default function ProductCard({
     product,
 }: ProductCardProps) {
-    const {i18n, t} = useTranslation();
+    const { i18n, t } = useTranslation();
 
     const isFa =
-        i18n.language?.startsWith('fa') ?? false;
+        i18n.language?.toLowerCase().startsWith('fa') ?? false;
 
-    const stockLabel = product.isInStock
-        ? t('storefront.product.inStock')
-        : t('storefront.product.outOfStock');
+    const [favorite, setFavorite] = useState(false);
+    const [added, setAdded] = useState(false);
 
-    const addLabel =
-        t('storefront.product.addToCart');
+    const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-    const addingLabel =
-        t('storefront.product.adding');
+    const [variantDialogOpen, setVariantDialogOpen] = useState(false);
+    const [variantProduct, setVariantProduct] = useState<Product | null>(null);
+    const [variantLoading, setVariantLoading] = useState(false);
 
-    const viewLabel =
-        t('storefront.product.view');
+    const [upsellOpen, setUpsellOpen] = useState(false);
+    const [upsellProductId, setUpsellProductId] = useState<string | null>(null);
 
-    const addedLabel =
-        t('storefront.product.viewCart');
+    const { add } = useCartMutations();
 
-    const [favorite, setFavorite] =
-        useState(false);
-
-    const [added, setAdded] =
-        useState(false);
-
-    const [errorMessage, setErrorMessage] =
-        useState<string | null>(null);
-
-    const [variantDialogOpen, setVariantDialogOpen] =
-        useState(false);
-
-    const [variantProduct, setVariantProduct] =
-        useState<Product | null>(null);
-
-    const [variantLoading, setVariantLoading] =
-        useState(false);
-
-    const [upsellOpen, setUpsellOpen] =
-        useState(false);
-
-    const [upsellProductId, setUpsellProductId] =
-        useState<string | null>(null);
-
-    const {add} = useCartMutations();
+    // ---------------------------------------------------------
+    // Price
+    // ---------------------------------------------------------
 
     const price =
         typeof product.finalPrice === 'number'
@@ -106,35 +72,46 @@ export default function ProductCard({
     const discountPercentage =
         product.discountPercentage > 0
             ? Math.round(product.discountPercentage)
-            : hasDiscount &&
-                product.comparePrice != null
-              ? Math.round(
-                    ((product.comparePrice - price)/
-                        product.comparePrice) *
-                        100,
+            : hasDiscount && product.comparePrice != null
+                ? Math.round(
+                    ((product.comparePrice - price) /
+                        product.comparePrice) * 100,
                 )
-              : 0;
+                : 0;
 
     const image =
-        resolveMediaUrl(
-            product.mainImage,
-        ) ||
+        resolveMediaUrl(product.mainImage) ||
         '/placeholder.jpg';
 
+    const productUrl = getProductUrl(product.slug);
+
     const formatPrice = (value: number) =>
-        new Intl.NumberFormat(
-            isFa ? 'fa-IR' : undefined,
-            {
-                maximumFractionDigits: 0,
-           },
-        ).format(value);
+        formatMoney(value, product.currency, i18n.language);
+
+    // ---------------------------------------------------------
+    // Stock
+    // ---------------------------------------------------------
+
+    const stockLabel = product.isInStock
+        ? t('storefront.product.inStock', {
+            defaultValue: 'موجود در انبار',
+        })
+        : t('storefront.product.outOfStock', {
+            defaultValue: 'ناموجود',
+        });
+
+    // ---------------------------------------------------------
+    // Variant dialog
+    // ---------------------------------------------------------
 
     const closeVariantDialog = () => {
         setVariantDialogOpen(false);
         setVariantProduct(null);
         setVariantLoading(false);
-   };
+    };
 
+    // Load complete product because ProductListItem
+    // does not contain the complete variant collection.
     const handleAddToCart = async () => {
         if (
             !product.isInStock ||
@@ -142,31 +119,27 @@ export default function ProductCard({
             variantLoading
         ) {
             return;
-       }
+        }
 
         setErrorMessage(null);
         setVariantLoading(true);
 
         try {
-           /*
-             * ProductListItem intentionally does not
-             * contain the complete variant collection.
-             * Load the canonical product by slug.
-             */
-            const fullProduct =
-                await productsApi.getBySlug(
-                    product.slug,
-                );
+            const fullProduct = await productsApi.getBySlug(
+                product.slug,
+            );
 
             const sellableVariants = fullProduct.variants.filter(
-                variant => variant.isActive && variant.stockQuantity > 0,
+                (variant) =>
+                    variant.isActive &&
+                    variant.stockQuantity > 0,
             );
 
             if (sellableVariants.length === 0) {
                 setErrorMessage(
                     isFa
                         ? 'این محصول در حال حاضر موجود نیست.'
-                        : 'This product is currently out of stock.',
+                        : 'This product is currently unavailable.',
                 );
 
                 return;
@@ -174,16 +147,20 @@ export default function ProductCard({
 
             setVariantProduct(fullProduct);
             setVariantDialogOpen(true);
-       } catch {
+        } catch {
             setErrorMessage(
                 isFa
-                    ? 'افزودن محصول به سبد خرید انجام نشد.'
-                    : 'The product could not be added to the cart.',
+                    ? 'دریافت اطلاعات محصول ناموفق بود.'
+                    : 'Could not load product details.',
             );
-       } finally {
+        } finally {
             setVariantLoading(false);
-       }
-   };
+        }
+    };
+
+    // ---------------------------------------------------------
+    // Add selected variant to cart
+    // ---------------------------------------------------------
 
     const handleVariantConfirm = async (
         variant: ProductVariant,
@@ -194,7 +171,7 @@ export default function ProductCard({
             add.isPending
         ) {
             return;
-       }
+        }
 
         setErrorMessage(null);
 
@@ -202,9 +179,10 @@ export default function ProductCard({
             await add.mutateAsync({
                 productVariantId: variant.id,
                 quantity: 1,
-           });
+            });
 
             const sourceProductId = variantProduct?.id;
+
             setAdded(true);
             closeVariantDialog();
 
@@ -212,407 +190,527 @@ export default function ProductCard({
                 setUpsellProductId(sourceProductId);
                 setUpsellOpen(true);
             }
-       } catch {
+        } catch {
             setErrorMessage(
                 isFa
                     ? 'افزودن محصول به سبد خرید انجام نشد.'
-                    : 'The product could not be added to the cart.',
+                    : 'Could not add product to cart.',
             );
-       }
-   };
+        }
+    };
 
-    const productUrl = getProductUrl(
-        product.slug,
-    );
+    // ---------------------------------------------------------
+    // Translations
+    // ---------------------------------------------------------
+
+    const addLabel = t('storefront.product.addToCart', {
+        defaultValue: 'افزودن به سبد خرید',
+    });
+
+    const addingLabel = t('storefront.product.adding', {
+        defaultValue: 'در حال افزودن...',
+    });
+
+    const viewLabel = t('storefront.product.view', {
+        defaultValue: 'مشاهده محصول',
+    });
+
+    const addedLabel = t('storefront.product.viewCart', {
+        defaultValue: 'مشاهده سبد خرید',
+    });
+
+    // ---------------------------------------------------------
+    // UI
+    // ---------------------------------------------------------
 
     return (
         <>
-            <Card
-                sx={{
-                    height: '100%',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    position: 'relative',
-                    overflow: 'hidden',
-                    borderRadius: 3,
-                    border: '1px solid',
-                    borderColor: 'divider',
-                    backgroundColor: 'background.paper',
-                    transition:
-                        'transform .2s ease, box-shadow .2s ease',
-                    '&:hover': {
-                        transform: 'translateY(-4px)',
-                        boxShadow: 6,
-                   },
-               }}
+            <article
+                dir={isFa ? 'rtl' : 'ltr'}
+                className="
+                    group isolate relative
+                    flex h-full min-w-0 flex-col
+                    cursor-pointer overflow-hidden
+                    rounded-2xl border border-slate-200
+                    bg-white
+                    transition-all duration-300
+                    hover:-translate-y-1
+                    hover:border-primary/25
+                    hover:shadow-xl
+                    hover:shadow-slate-200/70
+                "
             >
-                {discountPercentage > 0 && (
-                    <Chip
-                        label={t(
-                            'storefront.product.discount',
-                            {
-                                percent:
-                                    discountPercentage,
-                           },
-                        )}
-                        color="error"
-                        size="small"
-                        sx={{
-                            position: 'absolute',
-                            top: 12,
-                            right: 12,
-                            zIndex: 3,
-                            fontWeight: 700,
-                       }}
-                   />
-                )}
+                {/* -------------------------------------------------
+                    Full card navigation
 
-                <IconButton
-                    aria-label={
-                        favorite
-                            ? t(
-                                  'storefront.product.removeFavorite',
-                              )
-                            : t(
-                                  'storefront.product.addFavorite',
-                              )
-                   }
-                    onClick={() =>
-                        setFavorite(
-                            (value) => !value,
-                        )
-                   }
-                    sx={{
-                        position: 'absolute',
-                        top: 8,
-                        left: 8,
-                        zIndex: 3,
-                        backgroundColor:
-                            'rgba(255,255,255,.92)',
-                        '&:hover': {
-                            backgroundColor: '#fff',
-                       },
-                   }}
-                >
-                    {favorite ? (
-                        <Favorite color="error"/>
-                    ) : (
-                        <FavoriteBorder/>
-                    )}
-                </IconButton>
+                    This link stays behind the card content.
+                    Clicking the card opens product details.
+                ------------------------------------------------- */}
 
-                <Box
-                    component={Link}
+                <Link
                     to={productUrl}
-                    sx={{
-                        display: 'block',
-                        overflow: 'hidden',
-                        backgroundColor: '#f7f7f7',
-                        textDecoration: 'none',
-                   }}
+                    aria-label={`مشاهده جزئیات ${product.name}`}
+                    className="
+                        absolute inset-0 z-0
+                        rounded-2xl
+                        focus-visible:outline-none
+                        focus-visible:ring-2
+                        focus-visible:ring-primary
+                    "
                 >
-                    <Box
-                        component="img"
+                    <span className="sr-only">
+                        {product.name}
+                    </span>
+                </Link>
+
+                {/* -------------------------------------------------
+                    Product image
+                ------------------------------------------------- */}
+
+                <div
+                    className="
+                        pointer-events-none
+                        relative z-10
+                        aspect-[4/5]
+                        overflow-hidden
+                        bg-[#F5F1EF]
+                    "
+                >
+                    <img
                         src={image}
                         alt={product.name}
                         loading="lazy"
-                        sx={{
-                            display: 'block',
-                            width: '100%',
-                            height: {
-                                xs: 220,
-                                sm: 230,
-                                md: 240,
-                           },
-                            objectFit: 'cover',
-                            transition:
-                                'transform .4s ease',
-                            '.MuiCard-root:hover &': {
-                                transform:
-                                    'scale(1.05)',
-                           },
-                       }}
+                        decoding="async"
+                        className="
+                            h-full w-full object-cover
+                            transition-transform duration-700
+                            group-hover:scale-105
+                        "
                         onError={(event) => {
                             if (
-                                event.currentTarget.src.endsWith(
+                                !event.currentTarget.src.endsWith(
                                     '/placeholder.jpg',
                                 )
                             ) {
-                                return;
-                           }
+                                event.currentTarget.src =
+                                    '/placeholder.jpg';
+                            }
+                        }}
+                    />
 
-                            event.currentTarget.src =
-                                '/placeholder.jpg';
-                       }}
-                   />
-                </Box>
+                    {/* Image overlay */}
 
-                <CardContent
-                    sx={{
-                        display: 'flex',
-                        flexDirection: 'column',
-                        flexGrow: 1,
-                        p: 2,
-                        gap: 1,
-                        textAlign: isFa
-                            ? 'right'
-                            : 'left',
-                        direction: isFa
-                            ? 'rtl'
-                            : 'ltr',
-                   }}
-                >
-                    {product.brandName && (
-                        <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{
-                                fontWeight: 600,
-                           }}
+                    <div
+                        className="
+                            pointer-events-none
+                            absolute inset-0
+                            bg-gradient-to-t
+                            from-black/15 via-transparent
+                            to-transparent
+                            opacity-0
+                            transition-opacity duration-300
+                            group-hover:opacity-100
+                        "
+                    />
+
+                    {/* Discount badge */}
+
+                    {discountPercentage > 0 && (
+                        <div
+                            className="
+                                pointer-events-none
+                                absolute end-3 top-3 z-10
+                                rounded-lg
+                                bg-red-600
+                                px-2.5 py-1.5
+                                text-xs font-extrabold
+                                text-white shadow-sm
+                            "
                         >
-                            {product.brandName}
-                        </Typography>
+                            {discountPercentage.toLocaleString(
+                                isFa ? 'fa-IR' : 'en-US',
+                            )}٪ تخفیف
+                        </div>
                     )}
 
-                    <Typography
-                        component={Link}
+                    {/* Featured badge */}
+
+                    {product.isFeatured && (
+                        <div
+                            className="
+                                pointer-events-none
+                                absolute start-3 top-3 z-10
+                                rounded-lg
+                                bg-white/95
+                                px-2.5 py-1.5
+                                text-[10px] font-bold
+                                text-slate-700
+                                shadow-sm backdrop-blur
+                            "
+                        >
+                            پیشنهاد ویژه
+                        </div>
+                    )}
+
+                    {/* Favorite */}
+
+                    <button
+                        type="button"
+                        aria-label={
+                            favorite
+                                ? 'حذف از علاقه‌مندی‌ها'
+                                : 'افزودن به علاقه‌مندی‌ها'
+                        }
+                        aria-pressed={favorite}
+                        onClick={(event) => {
+                            event.stopPropagation();
+
+                            setFavorite((value) => !value);
+                        }}
+                        className={`
+                            pointer-events-auto
+                            absolute start-3 bottom-3 z-20
+                            flex size-10
+                            items-center justify-center
+                            rounded-full
+                            shadow-md backdrop-blur
+                            transition
+                            ${favorite
+                                ? 'bg-red-50 text-red-600'
+                                : 'bg-white/95 text-slate-600 hover:bg-white hover:text-red-500'
+                            }
+                        `}
+                    >
+                        <Heart
+                            className="size-5"
+                            fill={
+                                favorite
+                                    ? 'currentColor'
+                                    : 'none'
+                            }
+                        />
+                    </button>
+
+                    {/* Out of stock overlay */}
+
+                    {!product.isInStock && (
+                        <div
+                            className="
+                                pointer-events-none
+                                absolute inset-0 z-[5]
+                                flex items-center justify-center
+                                bg-white/65
+                                backdrop-blur-[1px]
+                            "
+                        >
+                            <span
+                                className="
+                                    rounded-xl
+                                    bg-slate-900/90
+                                    px-5 py-2.5
+                                    text-sm font-bold
+                                    text-white
+                                "
+                            >
+                                ناموجود
+                            </span>
+                        </div>
+                    )}
+
+                    {/* Quick view - desktop only */}
+
+                    <Link
                         to={productUrl}
-                        variant="subtitle1"
-                        sx={{
-                            color: 'text.primary',
-                            textDecoration: 'none',
-                            fontWeight: 700,
-                            lineHeight: 1.7,
-                            minHeight: 56,
-                            display:
-                                '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient:
-                                'vertical',
-                            overflow: 'hidden',
-                            '&:hover': {
-                                color: 'primary.main',
-                           },
-                       }}
+                        onClick={(event) => event.stopPropagation()}
+                        className="
+                            pointer-events-auto
+                            absolute bottom-3 end-3 z-20
+                            hidden
+                            items-center gap-2
+                            rounded-xl
+                            bg-white/95
+                            px-4 py-2.5
+                            text-xs font-bold
+                            text-slate-800
+                            shadow-md backdrop-blur
+                            transition hover:bg-white
+                            sm:flex
+                        "
+                    >
+                        <Eye className="size-4" />
+                        مشاهده محصول
+                    </Link>
+                </div>
+
+                {/* -------------------------------------------------
+                    Product information
+
+                    pointer-events-none lets card background
+                    link receive clicks on empty content areas.
+                ------------------------------------------------- */}
+
+                <div
+                    className="
+                        pointer-events-none
+                        relative z-10
+                        flex flex-1 flex-col
+                        gap-2.5
+                        p-3.5 sm:p-4
+                    "
+                >
+                    {/* Brand */}
+
+                    {product.brandName ? (
+                        <div className="text-[11px] font-semibold text-slate-400">
+                            {product.brandName}
+                        </div>
+                    ) : (
+                        <div className="h-4" />
+                    )}
+
+                    {/* Product name */}
+
+                    <div
+                        className="
+                            line-clamp-2
+                            min-h-[46px]
+                            text-sm font-bold leading-6
+                            text-slate-800
+                            sm:text-[15px]
+                        "
                     >
                         {product.name}
-                    </Typography>
+                    </div>
 
-                    <Box
-                        sx={{
-                            flexGrow: 1,
-                       }}
-                   />
+                    {/* Categories */}
 
-                    {hasDiscount &&
-                        product.comparePrice != null && (
-                            <Typography
-                                variant="body2"
-                                color="text.secondary"
-                                sx={{
-                                    textDecoration:
-                                        'line-through',
-                               }}
-                            >
-                                {formatPrice(
-                                    product.comparePrice,
-                                )}{' '}
-                                {product.currency}
-                            </Typography>
-                        )}
-
-                    <Typography
-                        variant="h6"
-                        color="primary"
-                        sx={{
-                            fontWeight: 900,
-                            fontSize: '1.15rem',
-                       }}
-                    >
-                        {formatPrice(price)}{' '}
-                        {product.currency}
-                    </Typography>
-
-                    <Typography
-                        variant="caption"
-                        sx={{
-                            color: product.isInStock
-                                ? 'success.main'
-                                : 'error.main',
-                            fontWeight: 700,
-                       }}
-                    >
-                        • {stockLabel}
-                    </Typography>
-
-                    {errorMessage && (
-                        <Typography
-                            variant="caption"
-                            color="error"
-                            sx={{
-                                fontWeight: 600,
-                                lineHeight: 1.6,
-                           }}
-                        >
-                            {errorMessage}
-                        </Typography>
+                    {product.categoryNames?.length > 0 && (
+                        <div className="flex min-h-5 flex-wrap gap-1.5">
+                            {product.categoryNames
+                                .slice(0, 2)
+                                .map((category, index) => (
+                                    <span
+                                        key={`${category}-${index}`}
+                                        className="text-[10px] text-slate-400"
+                                    >
+                                        {category}
+                                    </span>
+                                ))}
+                        </div>
                     )}
 
-                    <Stack
-                        direction={{
-                            xs: 'column',
-                            sm: 'row',
-                       }}
-                        spacing={1}
-                        sx={{
-                            mt: 1,
-                            width: '100%',
-                            minWidth: 0,
-                       }}
-                    >
-                        <Button
-                            component={Link}
-                            to={productUrl}
-                            variant="outlined"
-                            sx={{
-                                width: {
-                                    xs: '100%',
-                                    sm: 'auto',
-                               },
-                                minWidth: 0,
-                                flex: {
-                                    xs: 'none',
-                                    sm: 1,
-                               },
-                                borderRadius: 2,
-                                fontWeight: 700,
-                                minHeight: 46,
-                                px: {
-                                    xs: 1.5,
-                                    sm: 2,
-                               },
-                                fontSize: {
-                                    xs: '0.78rem',
-                                    sm: '0.875rem',
-                               },
-                                lineHeight: 1.3,
-                                whiteSpace: 'normal',
-                                overflow: 'hidden',
-                           }}
+                    {/* Price and stock */}
+
+                    <div className="mt-auto pt-2">
+
+                        {/* Previous price */}
+
+                        {hasDiscount &&
+                            product.comparePrice != null && (
+                                <div className="mb-1 flex items-center gap-2">
+                                    <span className="text-xs text-slate-400 line-through">
+                                        {formatPrice(
+                                            product.comparePrice,
+                                        )}
+                                    </span>
+
+                                    {discountPercentage > 0 && (
+                                        <span
+                                            className="
+                                                rounded-md
+                                                bg-red-50
+                                                px-1.5 py-0.5
+                                                text-[10px]
+                                                font-bold
+                                                text-red-600
+                                            "
+                                        >
+                                            {discountPercentage}٪
+                                        </span>
+                                    )}
+                                </div>
+                            )}
+
+                        {/* Current price */}
+
+                        <div className="flex flex-wrap items-baseline gap-1.5">
+                            <div className="flex items-baseline">
+                                <span className="text-lg font-black tracking-tight text-slate-900">
+                                    {formatPrice(price)}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Stock status */}
+
+                        <div className="mt-2 flex items-center gap-1.5">
+                            {product.isInStock ? (
+                                <PackageCheck className="size-3.5 text-emerald-600" />
+                            ) : (
+                                <Tag className="size-3.5 text-red-500" />
+                            )}
+
+                            <span
+                                className={`
+                                    text-[11px] font-semibold
+                                    ${product.isInStock
+                                        ? 'text-emerald-700'
+                                        : 'text-red-600'
+                                    }
+                                `}
+                            >
+                                {stockLabel}
+                            </span>
+                        </div>
+                    </div>
+
+                    {/* Error message */}
+
+                    {errorMessage && (
+                        <div
+                            role="alert"
+                            className="
+                                pointer-events-auto
+                                rounded-lg
+                                bg-red-50
+                                px-3 py-2
+                                text-xs leading-5
+                                text-red-700
+                            "
                         >
-                            {viewLabel}
-                        </Button>
+                            {errorMessage}
+                        </div>
+                    )}
+
+                    {/* -------------------------------------------------
+                        Actions
+
+                        Mobile: only Add to cart.
+                        Desktop: View + Add to cart.
+                    ------------------------------------------------- */}
+
+                    <div
+                        className="
+                            pointer-events-auto
+                            relative z-20
+                            mt-2 grid w-full min-w-0
+                            grid-cols-1 gap-2
+                            sm:grid-cols-[0.85fr_1.15fr]
+                        "
+                    >
+                        {/* View product - desktop only */}
+
+                        <Link
+                            to={productUrl}
+                            onClick={(event) => event.stopPropagation()}
+                            className="
+                                hidden sm:flex
+                                min-h-10 min-w-0
+                                items-center justify-center
+                                gap-1.5
+                                rounded-xl
+                                border border-slate-200
+                                px-2
+                                text-xs font-bold
+                                text-slate-700
+                                transition
+                                hover:border-primary/40
+                                hover:bg-primary/5
+                                hover:text-primary
+                            "
+                        >
+                            <Eye className="size-4 shrink-0" />
+
+                            <span>
+                                {viewLabel}
+                            </span>
+                        </Link>
+
+                        {/* Already added */}
 
                         {added ? (
-                            <Button
-                                component={Link}
+                            <Link
                                 to="/cart"
-                                variant="contained"
-                                startIcon={
-                                    <CheckCircleOutlined
-                                        sx={{
-                                            display: {
-                                                xs: 'none',
-                                                sm: 'inline-flex',
-                                           },
-                                       }}
-                                   />
-                               }
-                                sx={{
-                                    width: {
-                                        xs: '100%',
-                                        sm: 'auto',
-                                   },
-                                    minWidth: 0,
-                                    flex: {
-                                        xs: 'none',
-                                        sm: 1.5,
-                                   },
-                                    borderRadius: 2,
-                                    fontWeight: 800,
-                                    minHeight: 46,
-                                    px: {
-                                        xs: 1.5,
-                                        sm: 2,
-                                   },
-                                    fontSize: {
-                                        xs: '0.78rem',
-                                        sm: '0.875rem',
-                                   },
-                                    lineHeight: 1.3,
-                                    whiteSpace: 'normal',
-                                    overflow: 'hidden',
-                                    '& .MuiButton-startIcon':
-                                        {
-                                            marginInlineEnd:
-                                                0.5,
-                                       },
-                               }}
+                                onClick={(event) => event.stopPropagation()}
+                                className="
+                                    flex min-h-11 w-full min-w-0
+                                    items-center justify-center gap-2
+                                    rounded-xl
+                                    bg-emerald-600
+                                    px-3
+                                    text-xs font-bold
+                                    text-white
+                                    transition
+                                    hover:bg-emerald-700
+                                "
                             >
-                                {addedLabel}
-                            </Button>
+                                <Check className="size-4 shrink-0" />
+
+                                <span className="sm:hidden">
+                                    مشاهده سبد خرید
+                                </span>
+
+                                <span className="hidden sm:inline">
+                                    {addedLabel}
+                                </span>
+                            </Link>
                         ) : (
-                            <Button
+                            /* Add to cart */
+
+                            <button
                                 type="button"
-                                variant="contained"
                                 disabled={
                                     !product.isInStock ||
                                     add.isPending ||
                                     variantLoading
-                               }
-                                startIcon={
-                                    <ShoppingCartOutlined
-                                        sx={{
-                                            display: {
-                                                xs: 'none',
-                                                sm: 'inline-flex',
-                                           },
-                                       }}
-                                   />
-                               }
-                                onClick={
-                                    handleAddToCart
-                               }
-                                sx={{
-                                    width: {
-                                        xs: '100%',
-                                        sm: 'auto',
-                                   },
-                                    minWidth: 0,
-                                    flex: {
-                                        xs: 'none',
-                                        sm: 1.5,
-                                   },
-                                    borderRadius: 2,
-                                    fontWeight: 800,
-                                    minHeight: 46,
-                                    px: {
-                                        xs: 1.5,
-                                        sm: 2,
-                                   },
-                                    fontSize: {
-                                        xs: '0.78rem',
-                                        sm: '0.875rem',
-                                   },
-                                    lineHeight: 1.3,
-                                    whiteSpace: 'normal',
-                                    overflow: 'hidden',
-                                    '& .MuiButton-startIcon':
-                                        {
-                                            marginInlineEnd:
-                                                0.5,
-                                       },
-                               }}
+                                }
+                                onClick={(event) => {
+                                    event.stopPropagation();
+
+                                    void handleAddToCart();
+                                }}
+                                className="
+                                    flex min-h-11 w-full min-w-0
+                                    items-center justify-center
+                                    gap-2
+                                    rounded-xl
+                                    bg-primary
+                                    px-3
+                                    text-xs font-bold
+                                    text-primary-foreground
+                                    transition
+                                    hover:opacity-90
+                                    active:scale-[0.98]
+                                    disabled:cursor-not-allowed
+                                    disabled:opacity-50
+                                "
                             >
-                                {add.isPending ||
-                                variantLoading
-                                    ? addingLabel
-                                    : addLabel}
-                            </Button>
+                                <ShoppingCart className="size-4 shrink-0" />
+
+                                {/* Mobile label */}
+
+                                <span className="sm:hidden">
+                                    {add.isPending || variantLoading
+                                        ? 'در حال افزودن...'
+                                        : 'افزودن به سبد خرید'}
+                                </span>
+
+                                {/* Desktop label */}
+
+                                <span className="hidden sm:inline">
+                                    {add.isPending || variantLoading
+                                        ? addingLabel
+                                        : addLabel}
+                                </span>
+                            </button>
                         )}
-                    </Stack>
-                </CardContent>
-            </Card>
+                    </div>
+                </div>
+            </article>
+
+            {/* -----------------------------------------------------
+                Product variant selector
+            ----------------------------------------------------- */}
 
             <ProductVariantPickerDialog
                 open={variantDialogOpen}
@@ -620,14 +718,14 @@ export default function ProductCard({
                 loading={
                     variantLoading ||
                     add.isPending
-               }
-                onClose={
-                    closeVariantDialog
-               }
-                onConfirm={
-                    handleVariantConfirm
-               }
-           />
+                }
+                onClose={closeVariantDialog}
+                onConfirm={handleVariantConfirm}
+            />
+
+            {/* -----------------------------------------------------
+                Product recommendations / Upsell
+            ----------------------------------------------------- */}
 
             <CartUpsellDialog
                 open={upsellOpen}
@@ -640,4 +738,3 @@ export default function ProductCard({
         </>
     );
 }
-

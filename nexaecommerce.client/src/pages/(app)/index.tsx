@@ -339,16 +339,7 @@ function Hero({
                         </div>
                     )}
 
-                    <div className="absolute bottom-6 start-6 rounded-2xl border bg-background/90 px-4 py-3 text-xs font-bold shadow-lg backdrop-blur">
-                        <div className="flex items-center gap-2">
-                            <Sparkles
-                                className="size-4 text-primary"
-                                aria-hidden="true"
-                            />
-
-                            مدل‌های منتخب پاتلت • مشاهده محصول و انتخاب سایز
-                        </div>
-                    </div>
+                   
                 </div>
             </div>
         </section>
@@ -429,7 +420,7 @@ function CategorySection({
 }
 function ProductSkeleton() {
     return (
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
             {Array.from({
                 length: 8,
             }).map((_, index) => (
@@ -617,7 +608,7 @@ export default function StorefrontHomePage() {
                             Featured products are temporarily unavailable.
                         </div>
                     ) : featured?.items?.length ? (
-                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
                             {featured.items.map(
                                 (
                                     product,
@@ -667,7 +658,7 @@ export default function StorefrontHomePage() {
                             Products are temporarily unavailable.
                         </div>
                     ) : latest?.items?.length ? (
-                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+                                <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
                             {latest.items.map(
                                 (
                                     product,

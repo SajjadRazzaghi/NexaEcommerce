@@ -19,7 +19,7 @@ import {
     Stack,
     Typography,
 } from '@mui/material';
-
+import { formatMoney } from '@/lib/formatMoney';
 import {
     Add,
     ArrowBack,
@@ -645,18 +645,7 @@ export default function ProductDetailPage() {
         product?.currency ??
         '';
 
-    const formatPrice = (
-        value: number,
-    ) =>
-        new Intl.NumberFormat(
-            isFa
-                ? 'fa-IR'
-                : 'en-US',
-            {
-                maximumFractionDigits:
-                    0,
-            },
-        ).format(value);
+   
 
     const formatRating = (
         value: number,
@@ -1304,23 +1293,19 @@ export default function ProductDetailPage() {
                                             null &&
                                             comparePrice >
                                             price && (
-                                                <Typography
-                                                    variant="body2"
-                                                    color="text.secondary"
-                                                    sx={{
-                                                        textDecoration:
-                                                            'line-through',
-                                                    }}
-                                                >
-                                                    {
-                                                        formatPrice(
-                                                            comparePrice,
-                                                        )
-                                                    }{' '}
-                                                    {
-                                                        currency
-                                                    }
-                                                </Typography>
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{
+                                                    textDecoration: 'line-through',
+                                                }}
+                                            >
+                                                {formatMoney(
+                                                    comparePrice,
+                                                    currency || 'IRR',
+                                                    i18n.language,
+                                                )}
+                                            </Typography>
                                             )}
 
                                         <Typography
@@ -1331,14 +1316,11 @@ export default function ProductDetailPage() {
                                                 mt: 0.5,
                                             }}
                                         >
-                                            {
-                                                formatPrice(
-                                                    price,
-                                                )
-                                            }{' '}
-                                            {
-                                                currency
-                                            }
+                                            {formatMoney(
+                                                price,
+                                                currency || 'IRR',
+                                                i18n.language,
+                                            )}
                                         </Typography>
 
                                         {product.discountPercentage >
