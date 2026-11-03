@@ -38,7 +38,7 @@ public sealed class OrdersDbContext(
     public DbSet<ShippingMethod>
     ShippingMethods =>
     Set<ShippingMethod>();
-
+    public DbSet<PosBridgeDevice> PosBridgeDevices => Set<PosBridgeDevice>();
     public DbSet<Coupon>
     Coupons =>
     Set<Coupon>();
@@ -56,7 +56,32 @@ public sealed class OrdersDbContext(
     {
         base.OnModelCreating(
             modelBuilder);
-modelBuilder.Entity<Package>(
+        modelBuilder.Entity<PosBridgeDevice>(entity =>
+        {
+            entity.ToTable("PosBridgeDevices");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.TenantId)
+                .IsRequired()
+                .HasMaxLength(64);
+
+            entity.Property(x => x.Name)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(x => x.TokenHash)
+                .IsRequired()
+                .HasMaxLength(64);
+
+            entity.Property(x => x.IsActive).IsRequired();
+            entity.Property(x => x.CreatedAtUtc).IsRequired();
+
+            entity.HasIndex(x => x.TokenHash).IsUnique();
+            entity.HasIndex(x => x.TenantId)
+                .IsUnique()
+                .HasFilter("[IsActive] = 1");
+        });
+        modelBuilder.Entity<Package>(
     entity =>
     {
         entity.ToTable(
@@ -113,6 +138,28 @@ modelBuilder.Entity<Package>(
                 .WithOne(x => x.Sale)
                 .HasForeignKey(x => x.PosSaleId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(x => x.PaymentGatewayResponse)
+    .HasMaxLength(1000);
+
+            entity.HasIndex(x => new
+            {
+                x.TenantId,
+                x.Status,
+                x.PaymentMethod,
+                x.CreatedAtUtc
+            });
+
+            // Enum values are intentional and must stay synchronized with PosSaleStatus/PosPaymentMethod:
+            // BankMellat = 2; PendingPayment = 1; ReconciliationRequired = 4; PaymentInProgress = 5.
+            entity.HasIndex(x => new { x.TenantId, x.SellerUserId })
+                .IsUnique()
+                .HasFilter("[PaymentMethod] = 2 AND [Status] IN (1, 4, 5)");
+
+            entity.HasOne<PosBridgeDevice>()
+                .WithMany()
+                .HasForeignKey(x => x.BridgeDeviceId)
+                .OnDelete(DeleteBehavior.NoAction);
         });
 
         modelBuilder.Entity<PosSaleItem>(entity =>

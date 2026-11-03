@@ -587,10 +587,55 @@ namespace NexaEcommerce.Modules.Orders.Infrastructure.Migrations
                     b.ToTable("PaymentAttempts", "Orders");
                 });
 
+            modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.PosBridgeDevice", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastSeenAtUtc")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<string>("TokenHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId")
+                        .IsUnique()
+                        .HasFilter("[IsActive] = 1");
+
+                    b.HasIndex("TokenHash")
+                        .IsUnique();
+
+                    b.ToTable("PosBridgeDevices", "Orders");
+                });
+
             modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.PosSale", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("BridgeDeviceId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<DateTime>("CreatedAtUtc")
@@ -609,12 +654,19 @@ namespace NexaEcommerce.Modules.Orders.Infrastructure.Migrations
                     b.Property<DateTime?>("PaidAtUtc")
                         .HasColumnType("datetime2");
 
+                    b.Property<string>("PaymentGatewayResponse")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
                     b.Property<int>("PaymentMethod")
                         .HasColumnType("int");
 
                     b.Property<string>("PaymentReference")
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
+
+                    b.Property<DateTime?>("PaymentStartedAtUtc")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("SaleNumber")
                         .IsRequired()
@@ -644,11 +696,19 @@ namespace NexaEcommerce.Modules.Orders.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BridgeDeviceId");
+
                     b.HasIndex("TenantId", "SaleNumber")
                         .IsUnique();
 
+                    b.HasIndex("TenantId", "SellerUserId")
+                        .IsUnique()
+                        .HasFilter("[PaymentMethod] = 2 AND [Status] IN (1, 4, 5)");
+
                     b.HasIndex("TenantId", "SellerUserId", "IdempotencyKey")
                         .IsUnique();
+
+                    b.HasIndex("TenantId", "Status", "PaymentMethod", "CreatedAtUtc");
 
                     b.ToTable("PosSales", "Orders");
                 });
@@ -923,6 +983,14 @@ namespace NexaEcommerce.Modules.Orders.Infrastructure.Migrations
                         .HasForeignKey("OrderId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.PosSale", b =>
+                {
+                    b.HasOne("NexaEcommerce.Modules.Orders.Domain.Entities.PosBridgeDevice", null)
+                        .WithMany()
+                        .HasForeignKey("BridgeDeviceId")
+                        .OnDelete(DeleteBehavior.NoAction);
                 });
 
             modelBuilder.Entity("NexaEcommerce.Modules.Orders.Domain.Entities.PosSaleItem", b =>

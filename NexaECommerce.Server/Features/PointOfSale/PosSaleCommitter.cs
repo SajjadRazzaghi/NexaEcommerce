@@ -56,9 +56,23 @@ public sealed class PosSaleCommitter(
         return sale is null ? null : Map(sale);
     }
 
-    public async Task<PosSaleResultDto> CommitSaleAndDecrementStockAtomicallyAsync(
+    // Existing cash-sale path. Card payments must use CreatePendingCardSaleAndReserveStockAsync.
+    public Task<PosSaleResultDto> CommitSaleAndDecrementStockAtomicallyAsync(
         PosSaleDraft draft, CancellationToken cancellationToken)
+        => CommitSaleInternalAsync(draft, reserveForCardPayment: false, cancellationToken);
+
+    // Card-sale path: reserve inventory and persist PendingPayment; do not mark as paid here.
+    public Task<PosSaleResultDto> CreatePendingCardSaleAndReserveStockAsync(
+        PosSaleDraft draft, CancellationToken cancellationToken)
+        => CommitSaleInternalAsync(draft, reserveForCardPayment: true, cancellationToken);
+
+    private async Task<PosSaleResultDto> CommitSaleInternalAsync(
+        PosSaleDraft draft,
+        bool reserveForCardPayment,
+        CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(draft);
+
         BindSharedConnection();
         var strategy = orders.Database.CreateExecutionStrategy();
 
@@ -76,7 +90,7 @@ public sealed class PosSaleCommitter(
 
                 try
                 {
-                    // بررسی مجدد داخل تراکنش: درخواست هم‌زمان با یک IdempotencyKey فروش دوباره نمی‌سازد.
+                    // A repeated HTTP request with the same idempotency key returns the original sale.
                     var prior = await orders.PosSales
                         .Include(x => x.Items)
                         .SingleOrDefaultAsync(x =>
@@ -96,6 +110,29 @@ public sealed class PosSaleCommitter(
                         : draft.PaymentMethod.Equals("Card", StringComparison.OrdinalIgnoreCase)
                             ? PosPaymentMethod.BankMellat
                             : throw new PosValidationException("روش پرداخت پشتیبانی نمی‌شود.");
+
+                    if (reserveForCardPayment && paymentMethod != PosPaymentMethod.BankMellat)
+                        throw new PosValidationException("رزرو انتظار پرداخت فقط برای کارتخوان مجاز است.");
+
+                    if (!reserveForCardPayment && paymentMethod == PosPaymentMethod.BankMellat)
+                        throw new PosValidationException("فروش کارتخوان باید از مسیر تأیید Bridge انجام شود.");
+
+                    if (reserveForCardPayment)
+                    {
+                        // DB unique filtered index also protects against concurrent requests.
+                        var unresolvedCardPayment = await orders.PosSales.AnyAsync(x =>
+                            x.TenantId == draft.TenantId &&
+                            x.SellerUserId == draft.SellerUserId &&
+                            x.PaymentMethod == PosPaymentMethod.BankMellat &&
+                            (x.Status == PosSaleStatus.PendingPayment ||
+                             x.Status == PosSaleStatus.PaymentInProgress ||
+                             x.Status == PosSaleStatus.ReconciliationRequired),
+                            cancellationToken);
+
+                        if (unresolvedCardPayment)
+                            throw new PosConflictException(
+                                "برای این فروشنده یک پرداخت کارتخوان باز یا نیازمند تطبیق وجود دارد. ابتدا وضعیت آن را مشخص کنید.");
+                    }
 
                     var sale = new PosSale(
                         draft.TenantId,
@@ -119,11 +156,17 @@ public sealed class PosSaleCommitter(
                         sale.AddItem(saleItem);
                     }
 
-                    await DecrementStockAsync(draft, sale.Id, cancellationToken);
+                    if (reserveForCardPayment)
+                    {
+                        await ReserveStockForCardPaymentAsync(draft, sale.Id, cancellationToken);
+                        // Status intentionally remains PendingPayment. The Bridge claims it later.
+                    }
+                    else
+                    {
+                        await DecrementStockAsync(draft, sale.Id, cancellationToken);
+                        sale.MarkPaid();
+                    }
 
-                    // در این نسخه Card یعنی فروشنده پرداخت فیزیکی کارتخوان را دیده و شماره پیگیری را وارد کرده است.
-                    // این رشته به‌تنهایی تأیید آنلاین بانک ملت محسوب نمی‌شود.
-                    sale.MarkPaid(draft.PaymentReference);
                     orders.PosSales.Add(sale);
 
                     await inventory.SaveChangesAsync(cancellationToken);
@@ -155,7 +198,6 @@ public sealed class PosSaleCommitter(
             orders.ChangeTracker.Clear();
             inventory.ChangeTracker.Clear();
 
-            // اگر درخواست تکراری به قید یکتای دیتابیس برخورد کرده باشد، همان فاکتور قبلی برگردد.
             var existing = await FindByIdempotencyKeyAsync(
                 draft.TenantId, draft.SellerUserId, draft.IdempotencyKey,
                 CancellationToken.None);
@@ -163,7 +205,7 @@ public sealed class PosSaleCommitter(
                 return existing;
 
             throw new PosConflictException(
-                "ثبت فاکتور یا موجودی با تعارض دیتابیس مواجه شد؛ وضعیت انبار را بررسی و دوباره تلاش کنید.");
+                "ثبت فاکتور یا رزرو موجودی با تعارض دیتابیس مواجه شد؛ وضعیت انبار و پرداخت‌های باز را بررسی کنید.");
         }
     }
 
@@ -215,7 +257,6 @@ public sealed class PosSaleCommitter(
                         locationIds.Contains(s.LocationId))
             .ToListAsync(ct);
 
-        // هر ردیف فاکتور ابتدا از انبار پیش‌فرض و سپس از سایر انبارهای فعال تأمین می‌شود.
         foreach (var line in draft.Items)
         {
             var remaining = line.Quantity;
@@ -246,6 +287,82 @@ public sealed class PosSaleCommitter(
                         "PosSale",
                         saleId.ToString("D"),
                         $"فروش حضوری {saleId:D}"));
+
+                remaining -= allocated;
+                if (remaining == 0)
+                    break;
+            }
+
+            if (remaining > 0)
+                throw new PosInsufficientStockException(
+                    $"موجودی قابل فروش برای «{line.ProductName}» کافی نیست. سبد را به‌روزرسانی کنید.");
+        }
+    }
+
+    private async Task ReserveStockForCardPaymentAsync(
+        PosSaleDraft draft, Guid saleId, CancellationToken ct)
+    {
+        var variantIds = draft.Items.Select(x => x.ProductVariantId).Distinct().ToArray();
+
+        var warehouses = await inventory.Warehouses
+            .Where(w => w.TenantId == draft.TenantId && w.IsActive)
+            .OrderByDescending(w => w.IsDefault)
+            .ThenBy(w => w.Code)
+            .Select(w => new { w.Id, w.Code, w.IsDefault })
+            .ToListAsync(ct);
+
+        if (warehouses.Count == 0)
+            throw new PosInsufficientStockException("هیچ انبار فعالی برای فروش وجود ندارد.");
+
+        var warehouseIds = warehouses.Select(w => w.Id).ToArray();
+        var warehouseRank = warehouses
+            .Select((w, index) => new { w.Id, Index = index })
+            .ToDictionary(x => x.Id, x => x.Index);
+
+        var locations = await inventory.WarehouseLocations
+            .Where(l => l.TenantId == draft.TenantId &&
+                        l.IsActive && warehouseIds.Contains(l.WarehouseId))
+            .Select(l => new { l.Id, l.WarehouseId })
+            .ToListAsync(ct);
+        var locationIds = locations.Select(l => l.Id).ToArray();
+
+        var stocks = await inventory.WarehouseStocks
+            .Where(s => s.TenantId == draft.TenantId &&
+                        variantIds.Contains(s.ProductVariantId) &&
+                        warehouseIds.Contains(s.WarehouseId) &&
+                        locationIds.Contains(s.LocationId))
+            .ToListAsync(ct);
+
+        foreach (var line in draft.Items)
+        {
+            var remaining = line.Quantity;
+            var candidates = stocks
+                .Where(s => s.ProductVariantId == line.ProductVariantId)
+                .OrderBy(s => warehouseRank.GetValueOrDefault(s.WarehouseId, int.MaxValue))
+                .ThenBy(s => s.LocationId)
+                .ToArray();
+
+            foreach (var stock in candidates)
+            {
+                var available = stock.AvailableQuantity;
+                if (available <= 0)
+                    continue;
+
+                var allocated = Math.Min(available, remaining);
+                stock.Reserve(allocated);
+
+                inventory.WarehouseStockMovements.Add(
+                    WarehouseStockMovement.Create(
+                        draft.TenantId,
+                        stock.WarehouseId,
+                        stock.LocationId,
+                        stock.ProductVariantId,
+                        WarehouseStockMovementType.Reservation,
+                        allocated,
+                        stock.OnHandQuantity,
+                        "PosSalePayment",
+                        saleId.ToString("D"),
+                        $"رزرو موجودی برای پرداخت فاکتور POS {saleId:D}"));
 
                 remaining -= allocated;
                 if (remaining == 0)

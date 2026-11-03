@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { Barcode, Banknote, CreditCard, Minus, Plus, Printer, RefreshCw, Search, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslation } from 'react-i18next';
-
+import { appearanceApi } from '@/lib/api/appearance';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import { formatMoney } from '@/lib/formatMoney';
 import { resolveMediaUrl } from '@/lib/media-url';
 import { ApiError } from '@/lib/problem';
 import { posApi, type PosProduct, type PosSale, type PosVariant, type PosCreateSaleRequest } from '@/lib/api/pos';
-
+import { QRCodeSVG } from 'qrcode.react';
 const canSellPermission = 'pos.sell';
 
 type CartLine = PosVariant & { quantity: number };
@@ -54,7 +54,24 @@ export default function PosPage() {
         enabled: canRead,
         staleTime: 15_000,
     });
+    const appearanceQuery = useQuery({
+        queryKey: ['appearance'],
+        queryFn: appearanceApi.get,
+        staleTime: 5 * 60_000,
+    });
 
+    const appearance = appearanceQuery.data;
+    const configuredWebsiteUrl = appearance?.websiteUrl?.trim();
+
+    const websiteQrUrl = configuredWebsiteUrl
+        ? (/^https?:\/\//i.test(configuredWebsiteUrl)
+            ? configuredWebsiteUrl
+            : `https://${configuredWebsiteUrl}`)
+        : 'https://patletdress.ir';
+
+    const websiteAddress = websiteQrUrl
+        .replace(/^https?:\/\//i, '')
+        .replace(/\/+$/, '');
     const saleMutation = useMutation({
         mutationFn: (body: PosCreateSaleRequest) => posApi.createSale(body),
         onSuccess: (sale) => {
@@ -172,14 +189,75 @@ export default function PosPage() {
     return (
         <div className="space-y-6" dir="rtl">
             <style>{`
-        .pos-receipt-print { display: none; }
-        @media print {
-          body * { visibility: hidden !important; }
-          .pos-receipt-print, .pos-receipt-print * { visibility: visible !important; }
-          .pos-receipt-print { display: block !important; position: absolute; inset: 0; width: 100%; padding: 18px; background: white; color: black; }
-          @page { size: A4; margin: 10mm; }
+    .pos-receipt-print {
+        display: none;
+    }
+
+    @media print {
+        @page {
+            size: 80mm auto;
+            margin: 0;
         }
-      `}</style>
+
+        html,
+        body,
+        #root {
+            width: 80mm !important;
+            min-width: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        body * {
+            visibility: hidden !important;
+        }
+
+        .pos-receipt-print,
+        .pos-receipt-print * {
+            visibility: visible !important;
+        }
+
+        .pos-receipt-print {
+            display: block !important;
+            position: absolute !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+
+            width: 72mm !important;
+            max-width: 72mm !important;
+            box-sizing: border-box !important;
+
+            margin: 0 auto !important;
+            padding: 2mm 1mm !important;
+
+            background: #fff !important;
+            color: #000 !important;
+            border: 0 !important;
+            border-radius: 0 !important;
+            box-shadow: none !important;
+
+            direction: rtl !important;
+            font-size: 9pt !important;
+        }
+
+        .pos-receipt-print * {
+            box-sizing: border-box !important;
+            color: #000 !important;
+        }
+
+        .pos-receipt-print img {
+            max-width: 32mm !important;
+            max-height: 16mm !important;
+            object-fit: contain !important;
+        }
+
+        .pos-receipt-print table {
+            width: 100% !important;
+            table-layout: fixed !important;
+        }
+    }
+`}</style>
 
             <div className="pos-hide-print flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -307,18 +385,137 @@ export default function PosPage() {
 
             {lastSale && (
                 <Card className="pos-receipt-print">
-                    <CardHeader><CardTitle className="text-center">فاکتور فروش حضوری</CardTitle></CardHeader>
-                    <CardContent>
+                    <div className="mb-3 flex flex-col items-center border-b pb-3 text-center">
+
+                        {appearance?.logoUrl && (
+                            <img
+                                src={resolveMediaUrl(appearance.logoUrl)}
+                                alt={appearance.storeName || 'لوگوی فروشگاه'}
+                                className="mb-2 max-h-16 max-w-[32mm] object-contain"
+                            />
+                        )}
+
+                        <div className="text-lg font-bold">
+                            {appearance?.storeName?.trim() || 'گالری لباس پاتلت'}
+                        </div>
+
+                        {appearance?.contactPhone && (
+                            <div className="mt-1 text-xs">
+                                {appearance.contactPhone}
+                            </div>
+                        )}
+
+                        <div className="mt-2 font-bold">
+                            فاکتور فروش حضوری
+                        </div>
+
+                    </div>
+                    <CardContent className="p-0">
                         <div className="mb-4 flex flex-wrap items-start justify-between gap-3 border-b pb-4">
                             <div><div className="text-lg font-bold">{lastSale.saleNumber}</div><div className="text-sm">تاریخ: {new Date(lastSale.createdAt).toLocaleString(locale)}</div></div>
                             <div className="text-sm">روش پرداخت: {paymentLabel(lastSale.paymentMethod)}{lastSale.paymentReference ? ` · پیگیری: ${lastSale.paymentReference}` : ''}</div>
                         </div>
-                        <table className="w-full border-collapse text-sm">
-                            <thead><tr className="border-b text-right"><th className="p-2">کالا</th><th className="p-2">تعداد</th><th className="p-2">قیمت واحد</th><th className="p-2">جمع</th></tr></thead>
-                            <tbody>{lastSale.items.map((item, i) => <tr key={`${item.productVariantId}-${i}`} className="border-b"><td className="p-2">{item.productName}<div className="text-xs">{item.attributeLabels.join(' · ')} — {item.sku}</div></td><td className="p-2">{item.quantity}</td><td className="p-2">{formatMoney(item.unitPrice, lastSale.currency, locale)}</td><td className="p-2">{formatMoney(item.lineTotal, lastSale.currency, locale)}</td></tr>)}</tbody>
+                        <table className="w-full table-fixed border-collapse text-[8pt]">
+                            <colgroup>
+                                <col style={{ width: '40%' }} />
+                                <col style={{ width: '8%' }} />
+                                <col style={{ width: '26%' }} />
+                                <col style={{ width: '26%' }} />
+                            </colgroup>
+
+                            <thead>
+                                <tr className="text-center">
+                                    <th className="border border-black p-0">کالا</th>
+                                    <th className="border border-black p-0">تعداد</th>
+                                    <th className="border border-black p-0">قیمت واحد</th>
+                                    <th className="border border-black p-0">جمع</th>
+                                </tr>
+                            </thead>
+
+                            <tbody>
+                                {lastSale.items.map((item, i) => (
+                                    <tr key={`${item.productVariantId}-${i}`}>
+                                        <td className="border border-black p-0 align-top break-words">
+                                            <div className="font-medium">
+                                                {item.productName}
+                                            </div>
+                                            <div className="text-[7pt]">
+                                                {item.attributeLabels.join(' · ')} — {item.sku}
+                                            </div>
+                                        </td>
+
+                                        <td className="border border-black p-0 text-center align-middle">
+                                            {item.quantity}
+                                        </td>
+
+                                        <td className="border border-black p-0 text-center align-middle break-all">
+                                            {formatMoney(item.unitPrice, lastSale.currency, locale)}
+                                        </td>
+
+                                        <td className="border border-black p-0 text-center align-middle break-all">
+                                            {formatMoney(item.lineTotal, lastSale.currency, locale)}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
                         </table>
                         <div className="mt-4 flex justify-end"><div className="text-lg font-bold">مبلغ کل: {formatMoney(lastSale.totalAmount, lastSale.currency, locale)}</div></div>
-                        <div className="mt-6 text-center text-xs text-muted-foreground">از خرید شما سپاسگزاریم</div>
+                        <div className="mt-5 border-t border-dashed border-black pt-3">
+
+                            <div className="flex items-center gap-2" dir="rtl">
+
+                                {/* QR Code */}
+                                <div className="flex w-[23mm] shrink-0 flex-col items-center">
+
+                                    <QRCodeSVG
+                                        value={websiteQrUrl}
+                                        size={84}
+                                        level="M"
+                                        includeMargin
+                                        bgColor="#FFFFFF"
+                                        fgColor="#000000"
+                                    />
+
+                                    <span className="mt-1 text-[6pt] font-bold">
+                                        اسکن و ورود به سایت
+                                    </span>
+
+                                </div>
+
+                                {/* Store Information */}
+                                <div className="min-w-0 flex-1 text-center">
+
+                                    <div className="text-[9pt] font-bold">
+                                        از خرید شما سپاسگزاریم
+                                    </div>
+
+                                    <div className="mt-3 text-[7pt]">
+                                        وب‌سایت فروشگاه
+                                    </div>
+
+                                    <div
+                                        dir="ltr"
+                                        className="mt-0.5 text-[8pt] font-bold"
+                                    >
+                                        {websiteAddress}
+                                    </div>
+
+                                    <div className="mt-3 text-[7pt]">
+                                        ما را در اینستاگرام دنبال کنید
+                                    </div>
+
+                                    <div
+                                        dir="ltr"
+                                        className="mt-0.5 text-[8pt] font-bold"
+                                    >
+                                        instagram.com/patlet.dress
+                                    </div>
+
+                                </div>
+
+                            </div>
+
+                        </div>
                     </CardContent>
                 </Card>
             )}

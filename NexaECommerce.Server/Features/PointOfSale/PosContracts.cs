@@ -119,6 +119,9 @@ public interface IPosSaleCommitter
 
     Task<PosSaleResultDto> CommitSaleAndDecrementStockAtomicallyAsync(
         PosSaleDraft draft, CancellationToken cancellationToken);
+    Task<PosSaleResultDto> CreatePendingCardSaleAndReserveStockAsync(
+    PosSaleDraft draft,
+    CancellationToken cancellationToken);
 }
 
 public interface IPosOrchestrator

@@ -82,12 +82,7 @@ public sealed class PosOrchestrator : IPosOrchestrator
             : request.PaymentReference.Trim();
         if (paymentReference?.Length > 256)
             throw new PosValidationException("شناسه پیگیری پرداخت بیش از حد طولانی است.");
-        if (string.Equals(paymentMethod, "Card", StringComparison.OrdinalIgnoreCase) &&
-            string.IsNullOrWhiteSpace(paymentReference))
-        {
-            throw new PosValidationException(
-                "فروش کارتخوان فقط پس از تأیید پرداخت و ثبت شناسه پیگیری مجاز است.");
-        }
+      
 
         if (request.Items is null || request.Items.Count == 0)
             throw new PosValidationException("سبد فروش خالی است.");
@@ -169,6 +164,11 @@ public sealed class PosOrchestrator : IPosOrchestrator
             subtotal,
             subtotal,
             lines);
+        if (paymentMethod.Equals("Card", StringComparison.OrdinalIgnoreCase))
+        {
+            return await _saleCommitter.CreatePendingCardSaleAndReserveStockAsync(
+                draft, cancellationToken);
+        }
 
         return await _saleCommitter.CommitSaleAndDecrementStockAtomicallyAsync(
             draft, cancellationToken);
