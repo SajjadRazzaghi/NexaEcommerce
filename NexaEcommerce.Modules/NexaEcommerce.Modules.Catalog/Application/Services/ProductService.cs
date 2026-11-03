@@ -49,7 +49,49 @@ public sealed class ProductService : IProductService
         _catalogAttributeRepository =
             catalogAttributeRepository;
     }
+    private async Task<string> GenerateUniqueVariantBarcodeAsync(
+    Guid? excludeVariantId,
+    HashSet<string>? reservedBarcodes,
+    CancellationToken cancellationToken)
+    {
+        for (var attempt = 0; attempt < 30; attempt++)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
 
+            var digits = new char[12];
+
+            for (var i = 0; i < digits.Length; i++)
+            {
+                digits[i] =
+                    (char)('0' + RandomNumberGenerator.GetInt32(0, 10));
+            }
+
+            var barcode = new string(digits);
+
+            if (reservedBarcodes?.Contains(barcode) == true)
+            {
+                continue;
+            }
+
+            var exists =
+                await _productRepository.ExistsByVariantBarcodeAsync(
+                    barcode,
+                    excludeVariantId,
+                    cancellationToken);
+
+            if (exists)
+            {
+                continue;
+            }
+
+            reservedBarcodes?.Add(barcode);
+
+            return barcode;
+        }
+
+        throw new InvalidOperationException(
+            "Could not generate a unique barcode. Please try again.");
+    }
     public async Task<string> EnsureVariantBarcodeAsync(
     Guid productId,
     Guid variantId,
@@ -2470,17 +2512,26 @@ private async Task<Product> SynchronizeProductAttributesAsync(
              */
             if (variant is null)
             {
-                var newVariant =
-                    product.AddVariant(
-                        sku,
-                        effectivePrice,
-                        0,
-                        variantDto.ComparePrice);
+                var newVariant = product.AddVariant(
+                    sku,
+                    effectivePrice,
+                    0,
+                    variantDto.ComparePrice);
+                var reservedBarcodes =
+    requestedBarcodes.ToHashSet(
+        StringComparer.OrdinalIgnoreCase);
+                var barcodeToSave =
+                    effectiveBarcode ??
+                    await GenerateUniqueVariantBarcodeAsync(
+                        newVariant.Id,
+                        reservedBarcodes,
+                        cancellationToken);
 
-                newVariant.SetBarcode(
-                    effectiveBarcode);
+                newVariant.SetBarcode(barcodeToSave);
 
-                newVariant.SetCombinationKey(
+           
+
+            newVariant.SetCombinationKey(
                     combinationKey);
 
                 newVariant.SetActive(
