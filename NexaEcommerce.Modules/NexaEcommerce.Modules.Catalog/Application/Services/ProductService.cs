@@ -2650,21 +2650,28 @@ private async Task<Product> SynchronizeProductAttributesAsync(
 
             if (existingAttributeValueIds.Length > 0)
             {
-                await _productRepository
-                    .DeleteVariantAttributeMappingsAsync(
-                        existingVariant.Id,
-                        existingAttributeValueIds,
-                        cancellationToken);
+                await _productRepository.DeleteVariantAttributeMappingsAsync(
+                    existingVariant.Id,
+                    existingAttributeValueIds,
+                    cancellationToken);
 
-                foreach (var attributeValueId
-                         in existingAttributeValueIds)
+                foreach (var attributeValueId in existingAttributeValueIds)
                 {
                     existingVariant.RemoveAttributeValue(
                         attributeValueId);
                 }
             }
 
-            existingVariant.Deactivate();
+            var deleted =
+                await _productRepository.SoftDeleteVariantAsync(
+                    existingVariant.Id,
+                    cancellationToken);
+
+            if (!deleted)
+            {
+                throw new InvalidOperationException(
+                    $"Could not delete variant '{existingVariant.Id}'.");
+            }
         }
     }
     private async Task EnrichStockQuantitiesAsync(

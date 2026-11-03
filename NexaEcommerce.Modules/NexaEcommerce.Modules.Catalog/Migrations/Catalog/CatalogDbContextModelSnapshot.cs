@@ -857,7 +857,8 @@ namespace NexaEcommerce.Modules.Catalog.Migrations.Catalog
 
                     b.HasIndex("ProductId", "CombinationKey")
                         .IsUnique()
-                        .HasFilter("[CombinationKey] IS NOT NULL");
+                        .HasFilter(
+    "[CombinationKey] IS NOT NULL AND [IsDeleted] = 0");
 
                     b.ToTable("ProductVariants", "Catalog");
                 });

@@ -8,7 +8,66 @@ namespace NexaEcommerce.Modules.Catalog.Infrastructure.Repositories;
 public sealed class ProductRepository : IProductRepository
 {
     private readonly CatalogDbContext _context;
+    public async Task<bool> SoftDeleteVariantAsync(
+    Guid variantId,
+    CancellationToken cancellationToken = default)
+    {
+        if (variantId == Guid.Empty)
+        {
+            return false;
+        }
 
+        var now = DateTime.UtcNow;
+
+        var affectedRows =
+            await _context.ProductVariants
+                .IgnoreQueryFilters()
+                .Where(x =>
+                    x.Id == variantId &&
+                    !x.IsDeleted)
+                .ExecuteUpdateAsync(
+                    setters => setters
+                        .SetProperty(
+                            x => x.IsDeleted,
+                            true)
+                        .SetProperty(
+                            x => x.DeletedAt,
+                            (DateTime?)now)
+                        .SetProperty(
+                            x => x.IsActive,
+                            false)
+                        .SetProperty(
+                            x => x.UpdatedAt,
+                            (DateTime?)now),
+                    cancellationToken);
+
+        // Synchronize the tracked entity.
+        var trackedEntry =
+            _context.ChangeTracker
+                .Entries<ProductVariant>()
+                .FirstOrDefault(
+                    entry => entry.Entity.Id == variantId);
+
+        if (trackedEntry is not null)
+        {
+            if (affectedRows == 1)
+            {
+                trackedEntry.Entity.IsDeleted = true;
+                trackedEntry.Entity.DeletedAt = now;
+
+                trackedEntry.Entity.Deactivate();
+                trackedEntry.Entity.UpdatedAt = now;
+
+                trackedEntry.State = EntityState.Unchanged;
+            }
+            else
+            {
+                trackedEntry.State = EntityState.Detached;
+            }
+        }
+
+        return affectedRows == 1;
+    }
     public ProductRepository(
         CatalogDbContext context)
     {

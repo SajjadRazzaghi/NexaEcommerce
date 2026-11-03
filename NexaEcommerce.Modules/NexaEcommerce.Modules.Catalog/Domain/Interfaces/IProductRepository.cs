@@ -4,6 +4,9 @@ namespace NexaEcommerce.Modules.Catalog.Domain.Interfaces;
 
 public interface IProductRepository
 {
+    Task<bool> SoftDeleteVariantAsync(
+    Guid variantId,
+    CancellationToken cancellationToken = default);
     Task<Product?> GetByIdAsync(
     Guid id,
     CancellationToken cancellationToken = default);
