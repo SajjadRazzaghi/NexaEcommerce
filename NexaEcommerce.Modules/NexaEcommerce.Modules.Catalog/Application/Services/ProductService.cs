@@ -85,7 +85,7 @@ public sealed class ProductService : IProductService
                 digits[i] = (char)('0' + RandomNumberGenerator.GetInt32(0, 10));
             }
 
-            var barcode = $"NX{new string(digits)}";
+            var barcode = $"{new string(digits)}";
 
             var exists = await _productRepository.ExistsByVariantBarcodeAsync(
                 barcode,
@@ -2264,10 +2264,12 @@ private async Task<Product> SynchronizeProductAttributesAsync(
          * A new variant must use Guid.Empty.
          */
         var duplicateVariantId =
-            requestedVariants
-                .Where(x => x.Id != Guid.Empty)
-                .GroupBy(x => x.Id)
-                .FirstOrDefault(x => x.Count() > 1);
+     requestedVariants
+         .Where(x =>
+             x.Id.HasValue &&
+             x.Id.Value != Guid.Empty)
+         .GroupBy(x => x.Id!.Value)
+         .FirstOrDefault(x => x.Count() > 1);
 
         if (duplicateVariantId is not null)
         {
@@ -2279,14 +2281,16 @@ private async Task<Product> SynchronizeProductAttributesAsync(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (variantDto.Id == Guid.Empty)
+            // واریانت جدید است؛ هنوز شناسه ندارد.
+            // بررسی تعلق به محصول برای آن انجام نمی‌شود.
+            if (!variantDto.Id.HasValue || variantDto.Id.Value == Guid.Empty)
             {
                 continue;
             }
 
-            var existingVariant =
-                product.Variants.FirstOrDefault(
-                    x => x.Id == variantDto.Id);
+            // واریانت موجود باید متعلق به همین محصول باشد.
+            var existingVariant = product.Variants.FirstOrDefault(
+                x => x.Id == variantDto.Id);
 
             if (existingVariant is null)
             {
@@ -2339,16 +2343,27 @@ private async Task<Product> SynchronizeProductAttributesAsync(
          *     Trim and validate the new barcode.
          */
         var requestedBarcodes =
-            requestedVariants
-                .Select(variantDto =>
-                {
-                    var existingVariant =
-                        variantDto.Id == Guid.Empty
-                            ? null
-                            : product.Variants.First(
-                                x => x.Id == variantDto.Id);
+       requestedVariants
+           .Select(variantDto =>
+           {
+               ProductVariant? existingVariant = null;
 
-                    var effectiveBarcode =
+               if (variantDto.Id.HasValue &&
+                   variantDto.Id.Value != Guid.Empty)
+               {
+                   existingVariant = product.Variants.FirstOrDefault(
+                       x => x.Id == variantDto.Id.Value);
+
+                   if (existingVariant is null)
+                   {
+                       throw new ArgumentException(
+                           $"Variant '{variantDto.Id}' does not belong to product '{product.Id}'.");
+                   }
+               }
+
+           
+
+        var effectiveBarcode =
                         variantDto.Barcode ??
                         existingVariant?.Barcode;
 
@@ -2381,10 +2396,11 @@ private async Task<Product> SynchronizeProductAttributesAsync(
             cancellationToken.ThrowIfCancellationRequested();
 
             var existingVariant =
-                variantDto.Id == Guid.Empty
-                    ? null
-                    : product.Variants.First(
-                        x => x.Id == variantDto.Id);
+     !variantDto.Id.HasValue ||
+     variantDto.Id.Value == Guid.Empty
+         ? null
+         : product.Variants.FirstOrDefault(
+             x => x.Id == variantDto.Id.Value);
 
             var effectiveBarcode =
                 NormalizeBarcode(
@@ -2433,10 +2449,11 @@ private async Task<Product> SynchronizeProductAttributesAsync(
             }
 
             var variant =
-                variantDto.Id == Guid.Empty
-                    ? null
-                    : product.Variants.First(
-                        x => x.Id == variantDto.Id);
+       !variantDto.Id.HasValue ||
+       variantDto.Id.Value == Guid.Empty
+           ? null
+           : product.Variants.FirstOrDefault(
+               x => x.Id == variantDto.Id.Value);
 
             var effectivePrice =
                 ResolveVariantPrice(
