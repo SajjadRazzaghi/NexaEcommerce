@@ -29,7 +29,8 @@ public sealed record PaymentGatewayCreateResult(
 public sealed record PaymentGatewayVerifyRequest(
     string MerchantOrderId,
     decimal Amount,
-    string GatewayReference);
+    string GatewayReference,
+    string Currency = "IRR");
 
 public sealed record PaymentGatewayVerifyResult(
     bool Succeeded,

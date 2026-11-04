@@ -1302,7 +1302,7 @@ export default function ProductDetailPage() {
                                             >
                                                 {formatMoney(
                                                     comparePrice,
-                                                    currency || 'IRR',
+                                                    currency || 'IRT',
                                                     i18n.language,
                                                 )}
                                             </Typography>
@@ -1318,7 +1318,7 @@ export default function ProductDetailPage() {
                                         >
                                             {formatMoney(
                                                 price,
-                                                currency || 'IRR',
+                                                currency || 'IRT',
                                                 i18n.language,
                                             )}
                                         </Typography>

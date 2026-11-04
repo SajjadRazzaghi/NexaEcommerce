@@ -52,7 +52,7 @@ public sealed record CartDto(
             [],
             0,
             0,
-            "IRR",
+            "IRT",
             0);
     }
 }

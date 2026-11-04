@@ -246,11 +246,7 @@ const schema =
                     'Price cannot be negative.',
                 ),
 
-        currency:
-            z
-                .string()
-                .trim()
-                .default('IRR'),
+        currency: z.enum(['IRT', 'IRR']).default('IRT'),
 
         comparePrice:
             z
@@ -439,7 +435,7 @@ const emptyValues: FormValues = {
     shortDescription: '',
     recommendedProductIds: [],
     price: 0,
-    currency: 'IRR',
+    currency: 'IRT',
     comparePrice: null,
 
     sku: '',
@@ -1455,9 +1451,7 @@ function toValues(
             product.price ??
             0,
 
-        currency:
-            product.currency ||
-            'IRR',
+        currency: product.currency || 'IRT',
 
         comparePrice:
             product.comparePrice ??
@@ -4110,26 +4104,24 @@ const hasDuplicateVariantCombination =
                             />
 
                             <FormField
-                                control={
-                                    form.control
-                                }
+                                control={form.control}
                                 name="currency"
-                                render={({
-                                    field,
-                                }) => (
+                                render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel>
-                                            {t(
-                                                'productEdit.fields.currency',
-                                            )}
-                                        </FormLabel>
+                                        <FormLabel>واحد پول قیمت</FormLabel>
 
                                         <FormControl>
-                                            <Input
-                                                {...field}
-                                                placeholder="IRR"
-                                                maxLength={10}
-                                            />
+                                            <select
+                                                value={field.value}
+                                                onChange={field.onChange}
+                                                onBlur={field.onBlur}
+                                                name={field.name}
+                                                ref={field.ref}
+                                                className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+                                            >
+                                                <option value="IRT">تومان</option>
+                                                <option value="IRR">ریال</option>
+                                            </select>
                                         </FormControl>
 
                                         <FormMessage />

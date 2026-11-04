@@ -114,7 +114,7 @@ public sealed class ProductDto
     public decimal? ComparePrice { get; set; }
     public decimal DiscountPercentage { get; set; }
     public decimal FinalPrice { get; set; }
-    public string Currency { get; set; } = "IRR";
+    public string Currency { get; set; } = "IRT";
     public bool IsActive { get; set; }
     public bool IsFeatured { get; set; }
     public bool IsPublished { get; set; }

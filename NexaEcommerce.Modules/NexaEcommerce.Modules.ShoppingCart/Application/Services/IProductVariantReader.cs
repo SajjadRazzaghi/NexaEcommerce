@@ -28,4 +28,7 @@ public sealed record ProductVariantSnapshot(
     string? ImageUrl,
     bool IsActive,
     bool IsPublished,
-    IReadOnlyList<ProductVariantAttributeSnapshot> Attributes);
+    IReadOnlyList<ProductVariantAttributeSnapshot> Attributes)
+{
+    public string Currency { get; init; } = "IRT";
+}

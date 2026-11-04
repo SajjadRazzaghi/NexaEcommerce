@@ -1,35 +1,34 @@
+
 export function formatMoney(
     amount: number,
-    currency: string = 'IRR',
-    locale: string = 'en-US',
+    currency: string = 'IRT',
+    locale: string = 'fa-IR',
 ): string {
     const safeLocale =
         typeof locale === 'string' && locale.trim()
             ? locale
-            : 'en-US';
+            : 'fa-IR';
 
-    const formattedAmount = new Intl.NumberFormat(
-        safeLocale,
-        {
+    const formattedAmount =
+        new Intl.NumberFormat(safeLocale, {
             maximumFractionDigits: 0,
-        },
-    ).format(amount);
+        }).format(amount);
 
     const normalizedCurrency =
         typeof currency === 'string'
-            ? currency.toUpperCase()
-            : 'IRR';
+            ? currency.trim().toUpperCase()
+            : 'IRT';
 
-    let displayCurrency = currency;
+    const currencyLabels: Record<string, string> = {
+        IRT: 'تومان',
+        IRR: 'ریال',
+        USD: 'دلار',
+        EUR: 'یورو',
+    };
 
-    if (normalizedCurrency === 'IRR') {
-        displayCurrency = safeLocale
-            .toLowerCase()
-            .startsWith('fa')
-            ? 'ریال'
-            : 'IRR';
-    }
+    const displayCurrency =
+        currencyLabels[normalizedCurrency] ??
+        currency;
 
-    return `${ formattedAmount } ${ displayCurrency } `;
+    return `${formattedAmount} ${displayCurrency}`;
 }
-

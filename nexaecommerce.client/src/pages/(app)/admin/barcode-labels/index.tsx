@@ -797,7 +797,7 @@ export default function BarcodeLabelsPage() {
                     barcode,
                     variantText: variantDescription(variant),
                     price: unitPrice,
-                    currency: product.currency || 'IRR',
+                    currency: product.currency || 'IRT',
                     quantity: requestedQuantity,
                 });
             }

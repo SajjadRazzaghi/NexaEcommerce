@@ -29,7 +29,7 @@ public class Product : AggregateRoot
 
     public decimal DiscountPercentage { get; private set; }
 
-    public string Currency { get; private set; } = "IRR";
+    public string Currency { get; private set; } = "IRT";
 
     // =========================================================
     // Status
@@ -148,7 +148,7 @@ public class Product : AggregateRoot
         string sku,
         string slug,
         decimal price,
-        string currency = "IRR",
+        string currency = "IRT",
         string? description = null)
     {
         if (string.IsNullOrWhiteSpace(name))
@@ -181,7 +181,7 @@ public class Product : AggregateRoot
         Price = price;
 
         Currency = string.IsNullOrWhiteSpace(currency)
-            ? "IRR"
+            ? "IRT"
             : currency;
 
         Description = description;

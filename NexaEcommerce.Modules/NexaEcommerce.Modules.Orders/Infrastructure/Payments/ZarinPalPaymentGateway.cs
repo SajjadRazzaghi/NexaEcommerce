@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NexaEcommerce.Modules.Orders.Application.Payments;
+using NexaEcommerce.SharedKernel.Domain.ValueObjects;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -57,8 +58,9 @@ public sealed class ZarinPalPaymentGateway(
                 "Payment callback URL is required.");
         }
 
-        var amount =
-            ConvertToRial(request.Amount);
+        var amount = IranianCurrency.ToRial(
+     request.Amount,
+     request.Currency);
 
         if (amount <= 0)
         {

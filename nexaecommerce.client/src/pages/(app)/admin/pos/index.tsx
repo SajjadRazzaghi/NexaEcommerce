@@ -292,7 +292,7 @@ export default function PosPage() {
         [cart],
     );
 
-    const currency = cart[0]?.currency ?? lastSale?.currency ?? 'IRR';
+    const currency = cart[0]?.currency ?? lastSale?.currency ?? 'IRT';
 
     const addVariant = (variant: PosVariant) => {
         if (paymentLocked) {

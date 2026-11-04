@@ -24,7 +24,7 @@ public sealed class ProductEditorDto
 
     public decimal? DiscountPercentage { get; init; }
 
-    public string Currency { get; init; } = "IRR";
+    public string Currency { get; init; } = "IRT";
 
     public bool IsActive { get; init; }
 

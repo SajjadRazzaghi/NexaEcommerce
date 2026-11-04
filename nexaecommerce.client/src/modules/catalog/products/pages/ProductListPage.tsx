@@ -98,10 +98,7 @@ import {
     useDocumentTitle,
 } from '@/hooks/use-document-title';
 
-import {
-    formatPrice,
-} from '@/lib/utils';
-
+import { formatMoney } from '@/lib/formatMoney';
 import type {
     ProductListItem,
 } from '@/modules/catalog/api/products';
@@ -115,7 +112,10 @@ export default function ProductListPage() {
         i18n.language
             ?.toLowerCase()
             .startsWith('fa') ?? false;
-
+    const locale =
+        i18n.resolvedLanguage ??
+        i18n.language ??
+        'fa-IR';
     const text = isFa
         ? {
             title:
@@ -858,19 +858,22 @@ export default function ProductListPage() {
                                                         <TableCell>
                                                             <div className="flex flex-col">
                                                                 <span className="font-medium">
-                                                                    {formatPrice(
+                                                                    {formatMoney(
                                                                         product.finalPrice,
+                                                                        product.currency,
+                                                                        locale,
                                                                     )}
                                                                 </span>
 
-                                                                {product.price !==
-                                                                    product.finalPrice && (
-                                                                        <span className="text-xs text-muted-foreground line-through">
-                                                                            {formatPrice(
-                                                                                product.price,
-                                                                            )}
-                                                                        </span>
-                                                                    )}
+                                                                {product.price !== product.finalPrice && (
+                                                                    <span className="text-xs text-muted-foreground line-through">
+                                                                        {formatMoney(
+                                                                            product.price,
+                                                                            product.currency,
+                                                                            locale,
+                                                                        )}
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         </TableCell>
 

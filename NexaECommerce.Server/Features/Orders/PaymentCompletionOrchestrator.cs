@@ -225,10 +225,11 @@ public sealed class PaymentCompletionOrchestrator(
 
             var verification =
                 await gateway.VerifyAsync(
-                    new PaymentGatewayVerifyRequest(
-                        order.OrderNumber,
-                        paymentAttempt.Amount,
-                        gatewayReference),
+                  new PaymentGatewayVerifyRequest(
+    order.OrderNumber,
+    paymentAttempt.Amount,
+    gatewayReference,
+    order.Currency),
                     cancellationToken);
 
             if (!verification.Succeeded)

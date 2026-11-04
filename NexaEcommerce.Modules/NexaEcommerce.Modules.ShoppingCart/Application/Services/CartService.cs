@@ -755,7 +755,8 @@ public sealed class CartService(
     {
         var items =
             new List<CartItemDto>();
-
+        var currency = "IRT";
+        var currencyInitialized = false;
         foreach (
             var item in cart.Items
                 .Where(
@@ -767,6 +768,27 @@ public sealed class CartService(
                     .GetSellableVariantAsync(
                         item.ProductVariantId,
                         cancellationToken);
+            if (variant is not null)
+            {
+                var itemCurrency =
+                    string.IsNullOrWhiteSpace(variant.Currency)
+                        ? "IRT"
+                        : variant.Currency.Trim().ToUpperInvariant();
+
+                if (!currencyInitialized)
+                {
+                    currency = itemCurrency;
+                    currencyInitialized = true;
+                }
+                else if (!string.Equals(
+                    currency,
+                    itemCurrency,
+                    StringComparison.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        "All products in a shopping cart must use the same currency.");
+                }
+            }
 
             var attributes =
                 variant?.Attributes
@@ -808,14 +830,13 @@ public sealed class CartService(
                     item.LineTotal);
 
         return new CartDto(
-            cart.Id,
-            cart.TenantId,
-            items,
-            items.Sum(
-                item =>
-                    item.Quantity),
-            subtotal,
-            "IRR",
-            subtotal);
+      cart.Id,
+      cart.TenantId,
+      items,
+      items.Sum(
+          item => item.Quantity),
+      subtotal,
+      currency,
+      subtotal);
     }
 }

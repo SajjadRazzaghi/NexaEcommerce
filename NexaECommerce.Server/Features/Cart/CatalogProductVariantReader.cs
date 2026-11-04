@@ -163,16 +163,22 @@ public sealed class CatalogProductVariantReader(
                 .ToList();
 
         return new ProductVariantSnapshot(
-            variant.Id,
-            variant.Sku,
-            price,
-            Math.Max(
-                0,
-                stockQuantity),
-            variant.Product.Name,
-            image,
-            variant.IsActive,
-            variant.Product.IsPublished,
-            attributes);
+       variant.Id,
+       variant.Sku,
+       price,
+       Math.Max(
+           0,
+           stockQuantity),
+       variant.Product.Name,
+       image,
+       variant.IsActive,
+       variant.Product.IsPublished,
+       attributes)
+        {
+            Currency = string.IsNullOrWhiteSpace(
+           variant.Product.Currency)
+           ? "IRT"
+           : variant.Product.Currency.Trim().ToUpperInvariant()
+        };
     }
 }

@@ -1,13 +1,14 @@
-﻿using System.Data;
-using System.Security.Cryptography;
-using System.Text;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using NexaEcommerce.Modules.Inventory.Domain.Entities;
 using NexaEcommerce.Modules.Inventory.Infrastructure.Persistence;
 using NexaEcommerce.Modules.Orders.Application.Pos;
 using NexaEcommerce.Modules.Orders.Domain.Entities;
 using NexaEcommerce.Modules.Orders.Infrastructure.Persistence;
+using NexaEcommerce.SharedKernel.Domain.ValueObjects;
+using System.Data;
+using System.Security.Cryptography;
+using System.Text;
 
 namespace NexaECommerce.Server.Features.PointOfSale;
 
@@ -154,26 +155,36 @@ public sealed class PosBridgeService(
             return null;
         }
 
-        if (sale.TotalAmount <= 0 || sale.TotalAmount != decimal.Truncate(sale.TotalAmount) ||
-            sale.TotalAmount > long.MaxValue || !string.Equals(sale.Currency, "IRR", StringComparison.OrdinalIgnoreCase))
+        long amountInRial;
+
+        try
         {
-            // No bank request is sent for an unsupported amount/currency. Do not silently
-            // convert Toman/Rial; an operator must resolve the sale explicitly.
-            sale.MarkReconciliationRequired("مبلغ یا واحد پول فاکتور برای کارتخوان قابل ارسال نیست.");
+            amountInRial = IranianCurrency.ToRial(
+                sale.TotalAmount,
+                sale.Currency);
+        }
+        catch (Exception ex) when (
+            ex is NotSupportedException ||
+            ex is OverflowException ||
+            ex is ArgumentOutOfRangeException)
+        {
+            sale.MarkReconciliationRequired(
+                "مبلغ یا واحد پول فاکتور برای کارتخوان معتبر نیست.");
+
             await orders.SaveChangesAsync(ct);
             await transaction.CommitAsync(ct);
+
             return null;
         }
-
         sale.MarkPaymentInProgress(device.Id);
         await orders.SaveChangesAsync(ct);
         await transaction.CommitAsync(ct);
 
         return new PosBridgePaymentWorkItemDto(
-            sale.Id,
-            sale.SaleNumber,
-            decimal.ToInt64(sale.TotalAmount),
-            sale.Currency);
+      sale.Id,
+      sale.SaleNumber,
+      amountInRial,
+      IranianCurrency.Rial);
     }
 
     public async Task<PosBridgeCompletionResponse> CompleteAsync(
@@ -218,12 +229,21 @@ public sealed class PosBridgeService(
             if (sale.Status != PosSaleStatus.PaymentInProgress || sale.BridgeDeviceId != device.Id)
                 throw new PosConflictException("این فاکتور توسط این Bridge در حال پردازش نیست.");
 
-            if (sale.TotalAmount != request.Amount)
+            var expectedRialAmount = IranianCurrency.ToRial(
+     sale.TotalAmount,
+     sale.Currency);
+
+            if (expectedRialAmount != request.Amount)
             {
-                sale.MarkReconciliationRequired("مبلغ پاسخ کارتخوان با مبلغ فاکتور مطابقت ندارد.");
+                sale.MarkReconciliationRequired(
+                    "مبلغ پاسخ کارتخوان با مبلغ فاکتور مطابقت ندارد.");
+
                 await orders.SaveChangesAsync(ct);
                 await transaction.CommitAsync(ct);
-                return new PosBridgeCompletionResponse(sale.Id, sale.Status.ToString());
+
+                return new PosBridgeCompletionResponse(
+                    sale.Id,
+                    sale.Status.ToString());
             }
 
             if (outcome == "Unknown")

@@ -972,7 +972,7 @@ public sealed class ProductService : IProductService
             sku,
             slug,
             createDto.Price,
-            createDto.Currency ?? "IRR",
+            createDto.Currency ?? "IRT",
             createDto.Description);
 
         product.SetShortDescription(
