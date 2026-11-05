@@ -652,7 +652,7 @@ public sealed class ProductService : IProductService
           product.Price),
       0,
       variantDto.ComparePrice);
-
+            variant.SetActive(variantDto.IsActive);
             variant.SetBarcode(
                 variantDto.Barcode);
 

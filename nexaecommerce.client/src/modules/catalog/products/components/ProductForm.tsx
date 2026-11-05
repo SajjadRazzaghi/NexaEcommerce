@@ -2033,23 +2033,30 @@ export function ProductForm(
     const variantAttributes = useMemo(
         () =>
             attributes
-                .filter(attribute => attribute.isActive)
+                .filter(
+                    attribute =>
+                        attribute.isActive &&
+                        (
+                            ((attribute.defaultRole ?? 0) & 4) === 4
+                        ),
+                )
                 .map(attribute => ({
                     ...attribute,
-
                     values: [...attribute.values].sort(
                         (a, b) =>
                             a.displayOrder - b.displayOrder,
                     ),
                 }))
-                .filter(attribute => attribute.values.length > 0)
+                .filter(
+                    attribute =>
+                        attribute.values.length > 0,
+                )
                 .sort(
                     (a, b) =>
                         a.displayOrder - b.displayOrder,
                 ),
         [attributes],
     );
-
     const selectedVariantAttributeIds =
         form.watch('variantAttributeIds') ?? [];
 
@@ -3201,8 +3208,13 @@ const hasDuplicateVariantCombination =
             values:
                 FormValues,
         ) => {
-            const selectedAttributes =
-                activeVariantAttributes;
+            const selectedAttributeIds = new Set(
+                values.variantAttributeIds ?? [],
+            );
+
+            const selectedAttributes = variantAttributes.filter(
+                attribute => selectedAttributeIds.has(attribute.id),
+            );
 
             const variants =
                 values.variants ??
@@ -3549,7 +3561,7 @@ const hasDuplicateVariantCombination =
                                      */
                                     stockQuantity:
                                         0,
-
+                                    isActive: variant.isActive,
                                     attributeValueIds:
                                         sanitizeVariantAttributeValueIds(
                                             variant.attributeValueIds ?? [],
@@ -3583,7 +3595,7 @@ const hasDuplicateVariantCombination =
 
                                     stockQuantity:
                                         0,
-
+                                    isActive: true,
                                     attributeValueIds:
                                         [],
                                 },

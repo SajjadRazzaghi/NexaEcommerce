@@ -243,7 +243,10 @@ export type ProductFilter = {
 export type CreateProductVariantDto = {
     sku: string;
 
+    isActive: boolean;
+
     priceOverride?: number;
+
     stockQuantity: number;
 
     attributeValueIds?: string[];

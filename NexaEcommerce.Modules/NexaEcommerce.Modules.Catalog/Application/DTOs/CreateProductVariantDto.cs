@@ -10,21 +10,11 @@ public sealed class CreateProductVariantDto
 
     public decimal? ComparePrice { get; set; }
 
-    /*
-     * IDs belong to ProductAttributeValue records.
-     *
-     * Only values whose ProductAttribute.Role contains
-     * VariantDefining are allowed here.
-     */
+    public bool IsActive { get; set; } = true;
+
     public List<Guid> AttributeValueIds { get; set; } = new();
 
-    /*
-     * Optional variant-specific media.
-     */
-    public List<string> Images { get; set; } = new();/*
-     * Legacy compatibility only.
-     *
-     * Inventory is the source of truth for stock.
-     */
+    public List<string> Images { get; set; } = new();
+
     public int StockQuantity { get; set; }
 }
