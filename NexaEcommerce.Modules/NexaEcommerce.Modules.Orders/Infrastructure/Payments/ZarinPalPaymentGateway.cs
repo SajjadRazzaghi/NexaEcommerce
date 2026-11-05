@@ -59,8 +59,8 @@ public sealed class ZarinPalPaymentGateway(
         }
 
         var amount = IranianCurrency.ToRial(
-     request.Amount,
-     request.Currency);
+      request.Amount,
+      request.Currency);
 
         if (amount <= 0)
         {
@@ -274,8 +274,9 @@ public sealed class ZarinPalPaymentGateway(
         var authority =
             request.GatewayReference.Trim();
 
-        var amount =
-            ConvertToRial(request.Amount);
+        var amount = IranianCurrency.ToRial(
+      request.Amount,
+      request.Currency);
 
         if (amount <= 0)
         {

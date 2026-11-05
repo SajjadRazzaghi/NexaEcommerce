@@ -134,13 +134,21 @@ public sealed class CatalogOrderProductReader(
                 .ToList();
 
         return new OrderProductSnapshot(
-            variant.Id,
-            variant.Sku,
-            variant.Product.Name,
-            price,
-            variant.StockQuantity,
-            variant.IsActive,
-            isPublished,
-            attributes);
+       variant.Id,
+       variant.Sku,
+       variant.Product.Name,
+       price,
+       variant.StockQuantity,
+       variant.IsActive,
+       isPublished,
+       attributes)
+        {
+            Currency = string.IsNullOrWhiteSpace(
+           variant.Product.Currency)
+           ? "IRT"
+           : variant.Product.Currency
+               .Trim()
+               .ToUpperInvariant()
+        };
     }
 }

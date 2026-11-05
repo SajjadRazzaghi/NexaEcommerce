@@ -63,22 +63,17 @@ public sealed class OrderService(
                                 item => item.Quantity)))
                 .ToList();
 
-        var order =
-            Order.Create(
-                tenantId,
-                userId,
-                GenerateOrderNumber(),
-                idempotencyKey,
-                "IRR",
-                0m,
-                shippingQuote.Price,
-                0m,
-                request.ShippingFullName,
-                request.ShippingPhone,
-                request.ShippingAddress,
-                request.ShippingCity,
-              request.ShippingPostalCode,
-request.ShippingMethodId);
+        // --------------------------------------------------
+        // Load products and determine order currency
+        // --------------------------------------------------
+
+        var orderProducts =
+            new List<(
+                Guid ProductVariantId,
+                int Quantity,
+                OrderProductSnapshot Product)>();
+
+        string? orderCurrency = null;
 
         foreach (var line in grouped)
         {
@@ -103,13 +98,68 @@ request.ShippingMethodId);
                     $"Product variant {line.ProductVariantId} has an invalid price.");
             }
 
+            var productCurrency =
+                string.IsNullOrWhiteSpace(product.Currency)
+                    ? "IRT"
+                    : product.Currency.Trim().ToUpperInvariant();
+
+            if (orderCurrency is null)
+            {
+                orderCurrency = productCurrency;
+            }
+            else if (!string.Equals(
+                orderCurrency,
+                productCurrency,
+                StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidOperationException(
+                    "All products in an order must use the same currency.");
+            }
+
+            orderProducts.Add((
+                line.ProductVariantId,
+                line.Quantity,
+                product));
+        }
+
+        // --------------------------------------------------
+        // Create order with the actual product currency
+        // --------------------------------------------------
+
+        var order =
+            Order.Create(
+                tenantId,
+                userId,
+                GenerateOrderNumber(),
+                idempotencyKey,
+                orderCurrency ?? "IRT",
+                0m,
+                shippingQuote.Price,
+                0m,
+                request.ShippingFullName,
+                request.ShippingPhone,
+                request.ShippingAddress,
+                request.ShippingCity,
+                request.ShippingPostalCode,
+                request.ShippingMethodId);
+
+        // --------------------------------------------------
+        // Add order items
+        // --------------------------------------------------
+
+        foreach (var entry in orderProducts)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            var product = entry.Product;
+
             var orderItem =
-        order.AddItem(
-            product.Id,
-            product.Sku,
-            product.ProductName,
-            product.Price,
-            line.Quantity);
+                order.AddItem(
+                    product.Id,
+                    product.Sku,
+                    product.ProductName,
+                    product.Price,
+                    entry.Quantity);
 
             var attributeSnapshot =
                 product.Attributes
@@ -132,15 +182,6 @@ request.ShippingMethodId);
                 JsonSerializer.Serialize(
                     attributeSnapshot,
                     VariantAttributeJsonOptions));
-
-         
-
-       
-
-          
-
-           
-        
         }
 
         /*

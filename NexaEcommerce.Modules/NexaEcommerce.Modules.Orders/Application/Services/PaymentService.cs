@@ -22,6 +22,10 @@ public sealed class PaymentService(
         string callbackUrl,
         CancellationToken cancellationToken = default)
     {
+        // --------------------------------------------------
+        // Validate input
+        // --------------------------------------------------
+
         ValidateIdentity(
             tenantId,
             userId,
@@ -48,6 +52,13 @@ public sealed class PaymentService(
                 nameof(callbackUrl));
         }
 
+        var normalizedGatewayName =
+            gatewayName.Trim();
+
+        // --------------------------------------------------
+        // Load order
+        // --------------------------------------------------
+
         var order =
             await orders.GetByIdAsync(
                 tenantId,
@@ -60,6 +71,10 @@ public sealed class PaymentService(
             throw new InvalidOperationException(
                 "Order was not found.");
         }
+
+        // --------------------------------------------------
+        // Find existing payment attempt
+        // --------------------------------------------------
 
         var existing =
             await paymentAttempts.GetByIdempotencyKeyAsync(
@@ -106,8 +121,49 @@ public sealed class PaymentService(
                     "Payment attempt could not be loaded after creation.");
         }
 
+        // --------------------------------------------------
+        // Validate order and payment attempt
+        // --------------------------------------------------
+
+        if (!string.Equals(
+            paymentAttempt.Currency,
+            order.Currency,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Payment currency does not match order currency. Please check the order before starting payment.");
+        }
+
+        if (paymentAttempt.Amount != order.TotalAmount)
+        {
+            throw new InvalidOperationException(
+                "Payment amount does not match order total. Please check the order before starting payment.");
+        }
+
+        // اگر تلاش قبلی به درگاه دیگری تعلق دارد،
+        // نباید آن را با درگاه جدید ادامه بدهیم.
+        if (!string.IsNullOrWhiteSpace(
+                paymentAttempt.GatewayName) &&
+            !string.Equals(
+                paymentAttempt.GatewayName,
+                normalizedGatewayName,
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "The payment attempt is already associated with another payment gateway.");
+        }
+
+        // --------------------------------------------------
+        // Resolve gateway
+        // --------------------------------------------------
+
         var gateway =
-            gateways.Get(gatewayName);
+            gateways.Get(
+                normalizedGatewayName);
+
+        // --------------------------------------------------
+        // Already succeeded
+        // --------------------------------------------------
 
         if (paymentAttempt.Status ==
             PaymentAttemptStatus.Succeeded)
@@ -124,12 +180,21 @@ public sealed class PaymentService(
                 paymentAttempt.GatewayReference);
         }
 
+        // --------------------------------------------------
+        // Failed attempt cannot be reused
+        // --------------------------------------------------
+
         if (paymentAttempt.Status ==
             PaymentAttemptStatus.Failed)
         {
             throw new InvalidOperationException(
                 "The payment attempt has already failed. Use a new idempotency key.");
         }
+
+        // --------------------------------------------------
+        // Existing gateway reference
+        // Do not create a duplicate gateway request
+        // --------------------------------------------------
 
         if (!string.IsNullOrWhiteSpace(
                 paymentAttempt.GatewayReference))
@@ -146,13 +211,17 @@ public sealed class PaymentService(
                 paymentAttempt.GatewayReference);
         }
 
+        // --------------------------------------------------
+        // Create payment at gateway
+        // --------------------------------------------------
+
         var gatewayResult =
             await gateway.CreateAsync(
                 new PaymentGatewayCreateRequest(
                     order.OrderNumber,
                     paymentAttempt.Amount,
                     paymentAttempt.Currency,
-                    callbackUrl),
+                    callbackUrl.Trim()),
                 cancellationToken);
 
         if (!gatewayResult.Succeeded)
@@ -169,6 +238,10 @@ public sealed class PaymentService(
                 "Payment gateway could not create a payment.");
         }
 
+        // --------------------------------------------------
+        // Validate gateway response
+        // --------------------------------------------------
+
         if (string.IsNullOrWhiteSpace(
                 gatewayResult.GatewayReference))
         {
@@ -183,12 +256,20 @@ public sealed class PaymentService(
                 "Payment gateway did not return a gateway reference.");
         }
 
+        // --------------------------------------------------
+        // Save gateway information
+        // --------------------------------------------------
+
         paymentAttempt.MarkGatewayCreated(
             gateway.Name,
             gatewayResult.GatewayReference);
 
         await unitOfWork.SaveChangesAsync(
             cancellationToken);
+
+        // --------------------------------------------------
+        // Return payment result
+        // --------------------------------------------------
 
         return new CreatePaymentResultDto(
             paymentAttempt.Id,
@@ -208,6 +289,20 @@ public sealed class PaymentService(
         string gatewayReference,
         CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new ArgumentException(
+                "Tenant id is required.",
+                nameof(tenantId));
+        }
+
+        if (string.IsNullOrWhiteSpace(userId))
+        {
+            throw new ArgumentException(
+                "User id is required.",
+                nameof(userId));
+        }
+
         if (paymentAttemptId == Guid.Empty)
         {
             throw new ArgumentException(
@@ -222,6 +317,10 @@ public sealed class PaymentService(
                 nameof(gatewayReference));
         }
 
+        // --------------------------------------------------
+        // Load payment attempt
+        // --------------------------------------------------
+
         var attempt =
             await paymentAttempts.GetByIdAsync(
                 tenantId,
@@ -235,6 +334,7 @@ public sealed class PaymentService(
                 "Payment attempt was not found.");
         }
 
+        // پرداخت قبلاً با موفقیت تأیید شده است.
         if (attempt.Status ==
             PaymentAttemptStatus.Succeeded)
         {
@@ -255,19 +355,63 @@ public sealed class PaymentService(
                 "Payment gateway has not been initialized for this payment attempt.");
         }
 
+        // --------------------------------------------------
+        // Load related order
+        // --------------------------------------------------
+
+        var order =
+            await orders.GetByIdAsync(
+                tenantId,
+                attempt.OrderId,
+                userId,
+                cancellationToken);
+
+        if (order is null)
+        {
+            throw new InvalidOperationException(
+                "Order was not found.");
+        }
+
+        // --------------------------------------------------
+        // Validate payment amount and currency
+        // --------------------------------------------------
+
+        if (!string.Equals(
+            attempt.Currency,
+            order.Currency,
+            StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Payment currency does not match order currency.");
+        }
+
+        if (attempt.Amount != order.TotalAmount)
+        {
+            throw new InvalidOperationException(
+                "Payment amount does not match order total.");
+        }
+
+        // --------------------------------------------------
+        // Validate gateway reference
+        // --------------------------------------------------
+
         var normalizedReference =
             gatewayReference.Trim();
 
         if (!string.IsNullOrWhiteSpace(
                 attempt.GatewayReference) &&
             !string.Equals(
-                attempt.GatewayReference,
+                attempt.GatewayReference.Trim(),
                 normalizedReference,
                 StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
                 "Gateway reference does not match the payment attempt.");
         }
+
+        // --------------------------------------------------
+        // Verify payment with gateway
+        // --------------------------------------------------
 
         var gateway =
             gateways.Get(
@@ -278,7 +422,8 @@ public sealed class PaymentService(
                 new PaymentGatewayVerifyRequest(
                     attempt.OrderId.ToString("N"),
                     attempt.Amount,
-                    normalizedReference),
+                    normalizedReference,
+                    attempt.Currency),
                 cancellationToken);
 
         if (!result.Succeeded)
@@ -296,24 +441,29 @@ public sealed class PaymentService(
                 "Payment verification failed.");
         }
 
+        // --------------------------------------------------
+        // Normalize verified gateway reference
+        // --------------------------------------------------
+
         var verifiedReference =
             string.IsNullOrWhiteSpace(
                 result.GatewayReference)
                 ? normalizedReference
                 : result.GatewayReference.Trim();
 
-        /*
-         * IMPORTANT:
-         *
-         * Verification only proves that the gateway reports
-         * a successful transaction.
-         *
-         * It does NOT finalize the payment attempt and does NOT
-         * mark the order as Paid.
-         *
-         * Finalization belongs exclusively to
-         * PaymentCompletionOrchestrator.
-         */
+        if (!string.Equals(
+            verifiedReference,
+            normalizedReference,
+            StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Verified gateway reference does not match the payment attempt.");
+        }
+
+        // --------------------------------------------------
+        // Save gateway reference if not already stored
+        // --------------------------------------------------
+
         if (string.IsNullOrWhiteSpace(
                 attempt.GatewayReference))
         {
@@ -324,6 +474,17 @@ public sealed class PaymentService(
             await unitOfWork.SaveChangesAsync(
                 cancellationToken);
         }
+
+        /*
+         * IMPORTANT:
+         *
+         * Verification only confirms the gateway transaction.
+         *
+         * It does NOT mark the order as Paid.
+         *
+         * Final payment completion and inventory commitment
+         * belong exclusively to PaymentCompletionOrchestrator.
+         */
 
         return Map(attempt);
     }

@@ -30,7 +30,7 @@ public sealed record PaymentGatewayVerifyRequest(
     string MerchantOrderId,
     decimal Amount,
     string GatewayReference,
-    string Currency = "IRR");
+    string Currency);
 
 public sealed record PaymentGatewayVerifyResult(
     bool Succeeded,

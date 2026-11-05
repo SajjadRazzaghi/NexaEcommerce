@@ -352,7 +352,7 @@ function LabelContent({
 
             {/* سایز و رنگ */}
             <div
-                className="w-full text-center text-[7px] font-semibold leading-tight overflow-hidden"
+                className="w-full text-center text-[9px] font-extrabold leading-tight overflow-hidden"
                 style={{
                     display: '-webkit-box',
                     WebkitLineClamp: 1,
@@ -363,14 +363,17 @@ function LabelContent({
                 {line.variantText}
             </div>
 
-            {/* بارکد Code 128 - هشت رقم */}
+            {/* بارکد Code 128 */}
             <div className="flex w-full flex-1 items-center justify-center overflow-hidden">
                 <BarcodeSvg value={printableBarcode} />
             </div>
 
-            {/* قیمت */}
-            <div className="w-full text-center text-[8px] font-extrabold leading-tight whitespace-nowrap">
-                {formatMoney(line.price, line.currency, locale)}
+            {/* قیمت با عنوان و فونت درشت */}
+            <div
+                dir="rtl"
+                className="w-full text-center text-[11px] font-extrabold leading-tight whitespace-nowrap"
+            >
+                قیمت: {formatMoney(line.price, line.currency, locale)}
             </div>
 
             {/* عدد زیر بارکد */}

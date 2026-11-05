@@ -27,4 +27,7 @@ public sealed record OrderProductSnapshot(
     int StockQuantity,
     bool IsActive,
     bool IsPublished,
-    IReadOnlyList<OrderProductAttributeSnapshot> Attributes);
+    IReadOnlyList<OrderProductAttributeSnapshot> Attributes)
+{
+    public string Currency { get; init; } = "IRT";
+}

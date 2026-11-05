@@ -209,6 +209,14 @@ public sealed class PaymentCompletionOrchestrator(
          * Therefore do NOT call EnsureForCompletionAsync here because
          * that method would try to acquire the same lock again.
          */
+        if (!string.Equals(
+    paymentAttempt.Currency,
+    order.Currency,
+    StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException(
+                "Payment attempt currency does not match order currency.");
+        }
         await paymentReservations.EnsureForCompletionUnderLockAsync(
             tenantId,
             userId,
@@ -225,11 +233,11 @@ public sealed class PaymentCompletionOrchestrator(
 
             var verification =
                 await gateway.VerifyAsync(
-                  new PaymentGatewayVerifyRequest(
+                new PaymentGatewayVerifyRequest(
     order.OrderNumber,
     paymentAttempt.Amount,
     gatewayReference,
-    order.Currency),
+    paymentAttempt.Currency),
                     cancellationToken);
 
             if (!verification.Succeeded)
