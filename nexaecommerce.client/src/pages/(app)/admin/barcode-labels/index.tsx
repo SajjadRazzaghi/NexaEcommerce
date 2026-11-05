@@ -323,7 +323,7 @@ function BarcodeSvg({ value }: { value: string }) {
 // Label content
 // ---------------------------------------------------------
 function getPrintableBarcode(value: string): string {
-    return value.replace(/\D/g, '').slice(0, 8);
+    return value.trim();
 }
 function LabelContent({
     line,
