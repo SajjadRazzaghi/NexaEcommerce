@@ -4,7 +4,7 @@ import {
 } from 'react';
 import {
     Button,
-    Chip,
+ 
     Dialog,
     DialogActions,
     DialogContent,
@@ -15,7 +15,7 @@ import {
 } from '@mui/material';
 
 import {
-    CheckCircle,
+   
     ShoppingCartOutlined,
 } from '@mui/icons-material';
 
@@ -348,16 +348,6 @@ export default function ProductVariantPickerDialog({
             selectedVariant,
         );
     };
-
-    const formatNumber = (
-        value: number,
-    ) =>
-        new Intl.NumberFormat(
-            isFa
-                ? 'fa-IR'
-                : 'en-US',
-        ).format(value);
-
     const formatPrice = (
         value: number,
     ) =>
@@ -598,40 +588,7 @@ export default function ProductVariantPickerDialog({
                                 flexWrap: 'wrap',
                             }}
                         >
-                            <Stack
-                                direction="row"
-                                sx={{
-                                    direction: isFa
-                                        ? 'rtl'
-                                        : 'ltr',
-
-                                    alignItems: 'center',
-                                    gap: 1,
-                                    flexWrap: 'wrap',
-                                }}
-                            >
-                                <Chip
-                                    icon={
-                                        <CheckCircle />
-                                    }
-                                    label={`${getText(
-                                        'storefront.productDetail.sku',
-                                        'SKU',
-                                    )}: ${selectedVariant.sku}`}
-                                    color="success"
-                                    variant="outlined"
-                                />
-
-                                <Chip
-                                    label={`${getText(
-                                        'storefront.productDetail.availableQuantity',
-                                        'Available quantity',
-                                    )}: ${formatNumber(
-                                        selectedVariant.stockQuantity,
-                                    )}`}
-                                    color="success"
-                                />
-                            </Stack>
+                
 
                             <Typography
                                 variant="body2"

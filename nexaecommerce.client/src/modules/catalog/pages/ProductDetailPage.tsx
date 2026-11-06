@@ -1269,22 +1269,7 @@ export default function ProductDetailPage() {
                                         )}
                                     </Stack>
 
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                    >
-                                        {
-                                            getText(
-                                                'storefront.productDetail.sku',
-                                                'SKU',
-                                            )
-                                        }
-                                        :{' '}
-                                        {
-                                            activeVariant?.sku ||
-                                            product.sku
-                                        }
-                                    </Typography>
+                                  
 
                                     <Divider />
 
@@ -1717,26 +1702,7 @@ export default function ProductDetailPage() {
                                         </Button>
                                     </Stack>
 
-                                    {maxQuantity >
-                                        0 && (
-                                            <Typography
-                                                variant="caption"
-                                                color="text.secondary"
-                                            >
-                                                {
-                                                    getText(
-                                                        'storefront.productDetail.availableQuantity',
-                                                        'Available quantity',
-                                                    )
-                                                }
-                                                :{' '}
-                                                {
-                                                    formatCount(
-                                                        maxQuantity,
-                                                    )
-                                                }
-                                            </Typography>
-                                        )}
+                                  
 
                                     {product.shortDescription && (
                                         <>
