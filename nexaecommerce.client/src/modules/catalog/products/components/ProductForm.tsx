@@ -4226,63 +4226,142 @@ const hasDuplicateVariantCombination =
                             )}
                         />
 
+
                         <FormField
-                            control={
-                                form.control
-                            }
+                            control={form.control}
                             name="categoryIds"
-                            render={({
-                                field,
-                            }) => (
-                                <FormItem>
-                                    <FormLabel>
-                                        {t(
-                                            'productEdit.fields.categories',
-                                        )}
-                                    </FormLabel>
+                            render={({ field }) => {
+                                const selectedIds = field.value ?? [];
 
-                                    <FormControl>
-                                        <select
-                                            multiple
-                                            className="flex h-32 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                                            value={
-                                                field.value
-                                            }
-                                            onChange={event =>
-                                                field.onChange(
-                                                    Array.from(
-                                                        event
-                                                            .target
-                                                            .selectedOptions,
-                                                        option =>
-                                                            option.value,
-                                                    ),
-                                                )
-                                            }
-                                        >
-                                            {categories.map(
-                                                category => (
-                                                    <option
-                                                        key={
-                                                            category.id
-                                                        }
-                                                        value={
-                                                            category.id
-                                                        }
-                                                    >
-                                                        {
-                                                            category.name
-                                                        }
-                                                    </option>
-                                                ),
-                                            )}
-                                        </select>
-                                    </FormControl>
+                                const selectedCategories = categories.filter(
+                                    category => selectedIds.includes(category.id),
+                                );
 
-                                    <FormMessage />
-                                </FormItem>
-                            )}
+                                const toggleCategory = (
+                                    categoryId: string,
+                                    checked: boolean,
+                                ) => {
+                                    const nextIds = checked
+                                        ? Array.from(new Set([...selectedIds, categoryId]))
+                                        : selectedIds.filter(id => id !== categoryId);
+
+                                    field.onChange(nextIds);
+                                };
+
+                                return (
+                                    <FormItem>
+                                        <div className="flex flex-wrap items-center justify-between gap-2">
+                                            <FormLabel>
+                                                {t('productEdit.fields.categories')}
+                                            </FormLabel>
+
+                                            <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
+                                                {selectedIds.length} دسته انتخاب شده
+                                            </span>
+                                        </div>
+
+                                        <FormControl>
+                                            <div className="space-y-3">
+
+                                                {/* Selected categories */}
+                                                {selectedCategories.length > 0 && (
+                                                    <div className="flex flex-wrap gap-2 rounded-md border bg-muted/30 p-3">
+                                                        {selectedCategories.map(category => (
+                                                            <span
+                                                                key={category.id}
+                                                                className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-sm text-primary"
+                                                            >
+                                                                {category.name}
+
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() =>
+                                                                        toggleCategory(
+                                                                            category.id,
+                                                                            false,
+                                                                        )
+                                                                    }
+                                                                    className="font-bold hover:text-destructive"
+                                                                    aria-label={`حذف دسته ${category.name}`}
+                                                                >
+                                                                    ×
+                                                                </button>
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
+
+                                                {/* Category selection */}
+                                                <div className="max-h-72 overflow-y-auto rounded-md border p-3">
+                                                    {categories.length === 0 ? (
+                                                        <p className="py-4 text-center text-sm text-muted-foreground">
+                                                            دسته‌بندی فعالی برای انتخاب وجود ندارد.
+                                                        </p>
+                                                    ) : (
+                                                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                                            {categories.map(category => {
+                                                                const checked =
+                                                                    selectedIds.includes(category.id);
+
+                                                                return (
+                                                                    <label
+                                                                        key={category.id}
+                                                                        className={`
+                                                    flex cursor-pointer items-center gap-3
+                                                    rounded-md border p-3 transition-colors
+                                                    hover:bg-muted/60
+                                                    ${checked
+                                                                                ? 'border-primary bg-primary/5'
+                                                                                : 'border-border'
+                                                                            }
+                                                `}
+                                                                    >
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={checked}
+                                                                            onChange={event =>
+                                                                                toggleCategory(
+                                                                                    category.id,
+                                                                                    event.target.checked,
+                                                                                )
+                                                                            }
+                                                                            className="size-4 accent-primary"
+                                                                        />
+
+                                                                        <span className="text-sm font-medium">
+                                                                            {category.name}
+                                                                        </span>
+                                                                    </label>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                                    <p className="text-xs text-muted-foreground">
+                                                        هر محصول می‌تواند هم‌زمان در چند دسته‌بندی نمایش داده شود.
+                                                    </p>
+
+                                                    {selectedIds.length > 0 && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => field.onChange([])}
+                                                            className="text-xs text-destructive hover:underline"
+                                                        >
+                                                            پاک کردن همه انتخاب‌ها
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </FormControl>
+
+                                        <FormMessage />
+                                    </FormItem>
+                                );
+                            }}
                         />
+
                     </CardContent>
                 </Card>
 

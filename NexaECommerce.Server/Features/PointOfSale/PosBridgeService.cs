@@ -67,7 +67,60 @@ public sealed class PosBridgeService(
         await orders.SaveChangesAsync(ct);
         return new PosBridgeHealthDto(true, device.Name);
     }
+    public async Task<PosBridgeAvailabilityDto> GetSellerAvailabilityAsync(
+    string tenantId,
+    CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            return new PosBridgeAvailabilityDto(
+                false,
+                false,
+                null,
+                null,
+                "شناسه فروشگاه معتبر نیست.");
+        }
 
+        var device = await orders.Set<PosBridgeDevice>()
+            .AsNoTracking()
+            .Where(x =>
+                x.TenantId == tenantId &&
+                x.IsActive)
+            .OrderByDescending(x => x.CreatedAtUtc)
+            .Select(x => new
+            {
+                x.Name,
+                x.LastSeenAtUtc
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (device is null)
+        {
+            return new PosBridgeAvailabilityDto(
+                false,
+                false,
+                null,
+                null,
+                "برای این فروشگاه Bridge فعالی ثبت نشده است.");
+        }
+
+        // Bridge باید حداقل هر ۶۰ ثانیه Heartbeat داشته باشد.
+        // ۹۰ ثانیه برای تأخیرهای کوتاه شبکه در نظر گرفته شده است.
+        var onlineSince = DateTime.UtcNow.AddSeconds(-90);
+
+        var online =
+            device.LastSeenAtUtc.HasValue &&
+            device.LastSeenAtUtc.Value >= onlineSince;
+
+        return new PosBridgeAvailabilityDto(
+            true,
+            online,
+            device.Name,
+            device.LastSeenAtUtc,
+            online
+                ? null
+                : "ارتباط با نرم‌افزار Bridge برقرار نیست.");
+    }
     public async Task<PosSalePaymentStatusDto?> GetSellerSaleStatusAsync(
         string tenantId, string sellerUserId, Guid saleId, CancellationToken ct)
     {
@@ -188,78 +241,291 @@ public sealed class PosBridgeService(
     }
 
     public async Task<PosBridgeCompletionResponse> CompleteAsync(
-        string token,
-        Guid saleId,
-        PosBridgePaymentCompletionRequest request,
-        CancellationToken ct)
+     string token,
+     Guid saleId,
+     PosBridgePaymentCompletionRequest request,
+     CancellationToken ct)
     {
         var device = await AuthenticateAsync(token, ct);
-        if (saleId == Guid.Empty) throw new PosValidationException("شناسه فاکتور معتبر نیست.");
-        if (request is null) throw new PosValidationException("نتیجه پرداخت ارسال نشده است.");
-        if (request.Amount <= 0) throw new PosValidationException("مبلغ برگشتی معتبر نیست.");
+
+        if (saleId == Guid.Empty)
+            throw new PosValidationException("شناسه فاکتور معتبر نیست.");
+
+        if (request is null)
+            throw new PosValidationException("نتیجه پرداخت ارسال نشده است.");
+
+        if (request.Amount <= 0)
+            throw new PosValidationException("مبلغ برگشتی معتبر نیست.");
 
         var outcome = request.Outcome?.Trim();
+
         if (outcome is not ("Succeeded" or "Declined" or "Unknown"))
-            throw new PosValidationException("Outcome فقط می‌تواند Succeeded، Declined یا Unknown باشد.");
+            throw new PosValidationException(
+                "Outcome فقط می‌تواند Succeeded، Declined یا Unknown باشد.");
 
         BindSharedConnection();
-        orders.ChangeTracker.Clear();
-        inventory.ChangeTracker.Clear();
 
-        await using var transaction = await orders.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable, ct);
-        await inventory.Database.UseTransactionAsync(transaction.GetDbTransaction(), ct);
+        var strategy = orders.Database.CreateExecutionStrategy();
 
-        try
+        return await strategy.ExecuteAsync(async () =>
         {
-            var sale = await orders.PosSales
-                .Include(x => x.Items)
-                .SingleOrDefaultAsync(x => x.TenantId == device.TenantId && x.Id == saleId, ct);
+            orders.ChangeTracker.Clear();
+            inventory.ChangeTracker.Clear();
 
-            if (sale is null) throw new PosNotFoundException("فاکتور متعلق به این فروشگاه پیدا نشد.");
+            await using var transaction =
+                await orders.Database.BeginTransactionAsync(
+                    IsolationLevel.Serializable, ct);
 
-            // Idempotent callback: the Bridge may retry a callback if HTTPS dropped after
-            // the server committed it. Never consume/release the same reservation twice.
-            if (sale.Status is PosSaleStatus.Paid or PosSaleStatus.Cancelled or PosSaleStatus.ReconciliationRequired)
+            await inventory.Database.UseTransactionAsync(
+                transaction.GetDbTransaction(), ct);
+
+            try
             {
-                await transaction.CommitAsync(ct);
-                return new PosBridgeCompletionResponse(sale.Id, sale.Status.ToString());
-            }
+                var sale = await orders.PosSales
+                    .Include(x => x.Items)
+                    .SingleOrDefaultAsync(
+                        x => x.TenantId == device.TenantId &&
+                             x.Id == saleId, ct);
 
-            if (sale.Status != PosSaleStatus.PaymentInProgress || sale.BridgeDeviceId != device.Id)
-                throw new PosConflictException("این فاکتور توسط این Bridge در حال پردازش نیست.");
+                if (sale is null)
+                    throw new PosNotFoundException(
+                        "فاکتور متعلق به این فروشگاه پیدا نشد.");
 
-            var expectedRialAmount = IranianCurrency.ToRial(
-     sale.TotalAmount,
-     sale.Currency);
+                // Idempotent callback
+                if (sale.Status is PosSaleStatus.Paid
+                    or PosSaleStatus.Cancelled
+                    or PosSaleStatus.ReconciliationRequired)
+                {
+                    await transaction.CommitAsync(ct);
 
-            if (expectedRialAmount != request.Amount)
-            {
-                sale.MarkReconciliationRequired(
-                    "مبلغ پاسخ کارتخوان با مبلغ فاکتور مطابقت ندارد.");
+                    return new PosBridgeCompletionResponse(
+                        sale.Id,
+                        sale.Status.ToString());
+                }
 
+                if (sale.Status != PosSaleStatus.PaymentInProgress ||
+                    sale.BridgeDeviceId != device.Id)
+                {
+                    throw new PosConflictException(
+                        "این فاکتور توسط این Bridge در حال پردازش نیست.");
+                }
+
+                var expectedRialAmount = IranianCurrency.ToRial(
+                    sale.TotalAmount,
+                    sale.Currency);
+
+                if (expectedRialAmount != request.Amount)
+                {
+                    sale.MarkReconciliationRequired(
+                        "مبلغ پاسخ کارتخوان با مبلغ فاکتور مطابقت ندارد.");
+
+                    await orders.SaveChangesAsync(ct);
+                    await transaction.CommitAsync(ct);
+
+                    return new PosBridgeCompletionResponse(
+                        sale.Id,
+                        sale.Status.ToString());
+                }
+
+                if (outcome == "Unknown")
+                {
+                    // وضعیت نامشخص؛ رزرو موجودی حفظ می‌شود.
+                    sale.MarkReconciliationRequired(
+                        SafeMessage(request.Message));
+                }
+                else
+                {
+                    var allocations = await inventory.WarehouseStockMovements
+                        .Where(x =>
+                            x.TenantId == device.TenantId &&
+                            x.ReferenceType == ReservationReferenceType &&
+                            x.ReferenceId == sale.Id.ToString("D") &&
+                            x.Type == WarehouseStockMovementType.Reservation &&
+                            x.QuantityDelta > 0)
+                        .OrderBy(x => x.WarehouseId)
+                        .ThenBy(x => x.LocationId)
+                        .ThenBy(x => x.ProductVariantId)
+                        .ToListAsync(ct);
+
+                    if (allocations.Count == 0)
+                    {
+                        sale.MarkReconciliationRequired(
+                            "رزرو موجودی فاکتور یافت نشد؛ بررسی دستی لازم است.");
+                    }
+                    else if (outcome == "Succeeded")
+                    {
+                        foreach (var allocation in allocations)
+                        {
+                            var stock = await inventory.WarehouseStocks
+                                .SingleOrDefaultAsync(x =>
+                                    x.TenantId == device.TenantId &&
+                                    x.WarehouseId == allocation.WarehouseId &&
+                                    x.LocationId == allocation.LocationId &&
+                                    x.ProductVariantId == allocation.ProductVariantId,
+                                    ct);
+
+                            if (stock is null)
+                            {
+                                throw new PosConflictException(
+                                    "ردیف موجودی رزروشده یافت نشد؛ فاکتور به بررسی دستی نیاز دارد.");
+                            }
+
+                            stock.ConsumeReserved(allocation.QuantityDelta);
+
+                            inventory.WarehouseStockMovements.Add(
+                                WarehouseStockMovement.Create(
+                                    device.TenantId,
+                                    allocation.WarehouseId,
+                                    allocation.LocationId,
+                                    allocation.ProductVariantId,
+                                    WarehouseStockMovementType.Sale,
+                                    -allocation.QuantityDelta,
+                                    stock.OnHandQuantity,
+                                    "PosSale",
+                                    sale.Id.ToString("D"),
+                                    $"فروش حضوری پرداخت‌شده {sale.SaleNumber}"));
+                        }
+
+                        sale.MarkGatewayPaid(
+                            NormalizeReference(request.PaymentReference),
+                            SafeMessage(request.Message));
+                    }
+                    else // Declined
+                    {
+                        foreach (var allocation in allocations)
+                        {
+                            var stock = await inventory.WarehouseStocks
+                                .SingleOrDefaultAsync(x =>
+                                    x.TenantId == device.TenantId &&
+                                    x.WarehouseId == allocation.WarehouseId &&
+                                    x.LocationId == allocation.LocationId &&
+                                    x.ProductVariantId == allocation.ProductVariantId,
+                                    ct);
+
+                            if (stock is null)
+                            {
+                                throw new PosConflictException(
+                                    "ردیف موجودی رزروشده یافت نشد؛ فاکتور به بررسی دستی نیاز دارد.");
+                            }
+
+                            stock.Release(allocation.QuantityDelta);
+
+                            inventory.WarehouseStockMovements.Add(
+                                WarehouseStockMovement.Create(
+                                    device.TenantId,
+                                    allocation.WarehouseId,
+                                    allocation.LocationId,
+                                    allocation.ProductVariantId,
+                                    WarehouseStockMovementType.ReservationRelease,
+                                    -allocation.QuantityDelta,
+                                    stock.OnHandQuantity,
+                                    "PosSalePayment",
+                                    sale.Id.ToString("D"),
+                                    $"آزادسازی رزرو پرداخت ناموفق {sale.SaleNumber}"));
+                        }
+
+                        sale.MarkGatewayDeclined(
+                            SafeMessage(request.Message));
+                    }
+                }
+
+                await inventory.SaveChangesAsync(ct);
                 await orders.SaveChangesAsync(ct);
+
                 await transaction.CommitAsync(ct);
 
                 return new PosBridgeCompletionResponse(
                     sale.Id,
                     sale.Status.ToString());
             }
-
-            if (outcome == "Unknown")
+            catch
             {
-                // Keep reserved stock untouched until bank reconciliation. The Bridge must
-                // never issue this request again.
-                sale.MarkReconciliationRequired(SafeMessage(request.Message));
+                await transaction.RollbackAsync(CancellationToken.None);
+                throw;
             }
-            else
+            finally
             {
+                await inventory.Database.UseTransactionAsync(
+                    null, CancellationToken.None);
+            }
+        });
+    }
+    public async Task<PosBridgeCompletionResponse> CancelUnclaimedAsync(
+      string tenantId,
+      string sellerUserId,
+      Guid saleId,
+      CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(tenantId) ||
+            string.IsNullOrWhiteSpace(sellerUserId) ||
+            saleId == Guid.Empty)
+        {
+            throw new PosValidationException(
+                "اطلاعات فروشنده یا فاکتور معتبر نیست.");
+        }
+
+        BindSharedConnection();
+
+        // SQL Server retry strategy must execute the entire transaction.
+        var strategy = orders.Database.CreateExecutionStrategy();
+
+        return await strategy.ExecuteAsync(async () =>
+        {
+            orders.ChangeTracker.Clear();
+            inventory.ChangeTracker.Clear();
+
+            await using var transaction =
+                await orders.Database.BeginTransactionAsync(
+                    IsolationLevel.Serializable,
+                    ct);
+
+            await inventory.Database.UseTransactionAsync(
+                transaction.GetDbTransaction(),
+                ct);
+
+            try
+            {
+                var sale = await orders.PosSales
+                    .SingleOrDefaultAsync(x =>
+                        x.TenantId == tenantId &&
+                        x.SellerUserId == sellerUserId &&
+                        x.Id == saleId,
+                        ct);
+
+                if (sale is null)
+                {
+                    throw new PosNotFoundException(
+                        "فاکتور متعلق به این فروشنده پیدا نشد.");
+                }
+
+                // Idempotent retry: an already-cancelled sale
+                // must never release its reservation again.
+                if (sale.Status == PosSaleStatus.Cancelled)
+                {
+                    await transaction.CommitAsync(ct);
+
+                    return new PosBridgeCompletionResponse(
+                        sale.Id,
+                        sale.Status.ToString());
+                }
+
+                // Only an unclaimed payment may be cancelled.
+                if (sale.PaymentMethod != PosPaymentMethod.BankMellat ||
+                    sale.Status != PosSaleStatus.PendingPayment ||
+                    sale.BridgeDeviceId.HasValue ||
+                    sale.PaymentStartedAtUtc.HasValue)
+                {
+                    throw new PosConflictException(
+                        "این فاکتور قبلاً توسط Bridge دریافت شده یا وضعیت آن نامشخص است. لغو خودکار مجاز نیست.");
+                }
+
                 var allocations = await inventory.WarehouseStockMovements
-                    .Where(x => x.TenantId == device.TenantId &&
-                                x.ReferenceType == ReservationReferenceType &&
-                                x.ReferenceId == sale.Id.ToString("D") &&
-                                x.Type == WarehouseStockMovementType.Reservation &&
-                                x.QuantityDelta > 0)
+                    .Where(x =>
+                        x.TenantId == tenantId &&
+                        x.ReferenceType == ReservationReferenceType &&
+                        x.ReferenceId == sale.Id.ToString("D") &&
+                        x.Type == WarehouseStockMovementType.Reservation &&
+                        x.QuantityDelta > 0)
                     .OrderBy(x => x.WarehouseId)
                     .ThenBy(x => x.LocationId)
                     .ThenBy(x => x.ProductVariantId)
@@ -267,55 +533,31 @@ public sealed class PosBridgeService(
 
                 if (allocations.Count == 0)
                 {
-                    sale.MarkReconciliationRequired("رزرو موجودی فاکتور یافت نشد؛ بررسی دستی لازم است.");
+                    throw new PosConflictException(
+                        "رزرو موجودی این فاکتور پیدا نشد؛ آزادسازی خودکار امن نیست.");
                 }
-                else if (outcome == "Succeeded")
+
+                foreach (var allocation in allocations)
                 {
-                    foreach (var allocation in allocations)
-                    {
-                        var stock = await inventory.WarehouseStocks.SingleOrDefaultAsync(x =>
-                            x.TenantId == device.TenantId &&
+                    var stock = await inventory.WarehouseStocks
+                        .SingleOrDefaultAsync(x =>
+                            x.TenantId == tenantId &&
                             x.WarehouseId == allocation.WarehouseId &&
                             x.LocationId == allocation.LocationId &&
-                            x.ProductVariantId == allocation.ProductVariantId, ct);
+                            x.ProductVariantId == allocation.ProductVariantId,
+                            ct);
 
-                        if (stock is null)
-                            throw new PosConflictException("ردیف موجودی رزروشده یافت نشد؛ فاکتور به بررسی دستی نیاز دارد.");
-
-                        stock.ConsumeReserved(allocation.QuantityDelta);
-                        inventory.WarehouseStockMovements.Add(WarehouseStockMovement.Create(
-                            device.TenantId,
-                            allocation.WarehouseId,
-                            allocation.LocationId,
-                            allocation.ProductVariantId,
-                            WarehouseStockMovementType.Sale,
-                            -allocation.QuantityDelta,
-                            stock.OnHandQuantity,
-                            "PosSale",
-                            sale.Id.ToString("D"),
-                            $"فروش حضوری پرداخت‌شده {sale.SaleNumber}"));
+                    if (stock is null)
+                    {
+                        throw new PosConflictException(
+                            "ردیف موجودی رزروشده پیدا نشد.");
                     }
 
-                    sale.MarkGatewayPaid(
-                        NormalizeReference(request.PaymentReference),
-                        SafeMessage(request.Message));
-                }
-                else // Declined: Bridge uses this only when it knows the bank request was not charged.
-                {
-                    foreach (var allocation in allocations)
-                    {
-                        var stock = await inventory.WarehouseStocks.SingleOrDefaultAsync(x =>
-                            x.TenantId == device.TenantId &&
-                            x.WarehouseId == allocation.WarehouseId &&
-                            x.LocationId == allocation.LocationId &&
-                            x.ProductVariantId == allocation.ProductVariantId, ct);
+                    stock.Release(allocation.QuantityDelta);
 
-                        if (stock is null)
-                            throw new PosConflictException("ردیف موجودی رزروشده یافت نشد؛ فاکتور به بررسی دستی نیاز دارد.");
-
-                        stock.Release(allocation.QuantityDelta);
-                        inventory.WarehouseStockMovements.Add(WarehouseStockMovement.Create(
-                            device.TenantId,
+                    inventory.WarehouseStockMovements.Add(
+                        WarehouseStockMovement.Create(
+                            tenantId,
                             allocation.WarehouseId,
                             allocation.LocationId,
                             allocation.ProductVariantId,
@@ -324,128 +566,206 @@ public sealed class PosBridgeService(
                             stock.OnHandQuantity,
                             "PosSalePayment",
                             sale.Id.ToString("D"),
-                            $"آزادسازی رزرو پرداخت ناموفق {sale.SaleNumber}"));
-                    }
-
-                    sale.MarkGatewayDeclined(SafeMessage(request.Message));
+                            $"آزادسازی رزرو درخواست ارسال‌نشده {sale.SaleNumber}"));
                 }
+
+                sale.MarkCancelled();
+
+                await inventory.SaveChangesAsync(ct);
+                await orders.SaveChangesAsync(ct);
+
+                await transaction.CommitAsync(ct);
+
+                return new PosBridgeCompletionResponse(
+                    sale.Id,
+                    sale.Status.ToString());
             }
+            catch
+            {
+                await transaction.RollbackAsync(
+                    CancellationToken.None);
 
-            await inventory.SaveChangesAsync(ct);
-            await orders.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
-            return new PosBridgeCompletionResponse(sale.Id, sale.Status.ToString());
-        }
-        catch
-        {
-            await transaction.RollbackAsync(CancellationToken.None);
-            throw;
-        }
-        finally
-        {
-            await inventory.Database.UseTransactionAsync(null, CancellationToken.None);
-        }
+                throw;
+            }
+            finally
+            {
+                await inventory.Database.UseTransactionAsync(
+                    null,
+                    CancellationToken.None);
+            }
+        });
     }
-
     public async Task<PosBridgeCompletionResponse> ReconcileAsync(
-        string tenantId, Guid saleId, PosBridgeReconciliationRequest request, CancellationToken ct)
+    string tenantId,
+    Guid saleId,
+    PosBridgeReconciliationRequest request,
+    CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(tenantId) || saleId == Guid.Empty)
-            throw new PosValidationException("شناسه فروشگاه یا فاکتور معتبر نیست.");
-        if (request is null) throw new PosValidationException("اطلاعات تطبیق ارسال نشده است.");
+        if (string.IsNullOrWhiteSpace(tenantId) ||
+            saleId == Guid.Empty)
+        {
+            throw new PosValidationException(
+                "شناسه فروشگاه یا فاکتور معتبر نیست.");
+        }
+
+        if (request is null)
+            throw new PosValidationException(
+                "اطلاعات تطبیق ارسال نشده است.");
 
         var outcome = request.Outcome?.Trim();
+
         if (outcome is not ("Succeeded" or "Declined"))
-            throw new PosValidationException("نتیجه تطبیق باید Succeeded یا Declined باشد.");
+        {
+            throw new PosValidationException(
+                "نتیجه تطبیق باید Succeeded یا Declined باشد.");
+        }
 
         BindSharedConnection();
-        orders.ChangeTracker.Clear();
-        inventory.ChangeTracker.Clear();
 
-        await using var transaction = await orders.Database.BeginTransactionAsync(
-            IsolationLevel.Serializable, ct);
-        await inventory.Database.UseTransactionAsync(transaction.GetDbTransaction(), ct);
+        var strategy = orders.Database.CreateExecutionStrategy();
 
-        try
+        return await strategy.ExecuteAsync(async () =>
         {
-            var sale = await orders.PosSales.SingleOrDefaultAsync(
-                x => x.TenantId == tenantId && x.Id == saleId, ct);
-            if (sale is null) throw new PosNotFoundException("فاکتور پیدا نشد.");
-            if (sale.Status is PosSaleStatus.Paid or PosSaleStatus.Cancelled)
+            orders.ChangeTracker.Clear();
+            inventory.ChangeTracker.Clear();
+
+            await using var transaction =
+                await orders.Database.BeginTransactionAsync(
+                    IsolationLevel.Serializable, ct);
+
+            await inventory.Database.UseTransactionAsync(
+                transaction.GetDbTransaction(), ct);
+
+            try
             {
-                await transaction.CommitAsync(ct);
-                return new PosBridgeCompletionResponse(sale.Id, sale.Status.ToString());
-            }
-            if (sale.Status != PosSaleStatus.ReconciliationRequired ||
-                sale.PaymentMethod != PosPaymentMethod.BankMellat)
-                throw new PosConflictException("فقط فاکتور کارتخوان در وضعیت ReconciliationRequired قابل تطبیق است.");
+                var sale = await orders.PosSales
+                    .SingleOrDefaultAsync(
+                        x => x.TenantId == tenantId &&
+                             x.Id == saleId, ct);
 
-            var allocations = await inventory.WarehouseStockMovements
-                .Where(x => x.TenantId == tenantId &&
-                            x.ReferenceType == ReservationReferenceType &&
-                            x.ReferenceId == sale.Id.ToString("D") &&
-                            x.Type == WarehouseStockMovementType.Reservation &&
-                            x.QuantityDelta > 0)
-                .OrderBy(x => x.WarehouseId)
-                .ThenBy(x => x.LocationId)
-                .ThenBy(x => x.ProductVariantId)
-                .ToListAsync(ct);
+                if (sale is null)
+                    throw new PosNotFoundException("فاکتور پیدا نشد.");
 
-            if (allocations.Count == 0)
-                throw new PosConflictException("رزرو موجودی فاکتور پیدا نشد؛ تطبیق خودکار ایمن نیست.");
+                if (sale.Status is PosSaleStatus.Paid
+                    or PosSaleStatus.Cancelled)
+                {
+                    await transaction.CommitAsync(ct);
 
-            foreach (var allocation in allocations)
-            {
-                var stock = await inventory.WarehouseStocks.SingleOrDefaultAsync(x =>
-                    x.TenantId == tenantId &&
-                    x.WarehouseId == allocation.WarehouseId &&
-                    x.LocationId == allocation.LocationId &&
-                    x.ProductVariantId == allocation.ProductVariantId, ct);
+                    return new PosBridgeCompletionResponse(
+                        sale.Id,
+                        sale.Status.ToString());
+                }
 
-                if (stock is null)
-                    throw new PosConflictException("ردیف موجودی رزروشده پیدا نشد.");
+                if (sale.Status != PosSaleStatus.ReconciliationRequired ||
+                    sale.PaymentMethod != PosPaymentMethod.BankMellat)
+                {
+                    throw new PosConflictException(
+                        "فقط فاکتور کارتخوان در وضعیت ReconciliationRequired قابل تطبیق است.");
+                }
+
+                var allocations = await inventory.WarehouseStockMovements
+                    .Where(x =>
+                        x.TenantId == tenantId &&
+                        x.ReferenceType == ReservationReferenceType &&
+                        x.ReferenceId == sale.Id.ToString("D") &&
+                        x.Type == WarehouseStockMovementType.Reservation &&
+                        x.QuantityDelta > 0)
+                    .OrderBy(x => x.WarehouseId)
+                    .ThenBy(x => x.LocationId)
+                    .ThenBy(x => x.ProductVariantId)
+                    .ToListAsync(ct);
+
+                if (allocations.Count == 0)
+                {
+                    throw new PosConflictException(
+                        "رزرو موجودی فاکتور پیدا نشد؛ تطبیق خودکار ایمن نیست.");
+                }
+
+                foreach (var allocation in allocations)
+                {
+                    var stock = await inventory.WarehouseStocks
+                        .SingleOrDefaultAsync(x =>
+                            x.TenantId == tenantId &&
+                            x.WarehouseId == allocation.WarehouseId &&
+                            x.LocationId == allocation.LocationId &&
+                            x.ProductVariantId == allocation.ProductVariantId,
+                            ct);
+
+                    if (stock is null)
+                    {
+                        throw new PosConflictException(
+                            "ردیف موجودی رزروشده پیدا نشد.");
+                    }
+
+                    if (outcome == "Succeeded")
+                    {
+                        stock.ConsumeReserved(allocation.QuantityDelta);
+
+                        inventory.WarehouseStockMovements.Add(
+                            WarehouseStockMovement.Create(
+                                tenantId,
+                                allocation.WarehouseId,
+                                allocation.LocationId,
+                                allocation.ProductVariantId,
+                                WarehouseStockMovementType.Sale,
+                                -allocation.QuantityDelta,
+                                stock.OnHandQuantity,
+                                "PosSale",
+                                sale.Id.ToString("D"),
+                                $"فروش حضوری تطبیق‌شده {sale.SaleNumber}"));
+                    }
+                    else
+                    {
+                        stock.Release(allocation.QuantityDelta);
+
+                        inventory.WarehouseStockMovements.Add(
+                            WarehouseStockMovement.Create(
+                                tenantId,
+                                allocation.WarehouseId,
+                                allocation.LocationId,
+                                allocation.ProductVariantId,
+                                WarehouseStockMovementType.ReservationRelease,
+                                -allocation.QuantityDelta,
+                                stock.OnHandQuantity,
+                                "PosSalePayment",
+                                sale.Id.ToString("D"),
+                                $"آزادسازی رزرو پس از تطبیق {sale.SaleNumber}"));
+                    }
+                }
 
                 if (outcome == "Succeeded")
                 {
-                    stock.ConsumeReserved(allocation.QuantityDelta);
-                    inventory.WarehouseStockMovements.Add(WarehouseStockMovement.Create(
-                        tenantId, allocation.WarehouseId, allocation.LocationId,
-                        allocation.ProductVariantId, WarehouseStockMovementType.Sale,
-                        -allocation.QuantityDelta, stock.OnHandQuantity,
-                        "PosSale", sale.Id.ToString("D"), $"فروش حضوری تطبیق‌شده {sale.SaleNumber}"));
+                    sale.MarkReconciledPaid(
+                        NormalizeReference(request.PaymentReference),
+                        SafeMessage(request.Reason));
                 }
                 else
                 {
-                    stock.Release(allocation.QuantityDelta);
-                    inventory.WarehouseStockMovements.Add(WarehouseStockMovement.Create(
-                        tenantId, allocation.WarehouseId, allocation.LocationId,
-                        allocation.ProductVariantId, WarehouseStockMovementType.ReservationRelease,
-                        -allocation.QuantityDelta, stock.OnHandQuantity,
-                        "PosSalePayment", sale.Id.ToString("D"), $"آزادسازی رزرو پس از تطبیق {sale.SaleNumber}"));
+                    sale.MarkReconciledDeclined(
+                        SafeMessage(request.Reason));
                 }
+
+                await inventory.SaveChangesAsync(ct);
+                await orders.SaveChangesAsync(ct);
+
+                await transaction.CommitAsync(ct);
+
+                return new PosBridgeCompletionResponse(
+                    sale.Id,
+                    sale.Status.ToString());
             }
-
-            if (outcome == "Succeeded")
-                sale.MarkReconciledPaid(NormalizeReference(request.PaymentReference), SafeMessage(request.Reason));
-            else
-                sale.MarkReconciledDeclined(SafeMessage(request.Reason));
-
-            await inventory.SaveChangesAsync(ct);
-            await orders.SaveChangesAsync(ct);
-            await transaction.CommitAsync(ct);
-            return new PosBridgeCompletionResponse(sale.Id, sale.Status.ToString());
-        }
-        catch
-        {
-            await transaction.RollbackAsync(CancellationToken.None);
-            throw;
-        }
-        finally
-        {
-            await inventory.Database.UseTransactionAsync(null, CancellationToken.None);
-        }
+            catch
+            {
+                await transaction.RollbackAsync(CancellationToken.None);
+                throw;
+            }
+            finally
+            {
+                await inventory.Database.UseTransactionAsync(
+                    null, CancellationToken.None);
+            }
+        });
     }
-
     private async Task<PosBridgeDevice> AuthenticateAsync(string token, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(token) || token.Length > 200)

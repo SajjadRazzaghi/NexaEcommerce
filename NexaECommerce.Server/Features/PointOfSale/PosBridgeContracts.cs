@@ -12,9 +12,23 @@ public sealed record PosBridgePaymentCompletionRequest(
 public sealed record PosBridgeReconciliationRequest(string Outcome, string? PaymentReference, string? Reason);
 public sealed record PosBridgeCompletionResponse(Guid SaleId, string Status);
 public sealed record PosSalePaymentStatusDto(Guid SaleId, string Status, string? PaymentReference);
-
+public sealed record PosBridgeAvailabilityDto(
+    bool IsConfigured,
+    bool IsOnline,
+    string? DeviceName,
+    DateTime? LastSeenAtUtc,
+    string? Message);
 public interface IPosBridgeService
 {
+    Task<PosBridgeAvailabilityDto> GetSellerAvailabilityAsync(
+    string tenantId,
+    CancellationToken ct);
+
+    Task<PosBridgeCompletionResponse> CancelUnclaimedAsync(
+        string tenantId,
+        string sellerUserId,
+        Guid saleId,
+        CancellationToken ct);
     Task<PosBridgeCreateDeviceResponse> CreateDeviceAsync(string tenantId, string name, CancellationToken ct);
     Task DisableDeviceAsync(string tenantId, Guid deviceId, CancellationToken ct);
     Task<PosBridgeHealthDto> GetHealthAsync(string token, CancellationToken ct);

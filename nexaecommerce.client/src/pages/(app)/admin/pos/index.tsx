@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
@@ -32,10 +31,24 @@ import {
     type PosCreateSaleRequest,
 } from '@/lib/api/pos';
 import { QRCodeSVG } from 'qrcode.react';
-
+const POS_RESTORED_SALES_KEY = 'nexa:pos:restored-sales:v1';
 const canSellPermission = 'pos.sell';
 
 type CartLine = PosVariant & { quantity: number };
+const POS_CART_SESSION_KEY = 'nexa:pos:cart:v1';
+const POS_LAST_SALE_SESSION_KEY = 'nexa:pos:last-sale:v1';
+
+function readPosSessionValue<T>(key: string, fallback: T): T {
+    try {
+        if (typeof window === 'undefined') return fallback;
+
+        const raw = window.sessionStorage.getItem(key);
+
+        return raw ? (JSON.parse(raw) as T) : fallback;
+    } catch {
+        return fallback;
+    }
+}
 
 function errorMessage(error: unknown): string {
     if (error instanceof ApiError) return error.message || 'درخواست انجام نشد.';
@@ -43,15 +56,61 @@ function errorMessage(error: unknown): string {
     return 'خطای پیش‌بینی‌نشده رخ داد.';
 }
 function isCompleteBarcode(value: string): boolean {
-// بارکدهای عددی متداول و بارکدهای عددی داخلی
+    // بارکدهای عددی متداول و بارکدهای عددی داخلی
     return /^\d{8,20}$/.test(value.trim());
 }
 function paymentLabel(method: string): string {
     if (method === 'Cash') return 'نقدی';
-    if (method === 'Card' || method === 'BankMellat') return 'کارتخوان ملت';
+
+    if (method === 'ManualCard') {
+        return 'کارتخوان دستی';
+    }
+
+    if (method === 'Card' || method === 'BankMellat') {
+        return 'کارتخوان ملت';
+    }
+
     return method;
 }
+function saleStatusLabel(status: string): string {
+    switch (status) {
+        case 'Paid':
+            return 'پرداخت‌شده';
 
+        case 'Cancelled':
+            return 'لغوشده ـ پرداخت قطعی نشده';
+
+        case 'PendingPayment':
+            return 'در انتظار ارسال به کارتخوان';
+
+        case 'PaymentInProgress':
+            return 'در حال پرداخت';
+
+        case 'ReconciliationRequired':
+            return 'نیازمند تطبیق بانکی';
+
+        default:
+            return 'وضعیت نامشخص';
+    }
+}
+
+function saleStatusClass(status: string): string {
+    switch (status) {
+        case 'Paid':
+            return 'bg-emerald-100 text-emerald-800';
+
+        case 'Cancelled':
+        case 'ReconciliationRequired':
+            return 'bg-red-100 text-red-800';
+
+        case 'PaymentInProgress':
+        case 'PendingPayment':
+            return 'bg-amber-100 text-amber-800';
+
+        default:
+            return 'bg-muted text-muted-foreground';
+    }
+}
 function isBankPayment(sale: PosSale): boolean {
     return sale.paymentMethod === 'Card' || sale.paymentMethod === 'BankMellat';
 }
@@ -78,24 +137,137 @@ export default function PosPage() {
     const [pendingCardSaleId, setPendingCardSaleId] = useState<string | null>(null);
     const [searchText, setSearchText] = useState('');
     const [results, setResults] = useState<PosProduct[]>([]);
-    const [cart, setCart] = useState<CartLine[]>([]);
-    const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Card'>('Cash');
+    const [cart, setCart] = useState<CartLine[]>(() => {
+        const saved = readPosSessionValue<unknown>(
+            POS_CART_SESSION_KEY,
+            [],
+        );
+
+        return Array.isArray(saved)
+            ? (saved as CartLine[])
+            : [];
+    });
+
+    const [lastSale, setLastSale] = useState<PosSale | null>(() => {
+        const saved = readPosSessionValue<unknown>(
+            POS_LAST_SALE_SESSION_KEY,
+            null,
+        );
+
+        if (
+            saved &&
+            typeof saved === 'object' &&
+            'id' in saved &&
+            'items' in saved
+        ) {
+            return saved as PosSale;
+        }
+
+        return null;
+    });
+    const [paymentMethod, setPaymentMethod] =
+        useState<'Cash' | 'Card' | 'ManualCard'>('Cash');
+
+    const [manualPaymentReference, setManualPaymentReference] =
+        useState('');
+
+    const [separateSaleUnlocked, setSeparateSaleUnlocked] =
+        useState(false);
     const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
-    const [lastSale, setLastSale] = useState<PosSale | null>(null);
+
     const [printing, setPrinting] = useState(false);
+
+    // نگهداری فاکتورهایی که در همین نشست، اقلامشان به سبد بازگردانده شده است.
+    const [restoredSaleIds, setRestoredSaleIds] = useState<Set<string>>(() => {
+        const saved = readPosSessionValue<unknown>(
+            POS_RESTORED_SALES_KEY,
+            [],
+        );
+
+        return new Set(
+            Array.isArray(saved)
+                ? saved.filter(
+                    (id): id is string => typeof id === 'string',
+                )
+                : [],
+        );
+    });
 
     // برای جلوگیری از نمایش چندباره پیام یک وضعیت بانکی
     const notifiedPaymentStatusesRef = useRef<Set<string>>(new Set());
 
-    const paymentLocked = Boolean(pendingCardSaleId);
+    const hasUnresolvedCardPayment =
+        Boolean(pendingCardSaleId);
+
+    const paymentLocked =
+        hasUnresolvedCardPayment && !separateSaleUnlocked;
+    // حفظ سبد در Refresh صفحه؛ فقط در نشست همین تب مرورگر
+    useEffect(() => {
+        try {
+            if (cart.length > 0) {
+                sessionStorage.setItem(
+                    POS_CART_SESSION_KEY,
+                    JSON.stringify(cart),
+                );
+            } else {
+                sessionStorage.removeItem(POS_CART_SESSION_KEY);
+            }
+        } catch {
+            // در صورت غیرفعال بودن Storage، صندوق همچنان کار می‌کند.
+        }
+    }, [cart]);
+
+    // حفظ آخرین فاکتور و وضعیت پرداخت آن
+    useEffect(() => {
+        try {
+            if (lastSale) {
+                sessionStorage.setItem(
+                    POS_LAST_SALE_SESSION_KEY,
+                    JSON.stringify(lastSale),
+                );
+            } else {
+                sessionStorage.removeItem(POS_LAST_SALE_SESSION_KEY);
+            }
+        } catch {
+            // عدم دسترسی به Storage نباید مانع فروش شود.
+        }
+    }, [lastSale]);
+
+    // فاکتورهای بازیابی‌شده تا پایان نشست فعلی حفظ می‌شوند؛
+    // خالی‌شدن سبد نباید باعث امکان بازیابی دوباره همان فاکتور شود.
+    useEffect(() => {
+        try {
+            if (restoredSaleIds.size === 0) {
+                sessionStorage.removeItem(POS_RESTORED_SALES_KEY);
+            } else {
+                sessionStorage.setItem(
+                    POS_RESTORED_SALES_KEY,
+                    JSON.stringify(Array.from(restoredSaleIds)),
+                );
+            }
+        } catch {
+            // عدم دسترسی به Storage نباید مانع فروش شود.
+        }
+    }, [restoredSaleIds]);
 
     const salesQuery = useQuery({
-        queryKey: ['pos', 'sales', 0, 10],
-        queryFn: () => posApi.listSales(0, 10),
+        queryKey: ['pos', 'sales', 0, 100],
+        queryFn: () => posApi.listSales(0, 100),
         enabled: canRead,
         staleTime: 15_000,
     });
+    const bridgeAvailabilityQuery = useQuery({
+        queryKey: ['pos', 'bridge', 'availability'],
+        queryFn: () => posApi.getBridgeAvailability(),
+        enabled: canSell,
+        staleTime: 0,
+        refetchInterval: 15_000,
+        refetchOnWindowFocus: true,
+        retry: false,
+    });
 
+    const bridgeOnline =
+        bridgeAvailabilityQuery.data?.isOnline === true;
     // اگر کاربر صفحه را ببندد یا دوباره باز کند، پرداخت باز قبلی بازیابی می‌شود.
     const openPaymentQuery = useQuery({
         queryKey: ['pos', 'open-payment'],
@@ -150,7 +322,30 @@ export default function PosPage() {
             return false;
         },
     });
+    const lastSaleStatusQuery = useQuery({
+        queryKey: ['pos', 'last-sale-status', lastSale?.id],
+        queryFn: () => posApi.getPaymentStatus(lastSale!.id),
+        enabled: Boolean(lastSale?.id) && !pendingCardSaleId && canSell,
+        staleTime: 0,
+        refetchOnWindowFocus: true,
+        retry: 1,
+    });
+    useEffect(() => {
+        const status = lastSaleStatusQuery.data;
 
+        if (!status) return;
+
+        setLastSale((current) =>
+            current?.id === status.saleId
+                ? {
+                    ...current,
+                    status: status.status,
+                    paymentReference:
+                        status.paymentReference ?? current.paymentReference,
+                }
+                : current,
+        );
+    }, [lastSaleStatusQuery.data]);
     useEffect(() => {
         const status = paymentStatusQuery.data;
 
@@ -170,17 +365,29 @@ export default function PosPage() {
         const notificationKey = `${status.saleId}:${status.status}`;
 
         if (status.status === 'Paid') {
-            if (notifiedPaymentStatusesRef.current.has(notificationKey)) return;
+            if (notifiedPaymentStatusesRef.current.has(notificationKey)) {
+                return;
+            }
 
             notifiedPaymentStatusesRef.current.add(notificationKey);
 
-            setPendingCardSaleId(null);
-            setCart([]);
-            setSearchText('');
-            setResults([]);
-            setIdempotencyKey(crypto.randomUUID());
+            const hasSeparateCart = separateSaleUnlocked;
 
-            toast.success('پرداخت کارتخوان تأیید شد و فاکتور نهایی گردید.');
+            setPendingCardSaleId(null);
+            setSeparateSaleUnlocked(false);
+
+            // اگر فروشنده فاکتور جدیدی شروع کرده باشد،
+            // پرداخت فاکتور قبلی نباید سبد جدید را پاک کند.
+            if (!hasSeparateCart) {
+                setCart([]);
+                setSearchText('');
+                setResults([]);
+                setIdempotencyKey(crypto.randomUUID());
+            }
+
+            toast.success(
+                'پرداخت کارتخوان تأیید شد و فاکتور نهایی گردید.',
+            );
 
             void openPaymentQuery.refetch();
 
@@ -201,10 +408,15 @@ export default function PosPage() {
             setIdempotencyKey(crypto.randomUUID());
 
             toast.error(
-                'پرداخت کارتخوان تأیید نشد؛ موجودی آزاد شد و سبد فروش حفظ شد.',
+                'فاکتور لغو شد؛ پرداخت قطعی نیست و موجودی رزروشده آزاد شده است.',
             );
 
             void openPaymentQuery.refetch();
+
+            if (canRead) {
+                void salesQuery.refetch();
+            }
+
             return;
         }
 
@@ -221,7 +433,7 @@ export default function PosPage() {
         paymentStatusQuery.data,
         canRead,
         salesQuery,
-        openPaymentQuery,
+        openPaymentQuery, separateSaleUnlocked,
     ]);
 
     const appearanceQuery = useQuery({
@@ -264,6 +476,7 @@ export default function PosPage() {
 
             // فروش نقدی بلافاصله توسط سرور نهایی می‌شود.
             setCart([]);
+            setManualPaymentReference('');
             setSearchText('');
             setResults([]);
             setIdempotencyKey(crypto.randomUUID());
@@ -281,7 +494,180 @@ export default function PosPage() {
             toast.error(errorMessage(error));
         },
     });
+    const cancelUnclaimedPaymentMutation = useMutation({
+        mutationFn: (saleId: string) =>
+            posApi.cancelUnclaimedPayment(saleId),
 
+        onSuccess: async (result) => {
+            if (result.status !== 'Cancelled') {
+                toast.error(
+                    'درخواست لغو تأیید نشد؛ وضعیت فاکتور را دوباره بررسی کنید.',
+                );
+                return;
+            }
+
+            setPendingCardSaleId(null);
+            setSeparateSaleUnlocked(false);
+
+            // سبد قبلی حفظ می‌شود، اما کلید فاکتور باید جدید باشد.
+            // وگرنه API فاکتور لغوشده قبلی را برمی‌گرداند.
+            setIdempotencyKey(crypto.randomUUID());
+
+            setPaymentMethod('ManualCard');
+            setManualPaymentReference('');
+            setLastSale(null);
+
+            await Promise.all([
+                openPaymentQuery.refetch(),
+                salesQuery.refetch(),
+            ]);
+
+            toast.success(
+                'درخواست ارسال‌نشده با موفقیت لغو شد. سبد حفظ شده است؛ پس از دریافت وجه با کارتخوان دستی، فروش را ثبت کنید.',
+            );
+
+            searchRef.current?.focus();
+        },
+
+        onError: (error) => {
+            toast.error(errorMessage(error));
+        },
+    });
+    const restoreCancelledSaleMutation = useMutation({
+        mutationFn: (saleId: string) =>
+            posApi.restoreCancelledSaleItems(saleId),
+
+        onSuccess: (items, saleId) => {
+            // از تکرار بازیابی همان فاکتور در همین نشست جلوگیری کن.
+            if (restoredSaleIds.has(saleId)) {
+                toast.message('اقلام این فاکتور قبلاً به سبد بازگردانده شده‌اند.');
+                return;
+            }
+
+            const requestedTotal = items.reduce(
+                (sum, item) => sum + item.requestedQuantity,
+                0,
+            );
+
+            const restoredTotal = items.reduce(
+                (sum, item) => sum + item.restoreQuantity,
+                0,
+            );
+
+            if (restoredTotal === 0) {
+                toast.error(
+                    'هیچ‌یک از اقلام این فاکتور در حال حاضر موجودی قابل فروش ندارند.',
+                );
+                return;
+            }
+
+            // تعداد واقعی قابل افزودن به سبد را با درنظرگرفتن اقلام فعلی محاسبه کن.
+            const currentQuantities = new Map(
+                cart.map((line) => [line.id, line.quantity]),
+            );
+
+            const actualRestoredTotal = items.reduce((sum, item) => {
+                const variant = item.variant;
+                if (!variant || item.restoreQuantity <= 0) return sum;
+
+                const currentQuantity =
+                    currentQuantities.get(item.productVariantId) ?? 0;
+
+                const additionalQuantity = Math.max(
+                    0,
+                    Math.min(
+                        item.restoreQuantity,
+                        variant.availableQuantity - currentQuantity,
+                    ),
+                );
+
+                return sum + additionalQuantity;
+            }, 0);
+
+            if (actualRestoredTotal === 0) {
+                toast.message(
+                    'سبد فعلی برای این تنوع‌ها به سقف موجودی قابل فروش رسیده است؛ تعداد جدیدی اضافه نشد.',
+                );
+                return;
+            }
+
+            setCart((current) => {
+                const merged = new Map<string, CartLine>();
+
+                for (const line of current) {
+                    merged.set(line.id, line);
+                }
+
+                for (const item of items) {
+                    const variant = item.variant;
+
+                    // تنوع غیرفعال یا ناموجود قابل بازیابی نیست.
+                    // اقلامی را که از قبل در سبد بوده‌اند حذف نکن.
+                    if (!variant || item.restoreQuantity <= 0) {
+                        continue;
+                    }
+
+                    const existing = merged.get(item.productVariantId);
+
+                    // مقدار این فاکتور به تعداد موجود در سبد اضافه می‌شود.
+                    // کل تعداد در نهایت به موجودی قابل فروش فعلی محدود می‌ماند.
+                    const alreadyRestored = restoredSaleIds.has(saleId);
+
+                    const desiredQuantity = alreadyRestored
+                        ? Math.max(
+                            existing?.quantity ?? 0,
+                            item.restoreQuantity,
+                        )
+                        : (existing?.quantity ?? 0) + item.restoreQuantity;
+                    const quantity = Math.min(
+                        desiredQuantity,
+                        variant.availableQuantity,
+                    );
+
+                    if (quantity <= 0) {
+                        merged.delete(item.productVariantId);
+                        continue;
+                    }
+
+                    // قیمت و موجودی از اطلاعات تازه سرور جایگزین می‌شود.
+                    merged.set(item.productVariantId, {
+                        ...variant,
+                        quantity,
+                    });
+                }
+
+                return Array.from(merged.values());
+            });
+
+            // کلید قبلی ممکن است متعلق به فاکتور لغوشده باشد.
+            setIdempotencyKey(crypto.randomUUID());
+
+            setSearchText('');
+            setResults([]);
+
+            // حتی بازیابی ناقص نیز ثبت می‌شود تا همین فاکتور دوباره
+            // به سبد اضافه نشود و تعدادها ناخواسته افزایش پیدا نکنند.
+            setRestoredSaleIds((current) =>
+                new Set([...current, saleId]),
+            );
+
+            if (actualRestoredTotal < requestedTotal) {
+                toast.message(
+                    `${actualRestoredTotal} عدد از ${requestedTotal} عدد به دلیل محدودیت موجودی یا تعداد فعلی سبد اضافه شد. فاکتور برای جلوگیری از بازیابی تکراری علامت‌گذاری شد.`,
+                );
+            } else {
+                toast.success(
+                    `اقلام فاکتور ${saleId.slice(0, 8)} با قیمت و موجودی فعلی به سبد بازگشت.`,
+                );
+            }
+
+            searchRef.current?.focus();
+        },
+
+        onError: (error) => {
+            toast.error(errorMessage(error));
+        },
+    });
     const subtotal = useMemo(
         () => cart.reduce((sum, line) => sum + line.unitPrice * line.quantity, 0),
         [cart],
@@ -428,7 +814,28 @@ export default function PosPage() {
             );
             return;
         }
+        if (paymentMethod === 'Card') {
+            if (bridgeAvailabilityQuery.isError) {
+                toast.error(
+                    'وضعیت Bridge از سرور قابل دریافت نیست. ابتدا ارتباط با سرور نکسا را بررسی کنید.',
+                );
+                return;
+            }
 
+            if (!bridgeOnline) {
+                toast.error(
+                    'Bridge در دسترس نیست. لطفاً کارتخوان فیزیکی را به‌صورت دستی استفاده و روش پرداخت «کارتخوان دستی» را انتخاب کنید.',
+                );
+                return;
+            }
+
+            if (hasUnresolvedCardPayment) {
+                toast.error(
+                    'یک پرداخت کارتخوان قبلی هنوز تعیین تکلیف نشده است. پرداخت متصل جدید مجاز نیست.',
+                );
+                return;
+            }
+        }
         if (cart.length === 0) {
             toast.error('سبد فروش خالی است.');
             return;
@@ -438,7 +845,10 @@ export default function PosPage() {
             idempotencyKey,
             paymentMethod,
             // در پرداخت کارتخوان، شماره پیگیری را Bridge و سرور ثبت می‌کنند.
-            paymentReference: null,
+            paymentReference:
+                paymentMethod === 'ManualCard'
+                    ? manualPaymentReference.trim() || null
+                    : null,
             items: cart.map((line) => ({
                 productVariantId: line.id,
                 quantity: line.quantity,
@@ -447,7 +857,29 @@ export default function PosPage() {
 
         saleMutation.mutate(request);
     };
+    const startSeparateSale = () => {
+        if (!pendingCardSaleId) return;
 
+        setSeparateSaleUnlocked(true);
+
+        // سبد جدید باید کاملاً از سبد فاکتور قبلی جدا باشد.
+        setCart([]);
+        setSearchText('');
+        setResults([]);
+        setIdempotencyKey(crypto.randomUUID());
+        setManualPaymentReference('');
+
+        // اگر Bridge قطع است، کارتخوان دستی گزینه پیش‌فرض باشد.
+        setPaymentMethod(
+            bridgeOnline ? 'Cash' : 'ManualCard',
+        );
+
+        toast.message(
+            'فاکتور قبلی همچنان در حال پیگیری است؛ سبد جدید مستقل از آن فعال شد.',
+        );
+
+        searchRef.current?.focus();
+    };
     const reprintSale = async (sale: PosSale) => {
         try {
             const full = await posApi.getSale(sale.id);
@@ -600,45 +1032,204 @@ export default function PosPage() {
                     </Button>
                 )}
             </div>
+            {bridgeAvailabilityQuery.data &&
+                !bridgeAvailabilityQuery.data.isOnline && (
+                    <Card className="pos-hide-print border-amber-500">
+                        <CardContent className="p-4">
+                            <div className="font-semibold text-amber-700">
+                                کارتخوان متصل به نکسا در دسترس نیست
+                            </div>
 
-            {paymentLocked && (
+                            <p className="mt-2 text-sm text-muted-foreground">
+                                {bridgeAvailabilityQuery.data.message}
+                            </p>
+
+                            <p className="mt-2 text-sm">
+                                می‌توانید با کارتخوان فیزیکی و خارج از اتصال نکسا
+                                پرداخت را انجام دهید. سپس روش پرداخت
+                                «کارتخوان دستی» را انتخاب و فاکتور را ثبت کنید.
+                            </p>
+                        </CardContent>
+                    </Card>
+                )}
+
+            {bridgeAvailabilityQuery.isError && (
                 <Card className="pos-hide-print border-amber-500">
                     <CardContent className="p-4 text-sm">
                         <div className="font-semibold text-amber-700">
-                            پرداخت کارتخوان در حال پیگیری است
+                            وضعیت ارتباط Bridge قابل بررسی نیست
                         </div>
 
-                        <p className="mt-1 text-muted-foreground">
-                            تا دریافت نتیجه قطعی از سرور، فروش جدید ثبت نکنید و
-                            کارتخوان را برای همین فاکتور دوباره فعال نکنید.
+                        ارتباط با سرور برای بررسی وضعیت کارتخوان برقرار نشد.
+                        قبل از شروع پرداخت متصل، ارتباط با سرور نکسا را بررسی کنید.
+                    </CardContent>
+                </Card>
+            )}
+            {hasUnresolvedCardPayment && (
+                <Card className="pos-hide-print border-amber-500">
+                    <CardContent className="space-y-3 p-4 text-sm">
+                        <div className="font-semibold text-amber-700">
+                            پرداخت کارتخوان نیازمند تعیین تکلیف است
+                        </div>
+
+                        <p className="text-muted-foreground">
+                            {pendingSaleQuery.data?.status === 'PendingPayment'
+                                ? !bridgeOnline
+                                    ? 'Bridge در دسترس نیست و این فاکتور هنوز از صف Bridge دریافت نشده است. می‌توانید درخواست ارسال‌نشده را امن لغو کنید و همین سبد را به‌صورت دستی ثبت کنید.'
+                                    : 'فاکتور هنوز توسط Bridge دریافت نشده است. تا مشخص‌شدن وضعیت آن، پرداخت متصل دیگری ارسال نکنید.'
+                                : 'درخواست پرداخت ممکن است به کارتخوان رسیده باشد. قبل از هر اقدام، وضعیت تراکنش را بررسی کنید و برای همین فاکتور پرداخت مجدد انجام ندهید.'}
                         </p>
 
                         {pendingSaleQuery.data && (
-                            <p className="mt-2">
-                                شماره فاکتور:{' '}
-                                <strong>{pendingSaleQuery.data.saleNumber}</strong>
+                            <p>
+                                شماره فاکتور:
+                                {' '}
+                                <strong>
+                                    {pendingSaleQuery.data.saleNumber}
+                                </strong>
                                 {' — '}
-                                وضعیت:{' '}
+                                وضعیت:
+                                {' '}
                                 <strong>
                                     {pendingSaleQuery.data.status === 'ReconciliationRequired'
                                         ? 'نیازمند تطبیق بانکی'
                                         : pendingSaleQuery.data.status === 'PaymentInProgress'
                                             ? 'در حال پرداخت'
-                                            : 'در انتظار ارسال به کارتخوان'}
+                                            : pendingSaleQuery.data.status === 'Paid'
+                                                ? 'پرداخت موفق'
+                                                : pendingSaleQuery.data.status === 'Cancelled'
+                                                    ? 'لغوشده'
+                                                    : 'در انتظار ارسال به کارتخوان'}
                                 </strong>
                             </p>
                         )}
 
                         {paymentStatusQuery.isError && (
-                            <p className="mt-2 text-destructive">
-                                دریافت وضعیت پرداخت با خطا مواجه شده است. تا بررسی وضعیت
-                                بانکی، پرداخت را مجدداً ارسال نکنید.
+                            <p className="text-destructive">
+                                دریافت وضعیت پرداخت با خطا مواجه شده است.
+                                پرداخت را مجدداً ارسال نکنید.
+                            </p>
+                        )}
+
+                        {!separateSaleUnlocked &&
+                            pendingSaleQuery.data?.status === 'PendingPayment' &&
+                            bridgeAvailabilityQuery.data &&
+                            !bridgeAvailabilityQuery.data.isOnline && (
+                                <Button
+                                    variant="outline"
+                                    className="w-full"
+                                    disabled={cancelUnclaimedPaymentMutation.isPending}
+                                    onClick={() =>
+                                        cancelUnclaimedPaymentMutation.mutate(
+                                            pendingCardSaleId!,
+                                        )
+                                    }
+                                >
+                                    {cancelUnclaimedPaymentMutation.isPending
+                                        ? 'در حال لغو امن درخواست…'
+                                        : 'لغو امن درخواست و ادامه همین سبد به‌صورت دستی'}
+                                </Button>
+                            )}
+
+                        {!separateSaleUnlocked && (
+                            <Button
+                                variant="outline"
+                                className="w-full"
+                                onClick={startSeparateSale}
+                            >
+                                شروع فاکتور جدید بدون لغو پرداخت قبلی
+                            </Button>
+                        )}
+
+                        {separateSaleUnlocked && (
+                            <p className="text-xs text-muted-foreground">
+                                سبد فروش جدید مستقل از فاکتور معلق فعال است.
+                                پرداخت متصل به Bridge تا تعیین تکلیف فاکتور قبلی غیرفعال خواهد بود.
                             </p>
                         )}
                     </CardContent>
                 </Card>
             )}
+            {lastSale && (
+                <Card className="pos-hide-print">
+                    <CardContent className="p-4 space-y-3">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="font-semibold">
+                                آخرین فاکتور صندوق
+                            </div>
 
+                            <span
+                                className={`rounded-md px-3 py-1 text-sm font-semibold ${saleStatusClass(lastSale.status)}`}
+                            >
+                                {saleStatusLabel(lastSale.status)}
+                            </span>
+                        </div>
+
+                        <div className="text-sm text-muted-foreground">
+                            شماره فاکتور: <strong>{lastSale.saleNumber}</strong>
+                            {' ـ '}
+                            روش پرداخت: {paymentLabel(lastSale.paymentMethod)}
+                            {' ـ '}
+                            مبلغ: {formatMoney(
+                                lastSale.totalAmount,
+                                lastSale.currency,
+                                locale,
+                            )}
+                        </div>
+
+                        {lastSale.status === 'Paid' && (
+                            <p className="text-sm text-emerald-700">
+                                پرداخت با موفقیت تأیید شده است. این فاکتور فروش قطعی محسوب می‌شود.
+                            </p>
+                        )}
+
+                        {lastSale.status === 'Cancelled' && (
+                            <div className="space-y-3 rounded-md border border-red-200 bg-red-50 p-3">
+                                <p className="text-sm font-semibold text-red-800">
+                                    این فاکتور لغو شده است و پرداخت قطعی برای آن ثبت نشده است.
+                                </p>
+
+                                <p className="text-sm text-red-700">
+                                    موجودی رزروشده آزاد شده است. برای فروش مجدد، اقلام را با
+                                    قیمت و موجودی فعلی به سبد برگردانید.
+                                </p>
+
+                                {restoredSaleIds.has(lastSale.id) ? (
+                                    <span className="inline-flex rounded-md bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800">
+                                        اقلام این فاکتور قبلاً بازیابی شده‌اند
+                                    </span>
+                                ) : (
+                                    <Button
+                                        onClick={() =>
+                                            restoreCancelledSaleMutation.mutate(lastSale.id)
+                                        }
+                                        disabled={restoreCancelledSaleMutation.isPending || paymentLocked}
+                                    >
+                                        {restoreCancelledSaleMutation.isPending
+                                            ? 'در حال بررسی موجودی…'
+                                            : 'بازگرداندن اقلام به سبد فروش'}
+                                    </Button>
+                                )}
+                            </div>
+                        )}
+
+                        {lastSale.status === 'ReconciliationRequired' && (
+                            <p className="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+                                نتیجه پرداخت بانکی مشخص نیست. این فاکتور را لغوشده یا پرداخت‌نشده
+                                فرض نکنید و تا تطبیق بانکی، پرداخت مجدد انجام ندهید.
+                            </p>
+                        )}
+
+                        {(lastSale.status === 'PendingPayment' ||
+                            lastSale.status === 'PaymentInProgress') && (
+                                <p className="text-sm text-amber-700">
+                                    نتیجه پرداخت هنوز قطعی نشده است. فاکتور جدیدی برای همین خرید
+                                    ثبت نکنید.
+                                </p>
+                            )}
+                    </CardContent>
+                </Card>
+            )}
             <div className="pos-hide-print grid gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
                 <div className="space-y-6">
                     <Card>
@@ -746,7 +1337,6 @@ export default function PosPage() {
                             </CardContent>
                         </Card>
                     )}
-
                     {canRead && (
                         <Card>
                             <CardHeader>
@@ -761,6 +1351,7 @@ export default function PosPage() {
                                 ) : salesQuery.isError ? (
                                     <div className="space-y-2 text-sm">
                                         <p>دریافت فاکتورهای اخیر ناموفق بود.</p>
+
                                         <Button
                                             variant="outline"
                                             onClick={() => {
@@ -776,44 +1367,82 @@ export default function PosPage() {
                                     </p>
                                 ) : (
                                     <div className="space-y-2">
-                                        {(salesQuery.data ?? []).map((sale) => (
-                                            <div
-                                                key={sale.id}
-                                                className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
-                                            >
-                                                <div>
-                                                    <div className="font-medium">
-                                                        {sale.saleNumber}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {new Date(sale.createdAt).toLocaleString(locale)}
-                                                        {' · '}
-                                                        {paymentLabel(sale.paymentMethod)}
-                                                    </div>
-                                                </div>
+                                        {(salesQuery.data ?? []).map((sale) => {
+                                            const isCancelled = sale.status === 'Cancelled';
+                                            const alreadyRestored = restoredSaleIds.has(sale.id);
 
-                                                <div className="flex items-center gap-3">
-                                                    <span className="text-sm font-semibold">
-                                                        {formatMoney(
-                                                            sale.totalAmount,
-                                                            sale.currency,
-                                                            locale,
+                                            return (
+                                                <div
+                                                    key={sale.id}
+                                                    className={`flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 ${isCancelled
+                                                        ? 'border-red-200 bg-red-50/50'
+                                                        : ''
+                                                        }`}
+                                                >
+                                                    <div className="min-w-0">
+                                                        <div className="flex flex-wrap items-center gap-2">
+                                                            <span className="font-medium">
+                                                                {sale.saleNumber}
+                                                            </span>
+
+                                                            <span
+                                                                className={`rounded-md px-2 py-0.5 text-xs font-semibold ${saleStatusClass(sale.status)}`}
+                                                            >
+                                                                {saleStatusLabel(sale.status)}
+                                                            </span>
+                                                        </div>
+
+                                                        <div className="mt-1 text-xs text-muted-foreground">
+                                                            {new Date(sale.createdAt).toLocaleString(locale)}
+                                                            {' · '}
+                                                            {paymentLabel(sale.paymentMethod)}
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <span className="text-sm font-semibold">
+                                                            {formatMoney(
+                                                                sale.totalAmount,
+                                                                sale.currency,
+                                                                locale,
+                                                            )}
+                                                        </span>
+
+                                                        {isCancelled && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant={alreadyRestored ? 'secondary' : 'outline'}
+                                                                disabled={
+                                                                    paymentLocked ||
+                                                                    restoreCancelledSaleMutation.isPending
+                                                                }
+                                                                onClick={() => {
+                                                                    restoreCancelledSaleMutation.mutate(sale.id);
+                                                                }}
+                                                            >
+                                                                {restoreCancelledSaleMutation.isPending &&
+                                                                    restoreCancelledSaleMutation.variables === sale.id
+                                                                    ? 'در حال بررسی موجودی…'
+                                                                    : alreadyRestored
+                                                                        ? 'بازیابی مجدد'
+                                                                        : 'بازگرداندن اقلام'}
+                                                            </Button>
                                                         )}
-                                                    </span>
 
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() => {
-                                                            void reprintSale(sale);
-                                                        }}
-                                                    >
-                                                        <Printer className="ms-1 size-4" />
-                                                        چاپ
-                                                    </Button>
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() => {
+                                                                void reprintSale(sale);
+                                                            }}
+                                                        >
+                                                            <Printer className="ms-1 size-4" />
+                                                            چاپ
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 )}
                             </CardContent>
@@ -956,34 +1585,85 @@ export default function PosPage() {
                                 روش پرداخت
                             </div>
 
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-3 gap-2">
                                 <Button
                                     type="button"
-                                    variant={paymentMethod === 'Cash' ? 'default' : 'outline'}
+                                    variant={
+                                        paymentMethod === 'Cash'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
                                     disabled={paymentLocked}
                                     onClick={() => setPaymentMethod('Cash')}
                                 >
-                                    <Banknote className="ms-2 size-4" />
+                                    <Banknote className="ms-1 size-4" />
                                     نقدی
                                 </Button>
 
                                 <Button
                                     type="button"
-                                    variant={paymentMethod === 'Card' ? 'default' : 'outline'}
+                                    variant={
+                                        paymentMethod === 'ManualCard'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
                                     disabled={paymentLocked}
+                                    onClick={() => setPaymentMethod('ManualCard')}
+                                >
+                                    <CreditCard className="ms-1 size-4" />
+                                    کارتخوان دستی
+                                </Button>
+
+                                <Button
+                                    type="button"
+                                    variant={
+                                        paymentMethod === 'Card'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                    disabled={
+                                        paymentLocked ||
+                                        !bridgeOnline ||
+                                        hasUnresolvedCardPayment
+                                    }
                                     onClick={() => setPaymentMethod('Card')}
                                 >
-                                    <CreditCard className="ms-2 size-4" />
-                                    کارتخوان ملت
+                                    <CreditCard className="ms-1 size-4" />
+                                    کارتخوان متصل
                                 </Button>
                             </div>
 
                             {paymentMethod === 'Card' && (
                                 <p className="text-xs text-muted-foreground">
-                                    پس از ثبت فروش، مبلغ از طریق نرم‌افزار Bridge
-                                    به کارتخوان ملت ارسال می‌شود. نتیجه پرداخت
-                                    به‌صورت خودکار از سرور دریافت خواهد شد.
-                                    شماره پیگیری را دستی وارد نکنید.
+                                    مبلغ فاکتور از طریق نرم‌افزار Bridge به کارتخوان ملت
+                                    ارسال می‌شود. نتیجه پرداخت به‌صورت خودکار از سرور
+                                    دریافت خواهد شد.
+                                </p>
+                            )}
+
+                            {paymentMethod === 'ManualCard' && (
+                                <div className="space-y-2">
+                                    <p className="text-sm text-muted-foreground">
+                                        پرداخت را خارج از اتصال نکسا و با کارتخوان فیزیکی
+                                        انجام دهید. پس از اطمینان از موفقیت پرداخت،
+                                        فاکتور را ثبت کنید.
+                                    </p>
+
+                                    <Input
+                                        value={manualPaymentReference}
+                                        onChange={(event) =>
+                                            setManualPaymentReference(event.target.value)
+                                        }
+                                        placeholder="شماره پیگیری بانکی (اختیاری)"
+                                        autoComplete="off"
+                                    />
+                                </div>
+                            )}
+
+                            {!bridgeOnline && (
+                                <p className="text-xs text-amber-700">
+                                    پرداخت متصل به Bridge در حال حاضر قابل استفاده نیست.
+                                    از گزینه کارتخوان دستی استفاده کنید.
                                 </p>
                             )}
                         </div>
@@ -995,14 +1675,23 @@ export default function PosPage() {
                                 disabled={
                                     cart.length === 0 ||
                                     saleMutation.isPending ||
-                                    paymentLocked
+                                    paymentLocked ||
+                                    (
+                                        paymentMethod === 'Card' &&
+                                        (
+                                            !bridgeOnline ||
+                                            hasUnresolvedCardPayment
+                                        )
+                                    )
                                 }
                             >
                                 {saleMutation.isPending
                                     ? 'در حال ثبت…'
                                     : paymentLocked
-                                        ? 'در انتظار نتیجه کارتخوان…'
-                                        : 'ثبت فروش و صدور فاکتور'}
+                                        ? 'در انتظار تعیین تکلیف پرداخت قبلی…'
+                                        : paymentMethod === 'ManualCard'
+                                            ? 'ثبت پرداخت دستی و صدور فاکتور'
+                                            : 'ثبت فروش و صدور فاکتور'}
                             </Button>
 
                             <Button
@@ -1040,8 +1729,16 @@ export default function PosPage() {
                             </div>
                         )}
 
-                        <div className="mt-2 font-bold">
-                            فاکتور فروش حضوری
+                        <div className="mt-2 text-center font-bold">
+                            {lastSale.status === 'Paid'
+                                ? 'فاکتور فروش پرداخت‌شده'
+                                : lastSale.status === 'Cancelled'
+                                    ? 'رسید لغو فاکتور ـ پرداخت نشده'
+                                    : 'فاکتور فروش ـ وضعیت پرداخت غیرقطعی'}
+                        </div>
+
+                        <div className="mt-2 text-sm font-bold">
+                            وضعیت: {saleStatusLabel(lastSale.status)}
                         </div>
                     </div>
 
@@ -1054,6 +1751,9 @@ export default function PosPage() {
                                 <div className="text-sm">
                                     تاریخ:{' '}
                                     {new Date(lastSale.createdAt).toLocaleString(locale)}
+                                </div>
+                                <div className="text-sm font-bold">
+                                    وضعیت پرداخت: {saleStatusLabel(lastSale.status)}
                                 </div>
                             </div>
 
@@ -1159,7 +1859,11 @@ export default function PosPage() {
 
                                 <div className="min-w-0 flex-1 text-center">
                                     <div className="text-[9pt] font-bold">
-                                        از خرید شما سپاسگزاریم
+                                        {lastSale.status === 'Paid'
+                                            ? 'از خرید شما سپاسگزاریم'
+                                            : lastSale.status === 'Cancelled'
+                                                ? 'این فاکتور لغو شده و رسید فروش معتبر نیست'
+                                                : 'این برگه رسید قطعی پرداخت نیست'}
                                     </div>
 
                                     <div className="mt-3 text-[7pt]">

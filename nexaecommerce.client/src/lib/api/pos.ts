@@ -52,14 +52,19 @@ export type PosSale = {
     totalAmount: number;
     items: PosSaleLine[];
 };
-
+export type PosRestoreCartLine = {
+    productVariantId: string;
+    variant: PosVariant | null;
+    requestedQuantity: number;
+    restoreQuantity: number;
+};
 // --------------------------------------------------
 // Create sale request
 // --------------------------------------------------
 
 export type PosCreateSaleRequest = {
     idempotencyKey: string;
-    paymentMethod: 'Cash' | 'Card';
+    paymentMethod: 'Cash' | 'Card' | 'ManualCard';
     paymentReference?: string | null;
     items: {
         productVariantId: string;
@@ -80,7 +85,13 @@ export type PosSalePaymentStatus = {
 // --------------------------------------------------
 // Bridge types
 // --------------------------------------------------
-
+export type PosBridgeAvailability = {
+    isConfigured: boolean;
+    isOnline: boolean;
+    deviceName: string | null;
+    lastSeenAtUtc: string | null;
+    message: string | null;
+};
 export type PosBridgeHealth = {
     ok: boolean;
     deviceName: string;
@@ -108,7 +119,6 @@ export type PosBridgeCompletionResponse = {
 // --------------------------------------------------
 // POS API
 // --------------------------------------------------
-
 export const posApi = {
     // جست‌وجوی کالا بر اساس نام یا SKU
     searchProducts: (search: string, signal?: AbortSignal) =>
@@ -116,7 +126,16 @@ export const posApi = {
             params: { search },
             signal,
         }),
+    getBridgeAvailability: () =>
+        api.get<PosBridgeAvailability>(
+            '/pos/bridge/availability',
+        ),
 
+    cancelUnclaimedPayment: (saleId: string) =>
+        api.post<PosBridgeCompletionResponse>(
+            `/pos/bridge/sales/${encodeURIComponent(saleId)}/cancel-unclaimed`,
+            {},
+        ),
     // پیدا کردن تنوع دقیق با بارکد
     findByBarcode: (barcode: string) =>
         api.get<PosVariant>(
@@ -141,6 +160,11 @@ export const posApi = {
     getSale: (saleId: string) =>
         api.get<PosSale>(
             `/pos/sales/${encodeURIComponent(saleId)}`,
+        ),
+    // بازیابی اقلام فاکتور لغوشده با قیمت و موجودی فعلی
+    restoreCancelledSaleItems: (saleId: string) =>
+        api.post<PosRestoreCartLine[]>(
+            `/pos/sales/${encodeURIComponent(saleId)}/restore-items`,
         ),
 
     // --------------------------------------------------

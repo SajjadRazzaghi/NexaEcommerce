@@ -55,7 +55,23 @@ public sealed class PosSaleCommitter(
             .SingleOrDefaultAsync(cancellationToken);
         return sale is null ? null : Map(sale);
     }
+    public async Task<PosSaleResultDto?> FindSaleByIdForSellerAsync(
+    string tenantId,
+    string sellerUserId,
+    Guid saleId,
+    CancellationToken cancellationToken)
+    {
+        var sale = await orders.PosSales
+            .AsNoTracking()
+            .Where(x =>
+                x.TenantId == tenantId &&
+                x.SellerUserId == sellerUserId &&
+                x.Id == saleId)
+            .Include(x => x.Items)
+            .SingleOrDefaultAsync(cancellationToken);
 
+        return sale is null ? null : Map(sale);
+    }
     // Existing cash-sale path. Card payments must use CreatePendingCardSaleAndReserveStockAsync.
     public Task<PosSaleResultDto> CommitSaleAndDecrementStockAtomicallyAsync(
         PosSaleDraft draft, CancellationToken cancellationToken)
@@ -105,11 +121,21 @@ public sealed class PosSaleCommitter(
                         return Map(prior);
                     }
 
-                    var paymentMethod = draft.PaymentMethod.Equals("Cash", StringComparison.OrdinalIgnoreCase)
-                        ? PosPaymentMethod.Cash
-                        : draft.PaymentMethod.Equals("Card", StringComparison.OrdinalIgnoreCase)
-                            ? PosPaymentMethod.BankMellat
-                            : throw new PosValidationException("روش پرداخت پشتیبانی نمی‌شود.");
+                    var paymentMethod =
+       draft.PaymentMethod.Equals(
+           "Cash",
+           StringComparison.OrdinalIgnoreCase)
+           ? PosPaymentMethod.Cash
+           : draft.PaymentMethod.Equals(
+               "Card",
+               StringComparison.OrdinalIgnoreCase)
+               ? PosPaymentMethod.BankMellat
+               : draft.PaymentMethod.Equals(
+                   "ManualCard",
+                   StringComparison.OrdinalIgnoreCase)
+                   ? PosPaymentMethod.ManualCard
+                   : throw new PosValidationException(
+                       "روش پرداخت پشتیبانی نمی‌شود.");
 
                     if (reserveForCardPayment && paymentMethod != PosPaymentMethod.BankMellat)
                         throw new PosValidationException("رزرو انتظار پرداخت فقط برای کارتخوان مجاز است.");
@@ -164,7 +190,7 @@ public sealed class PosSaleCommitter(
                     else
                     {
                         await DecrementStockAsync(draft, sale.Id, cancellationToken);
-                        sale.MarkPaid();
+                        sale.MarkPaid(draft.PaymentReference);
                     }
 
                     orders.PosSales.Add(sale);

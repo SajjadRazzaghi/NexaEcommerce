@@ -12,7 +12,8 @@ public enum PosSaleStatus
 public enum PosPaymentMethod
 {
     Cash = 1,
-    BankMellat = 2
+    BankMellat = 2,
+    ManualCard = 3
 }
 
 public sealed class PosSale

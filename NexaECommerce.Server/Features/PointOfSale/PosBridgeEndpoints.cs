@@ -21,16 +21,72 @@ public sealed class PosBridgeEndpoints : IFeatureEndpoints
 
         // These routes use the per-device secret, not the browser cookie session.
         group.MapGet("/health", HealthAsync);
+        group.MapGet("/availability", SellerAvailabilityAsync)
+    .RequirePermission(PosPermissions.Sell);
         group.MapGet("/next", NextAsync);
         group.MapGet("/sales/open", SellerOpenSaleStatusAsync)
             .RequirePermission(PosPermissions.Sell);
+        group.MapPost(
+        "/sales/{saleId:guid}/cancel-unclaimed",
+        CancelUnclaimedAsync)
+    .RequirePermission(PosPermissions.Sell);
         group.MapGet("/sales/{saleId:guid}/status", SellerSaleStatusAsync)
             .RequirePermission(PosPermissions.Sell);
         group.MapPost("/sales/{saleId:guid}/reconcile", ReconcileAsync)
             .RequirePermission(PosPermissions.Cancel);
         group.MapPost("/{saleId:guid}/complete", CompleteAsync);
     }
+    private static async Task<IResult> SellerAvailabilityAsync(
+    ICurrentTenant tenant,
+    IPosBridgeService service,
+    CancellationToken ct)
+    {
+        var result = await service.GetSellerAvailabilityAsync(
+            tenant.Id,
+            ct);
 
+        return Results.Ok(result);
+    }
+
+    private static async Task<IResult> CancelUnclaimedAsync(
+        Guid saleId,
+        ICurrentTenant tenant,
+        IPosExecutionContext user,
+        IPosBridgeService service,
+        CancellationToken ct)
+    {
+        try
+        {
+            var result = await service.CancelUnclaimedAsync(
+                tenant.Id,
+                user.UserId,
+                saleId,
+                ct);
+
+            return Results.Ok(result);
+        }
+        catch (PosValidationException ex)
+        {
+            return Results.Problem(
+                statusCode: 400,
+                title: "درخواست لغو نامعتبر است.",
+                detail: ex.Message);
+        }
+        catch (PosNotFoundException ex)
+        {
+            return Results.Problem(
+                statusCode: 404,
+                title: "فاکتور پیدا نشد.",
+                detail: ex.Message);
+        }
+        catch (PosConflictException ex)
+        {
+            return Results.Problem(
+                statusCode: 409,
+                title: "لغو امن امکان‌پذیر نیست.",
+                detail: ex.Message);
+        }
+    }
     private static async Task<IResult> CreateDeviceAsync(
         [FromBody] PosBridgeCreateDeviceRequest request,
         ICurrentTenant tenant,

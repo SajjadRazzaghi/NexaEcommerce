@@ -9,7 +9,12 @@ namespace NexaEcommerce.Modules.Orders.Application.Pos;
 public sealed class PosOrchestrator : IPosOrchestrator
 {
     private static readonly HashSet<string> SupportedPaymentMethods =
-        new(StringComparer.OrdinalIgnoreCase) { "Cash", "Card" };
+     new(StringComparer.OrdinalIgnoreCase)
+     {
+        "Cash",
+        "Card",
+        "ManualCard"
+     };
 
     private readonly IPosCatalogReader _catalog;
     private readonly IPosSaleCommitter _saleCommitter;
@@ -55,7 +60,92 @@ public sealed class PosOrchestrator : IPosOrchestrator
             throw new PosInsufficientStockException($"موجودی «{variant.ProductName}» کافی نیست.");
         return variant;
     }
+    public async Task<IReadOnlyList<PosRestoreCartLineDto>>
+    RestoreCancelledSaleItemsAsync(
+        Guid saleId,
+        CancellationToken cancellationToken)
+    {
+        if (saleId == Guid.Empty)
+            throw new PosValidationException("شناسه فاکتور معتبر نیست.");
 
+        var tenantId = _context.TenantId?.Trim();
+        if (string.IsNullOrWhiteSpace(tenantId))
+        {
+            throw new PosConflictException(
+                "اطلاعات فروشگاه معتبر نیست.");
+        }
+
+        // فاکتور باید متعلق به همین فروشگاه باشد.
+        // محدود به آخرین فاکتور یا فروشنده ثبت‌کننده نیست.
+        var sale = await _saleCommitter.FindSaleByIdAsync(
+            tenantId,
+            saleId,
+            cancellationToken);
+
+        if (sale is null)
+            throw new PosNotFoundException("فاکتور پیدا نشد.");
+
+        // فقط فاکتور لغوشده قابل بازیابی است.
+        if (!string.Equals(
+                sale.Status,
+                "Cancelled",
+                StringComparison.OrdinalIgnoreCase))
+        {
+            throw new PosConflictException(
+                "فقط اقلام فاکتور لغوشده قابل بازگردانی به سبد هستند.");
+        }
+
+        if (sale.Items.Count == 0)
+            throw new PosConflictException("فاکتور فاقد اقلام قابل بازیابی است.");
+
+        // تعداد هر تنوع از خود فاکتور خوانده می‌شود.
+        var requestedQuantities = sale.Items
+            .GroupBy(x => x.ProductVariantId)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Sum(x => x.Quantity));
+
+        // قیمت، مشخصات و موجودی فعلی از کاتالوگ خوانده می‌شود.
+        var currentVariants = await _catalog.GetSellableVariantsAsync(
+            requestedQuantities.Keys.ToArray(),
+            cancellationToken);
+
+        var variantsById = currentVariants.ToDictionary(x => x.Id);
+
+        foreach (var variant in currentVariants)
+        {
+            if (!string.Equals(
+                    variant.Currency,
+                    sale.Currency,
+                    StringComparison.OrdinalIgnoreCase))
+            {
+                throw new PosConflictException(
+                    "واحد پول کالا از زمان ثبت فاکتور تغییر کرده است؛ بررسی دستی لازم است.");
+            }
+        }
+
+        var result = new List<PosRestoreCartLineDto>();
+
+        foreach (var item in requestedQuantities)
+        {
+            variantsById.TryGetValue(item.Key, out var variant);
+
+            // اگر تنوع حذف یا غیرفعال شده باشد، قابل بازیابی نیست.
+            var restoreQuantity = variant is null
+                ? 0
+                : Math.Min(
+                    item.Value,
+                    Math.Max(0, variant.AvailableQuantity));
+
+            result.Add(new PosRestoreCartLineDto(
+                item.Key,
+                variant,
+                item.Value,
+                restoreQuantity));
+        }
+
+        return result;
+    }
     public async Task<PosSaleResultDto> CreateSaleAsync(
         PosCreateSaleRequestDto request,
         CancellationToken cancellationToken)

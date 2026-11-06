@@ -24,7 +24,10 @@ public sealed class PosEndpoints : IFeatureEndpoints
 
         group.MapPost("/sales", CreateSaleAsync)
             .RequirePermission(PosPermissions.Sell);
-
+        group.MapPost(
+        "/sales/{saleId:guid}/restore-items",
+        RestoreCancelledSaleItemsAsync)
+    .RequirePermission(PosPermissions.Sell);
         group.MapGet("/sales", ListSalesAsync)
             .RequirePermission(PosPermissions.Read);
 
@@ -40,7 +43,32 @@ public sealed class PosEndpoints : IFeatureEndpoints
         try { return Results.Ok(await orchestrator.SearchProductsAsync(search, ct)); }
         catch (PosValidationException ex) { return Problem(400, "جست‌وجوی نامعتبر", ex.Message); }
     }
+    private static async Task<IResult> RestoreCancelledSaleItemsAsync(
+    Guid saleId,
+    IPosOrchestrator orchestrator,
+    CancellationToken ct)
+    {
+        try
+        {
+            var result = await orchestrator.RestoreCancelledSaleItemsAsync(
+                saleId,
+                ct);
 
+            return Results.Ok(result);
+        }
+        catch (PosValidationException ex)
+        {
+            return Problem(400, "درخواست بازیابی نامعتبر است", ex.Message);
+        }
+        catch (PosNotFoundException ex)
+        {
+            return Problem(404, "فاکتور پیدا نشد", ex.Message);
+        }
+        catch (PosConflictException ex)
+        {
+            return Problem(409, "بازیابی فاکتور امکان‌پذیر نیست", ex.Message);
+        }
+    }
     private static async Task<IResult> FindByBarcodeAsync(
         string barcode,
         IPosOrchestrator orchestrator,

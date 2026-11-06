@@ -13,7 +13,11 @@ public sealed record PosVariantDto(
     string Currency,
     int AvailableQuantity,
     IReadOnlyList<string> AttributeLabels);
-
+public sealed record PosRestoreCartLineDto(
+    Guid ProductVariantId,
+    PosVariantDto? Variant,
+    int RequestedQuantity,
+    int RestoreQuantity);
 public sealed record PosProductDto(
     Guid Id,
     string Name,
@@ -110,7 +114,11 @@ public interface IPosSaleCommitter
     Task<PosSaleResultDto?> FindByIdempotencyKeyAsync(
         string tenantId, string sellerUserId, string idempotencyKey,
         CancellationToken cancellationToken);
-
+    Task<PosSaleResultDto?> FindSaleByIdForSellerAsync(
+    string tenantId,
+    string sellerUserId,
+    Guid saleId,
+    CancellationToken cancellationToken);
     Task<IReadOnlyList<PosSaleResultDto>> ListSalesAsync(
         string tenantId, int skip, int take, CancellationToken cancellationToken);
 
@@ -126,6 +134,9 @@ public interface IPosSaleCommitter
 
 public interface IPosOrchestrator
 {
+    Task<IReadOnlyList<PosRestoreCartLineDto>> RestoreCancelledSaleItemsAsync(
+    Guid saleId,
+    CancellationToken cancellationToken);
     Task<IReadOnlyList<PosProductDto>> SearchProductsAsync(string? search, CancellationToken cancellationToken);
     Task<PosVariantDto> FindByBarcodeAsync(string barcode, CancellationToken cancellationToken);
     Task<PosSaleResultDto> CreateSaleAsync(PosCreateSaleRequestDto request, CancellationToken cancellationToken);
