@@ -1,0 +1,46 @@
+بسته مرحله اول مهندسی NexaECommerce
+
+مبنای آماده‌سازی: شاخه main مخزن SajjadRazzaghi/NexaEcommerce
+
+محتویات بسته:
+1) .github/workflows/ci.yml
+   گردش کار CI برای Build و تست‌های .NET، Build تایپ‌اسکریپت و ESLint.
+
+2) tests/Tests.Unit/Features/Catalog/ProductFavoriteTests.cs
+   تست‌های واحد رفتار موجودیت ProductFavorite.
+
+3) tests/Tests.Integration/Features/Favorites/FavoritesEndpointsTests.cs
+   تست دسترسی مهمان به علاقه‌مندی‌ها، صدور کوکی مهمان و مجوز گزارش مدیریتی.
+
+4) gitignore-additions.txt
+   خطوطی که باید به انتهای فایل ریشه .gitignore اضافه شوند.
+
+نحوه اعمال:
+- محتوای ZIP را در ریشه G:\NexaECommerce استخراج کن و اجازه بده پوشه‌ها با مسیرهای پروژه ادغام شوند.
+- محتوای gitignore-additions.txt را به انتهای .gitignore ریشه اضافه کن.
+- سپس از ریشه پروژه اجرا کن:
+
+  dotnet test .\tests\Tests.Unit\NexaECommerce.Tests.Unit.csproj -c Release
+  dotnet test .\tests\Tests.Integration\NexaECommerce.Tests.Integration.csproj -c Release
+
+- سپس از پوشه nexaecommerce.client اجرا کن:
+
+  npm ci
+  npm run build
+  npm run lint
+
+- اگر همه دستورات محلی موفق شدند، وضعیت را بررسی کن:
+
+  git status --short
+
+- پوشه‌های پشتیبان قبلاً در Git ثبت شده‌اند؛ صرفاً اضافه‌کردن آن‌ها به .gitignore آن‌ها را از تاریخچه حذف نمی‌کند. برای خارج‌کردن از index و نگه‌داشتن فایل‌ها روی کامپیوتر، فقط پس از اطمینان از وجود بکاپ مستقل اجرا کن:
+
+  git rm -r --cached .favorites-backup .inventory-unification-phase2-fix-backup .inventory-unification-phase2-fix2-backup
+
+  این دستور فایل‌های محلی را پاک نمی‌کند؛ فقط آن‌ها را از index گیت خارج می‌کند.
+
+نکات:
+- این بسته به دیتابیس یا فایل‌های تنظیمات Production دست نمی‌زند.
+- Workflow از شاخه main برای push و pull request اجرا می‌شود.
+- نسخه‌های Action در Workflow مطابق نسخه‌های فعلی مستندات GitHub در زمان تهیه انتخاب شده‌اند.
+- اجرای CI واقعی تا زمانی که فایل‌ها را در مخزن قرار ندهی و push نکنی انجام نمی‌شود.

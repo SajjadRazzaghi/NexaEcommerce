@@ -1,3 +1,4 @@
+using NexaEcommerce.Modules.Orders.Application.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
@@ -182,6 +183,14 @@ public sealed class CustomWebApplicationFactory
                         TestAuthHandler.SchemeName,
                         _ => { });
                 services.AddScoped<IPaymentGateway, TestPaymentGateway>();
+                // Use an in-process keyed lock for SQLite integration tests.
+                // Production SQL Server locking remains unchanged.
+                services.RemoveAll<IOrderConcurrencyService>();
+
+                services.AddSingleton<
+                    IOrderConcurrencyService,
+                    TestOrderConcurrencyService>();
+
             });
     }
 

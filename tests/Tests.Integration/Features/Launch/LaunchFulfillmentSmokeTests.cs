@@ -80,11 +80,11 @@ public sealed class LaunchFulfillmentSmokeTests(
         // 4. Ensure a shipping method exists
         // ============================================================
 
-        var shippingMethodId =
-            await GetOrCreateShippingMethodIdAsync(
-                client);
+        var shippingMethod =
+    await GetOrCreateShippingMethodIdAsync(
+        client);
 
-        shippingMethodId
+        shippingMethod.Id
             .ShouldNotBe(Guid.Empty);
 
         // ============================================================
@@ -129,7 +129,7 @@ public sealed class LaunchFulfillmentSmokeTests(
                             shippingPostalCode =
                                 "1234567890",
 
-                            shippingMethodId,
+                            shippingMethodId = shippingMethod.Id,
 
                             couponCode =
                                 (string?)null,
@@ -709,42 +709,75 @@ public sealed class LaunchFulfillmentSmokeTests(
         // 23. Create shipment
         // ============================================================
 
+        // ============================================================
+        // 23. Verify the shipment automatically prepared by ReadyToShip
+        // ============================================================
+
+        var shipmentResponse =
+            await client.GetAsync(
+                $"/api/orders/{orderId}/shipment",
+                TestContext.Current.CancellationToken);
+
+        await AssertExpectedStatusAsync(
+            shipmentResponse,
+            HttpStatusCode.OK,
+            "Get prepared shipment");
+
+        var preparedShipment =
+            await shipmentResponse.Content
+                .ReadFromJsonAsync<JsonElement>(
+                    TestContext.Current.CancellationToken);
+
+        preparedShipment
+            .GetProperty("status")
+            .GetString()
+            .ShouldBe("Pending");
+
+        var preparedShipmentId =
+            preparedShipment
+                .GetProperty("id")
+                .GetGuid();
+
+        preparedShipmentId
+            .ShouldNotBe(Guid.Empty);
+
+        // ============================================================
+        // 24. Set tracking number on the existing shipment
+        // ============================================================
+
         var trackingNumber =
             $"NEXA-E2E-{Guid.NewGuid():N}";
 
-        var createShipmentResponse =
-            await client.PostAsJsonAsync(
-                $"/api/orders/{orderId}/shipment",
+        var updateTrackingResponse =
+            await client.PutAsJsonAsync(
+                $"/api/orders/{orderId}/shipment/tracking",
                 new
                 {
-                    orderId,
-
-                    shippingMethod =
-                        "Launch Express",
-
-                    carrier =
-                        "Launch Carrier",
-
                     trackingNumber
                 },
                 TestContext.Current.CancellationToken);
 
         await AssertExpectedStatusAsync(
-            createShipmentResponse,
-            HttpStatusCode.Created,
-            "Create shipment");
+            updateTrackingResponse,
+            HttpStatusCode.OK,
+            "Set shipment tracking number");
 
-        var createdShipment =
-            await createShipmentResponse.Content
+        var updatedShipment =
+            await updateTrackingResponse.Content
                 .ReadFromJsonAsync<JsonElement>(
                     TestContext.Current.CancellationToken);
 
-        createdShipment
+        updatedShipment
+            .GetProperty("id")
+            .GetGuid()
+            .ShouldBe(preparedShipmentId);
+
+        updatedShipment
             .GetProperty("status")
             .GetString()
             .ShouldBe("Pending");
 
-        createdShipment
+        updatedShipment
             .GetProperty("trackingNumber")
             .GetString()
             .ShouldBe(trackingNumber);
@@ -1019,7 +1052,7 @@ public sealed class LaunchFulfillmentSmokeTests(
         return variantId;
     }
 
-    private async Task<Guid>
+    private async Task<ShippingMethodSnapshot>
         GetOrCreateShippingMethodIdAsync(
             HttpClient client)
     {
@@ -1057,22 +1090,36 @@ public sealed class LaunchFulfillmentSmokeTests(
             if (
                 !method.TryGetProperty(
                     "isActive",
-                    out var activeProperty))
+                    out var activeProperty) ||
+                !activeProperty.GetBoolean())
             {
                 continue;
             }
 
-            if (!activeProperty.GetBoolean())
+            if (
+                !method.TryGetProperty(
+                    "name",
+                    out var nameProperty) ||
+                !method.TryGetProperty(
+                    "carrier",
+                    out var carrierProperty))
             {
                 continue;
             }
 
-            var id =
-                idProperty.GetGuid();
+            var id = idProperty.GetGuid();
+            var name = nameProperty.GetString();
+            var carrier = carrierProperty.GetString();
 
-            if (id != Guid.Empty)
+            if (
+                id != Guid.Empty &&
+                !string.IsNullOrWhiteSpace(name) &&
+                !string.IsNullOrWhiteSpace(carrier))
             {
-                return id;
+                return new ShippingMethodSnapshot(
+                    id,
+                    name,
+                    carrier);
             }
         }
 
@@ -1120,7 +1167,10 @@ public sealed class LaunchFulfillmentSmokeTests(
         createdId
             .ShouldNotBe(Guid.Empty);
 
-        return createdId;
+        return new ShippingMethodSnapshot(
+            createdId,
+            createRequest.name,
+            createRequest.carrier);
     }
 
     private async Task<JsonElement>
@@ -1460,5 +1510,9 @@ public sealed class LaunchFulfillmentSmokeTests(
     private sealed record OrderReservationSnapshot(
         int Quantity,
         string Status);
+    private sealed record ShippingMethodSnapshot(
+    Guid Id,
+    string Name,
+    string Carrier);
 }
 

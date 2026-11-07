@@ -1,0 +1,84 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Backend build and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Restore backend dependencies
+        run: |
+          dotnet restore NexaECommerce.Server/NexaECommerce.Server.csproj
+          dotnet restore tests/Tests.Unit/NexaECommerce.Tests.Unit.csproj
+          dotnet restore tests/Tests.Integration/NexaECommerce.Tests.Integration.csproj
+
+      - name: Build backend
+        run: >-
+          dotnet build NexaECommerce.Server/NexaECommerce.Server.csproj
+          --configuration Release
+          --no-restore
+
+      - name: Run unit tests
+        run: >-
+          dotnet test tests/Tests.Unit/NexaECommerce.Tests.Unit.csproj
+          --configuration Release
+          --no-restore
+          --logger "console;verbosity=normal"
+
+      - name: Run integration tests
+        run: >-
+          dotnet test tests/Tests.Integration/NexaECommerce.Tests.Integration.csproj
+          --configuration Release
+          --no-restore
+          --logger "console;verbosity=normal"
+
+  frontend:
+    name: Frontend build and lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: nexaecommerce.client
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: nexaecommerce.client/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check and build frontend
+        run: npm run build
+
+      - name: Lint frontend
+        run: npm run lint

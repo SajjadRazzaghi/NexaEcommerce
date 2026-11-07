@@ -527,21 +527,29 @@ public sealed class OrderFulfillmentLifecycleTests(
     private async Task<Guid> CreateProcessingOrderAsync(
         string userId)
     {
+        var shippingMethod =
+    ShippingMethod.Create(
+        TenantId,
+        $"TEST-{Guid.NewGuid():N}".ToUpperInvariant(),
+        "Test Shipping",
+        "Test Carrier",
+        20_000m);
         var order =
-            Order.Create(
-                TenantId,
-                userId,
-                $"TEST-{Guid.NewGuid():N}",
-                $"test-{Guid.NewGuid():N}",
-                "IRR",
-                100_000m,
-                20_000m,
-                0m,
-                "Integration Test User",
-                "09000000000",
-                "Test Address",
-                "Tehran",
-                "1234567890");
+          Order.Create(
+              TenantId,
+              userId,
+              $"TEST-{Guid.NewGuid():N}",
+              $"test-{Guid.NewGuid():N}",
+              "IRR",
+              100_000m,
+              20_000m,
+              0m,
+              "Integration Test User",
+              "09000000000",
+              "Test Address",
+              "Tehran",
+              "1234567890",
+              shippingMethod.Id);
 
         order.AddItem(
             Guid.NewGuid(),
@@ -633,7 +641,13 @@ public sealed class OrderFulfillmentLifecycleTests(
         await db.Packages.AddAsync(
             package,
             TestContext.Current.CancellationToken);
+        await db.ShippingMethods.AddAsync(
+    shippingMethod,
+    TestContext.Current.CancellationToken);
 
+        await db.Orders.AddAsync(
+            order,
+            TestContext.Current.CancellationToken);
         await db.SaveChangesAsync(
             TestContext.Current.CancellationToken);
 

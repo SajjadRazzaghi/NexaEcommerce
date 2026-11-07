@@ -25,3 +25,7 @@ src/router.ts
 *.njsproj
 *.sln
 *.sw?
+
+/.favorites-backup/
+/.inventory-unification-phase2-fix-backup/
+/.inventory-unification-phase2-fix2-backup/

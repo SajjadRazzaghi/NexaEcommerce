@@ -230,7 +230,13 @@ public sealed class WarehouseReadyToShipTests(
     {
         var userId =
             $"ready-{Guid.NewGuid():N}";
-
+        var shippingMethod =
+    ShippingMethod.Create(
+        TenantId,
+        $"READY-{Guid.NewGuid():N}".ToUpperInvariant(),
+        "Ready Test Shipping",
+        "Ready Test Carrier",
+        20_000m);
         var order =
             Order.Create(
                 TenantId,
@@ -245,7 +251,8 @@ public sealed class WarehouseReadyToShipTests(
                 "09000000000",
                 "Test Address",
                 "Tehran",
-                "1234567890");
+                "1234567890",
+shippingMethod.Id);
 
         order.AddItem(
             Guid.NewGuid(),
@@ -275,7 +282,9 @@ public sealed class WarehouseReadyToShipTests(
         var db =
             scope.ServiceProvider
                 .GetRequiredService<OrdersDbContext>();
-
+        await db.ShippingMethods.AddAsync(
+    shippingMethod,
+    TestContext.Current.CancellationToken);
         await db.Database.EnsureCreatedAsync(
             TestContext.Current.CancellationToken);
 

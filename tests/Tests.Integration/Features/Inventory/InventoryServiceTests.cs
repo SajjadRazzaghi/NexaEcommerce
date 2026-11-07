@@ -344,13 +344,12 @@ public sealed class InventoryServiceTests(
         var variant =
             await catalogDb.ProductVariants
                 .AsNoTracking()
-                .Where(x =>
-                    x.IsActive &&
-                    !x.IsDeleted &&
-                    x.StockQuantity > 0 &&
-                    x.Product.IsActive &&
-                    x.Product.IsPublished &&
-                    !x.Product.IsDeleted)
+              .Where(x =>
+    x.IsActive &&
+    !x.IsDeleted &&
+    x.Product.IsActive &&
+    x.Product.IsPublished &&
+    !x.Product.IsDeleted)
                 .Select(x => x.Id)
                 .FirstOrDefaultAsync(
                     TestContext.Current.CancellationToken);

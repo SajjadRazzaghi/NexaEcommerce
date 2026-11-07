@@ -1,0 +1,5 @@
+
+# Local task snapshots and one-off backup trees; keep backups outside source control.
+/.favorites-backup/
+/.inventory-unification-phase2-fix-backup/
+/.inventory-unification-phase2-fix2-backup/

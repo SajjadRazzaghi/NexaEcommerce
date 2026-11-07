@@ -295,8 +295,14 @@ await using (
                     EcommerceDatabaseInitializer>();
 
         await initializer.InitializeAsync();
-        await NexaECommerce.Server.Data.Seed.IdentitySeeder
-    .SeedAsync(scope.ServiceProvider);
+
+        // Integration tests create their own isolated schema
+        // and seed test users and roles in CustomWebApplicationFactory.
+        if (!app.Environment.IsEnvironment("Testing"))
+        {
+            await NexaECommerce.Server.Data.Seed.IdentitySeeder
+                .SeedAsync(scope.ServiceProvider);
+        }
     }
     catch (Exception ex)
     {
