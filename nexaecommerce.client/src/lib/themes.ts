@@ -136,7 +136,68 @@ export const THEMES: Theme[] = [
       accent: 'hsl(20 25% 21%)', accentForeground: 'hsl(30 40% 96%)',
       border: 'hsl(20 20% 19%)', input: 'hsl(20 20% 19%)', ring: 'hsl(20 90% 58%)',
     },
-  },
+    },
+
+    {
+        key: 'blush',
+        name: 'Blush Pink',
+        swatch: 'hsl(338 47% 48%)',
+
+        light: {
+            background: 'hsl(345 45% 98%)',
+            foreground: 'hsl(343 25% 18%)',
+
+            card: 'hsl(0 0% 100%)',
+            cardForeground: 'hsl(343 25% 18%)',
+
+            popover: 'hsl(0 0% 100%)',
+            popoverForeground: 'hsl(343 25% 18%)',
+
+            primary: 'hsl(338 47% 48%)',
+            primaryForeground: 'hsl(0 0% 100%)',
+
+            secondary: 'hsl(342 38% 94%)',
+            secondaryForeground: 'hsl(343 25% 20%)',
+
+            muted: 'hsl(345 32% 96%)',
+            mutedForeground: 'hsl(343 12% 43%)',
+
+            accent: 'hsl(340 55% 91%)',
+            accentForeground: 'hsl(343 28% 22%)',
+
+            border: 'hsl(340 22% 88%)',
+            input: 'hsl(340 22% 88%)',
+            ring: 'hsl(338 47% 48%)',
+        },
+
+        dark: {
+            background: 'hsl(340 22% 8%)',
+            foreground: 'hsl(340 25% 95%)',
+
+            card: 'hsl(340 20% 11%)',
+            cardForeground: 'hsl(340 25% 95%)',
+
+            popover: 'hsl(340 20% 11%)',
+            popoverForeground: 'hsl(340 25% 95%)',
+
+            primary: 'hsl(338 65% 70%)',
+            primaryForeground: 'hsl(340 25% 12%)',
+
+            secondary: 'hsl(340 18% 17%)',
+            secondaryForeground: 'hsl(340 25% 93%)',
+
+            muted: 'hsl(340 18% 17%)',
+            mutedForeground: 'hsl(340 12% 68%)',
+
+            accent: 'hsl(340 24% 22%)',
+            accentForeground: 'hsl(340 25% 94%)',
+
+            border: 'hsl(340 18% 22%)',
+            input: 'hsl(340 18% 22%)',
+            ring: 'hsl(338 65% 70%)',
+        },
+    },
+
 ];
 
 export const THEME_BY_KEY = new Map(THEMES.map((t) => [t.key, t]));

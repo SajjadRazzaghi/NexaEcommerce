@@ -1,50 +1,50 @@
 {
   "assistant": {
-      "dataCategories":  "Question text and only data permitted for the active company",
-      "exampleLowStock":  "Low-stock products",
-      "yes":  "Yes",
-      "actionDisabled":  "Actions are disabled",
-      "no":  "No",
-      "infoLoadError":  "Could not retrieve service details. The browser does not make external AI calls.",
-      "providerLabel":  "Processing service",
-      "localProvider":  "Nexa internal query router",
-      "externalDataSent":  "Sent to an external service",
-      "title":  "Nexa AI assistant",
-      "noLiveDataUsed":  "This response came from the static system guide.",
-      "dataAsOf":  "Data retrieved at",
-      "noChangeMade":  "No change was made in the system.",
-      "localOnlyDescription":  "No external AI model is connected in this release. Neither your question nor Nexa records are sent to an external provider.",
-      "costLabel":  "AI API cost",
-      "exampleSales":  "Sales summary today",
-      "questionPlaceholder":  "For example: unpaid orders today or low-stock products",
-      "answerTitle":  "Assistant response",
-      "questionLabel":  "Your question",
-      "noPermission":  "An administrator must grant the assistant.use permission to your role.",
-      "questionLimit":  "{{count}} of 1000 characters",
-      "timezoneLabel":  "Business timezone for daily reports",
-      "insufficientData":  "Insufficient data",
-      "localOnlyTitle":  "Local, read-only processing",
-      "description":  "Ask natural-language questions about orders, products, and reports you are permitted to view for the active company.",
-      "nav":  "AI assistant",
-      "dataLabel":  "Data processed",
-      "developmentCostLabel":  "Development cost",
-      "approvalNotice":  "Any external service may be enabled only after disclosing the provider, data categories, processing location, and cost and receiving the employerʼs written approval.",
-      "examplesTitle":  "Example questions",
-      "systemGuide":  "System guide",
-      "developmentCostSeparate":  "Development cost is separate from API consumption and must be quoted independently.",
-      "detailsTitle":  "Data details",
-      "noExternalCost":  "0 — no external API is called",
-      "permissionDenied":  "Insufficient permission",
-      "locationLabel":  "Processing location",
-      "liveData":  "Live system data",
-      "readOnlyNotice":  "The assistant cannot change orders, products, or inventory.",
-      "locationUnknown":  "Nexa server environment; geographic region is not configured",
-      "exampleUnpaidOrders":  "Unpaid orders today",
-      "infoLoading":  "Loading service details from Nexa…",
-      "ask":  "Ask",
-      "dataDisclosureTitle":  "Service and data disclosure",
-      "queryError":  "The query failed. Check the server connection and your permissions.",
-      "sending":  "Checking…"
+    "dataCategories": "Question text and only data permitted for the active company",
+    "exampleLowStock": "Low-stock products",
+    "yes": "Yes",
+    "actionDisabled": "Actions are disabled",
+    "no": "No",
+    "infoLoadError": "Could not retrieve service details. The browser does not make external AI calls.",
+    "providerLabel": "Processing service",
+    "localProvider": "Nexa internal query router",
+    "externalDataSent": "Sent to an external service",
+    "title": "Nexa AI assistant",
+    "noLiveDataUsed": "This response came from the static system guide.",
+    "dataAsOf": "Data retrieved at",
+    "noChangeMade": "No change was made in the system.",
+    "localOnlyDescription": "No external AI model is connected in this release. Neither your question nor Nexa records are sent to an external provider.",
+    "costLabel": "AI API cost",
+    "exampleSales": "Sales summary today",
+    "questionPlaceholder": "For example: unpaid orders today or low-stock products",
+    "answerTitle": "Assistant response",
+    "questionLabel": "Your question",
+    "noPermission": "An administrator must grant the assistant.use permission to your role.",
+    "questionLimit": "{{count}} of 1000 characters",
+    "timezoneLabel": "Business timezone for daily reports",
+    "insufficientData": "Insufficient data",
+    "localOnlyTitle": "Local, read-only processing",
+    "description": "Ask natural-language questions about orders, products, and reports you are permitted to view for the active company.",
+    "nav": "AI assistant",
+    "dataLabel": "Data processed",
+    "developmentCostLabel": "Development cost",
+    "approvalNotice": "Any external service may be enabled only after disclosing the provider, data categories, processing location, and cost and receiving the employerʼs written approval.",
+    "examplesTitle": "Example questions",
+    "systemGuide": "System guide",
+    "developmentCostSeparate": "Development cost is separate from API consumption and must be quoted independently.",
+    "detailsTitle": "Data details",
+    "noExternalCost": "0 — no external API is called",
+    "permissionDenied": "Insufficient permission",
+    "locationLabel": "Processing location",
+    "liveData": "Live system data",
+    "readOnlyNotice": "The assistant cannot change orders, products, or inventory.",
+    "locationUnknown": "Nexa server environment; geographic region is not configured",
+    "exampleUnpaidOrders": "Unpaid orders today",
+    "infoLoading": "Loading service details from Nexa…",
+    "ask": "Ask",
+    "dataDisclosureTitle": "Service and data disclosure",
+    "queryError": "The query failed. Check the server connection and your permissions.",
+    "sending": "Checking…"
   },
   "customers": {
     "customer": "Customer",
@@ -117,37 +117,30 @@
     "description": "Manage reusable product attributes used by filters and product variants.",
     "newAttribute": "New Attribute",
     "searchPlaceholder": "Search attributes...",
-
     "loading": "Loading catalog attributes...",
     "saving": "Saving catalog changes...",
-
     "loadError": "Failed to load catalog attributes",
     "unexpectedError": "Unexpected error.",
-
     "form": {
       "loadingDisplayTypes": "Loading display types...",
       "selectDisplayType": "Select display type",
       "title": "Attribute Form",
       "editTitle": "Edit Attribute",
       "description": "Create a reusable attribute definition.",
-
       "name": "Name",
       "code": "Code",
       "displayType": "Display type",
       "displayOrder": "Display order",
       "descriptionField": "Description",
-
       "required": "Required",
       "filterable": "Filterable",
       "variantAttribute": "Variant Attribute",
       "active": "Active",
-
       "create": "Create Attribute",
       "update": "Save Changes",
       "reset": "Reset",
       "cancel": "Cancel"
     },
-
     "list": {
       "variant": "Variant",
       "product": "Product",
@@ -156,38 +149,30 @@
       "delete": "Delete",
       "addValue": "Add Value",
       "values": "Values",
-
       "required": "Required",
       "filterable": "Filterable",
       "status": "Status",
-
       "yes": "Yes",
       "no": "No",
       "active": "Active",
       "inactive": "Inactive",
-
       "empty": "No catalog attributes found."
     },
-
     "values": {
       "title": "Values",
       "add": "Add Value",
       "edit": "Edit Value",
-
       "value": "Value",
       "displayValue": "Display value",
       "colorHex": "Color",
       "displayOrder": "Display order",
       "active": "Active",
-
       "create": "Create Value",
       "save": "Save Value",
       "cancel": "Cancel",
-
       "empty": "No values defined.",
       "order": "Order"
     },
-
     "confirm": {
       "deleteAttribute": "Delete attribute \"{{name}}\"?",
       "deleteValue": "Delete value \"{{name}}\"?"
@@ -214,12 +199,10 @@
     "retry": "Retry",
     "loadError": "Failed to load product.",
     "backToProducts": "Back to products",
-
     "actions": {
       "back": "Back",
       "editProduct": "Edit Product"
     },
-
     "status": {
       "active": "Active",
       "inactive": "Inactive",
@@ -230,7 +213,6 @@
       "inStock": "In Stock",
       "outOfStock": "Out of Stock"
     },
-
     "fields": {
       "sku": "SKU",
       "brand": "Brand",
@@ -240,7 +222,6 @@
       "description": "Description",
       "categories": "Categories"
     },
-
     "variants": {
       "title": "Variants",
       "count_one": "{{count}} variant",
@@ -291,12 +272,10 @@
     "editTitle": "Edit {{productName}}",
     "description": "Update product information, variants and catalog configuration.",
     "loadError": "Unable to load product.",
-
     "basicInformation": {
       "title": "Basic Information",
       "description": "Basic product information"
     },
-
     "fields": {
       "sku": "SKU",
       "slug": "slug",
@@ -314,13 +293,10 @@
       "selectBrand": "Select Brand",
       "categories": "Categories"
     },
-
     "pricing": {
       "title": "Pricing & Discount",
       "description": "Product pricing and discount settings"
     },
-
-
     "images": {
       "title": "Images",
       "description": "Product images",
@@ -330,7 +306,6 @@
       "empty": "No images added yet.",
       "uploadHint": "Upload an image above."
     },
-
     "publication": {
       "title": "Publication Status",
       "description": "Control product visibility status",
@@ -343,19 +318,16 @@
       "published": "Published",
       "publishedHint": "Published products are visible to customers when the product is active."
     },
-
     "actions": {
       "back": "Back",
       "cancel": "Cancel",
       "create": "Create Product",
       "save": "Save Changes"
     },
-
     "messages": {
       "created": "Product created successfully.",
       "updated": "Product updated successfully."
     },
-
     "optional": "Optional"
   },
   "appearance": {
@@ -363,7 +335,6 @@
     "retry": "Retry",
     "title": "Store Branding",
     "description": "Configure the store identity, logo, favicon, contact information, SEO metadata and visual theme used across the storefront.",
-
     "identity": {
       "title": "Store identity",
       "storeName": "Store name",
@@ -380,7 +351,6 @@
       "faviconUrl": "Or enter an existing favicon URL",
       "faviconUrlPlaceholder": "/uploads/favicon.png"
     },
-
     "contact": {
       "title": "Contact information",
       "phone": "Contact phone",
@@ -393,7 +363,6 @@
       "addressPlaceholder": "Store address",
       "addressHint": "This information can be displayed in the storefront footer and contact sections."
     },
-
     "seo": {
       "title": "SEO settings",
       "seoTitle": "SEO title",
@@ -403,7 +372,6 @@
       "descriptionPlaceholder": "Describe your store and products for search engines.",
       "descriptionHint": "Used for the page meta description."
     },
-
     "theme": {
       "title": "Theme",
       "baseTheme": "Base theme",
@@ -414,21 +382,19 @@
       "customTheme": "Custom theme JSON",
       "customThemePlaceholder": "{\"light\":{...},\"dark\":{...}}",
       "customThemeHint": "Used only when the selected theme is custom.",
-
       "names": {
         "default": "Default",
         "zinc": "Zinc",
         "ocean": "Ocean",
         "forest": "Forest",
-        "sunset": "Sunset"
+        "sunset": "Sunset",
+        "blush": "Blush Pink"
       }
     },
-
     "actions": {
       "save": "Save changes",
       "saving": "Saving..."
     },
-
     "preview": {
       "title": "Live preview",
       "browserIdentity": "Browser identity",
@@ -439,7 +405,6 @@
       "seo": "SEO preview",
       "noSeoDescription": "No SEO description configured."
     },
-
     "validation": {
       "storeNameMax": "Store name cannot exceed 128 characters.",
       "logoUrlMax": "Logo URL cannot exceed 2048 characters.",
@@ -453,18 +418,15 @@
       "seoTitleMax": "SEO title cannot exceed 160 characters.",
       "seoDescriptionMax": "SEO description cannot exceed 320 characters."
     },
-
     "toast": {
       "saved": "Brand settings saved successfully.",
       "saveError": "Unable to save brand settings."
     }
   },
-
   "actions": {
     "edit": "Edit",
     "delete": "Delete"
   },
-
   "common": {
     "viewAll": "View all",
     "technicalDetails": "Technical details",
@@ -478,7 +440,6 @@
     "sections": "Sections",
     "save": "Save"
   },
-
   "roles": {
     "title": "Roles",
     "subtitle": "Manage roles and the permissions assigned to them.",
@@ -510,7 +471,6 @@
     "updated": "Role updated successfully.",
     "createRole": "Create role"
   },
-
   "comments": {
     "deleteAria": "Delete comment",
     "deleteError": "Could not delete the comment.",
@@ -524,7 +484,6 @@
     "sendHint": "Use @ to mention a user.",
     "deleteConfirm": "Delete comment"
   },
-
   "grid": {
     "tableView": "Table view",
     "cardView": "Card view",
@@ -553,7 +512,6 @@
     "selectAll": "Select all rows",
     "selectRow": "Select row"
   },
-
   "health": {
     "autoRefresh": "Auto refresh",
     "refresh": "Refresh",
@@ -562,36 +520,30 @@
     "noAccessDesc": "You do not have permission to view system health.",
     "noChecksTitle": "No health checks",
     "noChecksDesc": "No health checks are currently registered.",
-
     "headline": {
       "healthy": "System is healthy",
       "degraded": "System is degraded",
       "unhealthy": "System is unhealthy"
     },
-
     "status": {
       "healthy": "Healthy",
       "degraded": "Degraded",
       "unhealthy": "Unhealthy"
     },
-
     "checks": {
       "database": "Database",
       "background-jobs": "Background jobs",
       "storage": "Storage"
     },
-
     "data": {
       "provider": "Provider",
       "pendingMigrations": "Pending migrations",
       "jobServerRunning": "Job server running",
       "storagePath": "Storage path"
     },
-
     "tags": {
       "ready": "Ready"
     },
-
     "descriptions": {
       "database": {
         "healthy": "Database is reachable.",
@@ -599,90 +551,20 @@
         "unhealthy": "The application database cannot be reached."
       }
     },
-
     "lastChecked": "Last checked: {{time}} · {{ms}} ms",
     "durationMs": "{{ms}} ms",
     "errorDetail": "Error details"
   },
-
   "permissions": {
-
     "descriptions": {
       "assistant": {
         "use": "Use the Nexa assistant for permission-checked, read-only queries"
       },
-      "appearance": {
-        "manage": "تغییر رنگ برند برنامه"
-      },
-      "brands": {
-        "create": "ایجاد برند",
-        "delete": "حذف برند",
-        "feature": "ویژه‌کردن یا لغو ویژه‌بودن برند",
-        "publish": "انتشار یا لغو انتشار برند",
-        "read": "مشاهده برندها",
-        "restore": "بازیابی برند حذف‌شده",
-        "status": "فعال یا غیرفعال‌کردن برند",
-        "update": "ویرایش برند"
-      },
-      "catalog": {
-        "products": {
-          "read": "مشاهده محصولات",
-          "create": "ایجاد محصول",
-          "update": "ویرایش محصول",
-          "delete": "حذف محصول",
-          "manage-status": "فعال یا غیرفعال‌کردن محصول",
-          "publish": "انتشار یا لغو انتشار محصول",
-          "feature": "ویژه‌کردن یا لغو ویژه‌بودن محصول"
-        },
-        "manufacturers": {
-          "create": "ایجاد تولیدکننده",
-          "update": "ویرایش تولیدکننده",
-          "delete": "حذف تولیدکننده",
-          "restore": "بازیابی تولیدکننده حذف‌شده",
-          "manage-status": "فعال یا غیرفعال‌کردن تولیدکننده",
-          "publish": "انتشار یا لغو انتشار تولیدکننده",
-          "feature": "ویژه‌کردن یا لغو ویژه‌بودن تولیدکننده"
-        }
-      },
-      "comments": {
-        "moderate": "حذف دیدگاه سایر کاربران"
-      },
-      "health": {
-        "read": "مشاهده وضعیت سلامت سیستم"
-      },
       "inventory": {
-        "read": "مشاهده موجودی انبار",
-        "manage": "مدیریت موجودی انبار"
-      },
-      "orders": {
-        "read": "مشاهده سفارش‌های خود",
-        "manage": "مشاهده همه سفارش‌های فروشگاه",
-        "update-status": "تغییر وضعیت سفارش"
-      },
-      "roles": {
-        "read": "مشاهده نقش‌ها و فهرست مجوزها",
-        "create": "ایجاد نقش",
-        "update": "ویرایش نقش‌ها و تخصیص مجوزها",
-        "delete": "حذف نقش"
-      },
-      "settings": {
-        "read": "مشاهده تنظیمات برنامه",
-        "update": "تغییر تنظیمات برنامه"
-      },
-      "shipping": {
-        "read": "مشاهده روش‌های ارسال",
-        "create": "ایجاد روش ارسال",
-        "update": "ویرایش روش ارسال",
-        "delete": "حذف روش ارسال"
-      },
-      "users": {
-        "read": "مشاهده کاربران",
-        "create": "ایجاد کاربر و ارسال دعوت‌نامه",
-        "update": "ویرایش کاربران، نقش‌ها، وضعیت قفل حساب، تأیید ایمیل و بازنشانی گذرواژه",
-        "delete": "حذف کاربر"
+        "read": "View inventory",
+        "manage": "Manage inventory"
       }
     },
-
     "title": "Permissions",
     "subtitle": "Review the permissions available to the application.",
     "loadError": "We couldn't load the permission catalog.",
@@ -702,7 +584,6 @@
           "update": "Edit brands"
         }
       },
-
       "appearance": "Appearance",
       "catalog": "Catalog",
       "brands": "Brands",
@@ -714,18 +595,8 @@
       "roles": "Roles",
       "settings": "Settings",
       "users": "Users"
-    },
-    "descriptions": {
-      "assistant": {
-        "use": "Use the Nexa assistant for permission-checked, read-only queries"
-      },
-      "inventory": {
-        "read": "View inventory",
-        "manage": "Manage inventory"
-      }
     }
   },
-
   "settings": {
     "title": "Settings",
     "subtitle": "Manage application settings and operational preferences.",
@@ -744,23 +615,59 @@
       "system": "System"
     }
   },
-
   "notFound": {
     "title": "Page not found",
     "description": "The page you requested could not be found.",
     "goHome": "Go home",
     "goBack": "Go back"
   },
-
   "pages": {
     "usersDesc": "Manage users, roles, account security and access.",
     "healthDesc": "Monitor database connectivity, application dependencies and overall system health."
   },
-
   "checkout": {
-    "default": "Default"
+    "title": "Checkout",
+    "subtitle": "Review your delivery information and choose a shipping method.",
+    "savedAddresses": "Saved addresses",
+    "savedAddressesHint": "Choose a saved address or enter a different one below.",
+    "manualAddress": "Enter manually",
+    "shippingAddress": "Shipping address",
+    "shippingAddressHint": "Where should we deliver your order?",
+    "fullName": "Full name",
+    "phone": "Phone number",
+    "address": "Address",
+    "city": "City",
+    "postalCode": "Postal code",
+    "shippingMethod": "Shipping method",
+    "shippingMethodHint": "Choose how you want to receive your order.",
+    "noShippingMethods": "No shipping methods are currently available.",
+    "summary": "Order summary",
+    "itemCount": "Items",
+    "subtotal": "Subtotal",
+    "shipping": "Shipping",
+    "selectShipping": "Select a method",
+    "total": "Total",
+    "processing": "Processing...",
+    "placeOrder": "Place order",
+    "backToCart": "Back to cart",
+    "cartError": "Unable to load your cart.",
+    "cartErrorDescription": "Please try again before continuing to checkout.",
+    "emptyCart": "Your shopping cart is empty.",
+    "shippingError": "Shipping methods could not be loaded.",
+    "shippingErrorDescription": "Please try again before placing your order.",
+    "error": "Unable to create the order. Please check your information and try again.",
+    "validation": {
+      "fullName": "Full name is required.",
+      "fullNameShort": "Please enter a valid full name.",
+      "phone": "Phone number is required.",
+      "phoneInvalid": "Please enter a valid phone number.",
+      "address": "Address is required.",
+      "addressShort": "Please enter a complete shipping address.",
+      "city": "City is required.",
+      "shipping": "Please select a shipping method.",
+      "shippingInvalid": "The selected shipping method is no longer available. Please choose another one."
+    }
   },
-
   "create": "Create user",
   "createDesc": "Create a user account and assign roles.",
   "createError": "Could not create the user.",
@@ -781,7 +688,6 @@
   "tempPasswordHint": "Set a temporary password when no invitation is sent.",
   "updateError": "Could not update the user.",
   "updated": "User updated successfully.",
-
   "catalogCategories": {
     "title": "Categories",
     "description": "Manage product categories, hierarchy, visibility and SEO.",
@@ -845,7 +751,6 @@
     "feature": "Feature",
     "unfeature": "Remove from featured"
   },
-
   "auth": {
     "pageTitle": "Sign in",
     "email": "Email address",
@@ -856,7 +761,6 @@
     "trace": "Trace ID: {{id}}",
     "identifier": "Email or Phone Number",
     "identifierPlaceholder": "Please Enter your Email or Phone Number",
-
     "valid": {
       "identifierRequired": "Email or mobile number is required.",
       "emailRequired": "Email address is required.",
@@ -866,7 +770,6 @@
       "confirmRequired": "Please confirm your password.",
       "mismatch": "Passwords do not match."
     },
-
     "oauthError": {
       "generic": "External sign-in could not be completed. Please try again.",
       "access_denied": "External sign-in was cancelled.",
@@ -875,7 +778,6 @@
       "invalid_request": "The external sign-in request was invalid.",
       "unauthorized": "External sign-in was not authorized."
     },
-
     "brand": {
       "storeName": "Patlet Clothing Gallery",
       "tagline": "Comfort and style, from pregnancy to motherhood",
@@ -898,7 +800,6 @@
       "resend": "Resend confirmation email",
       "resendSent": "Confirmation email sent."
     },
-
     "forgot": {
       "title": "Forgot password",
       "subtitle": "Enter your email address and we will send you instructions to reset your password.",
@@ -906,7 +807,6 @@
       "sentTitle": "Check your email",
       "sentDesc": "If an account exists for that email address, password reset instructions have been sent."
     },
-
     "register": {
       "title": "Create account",
       "subtitle": "Create an account to continue shopping.",
@@ -924,7 +824,6 @@
       "successTitle": "Account created",
       "successDesc": "Your account was created successfully. Please confirm your email to continue."
     },
-
     "reset": {
       "title": "Reset password",
       "subtitle": "Choose a new password for your account.",
@@ -939,7 +838,6 @@
       "doneDesc": "Your password has been reset successfully.",
       "goSignIn": "Continue to sign in"
     },
-
     "verify": {
       "confirmingTitle": "Confirming your email",
       "confirmingDesc": "Please wait while we confirm your email address.",
@@ -953,7 +851,6 @@
       "backToSignUp": "Back to sign up"
     }
   },
-
   "fileUpload": {
     "placeholder": "Upload or drop a file here.",
     "images": "Images",
@@ -968,7 +865,6 @@
     "preview": "Preview",
     "removeFile": "Remove file"
   },
-
   "catalogBrands": {
     "title": "Brands",
     "description": "Manage catalog brands, publishing state, merchandising and SEO.",
@@ -984,7 +880,6 @@
     "loadError": "We couldn't load brands.",
     "actionFailed": "Action failed.",
     "newBrand": "New Brand",
-
     "filters": {
       "all": "All",
       "active": "Active",
@@ -992,13 +887,11 @@
       "published": "Published",
       "featured": "Featured"
     },
-
     "empty": {
       "title": "No brands found",
       "searchDescription": "Try a different search.",
       "description": "Create your first brand to start building the catalog."
     },
-
     "table": {
       "brand": "Brand",
       "slug": "Slug",
@@ -1008,7 +901,6 @@
       "actions": "Actions",
       "order": "Display order: {{order}}"
     },
-
     "status": {
       "active": "Active",
       "inactive": "Inactive",
@@ -1017,7 +909,6 @@
       "featured": "Featured",
       "normal": "Normal"
     },
-
     "actions": {
       "menu": "Brand actions",
       "view": "View",
@@ -1030,7 +921,6 @@
       "unfeature": "Unfeature",
       "delete": "Delete"
     },
-
     "toast": {
       "activated": "Brand activated.",
       "deactivated": "Brand deactivated.",
@@ -1040,19 +930,16 @@
       "unfeatured": "Brand removed from featured.",
       "deleted": "Brand deleted."
     },
-
     "pagination": {
       "summary": "{{total}} total · Page {{page}} of {{pages}}",
       "previous": "Previous",
       "next": "Next"
     },
-
     "delete": {
       "title": "Delete {{name}}?",
       "description": "The brand will be soft-deleted. It can be restored later by an authorized administrator.",
       "confirm": "Delete brand"
     },
-
     "details": {
       "information": "Brand information",
       "informationDescription": "Current catalog and SEO data.",
@@ -1062,7 +949,6 @@
       "actions": "Actions"
     }
   },
-
   "catalogForms": {
     "seoCategoryDesc": "Optimize how this category appears in search engines.",
     "seoKeywordsCategoryPlaceholder": "e.g. maternity clothing, maternity sets, women's loungewear, patlet",
@@ -1078,7 +964,6 @@
     "featuredHintCategory": "Featured categories can be highlighted in merchandising.",
     "categoryCreated": "Category created successfully.",
     "categoryUpdated": "Category updated successfully.",
-
     "basicInfoManufacturer": "Define the manufacturer identity and core catalog information.",
     "manufacturerImages": "Manufacturer images",
     "uploadCover": "Cover image",
@@ -1102,21 +987,18 @@
     "description": "Description",
     "website": "Website",
     "displayOrder": "Display order",
-
     "brandImages": "Brand images",
     "brandImagesDescription": "Add a logo and cover image for this brand.",
     "dropLogo": "Drop the logo here or choose a file.",
     "dropCover": "Drop the cover image here or choose a file.",
     "uploadLogo": "Logo",
     "coverImage": "Cover image",
-
     "seo": "SEO",
     "seoBrandDesc": "Optimize how this brand appears in search engines.",
     "seoTitle": "SEO title",
     "seoDescription": "SEO description",
     "seoKeywords": "SEO keywords",
     "seoKeywordsBrandPlaceholder": "e.g. women's clothing, maternity wear, patlet",
-
     "publishing": "Publishing",
     "brandPublishingDesc": "Control whether the brand is active, published and featured.",
     "active": "Active",
@@ -1125,16 +1007,13 @@
     "publishedHintBrand": "Published brands can appear on the storefront.",
     "featured": "Featured",
     "featuredHintBrand": "Featured brands can be highlighted in merchandising.",
-
     "cancel": "Cancel",
     "createBrand": "Create brand",
     "updateBrand": "Update brand",
-
     "success": {
       "created": "Brand created successfully.",
       "updated": "Brand updated successfully."
     },
-
     "validation": {
       "nameMin": "Brand name must contain at least 2 characters.",
       "nameMax": "Brand name cannot exceed 150 characters.",
@@ -1149,42 +1028,35 @@
       "displayOrderMax": "Display order is too large."
     }
   },
-
   "language": {
     "label": "Language"
   },
-
   "theme": {
     "toggle": "Toggle theme",
     "light": "Light",
     "dark": "Dark",
     "system": "System"
   },
-
   "account": {
     "menuLabel": "Account",
     "profile": "Profile",
     "administration": "Administration",
     "signOut": "Sign out"
   },
-
   "fields": {
     "status": "Status",
     "joined": "Joined",
     "orders": "My Orders"
   },
-
   "profile": {
     "title": "Profile",
     "subtitle": "Manage your account information, addresses, preferences and password.",
-
     "sections": {
       "profile": "Profile",
       "addresses": "Addresses",
       "preferences": "Preferences",
       "password": "Password"
     },
-
     "info": {
       "desc": "Update the information associated with your account.",
       "verified": "Verified",
@@ -1194,7 +1066,6 @@
       "namePlaceholder": "Enter your display name",
       "updated": "Your profile was updated successfully."
     },
-
     "addresses": {
       "title": "My addresses",
       "description": "Manage your saved shipping addresses.",
@@ -1222,14 +1093,12 @@
       "deleteConfirm": "Are you sure you want to delete this address?",
       "error": "The operation failed."
     },
-
     "preferences": {
       "desc": "Choose your language and time zone preferences.",
       "timezone": "Time zone",
       "savedToast": "Preferences saved successfully.",
       "saveError": "Could not save your preferences."
     },
-
     "password": {
       "min": "Password must be at least 6 characters.",
       "confirmRequired": "Please confirm your new password.",
@@ -1246,7 +1115,6 @@
       "setBtn": "Set password"
     }
   },
-
   "users": {
     "user": "User",
     "roles": "Roles",
@@ -1317,7 +1185,6 @@
     "bulkDeleteDesc": "The selected users will be removed from the system.",
     "bulkDeleteConfirm": "Delete users"
   },
-
   "nav": {
     "barcodeLabels": "Print Barcode Labels",
     "customers": "Customers",
@@ -1343,54 +1210,9 @@
     "permissions": "Permissions",
     "appearance": "Appearance",
     "settings": "Settings",
-    "health": "System Health"
+    "health": "System Health",
+    "favoriteReport": "Product popularity"
   },
-
-  "checkout": {
-    "title": "Checkout",
-    "subtitle": "Review your delivery information and choose a shipping method.",
-    "savedAddresses": "Saved addresses",
-    "savedAddressesHint": "Choose a saved address or enter a different one below.",
-    "manualAddress": "Enter manually",
-    "shippingAddress": "Shipping address",
-    "shippingAddressHint": "Where should we deliver your order?",
-    "fullName": "Full name",
-    "phone": "Phone number",
-    "address": "Address",
-    "city": "City",
-    "postalCode": "Postal code",
-    "shippingMethod": "Shipping method",
-    "shippingMethodHint": "Choose how you want to receive your order.",
-    "noShippingMethods": "No shipping methods are currently available.",
-    "summary": "Order summary",
-    "itemCount": "Items",
-    "subtotal": "Subtotal",
-    "shipping": "Shipping",
-    "selectShipping": "Select a method",
-    "total": "Total",
-    "processing": "Processing...",
-    "placeOrder": "Place order",
-    "backToCart": "Back to cart",
-    "cartError": "Unable to load your cart.",
-    "cartErrorDescription": "Please try again before continuing to checkout.",
-    "emptyCart": "Your shopping cart is empty.",
-    "shippingError": "Shipping methods could not be loaded.",
-    "shippingErrorDescription": "Please try again before placing your order.",
-    "error": "Unable to create the order. Please check your information and try again.",
-
-    "validation": {
-      "fullName": "Full name is required.",
-      "fullNameShort": "Please enter a valid full name.",
-      "phone": "Phone number is required.",
-      "phoneInvalid": "Please enter a valid phone number.",
-      "address": "Address is required.",
-      "addressShort": "Please enter a complete shipping address.",
-      "city": "City is required.",
-      "shipping": "Please select a shipping method.",
-      "shippingInvalid": "The selected shipping method is no longer available. Please choose another one."
-    }
-  },
-
   "storefront": {
     "brand": {
       "onlineStore": "Online Store",
@@ -1398,7 +1220,6 @@
       "signIn": "Sign in",
       "products": "Products"
     },
-
     "fulfillment": {
       "statuses": {
         "Pending": "Pending",
@@ -1412,7 +1233,6 @@
         "Cancelled": "Cancelled"
       }
     },
-
     "shipment": {
       "statuses": {
         "Pending": "Pending",
@@ -1421,7 +1241,6 @@
         "Cancelled": "Cancelled"
       }
     },
-
     "header": {
       "search": "Search",
       "searchProducts": "Search products...",
@@ -1432,7 +1251,6 @@
       "profile": "My profile",
       "openProfile": "Open profile for {{name}}"
     },
-
     "home": {
       "eyebrow": "PATLET DRESS • WOMEN’S WEAR",
       "title": "Maternity wear, delivery sets & women’s loungewear",
@@ -1453,34 +1271,29 @@
         "curated": "Curated styles",
         "shopping": "Easy shopping"
       },
-
       "gallery": {
         "badge": "Fresh Patlet picks",
         "selected": "Selected",
         "caption": "Selected Patlet styles • product and size options",
         "fallback": "Patlet clothing gallery"
       },
-
       "categories": {
         "title": "Shop Patlet categories",
         "subtitle": "Choose a category to get started",
         "products": "{{count}} products"
       },
-
       "featured": {
         "title": "Patlet favourites",
         "subtitle": "Styles worth discovering",
         "empty": "No featured products yet.",
         "error": "Featured products are temporarily unavailable."
       },
-
       "latest": {
         "title": "New from Patlet",
         "subtitle": "The latest pieces added to the store",
         "empty": "No products are available yet.",
         "error": "Products are temporarily unavailable."
       },
-
       "benefitSection": {
         "secureTitle": "Secure shopping",
         "secureDescription": "Your order and account data stay protected.",
@@ -1489,7 +1302,6 @@
         "checkoutTitle": "Easy checkout",
         "checkoutDescription": "Choose your product, add it to your cart and check out easily."
       },
-
       "footer": {
         "visitWebsite": "Visit website",
         "browseProducts": "Browse products",
@@ -1497,7 +1309,6 @@
         "copyright": "© {{year}} {{storeName}}"
       }
     },
-
     "cart": {
       "title": "Shopping Cart",
       "itemCount_one": "{{count}} item",
@@ -1508,7 +1319,7 @@
       "clearConfirm": "Are you sure you want to clear your cart?",
       "emptyTitle": "Your cart is empty",
       "emptyDescription": "Add products to your cart to continue.",
-      "continueShopping": "Continue shopping",
+      "continueShopping": "Add Other Products",
       "loadError": "Unable to load your cart",
       "retry": "Retry",
       "available": "Available: {{count}}",
@@ -1523,7 +1334,6 @@
       "total": "Total",
       "proceedCheckout": "Proceed to checkout"
     },
-
     "product": {
       "inStock": "In stock",
       "outOfStock": "Out of stock",
@@ -1537,7 +1347,6 @@
       "addError": "The product could not be added to the cart.",
       "variantUnavailable": "The selected combination is not available."
     },
-
     "products": {
       "title": "Products",
       "subtitle": "Search and filter the products available in the store.",
@@ -1563,7 +1372,6 @@
       "emptyTitle": "No products found",
       "emptyDescription": "Try changing your search or filters."
     },
-
     "productDetail": {
       "title": "Product details",
       "selectProductAttributes": "Select product options",
@@ -1587,9 +1395,7 @@
       "description": "Description",
       "categories": "Categories",
       "manufacturer": "Manufacturer"
-
     },
-
     "orders": {
       "title": "My Orders",
       "subtitle": "View your order history and fulfillment status.",
@@ -1616,7 +1422,6 @@
       "previous": "Previous",
       "next": "Next",
       "page": "Page",
-
       "statuses": {
         "PendingPayment": "Pending payment",
         "Paid": "Paid",
@@ -1629,7 +1434,6 @@
         "Completed": "Completed"
       }
     },
-
     "checkout": {
       "default": "Default",
       "cartError": "Your shopping cart could not be loaded.",
@@ -1638,7 +1442,6 @@
       "backToCart": "Back to cart",
       "shippingError": "Shipping methods could not be loaded.",
       "shippingErrorDescription": "Please try again before placing your order.",
-
       "validation": {
         "fullNameRequired": "Full name is required.",
         "fullNameInvalid": "Please enter a valid full name.",
@@ -1650,7 +1453,6 @@
         "shippingRequired": "Please select a shipping method.",
         "shippingInvalid": "The selected shipping method is no longer available. Please choose another one."
       },
-
       "createOrderError": "Unable to create the order. Please check your information and try again.",
       "title": "Checkout",
       "subtitle": "Review your delivery information and choose a shipping method.",
@@ -1676,7 +1478,6 @@
       "processing": "Processing...",
       "placeOrder": "Place order"
     },
-
     "payment": {
       "orderNotFound": "Order not found",
       "orderNotFoundDescription": "We could not load this order for payment.",

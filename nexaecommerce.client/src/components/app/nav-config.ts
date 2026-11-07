@@ -6,6 +6,7 @@ import {
     Factory,
     FolderTree,
     Home,
+    Heart,
     KeyRound,
     LayoutDashboard,
     Package,
@@ -110,6 +111,12 @@ export const NAV: NavSection[] = [
                 to: '/admin/products',
                 icon: ShoppingBag,
                 permission: PERM.productsRead,
+            },
+            {
+                titleKey: 'nav.favoriteReport',
+                to: '/admin/favorites',
+                icon: Heart,
+                permission: 'catalog.favorites.read',
             },
             {
                 titleKey: 'nav.barcodeLabels',

@@ -46,6 +46,7 @@ export default function AppLayout() {
         location.pathname === '/products' ||
         location.pathname.startsWith('/products/') ||
         location.pathname === '/checkout' ||
+        location.pathname === '/favorites' ||
         location.pathname.startsWith('/orders/payment/');
 
     if (isPublicStorefront) {

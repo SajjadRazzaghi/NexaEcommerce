@@ -1,0 +1,1930 @@
+import {
+    useMemo,
+    useState,
+} from 'react';
+import {
+    resolveMediaUrl,
+} from '@/lib/media-url';
+import {
+    Alert,
+    Box,
+    Button,
+    Card,
+    Chip,
+    Container,
+    Divider,
+    IconButton,
+    Rating,
+    Skeleton,
+    Stack,
+    Typography,
+} from '@mui/material';
+import { formatMoney } from '@/lib/formatMoney';
+import {
+    Add,
+    ArrowBack,
+    CheckCircleOutlined,
+    Remove,
+    ShoppingCartOutlined,
+} from '@mui/icons-material';
+
+import {
+    useQuery,
+} from '@tanstack/react-query';
+
+import {
+    Link,
+    useParams,
+} from 'react-router-dom';
+
+import {
+    useTranslation,
+} from 'react-i18next';
+
+import {
+    useProductBySlug,
+} from '../hooks/useProducts';
+
+import {
+    appearanceApi,
+} from '@/lib/api/appearance';
+
+import {
+    useDocumentTitle,
+} from '@/hooks/use-document-title';
+
+import {
+    useCartMutations,
+} from '@/modules/cart/hooks/useCartMutations';
+import CartUpsellDialog from '../components/CartUpsellDialog';
+
+import type {
+    ProductVariant,
+    ProductVariantAttribute,
+} from '../api/products';
+
+type SelectedAttributes = Record<
+    string,
+    string
+>;
+function isVariantDefiningAttribute(
+    attribute: ProductVariantAttribute,
+): boolean {
+    const roleValue =
+        Number(attribute.roleValue);
+
+    if (
+        Number.isInteger(roleValue)
+    ) {
+        return (
+            (roleValue & 4) === 4
+        );
+    }
+
+    const normalizedRole =
+        attribute.role
+            ?.trim()
+            .toLowerCase()
+            .replace(
+                /[\s_-]/g,
+                '',
+            );
+
+    if (
+        normalizedRole
+    ) {
+        return (
+            normalizedRole ===
+            'variantdefining' ||
+            normalizedRole.includes(
+                'variantdefining',
+            )
+        );
+    }
+
+    /*
+     * Legacy data:
+     * اگر Role موجود نباشد، برای جلوگیری از شکستن
+     * اطلاعات قدیمی Attribute را VariantDefining فرض می‌کنیم.
+     */
+    return true;
+}
+
+function getVariantValueId(
+    variant: ProductVariant,
+    code: string,
+): string | null {
+    const normalizedCode =
+        code
+            .trim()
+            .toLowerCase();
+
+    const attribute =
+        variant.attributes?.find(
+            item =>
+                isVariantDefiningAttribute(
+                    item,
+                ) &&
+                item.attributeCode
+                    ?.trim()
+                    .toLowerCase() ===
+                normalizedCode,
+        );
+
+    if (!attribute) {
+        return null;
+    }
+
+    return (
+        attribute.catalogAttributeValueId ??
+        attribute.attributeValueId ??
+        null
+    );
+}
+function getVariantLabel(
+    variant: ProductVariant,
+) {
+    const values =
+        (variant.attributes ?? [])
+            .filter(
+                attribute =>
+                    isVariantDefiningAttribute(
+                        attribute,
+                    ),
+            )
+            .map(
+                attribute =>
+                    attribute.displayValue ||
+                    attribute.value,
+            )
+            .filter(Boolean);
+
+    return values.length > 0
+        ? values.join(' / ')
+        : variant.sku;
+}
+
+export default function ProductDetailPage() {
+    const {
+        slug,
+    } = useParams<{
+        slug: string;
+    }>();
+
+    const {
+        t,
+        i18n,
+    } = useTranslation();
+
+    const isFa =
+        i18n.language
+            ?.toLowerCase()
+            .startsWith('fa') ??
+        false;
+
+    const getText = (
+        key: string,
+        fallback: string,
+    ) =>
+        t(
+            key,
+            {
+                defaultValue:
+                    fallback,
+            },
+        );
+
+    const {
+        data: product,
+        isLoading,
+        error,
+    } =
+        useProductBySlug(
+            slug,
+        );
+
+    const appearanceQuery =
+        useQuery({
+            queryKey: [
+                'appearance',
+            ],
+
+            queryFn:
+                appearanceApi.get,
+
+            staleTime:
+                5 * 60_000,
+        });
+
+    const documentTitle =
+        product?.name?.trim() ||
+        getText(
+            'storefront.productDetail.title',
+            'Product details',
+        );
+
+    useDocumentTitle(
+        documentTitle,
+        appearanceQuery.data
+            ?.storeName,
+    );
+
+    const {
+        add,
+    } =
+        useCartMutations();
+
+    const [
+        imageIndex,
+        setImageIndex,
+    ] = useState(0);
+
+    const [
+        selectedAttributes,
+        setSelectedAttributes,
+    ] =
+        useState<SelectedAttributes>(
+            {},
+        );
+
+    const [
+        selectedLegacyVariantId,
+        setSelectedLegacyVariantId,
+    ] =
+        useState<string | null>(
+            null,
+        );
+    const [
+        recommendationsOpen,
+        setRecommendationsOpen,
+    ] = useState(false);
+    const [
+        quantity,
+        setQuantity,
+    ] = useState(1);
+
+    const [
+        added,
+        setAdded,
+    ] = useState(false);
+
+    const availableVariants =
+        useMemo(
+            () =>
+                (
+                    product?.variants ??
+                    []
+                ).filter(
+                    variant =>
+                        variant.isActive &&
+                        variant.stockQuantity >
+                        0,
+                ),
+            [
+                product,
+            ],
+        );
+
+    const genericVariantMode =
+        availableVariants.some(
+            variant =>
+                (
+                    variant.attributes ??
+                    []
+                ).some(
+                    attribute =>
+                        isVariantDefiningAttribute(
+                            attribute,
+                        ),
+                ),
+        );
+
+    const attributeGroups =
+        useMemo(
+            () => {
+                if (
+                    !genericVariantMode
+                ) {
+                    return [];
+                }
+
+                const groups =
+                    new Map<
+                        string,
+                        {
+                            code: string;
+                            name: string;
+                            values: {
+                                id: string;
+                                label: string;
+                                colorHex?:
+                                | string
+                                | null;
+                            }[];
+                        }
+                    >();
+
+                for (
+                    const variant of
+                    availableVariants
+                ) {
+                    for (
+                        const attribute of
+                        variant.attributes ??
+                        []
+                    ) {
+                        if (
+                            !isVariantDefiningAttribute(
+                                attribute,
+                            )
+                        ) {
+                            continue;
+                        }
+
+                        const key =
+                            attribute.attributeCode
+                                .trim()
+                                .toLowerCase();
+
+                        if (
+                            !groups.has(
+                                key,
+                            )
+                        ) {
+                            groups.set(
+                                key,
+                                {
+                                    code:
+                                        attribute.attributeCode,
+
+                                    name:
+                                        attribute.attributeName,
+
+                                    values:
+                                        [],
+                                },
+                            );
+                        }
+
+                        const group =
+                            groups.get(
+                                key,
+                            );
+
+                        if (!group) {
+                            continue;
+                        }
+
+                        const variantValueId =
+                            attribute.catalogAttributeValueId ??
+                            attribute.attributeValueId;
+
+                        const exists =
+                            group.values.some(
+                                value =>
+                                    value.id ===
+                                    variantValueId,
+                            );
+
+                        if (
+                            !exists
+                        ) {
+                            group.values.push(
+                                {
+                                    id:
+                                        variantValueId,
+
+                                    label:
+                                        attribute.displayValue ||
+                                        attribute.value,
+
+                                    colorHex:
+                                        attribute.colorHex,
+                                },
+                            );
+                        }
+                    }
+                }
+
+                return Array.from(
+                    groups.values(),
+                );
+            },
+            [
+                availableVariants,
+                genericVariantMode,
+            ],
+        );
+
+    const selectedEntries =
+        Object.entries(
+            selectedAttributes,
+        );
+
+    const findMatchingVariant =
+        (
+            selection: SelectedAttributes,
+        ) => {
+            const entries =
+                Object.entries(
+                    selection,
+                );
+
+            if (
+                entries.length ===
+                0
+            ) {
+                return null;
+            }
+
+            return (
+                availableVariants.find(
+                    variant =>
+                        entries.every(
+                            (
+                                [
+                                    code,
+                                    valueId,
+                                ],
+                            ) =>
+                                getVariantValueId(
+                                    variant,
+                                    code,
+                                ) ===
+                                valueId,
+                        ),
+                ) ??
+                null
+            );
+        };
+
+    const matchingVariant =
+        useMemo(
+            () =>
+                genericVariantMode
+                    ? findMatchingVariant(
+                        selectedAttributes,
+                    )
+                    : null,
+            [
+                availableVariants,
+                genericVariantMode,
+                selectedAttributes,
+            ],
+        );
+
+    const activeLegacyVariant =
+        useMemo(
+            () => {
+                if (
+                    !selectedLegacyVariantId
+                ) {
+                    return (
+                        availableVariants[0] ??
+                        product?.variants?.find(
+                            variant =>
+                                variant.isActive,
+                        ) ??
+                        null
+                    );
+                }
+
+                return (
+                    availableVariants.find(
+                        variant =>
+                            variant.id ===
+                            selectedLegacyVariantId,
+                    ) ??
+                    null
+                );
+            },
+            [
+                availableVariants,
+                product,
+                selectedLegacyVariantId,
+            ],
+        );
+
+    const activeVariant =
+        genericVariantMode
+            ? matchingVariant
+            : activeLegacyVariant;
+
+    const hasCompleteGenericSelection =
+        genericVariantMode &&
+        attributeGroups.length >
+        0 &&
+        attributeGroups.every(
+            group =>
+                Boolean(
+                    selectedAttributes[
+                    group.code
+                        .trim()
+                        .toLowerCase()
+                    ],
+                ),
+        );
+
+    const canAddToCart =
+        Boolean(
+            activeVariant?.id,
+        ) &&
+
+        Boolean(
+            activeVariant &&
+            activeVariant.stockQuantity >
+            0,
+        ) &&
+
+        (
+            !genericVariantMode ||
+            (
+                hasCompleteGenericSelection &&
+                Boolean(
+                    matchingVariant?.id,
+                )
+            )
+        );
+
+    const images =
+        product?.images ?? [];
+    const productSpecifications = useMemo(
+        () =>
+            (product?.attributes ?? [])
+                .filter((attribute) => {
+                    const roleValue = Number(
+                        attribute.roleValue ?? 0,
+                    );
+
+                    const role = (attribute.role ?? '')
+                        .trim()
+                        .toLowerCase()
+                        .replace(/[\s_-]/g, '');
+
+                    const isVariantDefining =
+                        (
+                            Number.isInteger(roleValue) &&
+                            (roleValue & 4) === 4
+                        ) ||
+                        role === 'variantdefining' ||
+                        role.includes('variantdefining');
+
+                    const hasValue = (
+                        attribute.values ?? []
+                    ).some((value) =>
+                        Boolean(
+                            (
+                                value.displayValue ||
+                                value.value ||
+                                ''
+                            ).trim(),
+                        ),
+                    );
+
+                    return !isVariantDefining && hasValue;
+                })
+                .sort(
+                    (a, b) =>
+                        a.displayOrder - b.displayOrder,
+                ),
+        [product?.attributes],
+    );
+    const safeImageIndex =
+        Math.min(
+            imageIndex,
+            Math.max(
+                images.length - 1,
+                0,
+            ),
+        );
+
+    const imageUrl =
+        images[
+            safeImageIndex
+        ]?.imageUrl ??
+        images[0]?.imageUrl ??
+        '/placeholder.jpg';
+
+    const maxQuantity =
+        activeVariant?.stockQuantity ??
+        0;
+
+    const variantPrice =
+        activeVariant?.priceOverride;
+
+    const baseVariantPrice =
+        variantPrice != null &&
+            variantPrice > 0
+            ? variantPrice
+            : product?.price ?? 0;
+
+    const discountPercentage =
+        Math.min(
+            Math.max(
+                product?.discountPercentage ??
+                0,
+                0,
+            ),
+            100,
+        );
+
+    const price =
+        baseVariantPrice -
+        (
+            baseVariantPrice *
+            discountPercentage /
+            100
+        );
+
+    const comparePrice =
+        activeVariant?.comparePrice ??
+        product?.comparePrice ??
+        null;
+
+    const currency =
+        product?.currency ??
+        '';
+
+   
+
+    const formatRating = (
+        value: number,
+    ) =>
+        new Intl.NumberFormat(
+            isFa
+                ? 'fa-IR'
+                : 'en-US',
+            {
+                minimumFractionDigits:
+                    1,
+
+                maximumFractionDigits:
+                    1,
+            },
+        ).format(value);
+
+    const formatCount = (
+        value: number,
+    ) =>
+        new Intl.NumberFormat(
+            isFa
+                ? 'fa-IR'
+                : 'en-US',
+        ).format(value);
+
+    const localizedRating =
+        product?.averageRating ??
+        0;
+
+    const handleAttributeSelect =
+        (
+            code: string,
+            valueId: string,
+        ) => {
+            setSelectedAttributes(
+                current => ({
+                    ...current,
+
+                    [
+                        code
+                            .trim()
+                            .toLowerCase()
+                    ]:
+                        valueId,
+                }),
+            );
+
+            setQuantity(1);
+            setAdded(false);
+        };
+
+    const getAttributeName = (
+        _code: string,
+        fallback: string,
+    ) => {
+        return fallback?.trim() || '';
+    };
+
+    const isAttributeValueAvailable =
+        (
+            code: string,
+            valueId: string,
+        ) =>
+            availableVariants.some(
+                variant => {
+                    if (
+                        getVariantValueId(
+                            variant,
+                            code,
+                        ) !==
+                        valueId
+                    ) {
+                        return false;
+                    }
+
+                    return selectedEntries
+                        .filter(
+                            ([
+                                selectedCode,
+                            ]) =>
+                                selectedCode
+                                    .trim()
+                                    .toLowerCase() !==
+                                code
+                                    .trim()
+                                    .toLowerCase(),
+                        )
+                        .every(
+                            ([
+                                selectedCode,
+                                selectedValueId,
+                            ]) =>
+                                getVariantValueId(
+                                    variant,
+                                    selectedCode,
+                                ) ===
+                                selectedValueId,
+                        );
+                },
+            );
+
+    const decrease =
+        () => {
+            setQuantity(
+                value =>
+                    Math.max(
+                        1,
+                        value - 1,
+                    ),
+            );
+
+            setAdded(false);
+        };
+
+    const increase =
+        () => {
+            setQuantity(
+                value =>
+                    Math.min(
+                        Math.max(
+                            maxQuantity,
+                            1,
+                        ),
+                        value + 1,
+                    ),
+            );
+
+            setAdded(false);
+        };
+
+    const addToCart = () => {
+        if (
+            !activeVariant?.id ||
+            maxQuantity <= 0 ||
+            !canAddToCart
+        ) {
+            return;
+        }
+
+        add.mutate(
+            {
+                productVariantId: activeVariant.id,
+                quantity,
+            },
+            {
+                onSuccess: () => {
+                    setAdded(true);
+                    if (product?.id) {
+                        setRecommendationsOpen(true);
+                    }
+                },
+            },
+        );
+    };
+
+    if (
+        isLoading
+    ) {
+        return (
+            <Container
+                maxWidth="xl"
+                sx={{
+                    py: 5,
+
+                    direction:
+                        isFa
+                            ? 'rtl'
+                            : 'ltr',
+                }}
+            >
+                <Stack spacing={3}>
+                    <Skeleton
+                        variant="rounded"
+                        height={40}
+                        width={180}
+                    />
+
+                    <Card
+                        sx={{
+                            p: 4,
+                            borderRadius: 4,
+                        }}
+                    >
+                        <Stack
+                            direction={{
+                                xs: 'column',
+                                lg: 'row',
+                            }}
+                            spacing={5}
+                        >
+                            <Skeleton
+                                variant="rounded"
+                                sx={{
+                                    width:
+                                        '100%',
+
+                                    height: {
+                                        xs: 350,
+                                        md: 520,
+                                    },
+                                }}
+                            />
+
+                            <Stack
+                                spacing={2}
+                                sx={{
+                                    flex: 1,
+                                }}
+                            >
+                                <Skeleton
+                                    height={30}
+                                    width="40%"
+                                />
+
+                                <Skeleton
+                                    height={60}
+                                    width="80%"
+                                />
+
+                                <Skeleton
+                                    height={30}
+                                    width="30%"
+                                />
+
+                                <Skeleton
+                                    height={100}
+                                />
+
+                                <Skeleton
+                                    height={50}
+                                />
+                            </Stack>
+                        </Stack>
+                    </Card>
+                </Stack>
+            </Container>
+        );
+    }
+
+    if (
+        error
+    ) {
+        return (
+            <Container
+                maxWidth="lg"
+                sx={{
+                    py: 6,
+
+                    direction:
+                        isFa
+                            ? 'rtl'
+                            : 'ltr',
+                }}
+            >
+                <Alert
+                    severity="error"
+                    action={
+                        <Button
+                            color="inherit"
+                            size="small"
+                            onClick={() =>
+                                window.location.reload()
+                            }
+                        >
+                            {getText(
+                                'storefront.productDetail.retry',
+                                'Retry',
+                            )}
+                        </Button>
+                    }
+                >
+                    {getText(
+                        'storefront.productDetail.loadError',
+                        'Failed to load product.',
+                    )}
+                </Alert>
+            </Container>
+        );
+    }
+
+    if (
+        !product
+    ) {
+        return (
+            <Container
+                maxWidth="lg"
+                sx={{
+                    py: 6,
+
+                    direction:
+                        isFa
+                            ? 'rtl'
+                            : 'ltr',
+                }}
+            >
+                <Typography
+                    variant="h5"
+                    sx={{
+                        fontWeight: 800,
+                        mb: 2,
+                    }}
+                >
+                    {getText(
+                        'storefront.productDetail.notFound',
+                        'Product not found.',
+                    )}
+                </Typography>
+
+                <Button
+                    component={Link}
+                    to="/products"
+                    startIcon={
+                        <ArrowBack />
+                    }
+                    variant="outlined"
+                >
+                    {getText(
+                        'storefront.productDetail.backToProducts',
+                        'Back to products',
+                    )}
+                </Button>
+            </Container>
+        );
+    }
+
+    return (
+        <Box
+            sx={{
+                minHeight:
+                    '100vh',
+
+                py: {
+                    xs: 3,
+                    md: 5,
+                },
+
+                direction:
+                    isFa
+                        ? 'rtl'
+                        : 'ltr',
+            }}
+        >
+            <Container
+                maxWidth="xl"
+            >
+                <Stack spacing={3}>
+                    <Button
+                        component={Link}
+                        to="/products"
+                        startIcon={
+                            <ArrowBack />
+                        }
+                        sx={{
+                            alignSelf:
+                                'flex-start',
+                        }}
+                    >
+                        {getText(
+                            'storefront.productDetail.backToProducts',
+                            'Back to products',
+                        )}
+                    </Button>
+
+                    <Card
+                        sx={{
+                            p: {
+                                xs: 2,
+                                md: 4,
+                            },
+
+                            borderRadius: 4,
+                        }}
+                    >
+                        <Stack
+                            direction={{
+                                xs: 'column',
+                                lg: 'row',
+                            }}
+                            spacing={5}
+                        >
+                            <Box
+                                sx={{
+                                    width: {
+                                        xs: '100%',
+                                        lg: '50%',
+                                    },
+                                }}
+                            >
+                                <Box
+                                    component="img"
+                                    src={
+                                        resolveMediaUrl(imageUrl)
+                                    }
+                                    alt={
+                                        product.name
+                                    }
+                                    loading="eager"
+                                    sx={{
+                                        width:
+                                            '100%',
+
+                                        height: {
+                                            xs: 350,
+                                            md: 520,
+                                        },
+
+                                        objectFit:
+                                            'contain',
+
+                                        borderRadius: 3,
+
+                                        bgcolor:
+                                            'background.default',
+                                    }}
+                                    onError={
+                                        event => {
+                                            const image =
+                                                event.currentTarget;
+
+                                            if (
+                                                !image.src.endsWith(
+                                                    '/placeholder.jpg',
+                                                )
+                                            ) {
+                                                image.src =
+                                                    '/placeholder.jpg';
+                                            }
+                                        }
+                                    }
+                                />
+
+                                {images.length >
+                                    1 && (
+                                        <Stack
+                                            direction="row"
+                                            spacing={1}
+                                            sx={{
+                                                mt: 2,
+                                                overflowX:
+                                                    'auto',
+                                                pb: 1,
+                                            }}
+                                        >
+                                            {images.map(
+                                                (
+                                                    image,
+                                                    index,
+                                                ) => (
+                                                    <IconButton
+                                                        key={
+                                                            image.id
+                                                        }
+                                                        onClick={() =>
+                                                            setImageIndex(
+                                                                index,
+                                                            )
+                                                        }
+                                                        sx={{
+                                                            p: 0.5,
+
+                                                            border:
+                                                                '2px solid',
+
+                                                            borderColor:
+                                                                safeImageIndex ===
+                                                                    index
+                                                                    ? 'primary.main'
+                                                                    : 'transparent',
+
+                                                            borderRadius:
+                                                                2,
+
+                                                            flexShrink:
+                                                                0,
+                                                        }}
+                                                    >
+                                                        <Box
+                                                            component="img"
+                                                            src={
+                                                                resolveMediaUrl(image.imageUrl)
+                                                            }
+                                                            alt={
+                                                                image.altText ||
+                                                                product.name
+                                                            }
+                                                            loading="lazy"
+                                                            sx={{
+                                                                width: 70,
+                                                                height: 70,
+                                                                objectFit:
+                                                                    'cover',
+                                                                borderRadius:
+                                                                    1.5,
+                                                            }}
+                                                        />
+                                                    </IconButton>
+                                                ),
+                                            )}
+                                        </Stack>
+                                    )}
+                            </Box>
+
+                            <Box
+                                sx={{
+                                    width: {
+                                        xs: '100%',
+                                        lg: '50%',
+                                    },
+                                }}
+                            >
+                                <Stack spacing={2.5}>
+                                    {product.brandName && (
+                                        <Typography
+                                            variant="body2"
+                                            color="text.secondary"
+                                            sx={{
+                                                fontWeight: 700,
+                                            }}
+                                        >
+                                            {
+                                                product.brandName
+                                            }
+                                        </Typography>
+                                    )}
+
+                                    <Typography
+                                        variant="h3"
+                                        component="h1"
+                                        sx={{
+                                            fontWeight: 900,
+                                            lineHeight: 1.2,
+
+                                            fontSize: {
+                                                xs: '2rem',
+                                                md: '3rem',
+                                            },
+                                        }}
+                                    >
+                                        {
+                                            product.name
+                                        }
+                                    </Typography>
+
+                                    <Stack
+                                        direction="row"
+                                        spacing={2}
+                                        useFlexGap
+                                        sx={{
+                                            flexWrap:
+                                                'wrap',
+
+                                            alignItems:
+                                                'center',
+                                        }}
+                                    >
+                                        <Stack
+                                            direction="row"
+                                            spacing={1}
+                                            sx={{
+                                                alignItems:
+                                                    'center',
+                                            }}
+                                        >
+                                            <Rating
+                                                value={
+                                                    localizedRating
+                                                }
+                                                precision={
+                                                    0.1
+                                                }
+                                                readOnly
+                                                size="small"
+                                            />
+
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                            >
+                                                {
+                                                    formatRating(
+                                                        localizedRating,
+                                                    )
+                                                }{' '}
+                                                (
+                                                {
+                                                    formatCount(
+                                                        product.reviewCount,
+                                                    )
+                                                }
+                                                )
+                                            </Typography>
+                                        </Stack>
+
+                                        {product.isInStock ? (
+                                            <Chip
+                                                icon={
+                                                    <CheckCircleOutlined />
+                                                }
+                                                label={
+                                                    getText(
+                                                        'storefront.productDetail.inStock',
+                                                        'In stock',
+                                                    )
+                                                }
+                                                color="success"
+                                                size="small"
+                                                variant="outlined"
+                                            />
+                                        ) : (
+                                            <Chip
+                                                label={
+                                                    getText(
+                                                        'storefront.productDetail.outOfStock',
+                                                        'Out of stock',
+                                                    )
+                                                }
+                                                color="default"
+                                                size="small"
+                                            />
+                                        )}
+                                    </Stack>
+
+                                  
+
+                                    <Divider />
+
+                                    <Box>
+                                        {comparePrice !==
+                                            null &&
+                                            comparePrice >
+                                            price && (
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{
+                                                    textDecoration: 'line-through',
+                                                }}
+                                            >
+                                                {formatMoney(
+                                                    comparePrice,
+                                                    currency || 'IRT',
+                                                    i18n.language,
+                                                )}
+                                            </Typography>
+                                            )}
+
+                                        <Typography
+                                            variant="h4"
+                                            color="primary"
+                                            sx={{
+                                                fontWeight: 900,
+                                                mt: 0.5,
+                                            }}
+                                        >
+                                            {formatMoney(
+                                                price,
+                                                currency || 'IRT',
+                                                i18n.language,
+                                            )}
+                                        </Typography>
+
+                                        {product.discountPercentage >
+                                            0 && (
+                                                <Typography
+                                                    variant="body2"
+                                                    color="success.main"
+                                                    sx={{
+                                                        mt: 0.5,
+                                                        fontWeight: 700,
+                                                    }}
+                                                >
+                                                    -
+                                                    {
+                                                        product.discountPercentage
+                                                    }
+                                                    %
+                                                </Typography>
+                                            )}
+                                    </Box>
+
+                                    {genericVariantMode &&
+                                        attributeGroups.length >
+                                        0 && (
+                                            <Stack
+                                                spacing={2.5}
+                                            >
+                                                {attributeGroups.map(
+                                                    group => {
+                                                        const code =
+                                                            group.code
+                                                                .trim()
+                                                                .toLowerCase();
+
+                                                        const selectedValueId =
+                                                            selectedAttributes[
+                                                            code
+                                                            ] ??
+                                                            '';
+
+                                                        return (
+                                                            <Box
+                                                                key={
+                                                                    code
+                                                                }
+                                                            >
+                                                                <Typography
+                                                                    variant="h6"
+                                                                    sx={{
+                                                                        fontWeight:
+                                                                            800,
+
+                                                                        mb: 1,
+                                                                    }}
+                                                                >
+                                                                    {getAttributeName(
+                                                                        group.code,
+                                                                        group.name,
+                                                                    )}
+                                                                </Typography>
+
+                                                                <Stack
+                                                                    direction="row"
+                                                                    spacing={1}
+                                                                    useFlexGap
+                                                                    sx={{
+                                                                        flexWrap:
+                                                                            'wrap',
+                                                                    }}
+                                                                >
+                                                                    {group.values.map(
+                                                                        value => {
+                                                                            const selected =
+                                                                                selectedValueId ===
+                                                                                value.id;
+
+                                                                            const available =
+                                                                                isAttributeValueAvailable(
+                                                                                    group.code,
+                                                                                    value.id,
+                                                                                );
+
+                                                                            return (
+                                                                                <Button
+                                                                                    key={
+                                                                                        value.id
+                                                                                    }
+                                                                                    variant={
+                                                                                        selected
+                                                                                            ? 'contained'
+                                                                                            : 'outlined'
+                                                                                    }
+                                                                                    disabled={
+                                                                                        !available
+                                                                                    }
+                                                                                    onClick={() =>
+                                                                                        handleAttributeSelect(
+                                                                                            group.code,
+                                                                                            value.id,
+                                                                                        )
+                                                                                    }
+                                                                                    sx={{
+                                                                                        minWidth:
+                                                                                            80,
+
+                                                                                        minHeight:
+                                                                                            42,
+
+                                                                                        borderRadius:
+                                                                                            2,
+
+                                                                                        textTransform:
+                                                                                            'none',
+
+                                                                                        opacity:
+                                                                                            available
+                                                                                                ? 1
+                                                                                                : 0.45,
+                                                                                    }}
+                                                                                >
+                                                                                    {value.colorHex && (
+                                                                                        <Box
+                                                                                            component="span"
+                                                                                            sx={{
+                                                                                                width: 16,
+
+                                                                                                height: 16,
+
+                                                                                                borderRadius:
+                                                                                                    '50%',
+
+                                                                                                backgroundColor:
+                                                                                                    value.colorHex,
+
+                                                                                                border:
+                                                                                                    '1px solid',
+
+                                                                                                borderColor:
+                                                                                                    'divider',
+
+                                                                                                mr: 1,
+                                                                                            }}
+                                                                                        />
+                                                                                    )}
+
+                                                                                    {
+                                                                                        value.label
+                                                                                    }
+                                                                                </Button>
+                                                                            );
+                                                                        },
+                                                                    )}
+                                                                </Stack>
+                                                            </Box>
+                                                        );
+                                                    },
+                                                )}
+                                            </Stack>
+                                        )}
+
+                                    {!genericVariantMode &&
+                                        availableVariants.length >
+                                        1 && (
+                                            <Box>
+                                                <Typography
+                                                    variant="h6"
+                                                    sx={{
+                                                        fontWeight:
+                                                            800,
+
+                                                        mb: 1,
+                                                    }}
+                                                >
+                                                    {
+                                                        getText(
+                                                            'storefront.productDetail.variant',
+                                                            'Variant',
+                                                        )
+                                                    }
+                                                </Typography>
+
+                                                <Stack
+                                                    direction="row"
+                                                    spacing={1}
+                                                    useFlexGap
+                                                    sx={{
+                                                        flexWrap:
+                                                            'wrap',
+                                                    }}
+                                                >
+                                                    {availableVariants.map(
+                                                        variant => {
+                                                            const selected =
+                                                                variant.id ===
+                                                                activeLegacyVariant?.id;
+
+                                                            return (
+                                                                <Button
+                                                                    key={
+                                                                        variant.id
+                                                                    }
+                                                                    variant={
+                                                                        selected
+                                                                            ? 'contained'
+                                                                            : 'outlined'
+                                                                    }
+                                                                    onClick={() => {
+                                                                        setSelectedLegacyVariantId(
+                                                                            variant.id,
+                                                                        );
+
+                                                                        setQuantity(
+                                                                            1,
+                                                                        );
+
+                                                                        setAdded(
+                                                                            false,
+                                                                        );
+                                                                    }}
+                                                                    sx={{
+                                                                        textTransform:
+                                                                            'none',
+
+                                                                        borderRadius:
+                                                                            2,
+                                                                    }}
+                                                                >
+                                                                    {
+                                                                        getVariantLabel(
+                                                                            variant,
+                                                                        )
+                                                                    }
+                                                                </Button>
+                                                            );
+                                                        },
+                                                    )}
+                                                </Stack>
+                                            </Box>
+                                        )}
+
+                                    {genericVariantMode &&
+                                        !hasCompleteGenericSelection && (
+                                            <Alert
+                                                severity="info"
+                                                variant="outlined"
+                                            >
+                                                {
+                                                    getText(
+                                                        'storefront.productDetail.selectAllVariants',
+                                                        'Please select all available options before adding the product to your cart.',
+                                                    )
+                                                }
+                                            </Alert>
+                                        )}
+
+                                    {genericVariantMode &&
+                                        hasCompleteGenericSelection &&
+                                        !matchingVariant && (
+                                            <Alert
+                                                severity="warning"
+                                                variant="outlined"
+                                            >
+                                                {
+                                                    getText(
+                                                        'storefront.productDetail.variantUnavailable',
+                                                        'The selected combination is not available.',
+                                                    )
+                                                }
+                                            </Alert>
+                                        )}
+
+                                    <Stack
+                                        direction={{
+                                            xs: 'column',
+                                            sm: 'row',
+                                        }}
+                                        spacing={2}
+                                        sx={{
+                                            alignItems: {
+                                                xs: 'stretch',
+                                                sm: 'center',
+                                            },
+                                        }}
+                                    >
+                                        <Stack
+                                            direction="row"
+                                            spacing={1}
+                                            sx={{
+                                                alignItems:
+                                                    'center',
+                                            }}
+                                        >
+                                            <IconButton
+                                                onClick={
+                                                    decrease
+                                                }
+                                                disabled={
+                                                    quantity <=
+                                                    1
+                                                }
+                                                aria-label={
+                                                    getText(
+                                                        'storefront.productDetail.decreaseQuantity',
+                                                        'Decrease quantity',
+                                                    )
+                                                }
+                                            >
+                                                <Remove />
+                                            </IconButton>
+
+                                            <Typography
+                                                sx={{
+                                                    minWidth:
+                                                        32,
+
+                                                    textAlign:
+                                                        'center',
+
+                                                    fontWeight:
+                                                        800,
+                                                }}
+                                            >
+                                                {
+                                                    formatCount(
+                                                        quantity,
+                                                    )
+                                                }
+                                            </Typography>
+
+                                            <IconButton
+                                                onClick={
+                                                    increase
+                                                }
+                                                disabled={
+                                                    maxQuantity <=
+                                                    0 ||
+                                                    quantity >=
+                                                    maxQuantity
+                                                }
+                                                aria-label={
+                                                    getText(
+                                                        'storefront.productDetail.increaseQuantity',
+                                                        'Increase quantity',
+                                                    )
+                                                }
+                                            >
+                                                <Add />
+                                            </IconButton>
+                                        </Stack>
+
+                                        <Button
+                                            fullWidth
+                                            size="large"
+                                            variant="contained"
+                                            startIcon={
+                                                added ? (
+                                                    <CheckCircleOutlined />
+                                                ) : (
+                                                    <ShoppingCartOutlined />
+                                                )
+                                            }
+                                            onClick={
+                                                addToCart
+                                            }
+                                            disabled={
+                                                !canAddToCart ||
+                                                add.isPending
+                                            }
+                                            sx={{
+                                                minHeight:
+                                                    52,
+
+                                                borderRadius:
+                                                    2.5,
+
+                                                fontWeight:
+                                                    800,
+                                            }}
+                                        >
+                                            {add.isPending
+                                                ? getText(
+                                                    'storefront.productDetail.adding',
+                                                    'Adding...',
+                                                )
+                                                : added
+                                                    ? getText(
+                                                        'storefront.productDetail.addedToCart',
+                                                        'Added to cart',
+                                                    )
+                                                    : getText(
+                                                        'storefront.productDetail.addToCart',
+                                                        'Add to cart',
+                                                    )}
+                                        </Button>
+                                    </Stack>
+
+                                  
+
+                                    {product.shortDescription && (
+                                        <>
+                                            <Divider />
+
+                                            <Typography
+                                                color="text.secondary"
+                                                sx={{
+                                                    lineHeight:
+                                                        1.9,
+                                                }}
+                                            >
+                                                {
+                                                    product.shortDescription
+                                                }
+                                            </Typography>
+                                        </>
+                                    )}
+                                    {productSpecifications.length > 0 && (
+                                        <>
+                                            <Divider />
+
+                                            <Box>
+                                                <Typography
+                                                    variant="h6"
+                                                    sx={{
+                                                        fontWeight: 800,
+                                                        mb: 1.5,
+                                                    }}
+                                                >
+                                                    {getText(
+                                                        'storefront.productDetail.specifications',
+                                                        'مشخصات محصول',
+                                                    )}
+                                                </Typography>
+
+                                                <Stack spacing={0}>
+                                                    {productSpecifications.map((attribute) => {
+                                                        const values = (
+                                                            attribute.values ?? []
+                                                        )
+                                                            .map((value) =>
+                                                                (
+                                                                    value.displayValue ||
+                                                                    value.value ||
+                                                                    ''
+                                                                ).trim(),
+                                                            )
+                                                            .filter(Boolean);
+
+                                                        if (values.length === 0) {
+                                                            return null;
+                                                        }
+
+                                                        return (
+                                                            <Box
+                                                                key={attribute.id}
+                                                                sx={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'flex-start',
+                                                                    justifyContent: 'space-between',
+                                                                    gap: 2,
+                                                                    py: 1.25,
+                                                                    borderBottom: '1px solid',
+                                                                    borderColor: 'divider',
+                                                                }}
+                                                            >
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    color="text.secondary"
+                                                                    sx={{
+                                                                        fontWeight: 600,
+                                                                        flex: '0 0 40%',
+                                                                    }}
+                                                                >
+                                                                    {attribute.name}
+                                                                </Typography>
+
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    sx={{
+                                                                        flex: 1,
+                                                                        textAlign: 'end',
+                                                                        whiteSpace: 'pre-line',
+                                                                    }}
+                                                                >
+                                                                    {values.join('، ')}
+                                                                </Typography>
+                                                            </Box>
+                                                        );
+                                                    })}
+                                                </Stack>
+                                            </Box>
+                                        </>
+                                    )}
+                                    {(
+                                        product.description ||
+                                        product.categories.length >
+                                        0 ||
+                                        product.manufacturerName
+                                    ) && (
+                                            <>
+                                            {productSpecifications.length <=0 && (<Divider />)}
+
+                                                <Stack
+                                                    spacing={2}
+                                                >
+                                                    {product.description && (
+                                                        <Box>
+                                                            <Typography
+                                                                variant="h6"
+                                                                sx={{
+                                                                    fontWeight:
+                                                                        800,
+
+                                                                    mb: 1,
+                                                                }}
+                                                            >
+                                                                {
+                                                                    getText(
+                                                                        'storefront.productDetail.description',
+                                                                        'Description',
+                                                                    )
+                                                                }
+                                                            </Typography>
+
+                                                            <Typography
+                                                                color="text.secondary"
+                                                                sx={{
+                                                                    whiteSpace:
+                                                                        'pre-line',
+
+                                                                    lineHeight:
+                                                                        1.9,
+                                                                }}
+                                                            >
+                                                                {
+                                                                    product.description
+                                                                }
+                                                            </Typography>
+                                                        </Box>
+                                                    )}
+
+                                                    {product.categories.length >
+                                                        0 && (
+                                                            <Box>
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    color="text.secondary"
+                                                                    sx={{
+                                                                        mb: 1,
+
+                                                                        fontWeight:
+                                                                            700,
+                                                                    }}
+                                                                >
+                                                                    {
+                                                                        getText(
+                                                                            'storefront.productDetail.categories',
+                                                                            'Categories',
+                                                                        )
+                                                                    }
+                                                                </Typography>
+
+                                                                <Stack
+                                                                    direction="row"
+                                                                    spacing={1}
+                                                                    useFlexGap
+                                                                    sx={{
+                                                                        flexWrap:
+                                                                            'wrap',
+                                                                    }}
+                                                                >
+                                                                    {product.categories.map(
+                                                                        category => (
+                                                                            <Chip
+                                                                                key={
+                                                                                    category
+                                                                                }
+                                                                                label={
+                                                                                    category
+                                                                                }
+                                                                                size="small"
+                                                                                variant="outlined"
+                                                                            />
+                                                                        ),
+                                                                    )}
+                                                                </Stack>
+                                                            </Box>
+                                                        )}
+
+                                                    {product.manufacturerName && (
+                                                        <Typography
+                                                            variant="body2"
+                                                            color="text.secondary"
+                                                        >
+                                                            {
+                                                                getText(
+                                                                    'storefront.productDetail.manufacturer',
+                                                                    'Manufacturer',
+                                                                )
+                                                            }
+                                                            :{' '}
+                                                            {
+                                                                product.manufacturerName
+                                                            }
+                                                        </Typography>
+                                                    )}
+                                                </Stack>
+                                            </>
+                                        )}
+                                </Stack>
+                            </Box>
+                        </Stack>
+                    </Card>
+                </Stack>
+            </Container>
+            <CartUpsellDialog
+                open={recommendationsOpen}
+                sourceProductId={product?.id ?? null}
+                onClose={() => setRecommendationsOpen(false)}
+            />
+        </Box>
+    );
+}

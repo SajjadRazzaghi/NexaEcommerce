@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import {
     Search,
+    Heart,
     ShoppingBag,
     UserRound,
     Menu,
@@ -19,6 +20,7 @@ import { LanguageToggle } from '@/components/language-toggle';
 import { appearanceApi } from '@/lib/api/appearance';
 import { useAuth } from '@/hooks/use-auth';
 import { useCart } from '@/modules/cart/hooks/useCart';
+import { useFavorites } from '@/modules/catalog/hooks/useFavorites';
 import { useCategories } from '@/modules/catalog/hooks/useCategories';
 
 import type { Category } from '@/modules/catalog/api/categories';
@@ -65,6 +67,7 @@ export default function StoreHeader() {
     });
 
     const { data: cart, isLoading: cartLoading } = useCart();
+    const { total: favoriteCount } = useFavorites();
 
     const { data: categoryData = [] } = useCategories();
 
@@ -160,11 +163,11 @@ export default function StoreHeader() {
 
     return (
         <header
-            className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur-xl"
+            className="sticky top-0 z-40 border-b border-border bg-card/95 shadow-sm backdrop-blur-xl"
             dir={isFa ? 'rtl' : 'ltr'}
         >
             {/* Top announcement */}
-            <div className="bg-slate-900 text-white">
+            <div className="bg-primary text-primary-foreground">
                 <div className="mx-auto flex max-w-7xl items-center justify-center px-4 py-2 text-center text-[11px] font-medium sm:text-xs">
                     <span>
                         تجربه‌ای بهتر برای انتخاب و خرید آنلاین
@@ -180,7 +183,7 @@ export default function StoreHeader() {
                     {/* Mobile menu */}
                     <button
                         type="button"
-                        className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-slate-200 text-slate-700 transition hover:bg-slate-50 lg:hidden"
+                        className="flex size-10 shrink-0 items-center justify-center rounded-xl border border-border text-foreground transition hover:bg-accent lg:hidden"
                         onClick={() => setMobileMenuOpen((value) => !value)}
                         aria-label={
                             mobileMenuOpen
@@ -215,11 +218,11 @@ export default function StoreHeader() {
                         )}
 
                         <div className="hidden min-w-0 sm:block">
-                            <div className="max-w-48 truncate text-lg font-black tracking-tight text-slate-900">
+                            <div className="max-w-48 truncate text-lg font-black tracking-tight text-foreground">
                                 {storeName}
                             </div>
 
-                            <div className="text-[10px] font-medium text-slate-500">
+                            <div className="text-[10px] font-medium text-muted-foreground">
                                 فروشگاه اینترنتی
                             </div>
                         </div>
@@ -230,8 +233,8 @@ export default function StoreHeader() {
                         onSubmit={submitSearch}
                         className="mx-auto hidden min-w-0 flex-1 md:flex"
                     >
-                        <div className="flex h-12 w-full items-center rounded-2xl border border-slate-200 bg-slate-100/80 px-3 transition-all focus-within:border-primary focus-within:bg-white focus-within:ring-4 focus-within:ring-primary/10">
-                            <Search className="size-5 shrink-0 text-slate-400" />
+                        <div className="flex h-12 w-full items-center rounded-2xl border border-border bg-muted/80 px-3 transition-all focus-within:border-primary focus-within:bg-card focus-within:ring-4 focus-within:ring-primary/10">
+                            <Search className="size-5 shrink-0 text-muted-foreground" />
 
                             <input
                                 value={query}
@@ -240,7 +243,7 @@ export default function StoreHeader() {
                                 }
                                 placeholder={text.search}
                                 aria-label={text.search}
-                                className="h-full min-w-0 flex-1 bg-transparent px-3 text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                                className="h-full min-w-0 flex-1 bg-transparent px-3 text-sm text-foreground outline-none placeholder:text-muted-foreground"
                             />
 
                             <button
@@ -259,11 +262,26 @@ export default function StoreHeader() {
 
                         <ModeToggle />
 
+                        {/* Saved favorites */}
+                        <Link
+                            to="/favorites"
+                            className="relative flex size-11 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                            aria-label={isFa ? 'علاقه‌مندی‌های من' : 'My favorites'}
+                            title={isFa ? 'علاقه‌مندی‌های من' : 'My favorites'}
+                        >
+                            <Heart className="size-5" />
+                            {favoriteCount > 0 && (
+                                <span className="absolute -end-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground ring-2 ring-background">
+                                    {favoriteCount > 99 ? '99+' : favoriteCount}
+                                </span>
+                            )}
+                        </Link>
+
                         {/* Account */}
                         {isAuthenticated ? (
                             <Link
                                 to="/profile"
-                                className="hidden h-11 items-center gap-2 rounded-xl border border-slate-200 px-3 transition hover:border-primary/40 hover:bg-primary/5 sm:flex"
+                                className="hidden h-11 items-center gap-2 rounded-xl border border-border px-3 transition hover:border-primary/40 hover:bg-primary/5 sm:flex"
                             >
                                 {user?.avatarUrl?.trim() ? (
                                     <img
@@ -277,12 +295,12 @@ export default function StoreHeader() {
                                     </span>
                                 )}
 
-                                <span className="max-w-28 truncate text-xs font-bold text-slate-700">
+                                <span className="max-w-28 truncate text-xs font-bold text-foreground">
                                     {userName}
                                 </span>
                             </Link>
                         ) : authLoading ? (
-                            <div className="hidden h-11 w-28 animate-pulse rounded-xl bg-slate-100 sm:block" />
+                            <div className="hidden h-11 w-28 animate-pulse rounded-xl bg-muted sm:block" />
                         ) : (
                             <Link
                                 to="/login"
@@ -297,8 +315,8 @@ export default function StoreHeader() {
                         <Link
                             to="/cart"
                             className={`relative flex size-11 shrink-0 items-center justify-center rounded-xl border transition ${hasCartItems
-                                    ? 'border-primary/30 bg-primary/5 text-primary'
-                                    : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                                ? 'border-primary/30 bg-primary/5 text-primary'
+                                : 'border-border text-muted-foreground hover:bg-accent'
                                 }`}
                             aria-label={
                                 isCartEmpty
@@ -314,7 +332,7 @@ export default function StoreHeader() {
                             <ShoppingBag className="size-5" />
 
                             {hasCartItems && (
-                                <span className="absolute -end-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground ring-2 ring-white">
+                                <span className="absolute -end-1 -top-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1.5 py-0.5 text-[10px] font-bold text-primary-foreground ring-2 ring-background">
                                     {cartItemCount > 99
                                         ? '99+'
                                         : cartItemCount}
@@ -322,7 +340,7 @@ export default function StoreHeader() {
                             )}
 
                             {cartLoading && (
-                                <span className="absolute bottom-1 start-1 size-1.5 animate-pulse rounded-full bg-slate-400" />
+                                <span className="absolute bottom-1 start-1 size-1.5 animate-pulse rounded-full bg-muted-foreground" />
                             )}
                         </Link>
                     </div>
@@ -333,8 +351,8 @@ export default function StoreHeader() {
                     onSubmit={submitSearch}
                     className="pb-3 md:hidden"
                 >
-                    <div className="flex h-11 items-center rounded-xl border border-slate-200 bg-slate-100/80 px-3 focus-within:border-primary focus-within:bg-white">
-                        <Search className="size-5 shrink-0 text-slate-400" />
+                    <div className="flex h-11 items-center rounded-xl border border-border bg-muted/80 px-3 focus-within:border-primary focus-within:bg-card">
+                        <Search className="size-5 shrink-0 text-muted-foreground" />
 
                         <input
                             value={query}
@@ -357,12 +375,12 @@ export default function StoreHeader() {
             </div>
 
             {/* Desktop navigation */}
-            <nav className="hidden border-t border-slate-100 lg:block">
+            <nav className="hidden border-t border-border lg:block">
                 <div className="mx-auto flex h-12 max-w-7xl items-center gap-7 px-6">
 
                     <Link
                         to="/"
-                        className="flex items-center gap-2 text-sm font-bold text-slate-700 transition hover:text-primary"
+                        className="flex items-center gap-2 text-sm font-bold text-foreground transition hover:text-primary"
                     >
                         <Home className="size-4" />
                         {text.home}
@@ -370,13 +388,13 @@ export default function StoreHeader() {
 
                     <Link
                         to="/products"
-                        className="flex items-center gap-2 text-sm font-bold text-slate-700 transition hover:text-primary"
+                        className="flex items-center gap-2 text-sm font-bold text-foreground transition hover:text-primary"
                     >
                         <Package className="size-4" />
                         {text.products}
                     </Link>
 
-                    <div className="h-5 w-px bg-slate-200" />
+                    <div className="h-5 w-px bg-border" />
 
                     {rootCategories.map((category) => {
                         const children = getCategoryChildren(
@@ -391,7 +409,7 @@ export default function StoreHeader() {
                             >
                                 <Link
                                     to={`/products?categoryId=${encodeURIComponent(category.id)}`}
-                                    className="flex items-center gap-1.5 text-sm font-medium text-slate-600 transition hover:text-primary"
+                                    className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition hover:text-primary"
                                 >
                                     {category.name}
 
@@ -401,10 +419,10 @@ export default function StoreHeader() {
                                 </Link>
 
                                 {children.length > 0 && (
-                                    <div className="invisible absolute end-0 top-full z-50 w-64 translate-y-2 rounded-2xl border border-slate-200 bg-white p-3 opacity-0 shadow-xl transition-all group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
+                                    <div className="invisible absolute end-0 top-full z-50 w-64 translate-y-2 rounded-2xl border border-border bg-popover p-3 opacity-0 shadow-xl transition-all group-hover:visible group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:visible group-focus-within:translate-y-0 group-focus-within:opacity-100">
                                         <Link
                                             to={`/products?categoryId=${encodeURIComponent(category.id)}`}
-                                            className="mb-2 block rounded-xl bg-slate-50 px-3 py-2.5 text-sm font-bold text-primary hover:bg-primary/5"
+                                            className="mb-2 block rounded-xl bg-accent px-3 py-2.5 text-sm font-bold text-primary hover:bg-primary/5"
                                         >
                                             مشاهده همه {category.name}
                                         </Link>
@@ -414,7 +432,7 @@ export default function StoreHeader() {
                                                 <Link
                                                     key={child.id}
                                                     to={`/products?categoryId=${encodeURIComponent(child.id)}`}
-                                                    className="block rounded-lg px-3 py-2 text-sm text-slate-600 transition hover:bg-slate-50 hover:text-primary"
+                                                    className="block rounded-lg px-3 py-2 text-sm text-muted-foreground transition hover:bg-accent hover:text-primary"
                                                 >
                                                     {child.name}
                                                 </Link>
@@ -430,13 +448,27 @@ export default function StoreHeader() {
 
             {/* Mobile navigation */}
             {mobileMenuOpen && (
-                <div className="border-t border-slate-200 bg-white px-4 py-4 shadow-lg lg:hidden">
+                <div className="border-t border-border bg-popover px-4 py-4 shadow-lg lg:hidden">
                     <div className="space-y-1">
+
+                        <Link
+                            to="/favorites"
+                            onClick={() => setMobileMenuOpen(false)}
+                            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-foreground hover:bg-accent"
+                        >
+                            <Heart className="size-5" />
+                            {isFa ? 'علاقه‌مندی‌های من' : 'My favorites'}
+                            {favoriteCount > 0 && (
+                                <span className="ms-auto rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{favoriteCount}</span>
+                            )}
+                        </Link>
+
+
 
                         <Link
                             to="/"
                             onClick={() => setMobileMenuOpen(false)}
-                            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-foreground hover:bg-accent"
                         >
                             <Home className="size-5" />
                             {text.home}
@@ -445,15 +477,15 @@ export default function StoreHeader() {
                         <Link
                             to="/products"
                             onClick={() => setMobileMenuOpen(false)}
-                            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-slate-700 hover:bg-slate-50"
+                            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-bold text-foreground hover:bg-accent"
                         >
                             <Package className="size-5" />
                             {text.products}
                         </Link>
 
-                        <div className="my-3 border-t" />
+                        <div className="my-3 border-t border-border" />
 
-                        <div className="px-3 pb-2 text-xs font-bold text-slate-400">
+                        <div className="px-3 pb-2 text-xs font-bold text-muted-foreground">
                             {text.categories}
                         </div>
 
@@ -462,7 +494,7 @@ export default function StoreHeader() {
                                 <Link
                                     to={`/products?categoryId=${encodeURIComponent(category.id)}`}
                                     onClick={() => setMobileMenuOpen(false)}
-                                    className="block rounded-xl px-3 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                                    className="block rounded-xl px-3 py-3 text-sm font-semibold text-foreground hover:bg-accent"
                                 >
                                     {category.name}
                                 </Link>
@@ -475,7 +507,7 @@ export default function StoreHeader() {
                                         key={child.id}
                                         to={`/products?categoryId=${encodeURIComponent(child.id)}`}
                                         onClick={() => setMobileMenuOpen(false)}
-                                        className="block rounded-xl px-6 py-2 text-xs text-slate-500 hover:bg-slate-50 hover:text-primary"
+                                        className="block rounded-xl px-6 py-2 text-xs text-muted-foreground hover:bg-accent hover:text-primary"
                                     >
                                         {child.name}
                                     </Link>

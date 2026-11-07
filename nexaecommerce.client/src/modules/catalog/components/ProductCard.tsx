@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 
 import {
-    Heart,
     ShoppingCart,
     Eye,
     Check,
@@ -23,6 +22,7 @@ import {
 
 import ProductVariantPickerDialog from './ProductVariantPickerDialog';
 import CartUpsellDialog from './CartUpsellDialog';
+import FavoriteButton from './FavoriteButton';
 
 import { useCartMutations } from '@/modules/cart/hooks/useCartMutations';
 
@@ -42,7 +42,6 @@ export default function ProductCard({
     const isFa =
         i18n.language?.toLowerCase().startsWith('fa') ?? false;
 
-    const [favorite, setFavorite] = useState(false);
     const [added, setAdded] = useState(false);
 
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -231,13 +230,13 @@ export default function ProductCard({
                     group isolate relative
                     flex h-full min-w-0 flex-col
                     cursor-pointer overflow-hidden
-                    rounded-2xl border border-slate-200
-                    bg-white
+                    rounded-2xl border border-border
+                    bg-card
                     transition-all duration-300
                     hover:-translate-y-1
                     hover:border-primary/25
                     hover:shadow-xl
-                    hover:shadow-slate-200/70
+                    hover:shadow-primary/10
                 "
             >
                 {/* -------------------------------------------------
@@ -273,7 +272,7 @@ export default function ProductCard({
                         relative z-10
                         aspect-[4/5]
                         overflow-hidden
-                        bg-[#F5F1EF]
+                        bg-secondary
                     "
                 >
                     <img
@@ -341,10 +340,10 @@ export default function ProductCard({
                                 pointer-events-none
                                 absolute start-3 top-3 z-10
                                 rounded-lg
-                                bg-white/95
+                                bg-card/95
                                 px-2.5 py-1.5
                                 text-[10px] font-bold
-                                text-slate-700
+                                text-foreground
                                 shadow-sm backdrop-blur
                             "
                         >
@@ -354,42 +353,7 @@ export default function ProductCard({
 
                     {/* Favorite */}
 
-                    <button
-                        type="button"
-                        aria-label={
-                            favorite
-                                ? 'حذف از علاقه‌مندی‌ها'
-                                : 'افزودن به علاقه‌مندی‌ها'
-                        }
-                        aria-pressed={favorite}
-                        onClick={(event) => {
-                            event.stopPropagation();
-
-                            setFavorite((value) => !value);
-                        }}
-                        className={`
-                            pointer-events-auto
-                            absolute start-3 bottom-3 z-20
-                            flex size-10
-                            items-center justify-center
-                            rounded-full
-                            shadow-md backdrop-blur
-                            transition
-                            ${favorite
-                                ? 'bg-red-50 text-red-600'
-                                : 'bg-white/95 text-slate-600 hover:bg-white hover:text-red-500'
-                            }
-                        `}
-                    >
-                        <Heart
-                            className="size-5"
-                            fill={
-                                favorite
-                                    ? 'currentColor'
-                                    : 'none'
-                            }
-                        />
-                    </button>
+                    <FavoriteButton productId={product.id} variant="floating" />
 
                     {/* Out of stock overlay */}
 
@@ -399,17 +363,17 @@ export default function ProductCard({
                                 pointer-events-none
                                 absolute inset-0 z-[5]
                                 flex items-center justify-center
-                                bg-white/65
+                                bg-background/70
                                 backdrop-blur-[1px]
                             "
                         >
                             <span
                                 className="
                                     rounded-xl
-                                    bg-slate-900/90
+                                    bg-foreground/90
                                     px-5 py-2.5
                                     text-sm font-bold
-                                    text-white
+                                    text-background
                                 "
                             >
                                 ناموجود
@@ -428,12 +392,12 @@ export default function ProductCard({
                             hidden
                             items-center gap-2
                             rounded-xl
-                            bg-white/95
+                            bg-card/95
                             px-4 py-2.5
                             text-xs font-bold
-                            text-slate-800
+                            text-foreground
                             shadow-md backdrop-blur
-                            transition hover:bg-white
+                            transition hover:bg-card
                             sm:flex
                         "
                     >
@@ -461,7 +425,7 @@ export default function ProductCard({
                     {/* Brand */}
 
                     {product.brandName ? (
-                        <div className="text-[11px] font-semibold text-slate-400">
+                        <div className="text-[11px] font-semibold text-muted-foreground">
                             {product.brandName}
                         </div>
                     ) : (
@@ -475,7 +439,7 @@ export default function ProductCard({
                             line-clamp-2
                             min-h-[46px]
                             text-sm font-bold leading-6
-                            text-slate-800
+                            text-foreground
                             sm:text-[15px]
                         "
                     >
@@ -491,7 +455,7 @@ export default function ProductCard({
                                 .map((category, index) => (
                                     <span
                                         key={`${category}-${index}`}
-                                        className="text-[10px] text-slate-400"
+                                        className="text-[10px] text-muted-foreground"
                                     >
                                         {category}
                                     </span>
@@ -508,7 +472,7 @@ export default function ProductCard({
                         {hasDiscount &&
                             product.comparePrice != null && (
                                 <div className="mb-1 flex items-center gap-2">
-                                    <span className="text-xs text-slate-400 line-through">
+                                    <span className="text-xs text-muted-foreground line-through">
                                         {formatPrice(
                                             product.comparePrice,
                                         )}
@@ -535,7 +499,7 @@ export default function ProductCard({
 
                         <div className="flex flex-wrap items-baseline gap-1.5">
                             <div className="flex items-baseline">
-                                <span className="text-lg font-black tracking-tight text-slate-900">
+                                <span className="text-lg font-black tracking-tight text-foreground">
                                     {formatPrice(price)}
                                 </span>
                             </div>
@@ -609,10 +573,10 @@ export default function ProductCard({
                                 items-center justify-center
                                 gap-1.5
                                 rounded-xl
-                                border border-slate-200
+                                border border-border
                                 px-2
                                 text-xs font-bold
-                                text-slate-700
+                                text-foreground
                                 transition
                                 hover:border-primary/40
                                 hover:bg-primary/5

@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using System.Text.Json;
 using NexaEcommerce.Modules.Catalog.Domain.Entities;
@@ -22,6 +22,9 @@ public sealed class CatalogDbContext : DbContext
 
     public DbSet<ProductReview> ProductReviews =>
         Set<ProductReview>();
+
+    public DbSet<ProductFavorite> ProductFavorites =>
+        Set<ProductFavorite>();
 
     public DbSet<ProductCategory> ProductCategories =>
         Set<ProductCategory>();
@@ -111,6 +114,7 @@ public sealed class CatalogDbContext : DbContext
         ConfigureProductImage(modelBuilder);
         ConfigureProductVariantImage(modelBuilder);
         ConfigureProductReview(modelBuilder);
+        ConfigureProductFavorite(modelBuilder);
 
         // =====================================================
         //product Attribute System
@@ -1178,4 +1182,51 @@ public sealed class CatalogDbContext : DbContext
                 x => !x.IsDeleted);
         });
     }
+
+    // =========================================================
+    // Product Favorites
+    // =========================================================
+    private static void ConfigureProductFavorite(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<ProductFavorite>(entity =>
+        {
+            entity.ToTable("ProductFavorites");
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.TenantId)
+                .IsRequired()
+                .HasMaxLength(100);
+
+            entity.Property(x => x.UserId)
+                .HasMaxLength(450);
+
+            entity.Property(x => x.GuestKey)
+                .HasMaxLength(64);
+
+            entity.Property(x => x.IsActive)
+                .IsRequired();
+
+            entity.HasOne(x => x.Product)
+                .WithMany()
+                .HasForeignKey(x => x.ProductId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // One active favorite per signed-in user and product.
+            entity.HasIndex(x => new { x.TenantId, x.ProductId, x.UserId })
+                .IsUnique()
+                .HasFilter("[UserId] IS NOT NULL AND [IsActive] = 1");
+
+            // One active favorite per anonymous browser and product.
+            entity.HasIndex(x => new { x.TenantId, x.ProductId, x.GuestKey })
+                .IsUnique()
+                .HasFilter("[GuestKey] IS NOT NULL AND [IsActive] = 1");
+
+            entity.HasIndex(x => new { x.TenantId, x.ProductId, x.IsActive });
+            entity.HasIndex(x => new { x.TenantId, x.CreatedAt });
+            entity.HasIndex(x => new { x.TenantId, x.RemovedAt });
+
+            entity.HasQueryFilter(x => !x.IsDeleted);
+        });
+    }
+
 }

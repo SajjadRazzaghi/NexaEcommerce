@@ -710,6 +710,67 @@ namespace NexaEcommerce.Modules.Catalog.Migrations.Catalog
                     b.ToTable("Products", "Catalog");
                 });
 
+            modelBuilder.Entity("NexaEcommerce.Modules.Catalog.Domain.Entities.ProductFavorite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("GuestKey")
+                        .HasMaxLength(64)
+                        .HasColumnType("nvarchar(64)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid>("ProductId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("RemovedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("TenantId")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UserId")
+                        .HasMaxLength(450)
+                        .HasColumnType("nvarchar(450)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductId");
+
+                    b.HasIndex("TenantId", "CreatedAt");
+
+                    b.HasIndex("TenantId", "RemovedAt");
+
+                    b.HasIndex("TenantId", "ProductId", "GuestKey")
+                        .IsUnique()
+                        .HasFilter("[GuestKey] IS NOT NULL AND [IsActive] = 1");
+
+                    b.HasIndex("TenantId", "ProductId", "IsActive");
+
+                    b.HasIndex("TenantId", "ProductId", "UserId")
+                        .IsUnique()
+                        .HasFilter("[UserId] IS NOT NULL AND [IsActive] = 1");
+
+                    b.ToTable("ProductFavorites", "Catalog");
+                });
+
             modelBuilder.Entity("NexaEcommerce.Modules.Catalog.Domain.Entities.ProductImage", b =>
                 {
                     b.Property<Guid>("Id")
@@ -857,8 +918,7 @@ namespace NexaEcommerce.Modules.Catalog.Migrations.Catalog
 
                     b.HasIndex("ProductId", "CombinationKey")
                         .IsUnique()
-                        .HasFilter(
-    "[CombinationKey] IS NOT NULL AND [IsDeleted] = 0");
+                        .HasFilter("[CombinationKey] IS NOT NULL");
 
                     b.ToTable("ProductVariants", "Catalog");
                 });
@@ -1033,6 +1093,17 @@ namespace NexaEcommerce.Modules.Catalog.Migrations.Catalog
                     b.Navigation("Brand");
 
                     b.Navigation("Manufacturer");
+                });
+
+            modelBuilder.Entity("NexaEcommerce.Modules.Catalog.Domain.Entities.ProductFavorite", b =>
+                {
+                    b.HasOne("NexaEcommerce.Modules.Catalog.Domain.Entities.Product", "Product")
+                        .WithMany()
+                        .HasForeignKey("ProductId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Product");
                 });
 
             modelBuilder.Entity("NexaEcommerce.Modules.Catalog.Domain.Entities.ProductImage", b =>

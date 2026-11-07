@@ -57,6 +57,7 @@ import {
     useCartMutations,
 } from '@/modules/cart/hooks/useCartMutations';
 import CartUpsellDialog from '../components/CartUpsellDialog';
+import FavoriteButton from '../components/FavoriteButton';
 
 import type {
     ProductVariant,
@@ -1189,6 +1190,10 @@ export default function ProductDetailPage() {
                                             product.name
                                         }
                                     </Typography>
+
+                                    <Box sx={{ display: 'flex', justifyContent: 'flex-start', mt: 1 }}>
+                                        <FavoriteButton productId={product.id} variant="inline" showLabel />
+                                    </Box>
 
                                     <Stack
                                         direction="row"
