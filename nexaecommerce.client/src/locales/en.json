@@ -950,6 +950,7 @@
     }
   },
   "catalogForms": {
+    "createCategory": "Create",
     "seoCategoryDesc": "Optimize how this category appears in search engines.",
     "seoKeywordsCategoryPlaceholder": "e.g. maternity clothing, maternity sets, women's loungewear, patlet",
     "basicInfoCategory": "Define the category name, hierarchy and display order.",

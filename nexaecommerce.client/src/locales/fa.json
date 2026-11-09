@@ -994,6 +994,7 @@
     }
   },
   "catalogForms": {
+    "createCategory": "ایجاد",
     "seoCategoryDesc": "نحوه نمایش این دسته‌بندی در موتورهای جستجو را بهینه کنید.",
     "seoKeywordsCategoryPlaceholder": "مثلاً لباس بارداری، ست زایمان، لباس راحتی زنانه، پاتلت",
     "basicInfoCategory": "نام، ساختار و ترتیب نمایش دسته‌بندی را مشخص کنید.",

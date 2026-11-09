@@ -24,6 +24,7 @@ import {
     Star,
     StarOff,
     Package,
+    Copy,
 } from 'lucide-react';
 
 import {
@@ -102,12 +103,53 @@ import { formatMoney } from '@/lib/formatMoney';
 import type {
     ProductListItem,
 } from '@/modules/catalog/api/products';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
+import {
+    Label,
+} from '@/components/ui/label';
 export default function ProductListPage() {
     const {
         i18n,
     } = useTranslation();
+    const openCopyDialog = (
+        product: ProductListItem,
+    ) => {
+        setCopyTarget(product);
+        setCopySku('');
+    };
 
+    const startCopy = () => {
+        if (!copyTarget) {
+            return;
+        }
+
+        const sku = copySku.trim();
+
+        if (!sku) {
+            toast.error(
+                text.copySkuTitle,
+            );
+
+            return;
+        }
+
+        const productId =
+            copyTarget.id;
+
+        setCopyTarget(null);
+
+        navigate(
+            `/admin/products/new?copyFrom=${encodeURIComponent(productId)}&sku=${encodeURIComponent(sku)}`,
+        );
+    };
     const isFa =
         i18n.language
             ?.toLowerCase()
@@ -207,6 +249,18 @@ export default function ProductListPage() {
 
             edit:
                 'ویرایش',
+            copy: 'کپی محصول',
+
+            copySkuTitle: 'SKU اصلی محصول جدید',
+
+            copySkuDescription:
+                'SKU اصلی محصول جدید را وارد کنید. SKU تنوع‌ها بر اساس این کد و ویژگی‌هایی مانند سایز و رنگ ساخته می‌شوند.',
+
+            copySkuPlaceholder: 'مثلاً PATLET01',
+
+            copyContinue: 'ادامه و کپی',
+
+            cancel: 'انصراف',
 
             disable:
                 'غیرفعال‌سازی',
@@ -355,7 +409,18 @@ export default function ProductListPage() {
 
             edit:
                 'Edit',
+            copy: 'Copy product',
 
+            copySkuTitle: 'New product main SKU',
+
+            copySkuDescription:
+                'Enter the main SKU for the new product. Variant SKUs will be generated using this code and selected attributes such as size and color.',
+
+            copySkuPlaceholder: 'Example: PATLET01',
+
+            copyContinue: 'Continue',
+
+            cancel: 'Cancel',
             disable:
                 'Deactivate',
 
@@ -450,7 +515,15 @@ export default function ProductListPage() {
         type: 'delete';
         product: ProductListItem;
     } | null>(null);
+    const [
+        copyTarget,
+        setCopyTarget,
+    ] = useState<ProductListItem | null>(null);
 
+    const [
+        copySku,
+        setCopySku,
+    ] = useState('');
     const canCreate =
         usePermission(
             PERM.productsCreate,
@@ -980,7 +1053,17 @@ export default function ProductListPage() {
                                                                             }
                                                                         </DropdownMenuItem>
                                                                     )}
+                                                                    {canCreate && (
+                                                                        <DropdownMenuItem
+                                                                            onClick={() =>
+                                                                                openCopyDialog(product)
+                                                                            }
+                                                                        >
+                                                                            <Copy />
 
+                                                                            {text.copy}
+                                                                        </DropdownMenuItem>
+                                                                    )}
                                                                     <DropdownMenuSeparator />
 
                                                                     {canStatus && (
@@ -1196,6 +1279,79 @@ export default function ProductListPage() {
                     onConfirm
                 }
             />
+            <Dialog
+                open={!!copyTarget}
+                onOpenChange={open => {
+                    if (!open) {
+                        setCopyTarget(null);
+                        setCopySku('');
+                    }
+                }}
+            >
+                <DialogContent
+                    dir={isFa ? 'rtl' : 'ltr'}
+                >
+                    <DialogHeader>
+                        <DialogTitle>
+                            {text.copySkuTitle}
+                        </DialogTitle>
+
+                        <DialogDescription>
+                            {text.copySkuDescription}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    <div className="grid gap-2">
+                        <Label htmlFor="copy-product-sku">
+                            {text.sku}
+                        </Label>
+
+                        <Input
+                            id="copy-product-sku"
+                            value={copySku}
+                            onChange={event =>
+                                setCopySku(
+                                    event.target.value,
+                                )
+                            }
+                            placeholder={
+                                text.copySkuPlaceholder
+                            }
+                            maxLength={50}
+                            dir="ltr"
+                            autoFocus
+                        />
+
+                        {copyTarget && (
+                            <p className="text-muted-foreground text-xs">
+                                {copyTarget.name}
+                            </p>
+                        )}
+                    </div>
+
+                    <DialogFooter>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => {
+                                setCopyTarget(null);
+                                setCopySku('');
+                            }}
+                        >
+                            {text.cancel}
+                        </Button>
+
+                        <Button
+                            type="button"
+                            onClick={startCopy}
+                            disabled={!copySku.trim()}
+                        >
+                            <Copy />
+                            {text.copyContinue}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }

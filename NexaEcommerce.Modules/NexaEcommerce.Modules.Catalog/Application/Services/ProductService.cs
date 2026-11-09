@@ -976,13 +976,25 @@ public sealed class ProductService : IProductService
             createDto.Description);
 
         product.SetShortDescription(
-            createDto.ShortDescription);
+     createDto.ShortDescription);
+
+        // Preserve product pricing when creating a copied product.
+        product.SetComparePrice(
+            createDto.ComparePrice);
+
+        if (createDto.DiscountPercentage.HasValue)
+        {
+            product.ApplyDiscount(
+                createDto.DiscountPercentage.Value);
+        }
 
         product.SetBrand(
             createDto.BrandId);
 
         product.SetManufacturer(
             createDto.ManufacturerId);
+
+
         product.SetRecommendedProductIds(
     await ValidateRecommendedProductIdsAsync(
         createDto.RecommendedProductIds,

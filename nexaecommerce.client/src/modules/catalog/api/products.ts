@@ -244,7 +244,7 @@ export type CreateProductVariantDto = {
     sku: string;
 
     isActive: boolean;
-
+    comparePrice?: number | null;
     priceOverride?: number;
 
     stockQuantity: number;
@@ -255,7 +255,9 @@ export type CreateProductVariantDto = {
 export type CreateProductDto = {
     name: string;
     price: number;
+    comparePrice?: number | null;
 
+    discountPercentage?: number | null;
     currency?: string;
     sku?: string;
     recommendedProductIds?: string[];

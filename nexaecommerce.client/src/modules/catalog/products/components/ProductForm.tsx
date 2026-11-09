@@ -139,6 +139,15 @@ const variantSchema =
                     'Variant price cannot be negative.',
                 )
                 .optional(),
+        comparePrice:
+            z
+                .number()
+                .min(
+                    0,
+                    'Compare price cannot be negative.',
+                )
+                .nullable()
+                .default(null),
 
         /*
          * Existing inventory is read-only in this form.
@@ -272,7 +281,11 @@ const schema =
                 .string()
                 .nullable()
                 .default(null),
-
+        manufacturerId:
+            z
+                .string()
+                .nullable()
+                .default(null),
         categoryIds:
             z
                 .array(
@@ -384,7 +397,7 @@ type FormValues = {
     slug: string;
     description: string;
     shortDescription: string;
-
+    manufacturerId: string | null;
     price: number;
     currency: string;
     comparePrice: number | null;
@@ -416,9 +429,11 @@ type FormValues = {
         id?: string;
         sku: string;
         priceOverride?: number;
+
         stockQuantity: number;
         isActive: boolean;
         attributeValueIds: string[];
+        comparePrice: number | null;
     }[];
 
     images: {
@@ -431,6 +446,7 @@ type FormValues = {
 const emptyValues: FormValues = {
     name: '',
     slug: '',
+    manufacturerId: null,
     description: '',
     shortDescription: '',
     recommendedProductIds: [],
@@ -675,59 +691,137 @@ function toValues(
     /* ---------------------------------------------------------------------- */
 
     /*
-     * ProductAttribute.roleValue / role is the authoritative source
-     * for deciding whether an attribute is VariantDefining.
+     * اولویت تشخیص ویژگی‌های تنوع:
      *
-     * We intentionally DO NOT infer this from product.variants.
+     * 1. CombinationKey ذخیره‌شده برای SKUهای واقعی محصول
+     * 2. Variant.attributes در صورت نبود CombinationKey
+     * 3. ProductAttribute.roleValue به عنوان fallback
+     *
+     * این کار باعث می‌شود ویژگی‌ای مثل «جنس» که در SKUهای
+     * محصول اصلی نقشی ندارد، به اشتباه ویژگی تنوع نشود.
      */
+
+    const variantsWithCombinationKeys =
+        (product.variants ?? []).filter(
+            variant => Boolean(variant.combinationKey?.trim()),
+        );
+
+    const hasCombinationKeyMetadata =
+        variantsWithCombinationKeys.length > 0;
+
+    const persistedVariantAttributeCodes =
+        new Set<string>();
+
+    const persistedVariantAttributeIds =
+        new Set<string>();
+
+    let hasPersistedVariantMetadata =
+        hasCombinationKeyMetadata;
+
+    // اولویت اول: استخراج کد ویژگی‌ها از CombinationKey
+    if (hasCombinationKeyMetadata) {
+        for (const variant of variantsWithCombinationKeys) {
+            for (
+                const part of
+                (variant.combinationKey ?? '').split('|')
+            ) {
+                const separatorIndex = part.indexOf(':');
+
+                if (separatorIndex <= 0) {
+                    continue;
+                }
+
+                const code = normalize(
+                    part.slice(0, separatorIndex),
+                );
+
+                if (code) {
+                    persistedVariantAttributeCodes.add(code);
+                }
+            }
+        }
+    } else {
+        // اولویت دوم: اطلاعات attributes خود تنوع‌ها
+        for (const variant of product.variants ?? []) {
+            for (const attribute of variant.attributes ?? []) {
+                const code = normalize(attribute.attributeCode);
+                const id = attribute.catalogAttributeId;
+
+                if (code || id) {
+                    hasPersistedVariantMetadata = true;
+                }
+
+                if (code) {
+                    persistedVariantAttributeCodes.add(code);
+                }
+
+                if (id) {
+                    persistedVariantAttributeIds.add(id);
+                }
+            }
+        }
+    }
+
     const variantAttributeCatalogIds =
         new Set(
             productAttributes
-                .filter(
-                    attribute => {
-                        const roleValue =
-                            Number(
-                                attribute.roleValue,
-                            );
-
-                        const role =
-                            normalize(
-                                attribute.role,
-                            );
-
-                        const isVariantDefining =
-                            Number.isInteger(
-                                roleValue,
-                            ) &&
-                            (
-                                roleValue &
-                                4
-                            ) === 4;
-
-                        const isVariantDefiningByName =
-                            role ===
-                            'variantdefining' ||
-                            role.includes(
-                                'variantdefining',
-                            );
-
-                        return (
-                            isVariantDefining ||
-                            isVariantDefiningByName
-                        );
-                    },
-                )
-                .map(
-                    attribute =>
+                .filter(attribute => {
+                    const catalogAttributeId =
                         attribute.catalogAttributeId ??
                         findCatalogAttributeByCode(
                             attribute.code,
-                        )?.id,
+                        )?.id;
+
+                    /*
+                     * اگر اطلاعات واقعی تنوع‌ها موجود باشد،
+                     * فقط ویژگی‌هایی که واقعاً در SKUها استفاده
+                     * شده‌اند، ویژگی تنوع محسوب می‌شوند.
+                     */
+                    if (hasPersistedVariantMetadata) {
+                        const code = normalize(attribute.code);
+
+                        return Boolean(
+                            (
+                                code &&
+                                persistedVariantAttributeCodes.has(code)
+                            ) ||
+                            (
+                                catalogAttributeId &&
+                                persistedVariantAttributeIds.has(
+                                    catalogAttributeId,
+                                )
+                            ),
+                        );
+                    }
+
+                    // آخرین راهکار: استفاده از نقش ذخیره‌شده
+                    const roleValue =
+                        Number(attribute.roleValue);
+
+                    const role =
+                        normalize(attribute.role);
+
+                    const isVariantDefining =
+                        Number.isInteger(roleValue) &&
+                        (roleValue & 4) === 4;
+
+                    const isVariantDefiningByName =
+                        role === 'variantdefining' ||
+                        role.includes('variantdefining');
+
+                    return (
+                        isVariantDefining ||
+                        isVariantDefiningByName
+                    );
+                })
+                .map(attribute =>
+                    attribute.catalogAttributeId ??
+                    findCatalogAttributeByCode(
+                        attribute.code,
+                    )?.id,
                 )
                 .filter(
-                    (
-                        id,
-                    ): id is string =>
+                    (id): id is string =>
                         Boolean(id),
                 ),
         );
@@ -737,16 +831,10 @@ function toValues(
      */
     const variantAttributeIds =
         availableCatalogAttributes
-            .filter(
-                attribute =>
-                    variantAttributeCatalogIds.has(
-                        attribute.id,
-                    ),
+            .filter(attribute =>
+                variantAttributeCatalogIds.has(attribute.id),
             )
-            .map(
-                attribute =>
-                    attribute.id,
-            );
+            .map(attribute => attribute.id);
 
     /* ---------------------------------------------------------------------- */
     /* Product Specifications                                                */
@@ -1385,7 +1473,8 @@ function toValues(
                     priceOverride:
                         variant.priceOverride ??
                         undefined,
-
+                    comparePrice:
+                        variant.comparePrice ?? null,
                     stockQuantity:
                         variant.stockQuantity ??
                         0,
@@ -1465,6 +1554,10 @@ function toValues(
             product.brandId ??
             null,
 
+        manufacturerId:
+            product.manufacturerId ??
+            null,
+
         categoryIds:
             product.categoryIds ??
             [],
@@ -1505,7 +1598,120 @@ function toValues(
         images,
     };
 }
+/* -------------------------------------------------------------------------- */
+/*                         Product Copy Helpers                               */
+/* -------------------------------------------------------------------------- */
 
+/**
+ * Converts a selected catalog value into a safe SKU segment.
+ *
+ * Large       -> LARGE
+ * Medium      -> MEDIUM
+ * Black       -> BLACK
+ * قرمز        -> قرمز
+ */
+function normalizeSkuSegment(
+    value?: string | null,
+): string {
+    return (value ?? '')
+        .normalize('NFKC')
+        .trim()
+        .toUpperCase()
+        .replace(/[^\p{L}\p{N}]+/gu, '_')
+        .replace(/^_+|_+$/g, '');
+}
+
+
+/**
+ * Builds a new SKU using:
+ *
+ * Main SKU + selected variant-defining values.
+ *
+ * Examples:
+ * PATLET01_LARGE
+ * PATLET01_MEDIUM
+ * PATLET01_LARGE_BLACK
+ */
+function buildCopiedVariantSku(
+    baseSku: string,
+    variant: FormValues['variants'][number],
+    selectedAttributeIds: string[],
+    attributes: CatalogAttribute[],
+): string {
+    const suffixParts = attributes
+        .filter(attribute =>
+            selectedAttributeIds.includes(attribute.id),
+        )
+        .sort(
+            (a, b) =>
+                a.displayOrder - b.displayOrder ||
+                a.code.localeCompare(b.code),
+        )
+        .map(attribute => {
+            const selectedValue = attribute.values.find(
+                value =>
+                    variant.attributeValueIds.includes(
+                        value.id,
+                    ),
+            );
+
+            return normalizeSkuSegment(
+                selectedValue?.value ??
+                selectedValue?.displayValue ??
+                attribute.code,
+            );
+        })
+        .filter(Boolean);
+
+    const suffix =
+        suffixParts.length > 0
+            ? suffixParts.join('_')
+            : 'DEFAULT';
+
+    return `${baseSku.trim()}_${suffix}`;
+}
+
+
+/**
+ * Creates initial values for a copied product.
+ * All database IDs and old stock values are discarded.
+ */
+function toCopiedValues(
+    source: Product,
+    baseSku: string,
+): FormValues {
+    const values = toValues(
+        source,
+        undefined,
+    );
+
+    return {
+        ...values,
+
+        sku: baseSku.trim(),
+
+        manufacturerId:
+            source.manufacturerId ?? null,
+
+        // New product defaults.
+        isActive: true,
+        isPublished: true,
+        isFeatured: false,
+
+        variants: values.variants.map(variant => ({
+            ...variant,
+
+            // Never reuse the source variant ID.
+            id: undefined,
+
+            // Generated after catalog attributes are loaded.
+            sku: '',
+
+            // Never copy the old inventory.
+            stockQuantity: 0,
+        })),
+    };
+}
 
 /* -------------------------------------------------------------------------- */
 /*                    Local Product Attribute Structures                      */
@@ -1872,7 +2078,11 @@ function buildProductAttributePayload(
 type ProductFormCreateProps = {
     mode: 'create';
 
-    product?: undefined;
+    // در حالت کپی، محصول مبدأ به فرم داده می‌شود.
+    sourceProduct?: Product;
+
+    // SKU اصلی محصول جدید که در پنجره کپی دریافت شده است.
+    initialSku?: string;
 
     pending?: boolean;
 
@@ -1880,9 +2090,11 @@ type ProductFormCreateProps = {
         body: CreateProductDto,
     ) => Promise<unknown>;
 
+    // پس از ذخیره موفق، امکان هدایت به صفحه جزئیات محصول.
+    onSuccess?: (result: unknown) => void;
+
     onCancel: () => void;
 };
-
 
 type ProductFormEditProps = {
     mode: 'edit';
@@ -1915,13 +2127,32 @@ export function ProductForm(
         t,
     } = useTranslation();
 
+    const mode = props.mode;
+
+    const product =
+        mode === 'edit'
+            ? props.product
+            : props.sourceProduct;
+
+    const initialSku =
+        mode === 'create'
+            ? props.initialSku
+            : undefined;
+
+    const onSuccess =
+        mode === 'create'
+            ? props.onSuccess
+            : undefined;
+
     const {
-        product,
-        mode,
         pending,
         onSubmit,
         onCancel,
     } = props;
+
+    const isCopyMode =
+        mode === 'create' &&
+        Boolean(product);
 
 
     /* ---------------------------------------------------------------------- */
@@ -1942,7 +2173,29 @@ export function ProductForm(
     });
 
 
+    const initialFormValues = useMemo(
+        () => {
+            if (
+                mode === 'create' &&
+                product
+            ) {
+                return toCopiedValues(
+                    product,
+                    initialSku ?? '',
+                );
+            }
 
+            return toValues(
+                product,
+                undefined,
+            );
+        },
+        [
+            mode,
+            product,
+            initialSku,
+        ],
+    );
 
     /* ---------------------------------------------------------------------- */
     /*                                  Form                                  */
@@ -1954,10 +2207,7 @@ export function ProductForm(
 
         // Definitions are loaded after the form exists.
         // Existing product values are reconstructed when they arrive.
-        defaultValues: toValues(
-            product,
-            undefined,
-        ),
+        defaultValues: initialFormValues,
 
         mode: 'onBlur',
     });
@@ -2223,7 +2473,7 @@ export function ProductForm(
     /* ---------------------------------------------------------------------- */
 
 
-    const initializedProductId = useRef<string | null>(null);
+    
 
     const categoryDefinitionKey = [
         ...selectedCategoryIds,
@@ -2231,29 +2481,73 @@ export function ProductForm(
 
     const lastCategoryDefinitionKey = useRef<string | null>(null);
 
-    useEffect(() => {
-        // Create mode already has valid empty defaults.
-        if (mode === 'create') {
-            return;
-        }
+    const initializedProductId =
+        useRef<string | null>(null);
 
+    useEffect(() => {
         if (
-            mode !== 'edit' ||
             !product ||
-            !attributeDefinitionsLoaded ||
-            initializedProductId.current === product.id
+            !attributeDefinitionsLoaded
         ) {
             return;
         }
 
-        form.reset(
-            toValues(product, attributes),
+        const initializationKey =
+            `${mode}:${product.id}`;
+
+        if (
+            initializedProductId.current ===
+            initializationKey
+        ) {
+            return;
+        }
+
+        // ابتدا مشخصات کامل را با کاتالوگ فعلی بازسازی می‌کنیم.
+        const nextValues = toValues(
+            product,
+            attributes,
         );
 
-        initializedProductId.current = product.id;
+        if (mode === 'create') {
+            const baseSku =
+                initialSku?.trim() ?? '';
+
+            nextValues.sku = baseSku;
+
+            // وضعیت اولیه محصول جدید.
+            nextValues.isActive = true;
+            nextValues.isPublished = true;
+            nextValues.isFeatured = false;
+
+            // تمام SKUهای جدید از روی SKU اصلی ساخته می‌شوند.
+            nextValues.variants =
+                nextValues.variants.map(variant => ({
+                    ...variant,
+
+                    // شناسه تنوع محصول قبلی استفاده نمی‌شود.
+                    id: undefined,
+
+                    sku: buildCopiedVariantSku(
+                        baseSku,
+                        variant,
+                        nextValues.variantAttributeIds,
+                        attributes,
+                    ),
+
+                    // موجودی محصول جدید صفر است.
+                    stockQuantity: 0,
+                }));
+        }
+
+        form.reset(nextValues);
+
+        initializedProductId.current =
+            initializationKey;
+
     }, [
         mode,
         product,
+        initialSku,
         attributeDefinitionsLoaded,
         attributes,
         form,
@@ -3500,8 +3794,13 @@ const hasDuplicateVariantCombination =
                         'productEdit.messages.updated',
                     ),
 
-            onSuccess:
-                onCancel,
+            onSuccess: result => {
+                if (onSuccess) {
+                    onSuccess(result);
+                } else {
+                    onCancel();
+                }
+            },
 
             transform:
                 (
@@ -3555,6 +3854,11 @@ const hasDuplicateVariantCombination =
                                     priceOverride:
                                         variant.priceOverride,
 
+                                    comparePrice:
+                                        variant.comparePrice ?? undefined,
+
+                                    
+
                                     /*
                                      * New Variant stock always starts at 0.
                                      * Inventory becomes the stock source.
@@ -3593,9 +3897,14 @@ const hasDuplicateVariantCombination =
                                     priceOverride:
                                         undefined,
 
+                                    comparePrice:
+                                        values.comparePrice ?? null,
+
                                     stockQuantity:
                                         0,
+
                                     isActive: true,
+
                                     attributeValueIds:
                                         [],
                                 },
@@ -3616,7 +3925,14 @@ const hasDuplicateVariantCombination =
                                 values.currency
                                     .trim() ||
                                 'IRR',
+                            comparePrice:
+                                values.comparePrice ?? null,
 
+                            discountPercentage:
+                                values.discountPercentage ?? null,
+
+                            manufacturerId:
+                                values.manufacturerId || undefined,
                             sku:
                                 values.sku
                                     ?.trim() ||
@@ -3641,17 +3957,11 @@ const hasDuplicateVariantCombination =
                                 values.categoryIds,
 
                             variants,
-
                             images:
-                                values.images
-                                    .map(
-                                        image =>
-                                            image.imageUrl
-                                                .trim(),
-                                    )
-                                    .filter(
-                                        Boolean,
-                                    ),
+                                getOrderedImageUrls(
+                                    values.images,
+                                ),
+                           
                         } satisfies CreateProductDto;
                     }
 
@@ -3696,7 +4006,9 @@ const hasDuplicateVariantCombination =
                                     priceOverride:
                                         variant.priceOverride ??
                                         null,
-
+                                    comparePrice:
+                                        variant.comparePrice ??
+                                        null,
                                     isActive:
                                         variant.isActive,
 
@@ -3735,7 +4047,8 @@ const hasDuplicateVariantCombination =
                         comparePrice:
                             values.comparePrice ??
                             null,
-
+                        manufacturerId:
+                            values.manufacturerId || null,
                         discountPercentage:
                             values.discountPercentage ??
                             null,
@@ -3743,7 +4056,7 @@ const hasDuplicateVariantCombination =
                         brandId:
                             values.brandId ||
                             null,
-
+                       
                         categoryIds:
                             values.categoryIds,
                         recommendedProductIds:
@@ -3779,6 +4092,7 @@ const hasDuplicateVariantCombination =
         addVariant({
             sku: '',
             priceOverride: undefined,
+            comparePrice: null,
             stockQuantity: 0,
             isActive: true,
             attributeValueIds: [],
@@ -3910,12 +4224,12 @@ const hasDuplicateVariantCombination =
                                         </FormLabel>
 
                                         <FormControl>
-                                            <Input
+                                            <Input 
                                                 {...field}
                                                 placeholder={t(
                                                     'productEdit.fields.productSku',
                                                 )}
-                                            />
+                                                disabled={isCopyMode} />
                                         </FormControl>
 
                                         <FormMessage />
