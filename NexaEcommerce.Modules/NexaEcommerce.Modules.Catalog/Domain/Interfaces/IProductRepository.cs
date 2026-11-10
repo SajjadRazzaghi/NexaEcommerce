@@ -2,8 +2,12 @@ using NexaEcommerce.Modules.Catalog.Domain.Entities;
 
 namespace NexaEcommerce.Modules.Catalog.Domain.Interfaces;
 
+public sealed record ProductVariantStockLink(
+    Guid ProductId,
+    Guid VariantId);
 public interface IProductRepository
 {
+
     Task<bool> SoftDeleteVariantAsync(
     Guid variantId,
     CancellationToken cancellationToken = default);
@@ -48,7 +52,9 @@ public interface IProductRepository
         string slug,
         Guid? excludeId = null,
         CancellationToken cancellationToken = default);
-
+    Task<IReadOnlyList<ProductVariantStockLink>>
+    GetPublicProductVariantLinksAsync(
+        CancellationToken cancellationToken = default);
     Task<IEnumerable<Product>> GetAllAsync(
         CancellationToken cancellationToken = default);
 
@@ -80,7 +86,7 @@ public interface IProductRepository
         bool includeUnpublished = false,
         string? sortBy = null,
         bool desc = false,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,IReadOnlyCollection<Guid> ? inStockProductIds = null);
 
     Task AddAsync(
         Product product,

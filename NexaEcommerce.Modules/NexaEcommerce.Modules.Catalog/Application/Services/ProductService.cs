@@ -170,8 +170,57 @@ public sealed class ProductService : IProductService
         bool includeUnpublished = false,
         string? sortBy = null,
         bool desc = false,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        bool prioritizeInStock = false)
     {
+        IReadOnlyCollection<Guid>? inStockProductIds = null;
+
+        IReadOnlyDictionary<Guid, int>? liveStockQuantities = null;
+
+        if (prioritizeInStock)
+        {
+            /*
+             * فقط شناسه محصول و تنوع‌های فعال محصولات عمومی
+             * دریافت می‌شود؛ بدون بارگذاری تصاویر و جزئیات کامل.
+             */
+
+            var stockLinks =
+                await _productRepository.GetPublicProductVariantLinksAsync(
+                    cancellationToken);
+
+            var variantIds =
+                stockLinks
+                    .Select(x => x.VariantId)
+                    .Distinct()
+                    .ToArray();
+
+            var availableQuantities =
+                variantIds.Length == 0
+                    ? new Dictionary<Guid, int>()
+                    : await _productStockReader.GetAvailableQuantitiesAsync(
+                        variantIds,
+                        cancellationToken);
+
+            liveStockQuantities =
+                availableQuantities;
+
+            /*
+             * یک محصول وقتی موجود محسوب می‌شود که
+             * حداقل یکی از تنوع‌های فعال آن موجودی مثبت داشته باشد.
+             */
+
+            inStockProductIds =
+                stockLinks
+                    .Where(link =>
+                        availableQuantities.TryGetValue(
+                            link.VariantId,
+                            out var quantity) &&
+                        quantity > 0)
+                    .Select(link => link.ProductId)
+                    .Distinct()
+                    .ToArray();
+        }
+
         var result =
             await _productRepository.GetPagedAsync(
                 page,
@@ -189,11 +238,44 @@ public sealed class ProductService : IProductService
                 includeUnpublished,
                 sortBy,
                 desc,
-                cancellationToken);
+                cancellationToken,
+                inStockProductIds);
 
         var items =
             _mapper.Map<IReadOnlyList<ProductDto>>(
                 result.Items);
+
+        /*
+         * موجودی واقعی را از همان داده‌ای که برای مرتب‌سازی
+         * دریافت کردیم، روی تنوع‌های صفحه جاری قرار می‌دهیم.
+         *
+         * بنابراین برای هر صفحه دوباره موجودی انبار خوانده نمی‌شود.
+         */
+
+        if (liveStockQuantities is not null)
+        {
+            foreach (var product in items)
+            {
+                foreach (var variant in product.Variants)
+                {
+                    variant.StockQuantity =
+                        variant.IsActive &&
+                        liveStockQuantities.TryGetValue(
+                            variant.Id,
+                            out var quantity)
+                            ? Math.Max(0, quantity)
+                            : 0;
+                }
+
+                product.StockQuantity =
+                    product.Variants
+                        .Where(x => x.IsActive)
+                        .Sum(x => x.StockQuantity);
+
+                product.IsInStock =
+                    product.StockQuantity > 0;
+            }
+        }
 
         return PagedResult<ProductDto>.Create(
             items,
@@ -201,7 +283,6 @@ public sealed class ProductService : IProductService
             pageSize,
             result.TotalItems);
     }
-
     public async Task<IEnumerable<ProductDto>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {

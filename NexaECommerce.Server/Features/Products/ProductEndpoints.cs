@@ -222,22 +222,20 @@ public sealed class ProductEndpoints : IFeatureEndpoints
         return Results.Ok(recommendations);
     }
     private static async Task<IResult> List(
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20,
-        [FromQuery] string? search = null,
-        [FromQuery] string? sortBy = null,
-        [FromQuery] string? categoryId = null,
-        [FromQuery] string? brandId = null,
-        [FromQuery] decimal? minPrice = null,
-        [FromQuery] decimal? maxPrice = null,
-        [FromQuery] bool? isFeatured = null,
-        [FromQuery] bool? isInStock = null,
-        [FromQuery] bool? isActive = null,
-        [FromQuery] bool desc = false,
-        IProductService productService = null!,
-        IStockReader stockReader = null!,
-        ICurrentTenant currentTenant = null!,
-        CancellationToken ct = default)
+      [FromQuery] int page = 1,
+      [FromQuery] int pageSize = 20,
+      [FromQuery] string? search = null,
+      [FromQuery] string? sortBy = null,
+      [FromQuery] string? categoryId = null,
+      [FromQuery] string? brandId = null,
+      [FromQuery] decimal? minPrice = null,
+      [FromQuery] decimal? maxPrice = null,
+      [FromQuery] bool? isFeatured = null,
+      [FromQuery] bool? isInStock = null,
+      [FromQuery] bool? isActive = null,
+      [FromQuery] bool desc = false,
+      IProductService productService = null!,
+      CancellationToken ct = default)
     {
         if (!TryParseOptionalGuid(
                 categoryId,
@@ -261,22 +259,15 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 });
         }
 
-        page = Math.Max(
-            1,
-            page);
+        page = Math.Max(1, page);
 
-        pageSize = Math.Clamp(
-            pageSize,
-            1,
-            100);
+        pageSize = Math.Clamp(pageSize, 1, 100);
 
         /*
-         * Catalog owns product metadata.
+         * موجودی واقعی از Inventory خوانده می‌شود.
          *
-         * Inventory owns sellable stock.
-         *
-         * Do not let the legacy Catalog stock flag hide products
-         * before the live Inventory quantities are evaluated.
+         * اولویت نمایش محصولات موجود قبل از ناموجودها
+         * در ProductService و قبل از صفحه‌بندی اعمال می‌شود.
          */
         var result =
             await productService.GetPagedAsync(
@@ -288,138 +279,71 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 minPrice,
                 maxPrice,
                 isFeatured,
-                isInStock.HasValue
-                    ? null
-                    : null,
+                isInStock,
                 isActive,
                 isPublished: true,
                 includeInactive: false,
                 includeUnpublished: false,
                 sortBy: sortBy,
                 desc: desc,
-                cancellationToken: ct);
-
-        var variantIds =
-            result.Items
-                .SelectMany(
-                    x => x.Variants)
-                .Where(
-                    x => x.IsActive)
-                .Select(
-                    x => x.Id)
-                .Distinct()
-                .ToArray();
-
-        var stockQuantities =
-            variantIds.Length == 0
-                ? new Dictionary<Guid, int>()
-                : (
-                    await stockReader.GetAvailableQuantitiesAsync(
-                        currentTenant.Id,
-                        variantIds,
-                        ct)
-                ).ToDictionary(
-                    x => x.Key,
-                    x => Math.Max(
-                        0,
-                        x.Value));
+                cancellationToken: ct,
+                prioritizeInStock: true);
 
         var items =
             result.Items
-                .Select(
-                    p =>
-                    {
-                        var stockQuantity =
-                            p.Variants
-                                .Where(
-                                    v => v.IsActive)
-                                .Sum(
-                                    v =>
-                                        stockQuantities.TryGetValue(
-                                            v.Id,
-                                            out var quantity)
-                                            ? quantity
-                                            : 0);
+                .Select(p => new
+                {
+                    id = p.Id,
+                    name = p.Name,
+                    sku = p.Sku,
+                    slug = p.Slug,
+                    price = p.Price,
+                    comparePrice = p.ComparePrice,
+                    finalPrice = p.FinalPrice,
+                    discountPercentage = p.DiscountPercentage,
+                    currency = p.Currency,
+                    brandId = p.BrandId,
+                    brandName = p.BrandName,
+                    isActive = p.IsActive,
+                    isFeatured = p.IsFeatured,
+                    isPublished = p.IsPublished,
 
-                        return new
-                        {
-                            id = p.Id,
-                            name = p.Name,
-                            sku = p.Sku,
-                            slug = p.Slug,
-                            price = p.Price,
-                            comparePrice = p.ComparePrice,
-                            finalPrice = p.FinalPrice,
-                            discountPercentage =
-                                p.DiscountPercentage,
-                            currency = p.Currency,
-                            brandId = p.BrandId,
-                            brandName = p.BrandName,
-                            isActive = p.IsActive,
-                            isFeatured = p.IsFeatured,
-                            isPublished = p.IsPublished,
-                            isInStock =
-                                stockQuantity > 0,
-                            stockQuantity,
-                            mainImage =
-                                p.Images
-                                    .FirstOrDefault(
-                                        i =>
-                                            i.IsPrimary)
-                                    ?.ImageUrl
-                                ??
-                                p.Images
-                                    .FirstOrDefault()
-                                    ?.ImageUrl,
-                            categoryNames =
-                                p.Categories,
-                            categoryIds =
-                                p.CategoryIds,
-                            createdAt =
-                                p.CreatedAt
-                        };
-                    })
-                .Where(
-                    item =>
-                        !isInStock.HasValue ||
-                        (isInStock.Value
-                            ? item.isInStock
-                            : !item.isInStock))
+                    // موجودی واقعی محاسبه‌شده در ProductService
+                    isInStock = p.IsInStock,
+                    stockQuantity = p.StockQuantity,
+
+                    mainImage =
+                        p.Images
+                            .FirstOrDefault(i => i.IsPrimary)
+                            ?.ImageUrl
+                        ??
+                        p.Images
+                            .FirstOrDefault()
+                            ?.ImageUrl,
+
+                    categoryNames = p.Categories,
+                    categoryIds = p.CategoryIds,
+                    createdAt = p.CreatedAt
+                })
                 .ToList();
 
-        /*
-         * The inventory-aware filter is evaluated after live stock
-         * has been calculated.
-         *
-         * For the normal storefront path this is not relevant unless
-         * the user explicitly asks for in-stock/out-of-stock products.
-         */
-        var filteredTotal =
-            isInStock.HasValue
-                ? items.Count
-                : result.TotalItems;
-
         var totalPages =
-            filteredTotal == 0
+            result.TotalItems == 0
                 ? 0
                 : (int)Math.Ceiling(
-                    filteredTotal /
+                    result.TotalItems /
                     (double)pageSize);
 
         return Results.Ok(
             new
             {
                 items,
-                total =
-                    filteredTotal,
-                page =
-                    result.Page,
-                pageSize =
-                    result.PageSize,
+                total = result.TotalItems,
+                page = result.Page,
+                pageSize,
                 totalPages
             });
     }
-
     private static async Task<IResult> AdminList(
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
@@ -609,11 +533,11 @@ public sealed class ProductEndpoints : IFeatureEndpoints
     }
 
     private static async Task<IResult> Get(
-        Guid id,
-        [FromServices] IProductService productService,
-        [FromServices] IStockReader stockReader,
-        [FromServices] ICurrentTenant currentTenant,
-        CancellationToken ct)
+      Guid id,
+      [FromServices] IProductService productService,
+      [FromServices] IStockReader stockReader,
+      [FromServices] ICurrentTenant currentTenant,
+      CancellationToken ct)
     {
         var product =
             await productService.GetByIdAsync(
@@ -635,10 +559,8 @@ public sealed class ProductEndpoints : IFeatureEndpoints
             currentTenant.Id,
             ct);
 
-        return Results.Ok(
-            product);
+        return Results.Ok(product);
     }
-
     private static async Task<IResult> GetByCategory(
         Guid categoryId,
         [FromServices] IProductService productService,

@@ -256,16 +256,17 @@ export default function StoreHeader() {
                     </form>
 
                     {/* Actions */}
-                    <div className="ms-auto flex shrink-0 items-center gap-2">
+                    <div className="ms-auto flex shrink-0 items-center gap-1 sm:gap-2">
 
-                        <LanguageToggle />
-
-                        <ModeToggle />
-
+                        {/* تنظیمات زبان و پوسته در دسکتاپ */}
+                        <div className="hidden items-center gap-1 sm:flex">
+                            <LanguageToggle />
+                            <ModeToggle />
+                        </div>
                         {/* Saved favorites */}
                         <Link
                             to="/favorites"
-                            className="relative flex size-11 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                            className="relative flex size-10 shrink-0 items-center justify-center rounded-xl border border-border text-muted-foreground transition hover:border-primary/40 hover:bg-primary/5 hover:text-primary sm:size-11"
                             aria-label={isFa ? 'علاقه‌مندی‌های من' : 'My favorites'}
                             title={isFa ? 'علاقه‌مندی‌های من' : 'My favorites'}
                         >
@@ -281,40 +282,76 @@ export default function StoreHeader() {
                         {isAuthenticated ? (
                             <Link
                                 to="/profile"
-                                className="hidden h-11 items-center gap-2 rounded-xl border border-border px-3 transition hover:border-primary/40 hover:bg-primary/5 sm:flex"
+                                aria-label={text.profile}
+                                title={text.profile}
+                                className="
+            flex h-10 w-10 shrink-0
+            items-center justify-center
+            rounded-xl border border-border
+            transition
+            hover:border-primary/40
+            hover:bg-primary/5
+            sm:h-11 sm:w-auto
+            sm:justify-start sm:gap-2 sm:px-3
+        "
                             >
                                 {user?.avatarUrl?.trim() ? (
                                     <img
                                         src={user.avatarUrl}
                                         alt=""
-                                        className="size-8 rounded-full object-cover"
+                                        className="size-7 rounded-full object-cover sm:size-8"
                                     />
                                 ) : (
-                                    <span className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-primary">
+                                    <span className="
+                flex size-7 items-center justify-center
+                rounded-full bg-primary/10 text-primary
+                sm:size-8
+            ">
                                         <UserRound className="size-4" />
                                     </span>
                                 )}
 
-                                <span className="max-w-28 truncate text-xs font-bold text-foreground">
+                                <span className="
+            hidden max-w-28 truncate
+            text-xs font-bold text-foreground
+            sm:block
+        ">
                                     {userName}
                                 </span>
                             </Link>
                         ) : authLoading ? (
-                            <div className="hidden h-11 w-28 animate-pulse rounded-xl bg-muted sm:block" />
+                            <div className="
+        h-10 w-10 shrink-0 animate-pulse
+        rounded-xl bg-muted
+        sm:h-11 sm:w-28
+    " />
                         ) : (
                             <Link
                                 to="/login"
-                                className="hidden h-11 items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-4 text-sm font-bold text-primary transition hover:bg-primary/10 sm:flex"
+                                aria-label={text.login}
+                                title={text.login}
+                                className="
+            flex h-10 w-10 shrink-0
+            items-center justify-center
+            rounded-xl border border-primary/30
+            bg-primary/5 text-primary
+            transition hover:bg-primary/10
+            sm:h-11 sm:w-auto
+            sm:gap-2 sm:px-4
+        "
                             >
                                 <UserRound className="size-4" />
-                                {text.login}
+
+                                <span className="hidden text-sm font-bold sm:inline">
+                                    {text.login}
+                                </span>
                             </Link>
                         )}
 
                         {/* Cart */}
                         <Link
                             to="/cart"
-                            className={`relative flex size-11 shrink-0 items-center justify-center rounded-xl border transition ${hasCartItems
+                            className={`relative flex size-10 sm:size-11 shrink-0 items-center justify-center rounded-xl border transition ${hasCartItems
                                 ? 'border-primary/30 bg-primary/5 text-primary'
                                 : 'border-border text-muted-foreground hover:bg-accent'
                                 }`}
@@ -450,7 +487,21 @@ export default function StoreHeader() {
             {mobileMenuOpen && (
                 <div className="border-t border-border bg-popover px-4 py-4 shadow-lg lg:hidden">
                     <div className="space-y-1">
+                        {/* تنظیمات زبان و پوسته در موبایل */}
+                        <div className="
+    mb-3 flex items-center justify-between
+    rounded-xl bg-muted/50 px-3 py-2
+    sm:hidden
+">
+                            <span className="text-xs font-semibold text-muted-foreground">
+                                {isFa ? 'تنظیمات نمایش' : 'Display settings'}
+                            </span>
 
+                            <div className="flex items-center gap-1">
+                                <LanguageToggle />
+                                <ModeToggle />
+                            </div>
+                        </div>
                         <Link
                             to="/favorites"
                             onClick={() => setMobileMenuOpen(false)}

@@ -918,7 +918,24 @@ public sealed class ProductRepository : IProductRepository
             .ToListAsync(
                 cancellationToken);
     }
-
+    public async Task<IReadOnlyList<ProductVariantStockLink>>
+    GetPublicProductVariantLinksAsync(
+        CancellationToken cancellationToken = default)
+    {
+        return await _context.ProductVariants
+            .AsNoTracking()
+            .Where(variant =>
+                variant.IsActive &&
+                !variant.IsDeleted &&
+                !variant.Product.IsDeleted &&
+                variant.Product.IsActive &&
+                variant.Product.IsPublished)
+            .Select(variant =>
+                new ProductVariantStockLink(
+                    variant.ProductId,
+                    variant.Id))
+            .ToListAsync(cancellationToken);
+    }
     // ============================================================
     // Get By Category
     // ============================================================
@@ -1098,7 +1115,7 @@ public sealed class ProductRepository : IProductRepository
         bool includeUnpublished = false,
         string? sortBy = null,
         bool desc = false,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, IReadOnlyCollection<Guid>? inStockProductIds = null)
     {
         page =
             Math.Max(
@@ -1222,27 +1239,43 @@ public sealed class ProductRepository : IProductRepository
                         p.IsFeatured ==
                         isFeatured.Value);
         }
-
+        var liveInStockProductIds =
+ inStockProductIds?
+     .Distinct()
+     .ToArray();
         // --------------------------------------------------------
         // Stock
         // --------------------------------------------------------
 
         if (isInStock.HasValue)
         {
-            query =
-                isInStock.Value
-                    ? query.Where(
-                        p =>
-                            p.Variants.Any(
-                                v =>
-                                    v.IsActive &&
-                                    v.StockQuantity > 0))
-                    : query.Where(
-                        p =>
-                            !p.Variants.Any(
-                                v =>
-                                    v.IsActive &&
-                                    v.StockQuantity > 0));
+            if (liveInStockProductIds is not null)
+            {
+                query =
+                    isInStock.Value
+                        ? query.Where(
+                            p => liveInStockProductIds.Contains(p.Id))
+                        : query.Where(
+                            p => !liveInStockProductIds.Contains(p.Id));
+            }
+            else
+            {
+                // رفتار قبلی برای سایر مصرف‌کنندگان Repository
+                query =
+                    isInStock.Value
+                        ? query.Where(
+                            p =>
+                                p.Variants.Any(
+                                    v =>
+                                        v.IsActive &&
+                                        v.StockQuantity > 0))
+                        : query.Where(
+                            p =>
+                                !p.Variants.Any(
+                                    v =>
+                                        v.IsActive &&
+                                        v.StockQuantity > 0));
+            }
         }
 
         // --------------------------------------------------------
@@ -1279,52 +1312,119 @@ public sealed class ProductRepository : IProductRepository
         // Sort
         // --------------------------------------------------------
 
-        query =
+        var normalizedSortBy =
             sortBy?
                 .Trim()
-                .ToLowerInvariant() switch
-            {
-                "price_asc" =>
-                    desc
-                        ? query.OrderByDescending(
-                            p => p.Price)
-                        : query.OrderBy(
-                            p => p.Price),
+                .ToLowerInvariant();
 
-                "price_desc" =>
-                    desc
-                        ? query.OrderBy(
-                            p => p.Price)
-                        : query.OrderByDescending(
-                            p => p.Price),
+        if (liveInStockProductIds is not null)
+        {
+            /*
+             * اولویت اول:
+             * محصولات دارای موجودی واقعی انبار.
+             *
+             * اولویت دوم:
+             * ترتیب انتخابی کاربر.
+             */
 
-                "name" =>
-                    desc
-                        ? query.OrderByDescending(
-                            p => p.Name)
-                        : query.OrderBy(
-                            p => p.Name),
+            var availabilityOrdered =
+                query.OrderByDescending(
+                    p => liveInStockProductIds.Contains(p.Id));
 
-                "popular" =>
-                    desc
-                        ? query.OrderBy(
-                            p =>
-                                p.Reviews.Count(
-                                    r =>
-                                        r.IsApproved))
-                        : query.OrderByDescending(
-                            p =>
-                                p.Reviews.Count(
-                                    r =>
-                                        r.IsApproved)),
+            query =
+                normalizedSortBy switch
+                {
+                    "price_asc" =>
+                        desc
+                            ? availabilityOrdered.ThenByDescending(
+                                p => p.Price)
+                            : availabilityOrdered.ThenBy(
+                                p => p.Price),
 
-                _ =>
-                    desc
-                        ? query.OrderBy(
-                            p => p.CreatedAt)
-                        : query.OrderByDescending(
-                            p => p.CreatedAt)
-            };
+                    "price_desc" =>
+                        desc
+                            ? availabilityOrdered.ThenBy(
+                                p => p.Price)
+                            : availabilityOrdered.ThenByDescending(
+                                p => p.Price),
+
+                    "name" =>
+                        desc
+                            ? availabilityOrdered.ThenByDescending(
+                                p => p.Name)
+                            : availabilityOrdered.ThenBy(
+                                p => p.Name),
+
+                    "popular" =>
+                        desc
+                            ? availabilityOrdered.ThenBy(
+                                p =>
+                                    p.Reviews.Count(
+                                        r => r.IsApproved))
+                            : availabilityOrdered.ThenByDescending(
+                                p =>
+                                    p.Reviews.Count(
+                                        r => r.IsApproved)),
+
+                    _ =>
+                        desc
+                            ? availabilityOrdered.ThenBy(
+                                p => p.CreatedAt)
+                            : availabilityOrdered.ThenByDescending(
+                                p => p.CreatedAt)
+                };
+        }
+        else
+        {
+            // مرتب‌سازی قبلی برای پنل مدیریت و سایر مصرف‌کنندگان
+
+            query =
+                normalizedSortBy switch
+                {
+                    "price_asc" =>
+                        desc
+                            ? query.OrderByDescending(
+                                p => p.Price)
+                            : query.OrderBy(
+                                p => p.Price),
+
+                    "price_desc" =>
+                        desc
+                            ? query.OrderBy(
+                                p => p.Price)
+                            : query.OrderByDescending(
+                                p => p.Price),
+
+                    "name" =>
+                        desc
+                            ? query.OrderByDescending(
+                                p => p.Name)
+                            : query.OrderBy(
+                                p => p.Name),
+
+                    "popular" =>
+                        desc
+                            ? query.OrderBy(
+                                p =>
+                                    p.Reviews.Count(
+                                        r => r.IsApproved))
+                            : query.OrderByDescending(
+                                p =>
+                                    p.Reviews.Count(
+                                        r => r.IsApproved)),
+
+                    _ =>
+                        desc
+                            ? query.OrderBy(
+                                p => p.CreatedAt)
+                            : query.OrderByDescending(
+                                p => p.CreatedAt)
+                };
+        }
+
+        // ترتیب قطعی برای جلوگیری از جابه‌جایی نامنظم محصولات هم‌رتبه
+        query = ((IOrderedQueryable<Product>)query)
+            .ThenBy(p => p.Id);
 
         // --------------------------------------------------------
         // Total

@@ -21,7 +21,7 @@ public interface IProductService
         bool includeUnpublished = false,
         string? sortBy = null,
         bool desc = false,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default, bool prioritizeInStock = false);
 
     Task<IEnumerable<ProductDto>> GetAllAsync(
         CancellationToken cancellationToken = default);

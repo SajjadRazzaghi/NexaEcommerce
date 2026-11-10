@@ -34,27 +34,33 @@ public sealed class InventoryAwareProductService(
         bool includeUnpublished = false,
         string? sortBy = null,
         bool desc = false,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default, bool prioritizeInStock = false)
     {
         var result = await inner.GetPagedAsync(
-            page,
-            pageSize,
-            search,
-            categoryId,
-            brandId,
-            minPrice,
-            maxPrice,
-            isFeatured,
-            isInStock,
-            isActive,
-            isPublished,
-            includeInactive,
-            includeUnpublished,
-            sortBy,
-            desc,
-            cancellationToken);
+      page,
+      pageSize,
+      search,
+      categoryId,
+      brandId,
+      minPrice,
+      maxPrice,
+      isFeatured,
+      isInStock,
+      isActive,
+      isPublished,
+      includeInactive,
+      includeUnpublished,
+      sortBy,
+      desc,
+      cancellationToken,
+      prioritizeInStock);
 
-        await ApplyInventoryStockAsync(result.Items, cancellationToken);
+        if (!prioritizeInStock)
+        {
+            await ApplyInventoryStockAsync(
+                result.Items,
+                cancellationToken);
+        }
         return result;
     }
 
