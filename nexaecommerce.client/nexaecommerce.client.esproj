@@ -16,4 +16,9 @@
     <Folder Include="src\locales\NewFolder\" />
     <Folder Include="src\modules\cart\store\cartSlice\" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="C:\Users\ASUS\Desktop\ddd.zip">
+      <Link>ddd.zip</Link>
+    </None>
+  </ItemGroup>
 </Project>
