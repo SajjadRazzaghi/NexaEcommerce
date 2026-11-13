@@ -212,7 +212,16 @@ function safeNumber(value: number | null): number {
 // ---------------------------------------------------------
 // Product helpers
 // ---------------------------------------------------------
+function getDefaultLabelQuantity(variant: ProductVariant): number {
+    const stock = Math.floor(variant.stockQuantity ?? 0);
 
+    if (!Number.isFinite(stock)) {
+        return 0;
+    }
+
+    // محدودیت فعلی صفحه: حداکثر ۵۰۰ برچسب برای هر تنوع
+    return Math.max(0, Math.min(500, stock));
+}
 function variantDescription(variant: ProductVariant): string {
     const values = (variant.attributes ?? [])
         .map((attribute) => {
@@ -744,7 +753,8 @@ export default function BarcodeLabelsPage() {
         const selected = variants.filter(
             (variant) =>
                 variant.isActive &&
-                (quantities[variant.id] ?? 0) > 0,
+                (quantities[variant.id] ??
+                    getDefaultLabelQuantity(variant)) > 0,
         );
 
         if (selected.length === 0) {
@@ -764,10 +774,12 @@ export default function BarcodeLabelsPage() {
                     1,
                     Math.min(
                         500,
-                        Math.floor(quantities[variant.id] ?? 1),
+                        Math.floor(
+                            quantities[variant.id] ??
+                            getDefaultLabelQuantity(variant),
+                        ),
                     ),
                 );
-
                 const barcode =
                     variant.barcode?.trim() ||
                     (
@@ -831,7 +843,15 @@ export default function BarcodeLabelsPage() {
 
                 return next;
             });
+            setQuantities(current => {
+                const next = { ...current };
 
+                for (const line of preparedLines) {
+                    next[line.variantId] = 0;
+                }
+
+                return next;
+            });
             toast.success(
                 `${preparedLines.length} تنوع به فهرست چاپ اضافه شد.`,
             );
@@ -1783,7 +1803,10 @@ export default function BarcodeLabelsPage() {
                                                                 step="1"
                                                                 min="0"
                                                                 max="500"
-                                                                value={quantities[variant.id] ?? 0}
+                                                                value={
+                                                                    quantities[variant.id] ??
+                                                                    getDefaultLabelQuantity(variant)
+                                                                }
                                                                 disabled={!variant.isActive}
                                                                 onChange={(event) => {
                                                                     const raw = event.target.value;
@@ -1833,7 +1856,8 @@ export default function BarcodeLabelsPage() {
                                                 !variants.some(
                                                     (variant) =>
                                                         variant.isActive &&
-                                                        (quantities[variant.id] ?? 0) > 0,
+                                                        (quantities[variant.id] ??
+                                                            getDefaultLabelQuantity(variant)) > 0,
                                                 )
                                             }
                                         >
