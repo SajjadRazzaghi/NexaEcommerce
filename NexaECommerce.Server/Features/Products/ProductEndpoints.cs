@@ -181,18 +181,34 @@ public sealed class ProductEndpoints : IFeatureEndpoints
                 });
         }
 
+        // ------------------------------------------------------------
+        // Collect recommendations from both directions.
+        //
+        // 1. Products that recommend the current product.
+        // 2. Products explicitly recommended by the current product.
+        //
+        // Reverse recommendations are placed first so that they are
+        // not hidden behind the current product's own recommendation list.
+        // ------------------------------------------------------------
+
+        var incomingRecommendationIds =
+            await productService.GetRecommendingProductIdsAsync(
+                id,
+                take: 12,
+                cancellationToken: ct);
+
+        var candidateIds =
+            incomingRecommendationIds
+                .Concat(sourceProduct.RecommendedProductIds)
+                .Where(recommendedId => recommendedId != id)
+                .Distinct()
+                .Take(24)
+                .ToList();
+
         var recommendations = new List<ProductDto>();
 
-        foreach (var recommendedId in
-                 sourceProduct.RecommendedProductIds
-                     .Distinct()
-                     .Take(12))
+        foreach (var recommendedId in candidateIds)
         {
-            if (recommendedId == id)
-            {
-                continue;
-            }
-
             var recommendedProduct =
                 await productService.GetByIdAsync(
                     recommendedId,
@@ -217,9 +233,16 @@ public sealed class ProductEndpoints : IFeatureEndpoints
             }
 
             recommendations.Add(recommendedProduct);
+
+            // Preserve the existing maximum response size.
+            if (recommendations.Count >= 12)
+            {
+                break;
+            }
         }
 
         return Results.Ok(recommendations);
+
     }
     private static async Task<IResult> List(
       [FromQuery] int page = 1,

@@ -14,6 +14,10 @@ public interface IProductRepository
     Task<Product?> GetByIdAsync(
     Guid id,
     CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Guid>> GetRecommendingProductIdsAsync(
+    Guid recommendedProductId,
+    int take = 12,
+    CancellationToken cancellationToken = default); 
     Task AddVariantAsync(
       ProductVariant variant,
       CancellationToken cancellationToken = default);

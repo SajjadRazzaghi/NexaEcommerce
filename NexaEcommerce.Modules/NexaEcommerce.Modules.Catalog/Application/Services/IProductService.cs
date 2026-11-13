@@ -22,7 +22,10 @@ public interface IProductService
         string? sortBy = null,
         bool desc = false,
         CancellationToken cancellationToken = default, bool prioritizeInStock = false);
-
+    Task<IReadOnlyList<Guid>> GetRecommendingProductIdsAsync(
+    Guid recommendedProductId,
+    int take = 12,
+    CancellationToken cancellationToken = default);
     Task<IEnumerable<ProductDto>> GetAllAsync(
         CancellationToken cancellationToken = default);
     Task<string> EnsureVariantBarcodeAsync(

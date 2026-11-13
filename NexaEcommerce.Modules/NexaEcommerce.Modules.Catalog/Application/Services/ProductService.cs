@@ -283,6 +283,16 @@ public sealed class ProductService : IProductService
             pageSize,
             result.TotalItems);
     }
+    public Task<IReadOnlyList<Guid>> GetRecommendingProductIdsAsync(
+    Guid recommendedProductId,
+    int take = 12,
+    CancellationToken cancellationToken = default)
+    {
+        return _productRepository.GetRecommendingProductIdsAsync(
+            recommendedProductId,
+            take,
+            cancellationToken);
+    }
     public async Task<IEnumerable<ProductDto>> GetAllAsync(
         CancellationToken cancellationToken = default)
     {

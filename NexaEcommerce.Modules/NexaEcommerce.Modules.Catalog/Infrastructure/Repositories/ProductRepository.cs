@@ -602,6 +602,50 @@ public sealed class ProductRepository : IProductRepository
             }
         }
     }
+    public async Task<IReadOnlyList<Guid>> GetRecommendingProductIdsAsync(
+    Guid recommendedProductId,
+    int take = 12,
+    CancellationToken cancellationToken = default)
+    {
+        if (recommendedProductId == Guid.Empty || take <= 0)
+        {
+            return Array.Empty<Guid>();
+        }
+
+        var effectiveTake = Math.Min(take, 12);
+
+        /*
+         * RecommendedProductIds is stored as JSON through a ValueConverter.
+         *
+         * To keep this query compatible with both SQL Server and SQLite,
+         * load only the required columns and perform the membership check
+         * after materialization.
+         *
+         * No product navigation or heavy aggregate is loaded here.
+         */
+        var candidates = await _context.Products
+            .AsNoTracking()
+            .Where(product =>
+                !product.IsDeleted &&
+                product.IsActive &&
+                product.IsPublished &&
+                product.Id != recommendedProductId)
+            .OrderByDescending(product => product.CreatedAt)
+            .Select(product => new
+            {
+                product.Id,
+                product.RecommendedProductIds
+            })
+            .ToListAsync(cancellationToken);
+
+        return candidates
+            .Where(product =>
+                product.RecommendedProductIds.Contains(
+                    recommendedProductId))
+            .Select(product => product.Id)
+            .Take(effectiveTake)
+            .ToArray();
+    }
     public async Task<Product?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default)

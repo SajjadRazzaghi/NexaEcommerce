@@ -81,6 +81,16 @@ public sealed class InventoryAwareProductService(
             variantId,
             cancellationToken);
     }
+    public Task<IReadOnlyList<Guid>> GetRecommendingProductIdsAsync(
+    Guid recommendedProductId,
+    int take = 12,
+    CancellationToken cancellationToken = default)
+    {
+        return inner.GetRecommendingProductIdsAsync(
+            recommendedProductId,
+            take,
+            cancellationToken);
+    }
     public async Task<ProductDto?> GetByIdAsync(
         Guid id,
         CancellationToken cancellationToken = default)
